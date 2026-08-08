@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "../..");
@@ -33,15 +33,45 @@ describe("PR227 final unified backend stack independent review", () => {
     const appliedOutOfManifest = promotion.filter(
       ({ order, apply_status }) => order >= 28 && apply_status !== "NOT_APPLIED",
     );
-    expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28, 29]);
+    expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28, 29, 30]);
     for (const entry of appliedOutOfManifest) {
       expect(entry.migration).toBeTruthy();
       expect(sha256Lf(entry.migration)).toBe(entry.migration_sha_lf);
       expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
     }
-    // Nothing is left pending: orders 28 and 29 are both applied in production.
+    // RECONCILIATION-38: orders 28, 29 and 30 are all applied in production.
+    // Order 30 was applied as version 20260729173359; no NOT_APPLIED entry remains.
     const notApplied = promotion.filter(({ apply_status }) => apply_status === "NOT_APPLIED");
     expect(notApplied.map(({ order }) => order)).toEqual([]);
+    const entry30 = promotion.find(({ order }) => order === 30) as unknown as {
+      draft: string;
+      draft_sha_lf: string;
+      migration: string;
+      apply_status: string;
+      production_version: string;
+      applied_exactly_once: boolean;
+      proposed_migration_filename?: string;
+    };
+    expect(entry30.apply_status).toBe("APPLIED");
+    expect(entry30.production_version).toBe("20260729173359");
+    expect(entry30.applied_exactly_once).toBe(true);
+    expect(entry30.proposed_migration_filename).toBeUndefined();
+    expect(entry30.migration).toBe(
+      "supabase/migrations/20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql",
+    );
+    expect(sha256Lf(`docs/migration-drafts/${entry30.draft}`)).toBe(entry30.draft_sha_lf);
+    const entry30Files = promotion.find(({ order }) => order === 30) as unknown as {
+      preflight: string;
+      structural_verifier: string;
+      post_verifier: string;
+    };
+    for (const companion of [
+      entry30Files.preflight,
+      entry30Files.structural_verifier,
+      entry30Files.post_verifier,
+    ]) {
+      expect(existsSync(join(root, companion))).toBe(true);
+    }
 
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
       Array.from({ length: 27 }, (_, index) => index + 1),

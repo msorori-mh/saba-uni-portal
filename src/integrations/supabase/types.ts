@@ -788,6 +788,164 @@ export type Database = {
           },
         ]
       }
+      b1_e2e_88_actor_bindings: {
+        Row: {
+          action: string
+          active: boolean
+          actor_user_id: string
+          applied_assignee_snapshot: Json
+          correlation_id: string
+          created_at: string
+          deactivated_at: string | null
+          department_id: string | null
+          department_side: string | null
+          e2e_position_assignment_id: string | null
+          execution_id: string
+          expires_at: string
+          id: string
+          prior_assignee_snapshot: Json
+          processing_role_id: string
+          processing_unit_id: string
+          request_id: string
+          runtime_step_id: string
+          workflow_step_id: string
+        }
+        Insert: {
+          action: string
+          active?: boolean
+          actor_user_id: string
+          applied_assignee_snapshot?: Json
+          correlation_id: string
+          created_at?: string
+          deactivated_at?: string | null
+          department_id?: string | null
+          department_side?: string | null
+          e2e_position_assignment_id?: string | null
+          execution_id: string
+          expires_at: string
+          id?: string
+          prior_assignee_snapshot?: Json
+          processing_role_id: string
+          processing_unit_id: string
+          request_id: string
+          runtime_step_id: string
+          workflow_step_id: string
+        }
+        Update: {
+          action?: string
+          active?: boolean
+          actor_user_id?: string
+          applied_assignee_snapshot?: Json
+          correlation_id?: string
+          created_at?: string
+          deactivated_at?: string | null
+          department_id?: string | null
+          department_side?: string | null
+          e2e_position_assignment_id?: string | null
+          execution_id?: string
+          expires_at?: string
+          id?: string
+          prior_assignee_snapshot?: Json
+          processing_role_id?: string
+          processing_unit_id?: string
+          request_id?: string
+          runtime_step_id?: string
+          workflow_step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b1_e2e_88_actor_bindings_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "b1_e2e_88_executions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b1_e2e_88_audit_events: {
+        Row: {
+          actor_user_id: string | null
+          correlation_id: string | null
+          created_at: string
+          detail: Json
+          event_type: string
+          execution_id: string | null
+          id: number
+          request_id: string | null
+          runtime_step_id: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type: string
+          execution_id?: string | null
+          id?: number
+          request_id?: string | null
+          runtime_step_id?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          execution_id?: string | null
+          id?: number
+          request_id?: string | null
+          runtime_step_id?: string | null
+        }
+        Relationships: []
+      }
+      b1_e2e_88_executions: {
+        Row: {
+          audit_metadata: Json
+          closed_at: string | null
+          correlation_id: string
+          created_at: string
+          created_by: string | null
+          created_request_id: string | null
+          expires_at: string
+          id: string
+          marker: string
+          service_code: string
+          starts_at: string
+          status: string
+          student_user_id: string
+        }
+        Insert: {
+          audit_metadata?: Json
+          closed_at?: string | null
+          correlation_id: string
+          created_at?: string
+          created_by?: string | null
+          created_request_id?: string | null
+          expires_at: string
+          id?: string
+          marker?: string
+          service_code: string
+          starts_at?: string
+          status?: string
+          student_user_id: string
+        }
+        Update: {
+          audit_metadata?: Json
+          closed_at?: string | null
+          correlation_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_request_id?: string | null
+          expires_at?: string
+          id?: string
+          marker?: string
+          service_code?: string
+          starts_at?: string
+          status?: string
+          student_user_id?: string
+        }
+        Relationships: []
+      }
       b1_e2e_assignment_snapshot: {
         Row: {
           assignment_id: string
@@ -839,6 +997,75 @@ export type Database = {
           tag?: string
           unit_id?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      b1_fixture_15_reissue_44_evidence: {
+        Row: {
+          archive_step_comment: string | null
+          archive_step_completed_at: string | null
+          archive_step_completed_by: string | null
+          archive_step_decision: string | null
+          archive_step_id: string | null
+          archive_step_status: string | null
+          captured_at: string
+          event_actor_user_id: string | null
+          event_created_at: string | null
+          event_id: string | null
+          event_message_ar: string | null
+          event_payload: Json | null
+          event_type: string | null
+          evidence: Json
+          id: string
+          marker: string
+          request_completed_at: string | null
+          request_id: string
+          request_number: string
+          request_status: string | null
+        }
+        Insert: {
+          archive_step_comment?: string | null
+          archive_step_completed_at?: string | null
+          archive_step_completed_by?: string | null
+          archive_step_decision?: string | null
+          archive_step_id?: string | null
+          archive_step_status?: string | null
+          captured_at?: string
+          event_actor_user_id?: string | null
+          event_created_at?: string | null
+          event_id?: string | null
+          event_message_ar?: string | null
+          event_payload?: Json | null
+          event_type?: string | null
+          evidence: Json
+          id?: string
+          marker?: string
+          request_completed_at?: string | null
+          request_id: string
+          request_number: string
+          request_status?: string | null
+        }
+        Update: {
+          archive_step_comment?: string | null
+          archive_step_completed_at?: string | null
+          archive_step_completed_by?: string | null
+          archive_step_decision?: string | null
+          archive_step_id?: string | null
+          archive_step_status?: string | null
+          captured_at?: string
+          event_actor_user_id?: string | null
+          event_created_at?: string | null
+          event_id?: string | null
+          event_message_ar?: string | null
+          event_payload?: Json | null
+          event_type?: string | null
+          evidence?: Json
+          id?: string
+          marker?: string
+          request_completed_at?: string | null
+          request_id?: string
+          request_number?: string
+          request_status?: string | null
         }
         Relationships: []
       }
@@ -2291,6 +2518,711 @@ export type Database = {
           weight?: number | null
         }
         Relationships: []
+      }
+      graduation_project_approvals: {
+        Row: {
+          assignment_id: string
+          decided_at: string
+          decision: string
+          id: string
+          project_id: string
+          reason: string | null
+          stage: string
+        }
+        Insert: {
+          assignment_id: string
+          decided_at?: string
+          decision: string
+          id?: string
+          project_id: string
+          reason?: string | null
+          stage: string
+        }
+        Update: {
+          assignment_id?: string
+          decided_at?: string
+          decision?: string
+          id?: string
+          project_id?: string
+          reason?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_approvals_assignment_id_project_id_fkey"
+            columns: ["assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_approvals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_assignments: {
+        Row: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_leader: boolean
+          processing_role:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id: string | null
+          supervision_status:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          assigned_at?: string
+          assigned_by: string
+          department_id: string
+          ended_at?: string | null
+          faculty_profile_id?: string | null
+          id?: string
+          is_leader?: boolean
+          processing_role?:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id?: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id?: string | null
+          supervision_status?:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          assigned_at?: string
+          assigned_by?: string
+          department_id?: string
+          ended_at?: string | null
+          faculty_profile_id?: string | null
+          id?: string
+          is_leader?: boolean
+          processing_role?:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id?: string | null
+          project_id?: string
+          role?: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id?: string | null
+          supervision_status?:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_project_department_fk"
+            columns: ["project_id", "department_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id", "department_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_assignments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_assignments_faculty_profile_id_fkey"
+            columns: ["faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_assignments_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_assignments_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_department_coordinators: {
+        Row: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          assigned_at?: string
+          assigned_by: string
+          department_id: string
+          ended_at?: string | null
+          faculty_profile_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          assigned_at?: string
+          assigned_by?: string
+          department_id?: string
+          ended_at?: string | null
+          faculty_profile_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_department_coordinat_faculty_profile_id_fkey"
+            columns: ["faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_department_coordinators_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_discussions: {
+        Row: {
+          coordinator_assignment_id: string
+          held_at: string | null
+          id: string
+          project_id: string
+          starts_at: string
+          state: string
+          venue: string
+        }
+        Insert: {
+          coordinator_assignment_id: string
+          held_at?: string | null
+          id?: string
+          project_id: string
+          starts_at: string
+          state?: string
+          venue: string
+        }
+        Update: {
+          coordinator_assignment_id?: string
+          held_at?: string | null
+          id?: string
+          project_id?: string
+          starts_at?: string
+          state?: string
+          venue?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_discussion_coordinator_assignment_id_pr_fkey"
+            columns: ["coordinator_assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_discussions_coordinator_assignment_id_fkey"
+            columns: ["coordinator_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_discussions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_evaluations: {
+        Row: {
+          discussion_id: string
+          id: string
+          notes: string | null
+          panel_member_id: string
+          project_id: string
+          score: number | null
+          state: string
+          submitted_at: string | null
+        }
+        Insert: {
+          discussion_id: string
+          id?: string
+          notes?: string | null
+          panel_member_id: string
+          project_id: string
+          score?: number | null
+          state?: string
+          submitted_at?: string | null
+        }
+        Update: {
+          discussion_id?: string
+          id?: string
+          notes?: string | null
+          panel_member_id?: string
+          project_id?: string
+          score?: number | null
+          state?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_evaluation_panel_member_id_discussion_i_fkey"
+            columns: ["panel_member_id", "discussion_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_panel_members"
+            referencedColumns: ["id", "discussion_id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_evaluations_discussion_id_project_id_fkey"
+            columns: ["discussion_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_discussions"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_evaluations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_events: {
+        Row: {
+          actor_assignment_id: string | null
+          actor_user_id: string
+          correlation_id: string
+          entity_id: string | null
+          entity_type: string
+          event_type: string
+          id: number
+          occurred_at: string
+          payload: Json
+          project_id: string
+          reason: string | null
+        }
+        Insert: {
+          actor_assignment_id?: string | null
+          actor_user_id: string
+          correlation_id: string
+          entity_id?: string | null
+          entity_type: string
+          event_type: string
+          id?: never
+          occurred_at?: string
+          payload?: Json
+          project_id: string
+          reason?: string | null
+        }
+        Update: {
+          actor_assignment_id?: string | null
+          actor_user_id?: string
+          correlation_id?: string
+          entity_id?: string | null
+          entity_type?: string
+          event_type?: string
+          id?: never
+          occurred_at?: string
+          payload?: Json
+          project_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_events_actor_assignment_id_project_id_fkey"
+            columns: ["actor_assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_files: {
+        Row: {
+          byte_size: number
+          category: Database["public"]["Enums"]["graduation_project_file_category"]
+          created_at: string
+          finalized_at: string | null
+          id: string
+          is_current: boolean
+          media_type: string
+          object_key: string
+          original_name: string
+          progress_entry_id: string | null
+          project_id: string
+          scan_state: Database["public"]["Enums"]["graduation_project_scan_state"]
+          sha256: string | null
+          superseded_at: string | null
+          upload_status: Database["public"]["Enums"]["graduation_project_file_upload_status"]
+          uploaded_by_assignment_id: string
+        }
+        Insert: {
+          byte_size: number
+          category: Database["public"]["Enums"]["graduation_project_file_category"]
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          is_current?: boolean
+          media_type: string
+          object_key: string
+          original_name: string
+          progress_entry_id?: string | null
+          project_id: string
+          scan_state?: Database["public"]["Enums"]["graduation_project_scan_state"]
+          sha256?: string | null
+          superseded_at?: string | null
+          upload_status?: Database["public"]["Enums"]["graduation_project_file_upload_status"]
+          uploaded_by_assignment_id: string
+        }
+        Update: {
+          byte_size?: number
+          category?: Database["public"]["Enums"]["graduation_project_file_category"]
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          is_current?: boolean
+          media_type?: string
+          object_key?: string
+          original_name?: string
+          progress_entry_id?: string | null
+          project_id?: string
+          scan_state?: Database["public"]["Enums"]["graduation_project_scan_state"]
+          sha256?: string | null
+          superseded_at?: string | null
+          upload_status?: Database["public"]["Enums"]["graduation_project_file_upload_status"]
+          uploaded_by_assignment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_files_progress_entry_id_project_id_fkey"
+            columns: ["progress_entry_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_progress_entries"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_files_uploaded_by_assignment_id_project_fkey"
+            columns: ["uploaded_by_assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+        ]
+      }
+      graduation_project_final_archives: {
+        Row: {
+          archived_at: string
+          archived_by_assignment_id: string
+          average_score: number | null
+          correlation_id: string
+          final_decision: Database["public"]["Enums"]["graduation_project_final_decision"]
+          final_file_id: string
+          id: string
+          project_id: string
+          snapshot: Json
+        }
+        Insert: {
+          archived_at?: string
+          archived_by_assignment_id: string
+          average_score?: number | null
+          correlation_id: string
+          final_decision: Database["public"]["Enums"]["graduation_project_final_decision"]
+          final_file_id: string
+          id?: string
+          project_id: string
+          snapshot: Json
+        }
+        Update: {
+          archived_at?: string
+          archived_by_assignment_id?: string
+          average_score?: number | null
+          correlation_id?: string
+          final_decision?: Database["public"]["Enums"]["graduation_project_final_decision"]
+          final_file_id?: string
+          id?: string
+          project_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_final_arch_archived_by_assignment_id_pr_fkey"
+            columns: ["archived_by_assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_final_archives_final_file_id_project_id_fkey"
+            columns: ["final_file_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_files"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_final_archives_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_panel_members: {
+        Row: {
+          assignment_id: string
+          discussion_id: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          assignment_id: string
+          discussion_id: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          assignment_id?: string
+          discussion_id?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_panel_members_assignment_id_project_id_fkey"
+            columns: ["assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_panel_members_discussion_id_project_id_fkey"
+            columns: ["discussion_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_discussions"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_panel_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_project_progress_entries: {
+        Row: {
+          file_id: string | null
+          id: string
+          project_id: string
+          review_comments: string | null
+          reviewed_at: string | null
+          reviewed_by_assignment_id: string | null
+          state: string
+          submitted_at: string
+          submitted_by_assignment_id: string
+          summary: string
+          version_no: number
+        }
+        Insert: {
+          file_id?: string | null
+          id?: string
+          project_id: string
+          review_comments?: string | null
+          reviewed_at?: string | null
+          reviewed_by_assignment_id?: string | null
+          state: string
+          submitted_at?: string
+          submitted_by_assignment_id: string
+          summary: string
+          version_no: number
+        }
+        Update: {
+          file_id?: string | null
+          id?: string
+          project_id?: string
+          review_comments?: string | null
+          reviewed_at?: string | null
+          reviewed_by_assignment_id?: string | null
+          state?: string
+          submitted_at?: string
+          submitted_by_assignment_id?: string
+          summary?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_progress_e_reviewed_by_assignment_id_pr_fkey"
+            columns: ["reviewed_by_assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_progress_e_submitted_by_assignment_id_p_fkey"
+            columns: ["submitted_by_assignment_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_assignments"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "graduation_project_progress_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_projects: {
+        Row: {
+          academic_year_id: string | null
+          approved_at: string | null
+          archived_at: string | null
+          average_score: number | null
+          created_at: string
+          department_id: string
+          final_decision:
+            | Database["public"]["Enums"]["graduation_project_final_decision"]
+            | null
+          id: string
+          lifecycle_state: Database["public"]["Enums"]["graduation_project_state"]
+          objectives: string | null
+          problem_statement: string | null
+          program_id: string | null
+          semester_id: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          academic_year_id?: string | null
+          approved_at?: string | null
+          archived_at?: string | null
+          average_score?: number | null
+          created_at?: string
+          department_id: string
+          final_decision?:
+            | Database["public"]["Enums"]["graduation_project_final_decision"]
+            | null
+          id?: string
+          lifecycle_state?: Database["public"]["Enums"]["graduation_project_state"]
+          objectives?: string | null
+          problem_statement?: string | null
+          program_id?: string | null
+          semester_id?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          academic_year_id?: string | null
+          approved_at?: string | null
+          archived_at?: string | null
+          average_score?: number | null
+          created_at?: string
+          department_id?: string
+          final_decision?:
+            | Database["public"]["Enums"]["graduation_project_final_decision"]
+            | null
+          id?: string
+          lifecycle_state?: Database["public"]["Enums"]["graduation_project_state"]
+          objectives?: string | null
+          problem_statement?: string | null
+          program_id?: string | null
+          semester_id?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_projects_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_projects_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_projects_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_projects_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_logs: {
         Row: {
@@ -5953,6 +6885,15 @@ export type Database = {
         }
         Returns: Json
       }
+      add_graduation_project_team_member: {
+        Args: {
+          p_correlation_id: string
+          p_project_id: string
+          p_student_profile_id: string
+          p_student_user_id: string
+        }
+        Returns: string
+      }
       admin_create_enrollment_certificate_e2e_draft: {
         Args: {
           p_e2e_marker: string
@@ -6072,6 +7013,14 @@ export type Database = {
         Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
         Returns: Json
       }
+      archive_graduation_project: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       assert_b1_academic_period_reference: {
         Args: { p_academic_year_id: string; p_semester_id: string }
         Returns: undefined
@@ -6132,6 +7081,24 @@ export type Database = {
         Args: { p_amount: number; p_notes?: string; p_request_id: string }
         Returns: Json
       }
+      assign_graduation_project_committee_member: {
+        Args: {
+          p_correlation_id: string
+          p_faculty_profile_id: string
+          p_project_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      assign_graduation_project_supervisor: {
+        Args: {
+          p_correlation_id: string
+          p_faculty_profile_id: string
+          p_project_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
       authorize_student_request_attachment_download: {
         Args: { p_attachment_id: string }
@@ -6177,6 +7144,49 @@ export type Database = {
       b1_draft_payload_hash: {
         Args: { p_canonical: string; p_form: Json; p_request_id: string }
         Returns: string
+      }
+      b1_e2e_88_allows_hidden_create: {
+        Args: { p_form_data: Json; p_request_type: string }
+        Returns: boolean
+      }
+      b1_e2e_88_correlations_aligned: {
+        Args: {
+          p_binding_correlation: string
+          p_execution_correlation: string
+          p_request_id: string
+        }
+        Returns: boolean
+      }
+      b1_e2e_88_execution_is_live: {
+        Args: { p_execution_id: string }
+        Returns: boolean
+      }
+      b1_e2e_88_is_five_service: { Args: { p_code: string }; Returns: boolean }
+      b1_e2e_88_marker: { Args: never; Returns: string }
+      b1_e2e_88_parse_correlation: { Args: { p_raw: string }; Returns: string }
+      b1_e2e_88_request_correlation: {
+        Args: { p_request_id: string }
+        Returns: string
+      }
+      b1_e2e_88_request_is_marked: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
+      b1_e2e_88_step_matches_applied_snapshot: {
+        Args: { p_applied: Json; p_step_id: string }
+        Returns: boolean
+      }
+      b1_e2e_88_write_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_correlation_id: string
+          p_detail?: Json
+          p_event_type: string
+          p_execution_id: string
+          p_request_id: string
+          p_runtime_step_id: string
+        }
+        Returns: undefined
       }
       b1_expected_secure_attachment_field: {
         Args: { p_request_type: string }
@@ -6225,6 +7235,18 @@ export type Database = {
       }
       b1_require_auth_uid: { Args: never; Returns: string }
       b1_stored_to_canonical: { Args: { p_stored: string }; Returns: string }
+      bind_b1_e2e_88_actor_to_runtime_step: {
+        Args: {
+          p_action: string
+          p_actor_user_id: string
+          p_correlation_id: string
+          p_department_id?: string
+          p_department_side?: string
+          p_request_id: string
+          p_runtime_step_id: string
+        }
+        Returns: string
+      }
       build_enrollment_certificate_issuance_snapshot: {
         Args: { p_student_profile_id: string }
         Returns: Json
@@ -6277,6 +7299,10 @@ export type Database = {
         Args: { _council_id: string; _topic_id: string; _user: string }
         Returns: boolean
       }
+      can_upload_graduation_project_object: {
+        Args: { p_object_name: string }
+        Returns: boolean
+      }
       can_write_council_agenda: {
         Args: { _council: string; _user: string }
         Returns: boolean
@@ -6299,13 +7325,34 @@ export type Database = {
         Args: { p_request_type_code: string; p_student_profile_id: string }
         Returns: Json
       }
+      cleanup_b1_e2e_88_package: {
+        Args: { p_correlation_id?: string; p_restore_assignees?: boolean }
+        Returns: Json
+      }
+      cleanup_graduation_project_orphan_storage_contract: {
+        Args: { p_correlation_id: string; p_project_id: string }
+        Returns: Json
+      }
       cleanup_rate_limit_attempts: { Args: never; Returns: number }
+      close_b1_e2e_88_execution: {
+        Args: { p_correlation_id: string; p_reason?: string }
+        Returns: boolean
+      }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
       complete_student_request_attachment_upload: {
         Args: { p_attachment_id: string }
         Returns: Json
+      }
+      conclude_graduation_project_result: {
+        Args: {
+          p_correlation_id: string
+          p_decision: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
       }
       confirm_student_request_fee_payment: {
         Args: {
@@ -6323,6 +7370,33 @@ export type Database = {
       create_b1_request_draft_for_student: {
         Args: { p_canonical_code: string; p_idempotency_key?: string }
         Returns: Json
+      }
+      create_graduation_project_file_upload_intent: {
+        Args: {
+          p_byte_size: number
+          p_category: string
+          p_correlation_id: string
+          p_original_name: string
+          p_project_id: string
+          p_sha256?: string
+        }
+        Returns: Json
+      }
+      create_graduation_project_signed_download: {
+        Args: { p_correlation_id: string; p_file_id: string }
+        Returns: Json
+      }
+      create_graduation_project_team: {
+        Args: {
+          p_academic_year_id: string
+          p_correlation_id: string
+          p_department_id: string
+          p_leader_student_profile_id: string
+          p_leader_user_id: string
+          p_program_id: string
+          p_semester_id: string
+        }
+        Returns: string
       }
       create_notification: {
         Args: {
@@ -6365,6 +7439,18 @@ export type Database = {
         }[]
       }
       current_user_app_roles: { Args: never; Returns: string[] }
+      current_user_has_b1_e2e_88_actor_binding: {
+        Args: {
+          p_action: string
+          p_request_id: string
+          p_runtime_step_id: string
+        }
+        Returns: boolean
+      }
+      current_user_has_b1_e2e_88_department_binding: {
+        Args: { p_step_id: string; p_step_key: string }
+        Returns: boolean
+      }
       current_user_has_exact_processing_binding: {
         Args: { p_role_id: string; p_unit_id: string }
         Returns: boolean
@@ -6404,6 +7490,10 @@ export type Database = {
           p_comment?: string
           p_verification_token?: string
         }
+        Returns: Json
+      }
+      finalize_graduation_project_file: {
+        Args: { p_correlation_id: string; p_file_id: string; p_sha256?: string }
         Returns: Json
       }
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
@@ -6474,6 +7564,10 @@ export type Database = {
       get_b1_secure_read_runtime_capability: { Args: never; Returns: Json }
       get_b1_step_allowed_actions: {
         Args: { p_step_id: string }
+        Returns: Json
+      }
+      get_graduation_project_detail: {
+        Args: { p_project_id: string }
         Returns: Json
       }
       get_hardening_status: { Args: never; Returns: Json }
@@ -6578,6 +7672,71 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      gp_assert_version: {
+        Args: {
+          p: Database["public"]["Tables"]["graduation_projects"]["Row"]
+          p_expected: number
+        }
+        Returns: undefined
+      }
+      gp_has_current_clean_file: {
+        Args: {
+          p_category: Database["public"]["Enums"]["graduation_project_file_category"]
+          p_project_id: string
+        }
+        Returns: boolean
+      }
+      gp_proposal_complete: {
+        Args: { p: Database["public"]["Tables"]["graduation_projects"]["Row"] }
+        Returns: boolean
+      }
+      gp_replay_entity: {
+        Args: {
+          p_correlation_id: string
+          p_event_type: string
+          p_project_id: string
+        }
+        Returns: string
+      }
+      gp_take_replay: {
+        Args: {
+          p_correlation_id: string
+          p_event_type: string
+          p_project_id: string
+          p_request: Json
+        }
+        Returns: string
+      }
+      gp_team_mutator: {
+        Args: { p_project_id: string }
+        Returns: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_leader: boolean
+          processing_role:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id: string | null
+          supervision_status:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
@@ -6656,6 +7815,10 @@ export type Database = {
         Args: { _request_id: string; _user_id: string }
         Returns: boolean
       }
+      is_safe_graduation_project_object_key: {
+        Args: { p_key: string; p_project_id: string }
+        Returns: boolean
+      }
       is_student_of_enrollment: {
         Args: { _enrollment_id: string; _user_id: string }
         Returns: boolean
@@ -6706,6 +7869,10 @@ export type Database = {
         Args: { _profile_id: string; _target_user_id: string }
         Returns: Json
       }
+      list_administration_graduation_projects_overview: {
+        Args: never
+        Returns: Json
+      }
       list_b1_request_attachments_for_viewer: {
         Args: { p_request_id: string }
         Returns: Json
@@ -6714,6 +7881,7 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
+      list_my_graduation_projects: { Args: never; Returns: Json }
       list_my_student_request_attachments: {
         Args: { p_student_request_id: string }
         Returns: {
@@ -6762,6 +7930,32 @@ export type Database = {
         Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
         Returns: Json
       }
+      mark_graduation_project_defense_held: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
+      mark_graduation_project_file_scan_state: {
+        Args: {
+          p_correlation_id: string
+          p_file_id: string
+          p_scan_state: string
+        }
+        Returns: string
+      }
+      open_b1_e2e_88_execution: {
+        Args: {
+          p_audit_metadata?: Json
+          p_correlation_id: string
+          p_expires_at: string
+          p_service_code: string
+          p_student_user_id: string
+        }
+        Returns: string
+      }
       persist_b1_draft_form_and_details: {
         Args: {
           p_canonical: string
@@ -6792,17 +7986,194 @@ export type Database = {
         Args: { p_note?: string; p_step_id: string }
         Returns: Json
       }
+      register_graduation_project_file: {
+        Args: {
+          p_byte_size: number
+          p_category: string
+          p_correlation_id: string
+          p_original_name: string
+          p_project_id: string
+          p_sha256?: string
+        }
+        Returns: string
+      }
       reject_student_request_attachment: {
         Args: { p_attachment_id: string; p_rejection_code: string }
         Returns: boolean
+      }
+      remove_graduation_project_team_member: {
+        Args: {
+          p_assignment_id: string
+          p_correlation_id: string
+          p_project_id: string
+        }
+        Returns: string
       }
       replace_class_schedule_for_context: {
         Args: { _rows: Json; _section_ids: string[] }
         Returns: Json
       }
+      require_graduation_project_accepted_supervisor: {
+        Args: { p_project_id: string }
+        Returns: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_leader: boolean
+          processing_role:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id: string | null
+          supervision_status:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      require_graduation_project_assignment: {
+        Args: {
+          p_project_id: string
+          p_roles: Database["public"]["Enums"]["graduation_project_assignment_role"][]
+        }
+        Returns: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_leader: boolean
+          processing_role:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id: string | null
+          supervision_status:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      require_graduation_project_department_coordinator: {
+        Args: { p_department_id: string }
+        Returns: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string
+          id: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_department_coordinators"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      require_graduation_project_leader: {
+        Args: { p_project_id: string }
+        Returns: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_leader: boolean
+          processing_role:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id: string | null
+          supervision_status:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      respond_graduation_project_supervision: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_response: string
+        }
+        Returns: string
+      }
+      resubmit_graduation_project_proposal: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       revert_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
+      }
+      review_graduation_project_final: {
+        Args: {
+          p_action: string
+          p_comments: string
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
+      review_graduation_project_progress: {
+        Args: {
+          p_action: string
+          p_comments: string
+          p_correlation_id: string
+          p_entry_id: string
+        }
+        Returns: string
+      }
+      review_graduation_project_proposal: {
+        Args: {
+          p_action: string
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_reason: string
+        }
+        Returns: string
       }
       save_b1_request_draft_for_student: {
         Args: {
@@ -6812,6 +8183,16 @@ export type Database = {
           p_request_id: string
         }
         Returns: Json
+      }
+      schedule_graduation_project_defense: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_starts_at: string
+          p_venue: string
+        }
+        Returns: string
       }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
@@ -6835,6 +8216,41 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_graduation_project_evaluation: {
+        Args: {
+          p_correlation_id: string
+          p_notes: string
+          p_project_id: string
+          p_score: number
+        }
+        Returns: string
+      }
+      submit_graduation_project_final: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_file_id: string
+          p_project_id: string
+        }
+        Returns: string
+      }
+      submit_graduation_project_progress: {
+        Args: {
+          p_correlation_id: string
+          p_file_id: string
+          p_project_id: string
+          p_summary: string
+        }
+        Returns: string
+      }
+      submit_graduation_project_proposal: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       submit_student_request: {
         Args: { p_request_id: string }
         Returns: boolean
@@ -6842,6 +8258,18 @@ export type Database = {
       submit_student_request_with_secure_attachments: {
         Args: { p_attachment_ids: string[]; p_request_id: string }
         Returns: undefined
+      }
+      upsert_graduation_project_proposal: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_objectives: string
+          p_problem_statement: string
+          p_project_id: string
+          p_summary: string
+          p_title: string
+        }
+        Returns: string
       }
       user_can_see_announcement: {
         Args: { _ann_id: string; _uid: string }
@@ -6872,6 +8300,10 @@ export type Database = {
       workflow_runtime_predecessors_satisfied: {
         Args: { p_step_id: string }
         Returns: boolean
+      }
+      workflow_runtime_step_configured_action: {
+        Args: { p_step_id: string }
+        Returns: string
       }
     }
     Enums: {
@@ -6932,6 +8364,44 @@ export type Database = {
         | "wednesday"
         | "thursday"
         | "friday"
+      graduation_project_assignment_role:
+        | "student"
+        | "supervisor"
+        | "coordinator"
+        | "panel_member"
+      graduation_project_file_category: "proposal" | "progress" | "final"
+      graduation_project_file_upload_status:
+        | "pending"
+        | "uploaded"
+        | "active"
+        | "superseded"
+        | "rejected"
+      graduation_project_final_decision:
+        | "passed"
+        | "revisions_required"
+        | "failed"
+      graduation_project_scan_state:
+        | "pending"
+        | "clean"
+        | "quarantined"
+        | "rejected"
+      graduation_project_state:
+        | "draft"
+        | "submitted"
+        | "revision_required"
+        | "rejected"
+        | "approved"
+        | "active"
+        | "defense_scheduled"
+        | "evaluating"
+        | "archived"
+        | "under_review"
+        | "discussion_requested"
+        | "discussion_scheduled"
+        | "corrections_required"
+        | "completed"
+        | "cancelled"
+      graduation_project_supervision_status: "pending" | "accepted" | "declined"
       room_type: "lecture" | "lab" | "office" | "hall"
       schedule_status: "draft" | "published" | "cancelled"
       schedule_type: "lecture" | "lab" | "tutorial" | "exam"
@@ -7124,6 +8594,53 @@ export const Constants = {
         "wednesday",
         "thursday",
         "friday",
+      ],
+      graduation_project_assignment_role: [
+        "student",
+        "supervisor",
+        "coordinator",
+        "panel_member",
+      ],
+      graduation_project_file_category: ["proposal", "progress", "final"],
+      graduation_project_file_upload_status: [
+        "pending",
+        "uploaded",
+        "active",
+        "superseded",
+        "rejected",
+      ],
+      graduation_project_final_decision: [
+        "passed",
+        "revisions_required",
+        "failed",
+      ],
+      graduation_project_scan_state: [
+        "pending",
+        "clean",
+        "quarantined",
+        "rejected",
+      ],
+      graduation_project_state: [
+        "draft",
+        "submitted",
+        "revision_required",
+        "rejected",
+        "approved",
+        "active",
+        "defense_scheduled",
+        "evaluating",
+        "archived",
+        "under_review",
+        "discussion_requested",
+        "discussion_scheduled",
+        "corrections_required",
+        "completed",
+        "cancelled",
+      ],
+      graduation_project_supervision_status: [
+        "pending",
+        "accepted",
+        "declined",
       ],
       room_type: ["lecture", "lab", "office", "hall"],
       schedule_status: ["draft", "published", "cancelled"],

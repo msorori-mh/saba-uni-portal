@@ -1,0 +1,20 @@
+/**
+ * Graduation Projects MVP — Package B public surface for Package C.
+ * Sole authority: docs/PORTAL-GRADUATION-PROJECTS-MVP-SCOPE-AND-CONTRACT-FREEZE-01.md
+ */
+
+export * from "./domain";
+export * from "./lifecycle";
+export * from "./errors";
+export * from "./eligibility";
+export * from "./correlation";
+export * from "./query-keys";
+export * from "./invalidation";
+export * from "./rpc";
+export {
+  GraduationProjectsService,
+  createGraduationProjectsService,
+  type GpStorageClient,
+  type GraduationProjectsServiceOptions,
+} from "./service";
+export * from "./hooks";

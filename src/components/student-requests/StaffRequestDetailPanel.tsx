@@ -14,6 +14,9 @@ import {
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
+import { B1StaffStepActionSection } from "@/components/student-requests/b1/B1StaffStepActionSection";
+import { isB1StaffRoutedRequestType } from "@/lib/student-requests/b1-staff-action-routing";
+import { B1_STEP_LABELS_AR } from "@/lib/student-requests/b1-ui/service-config";
 import { StaffRequestSignaturePanel } from "@/components/student-requests/StaffRequestSignaturePanel";
 import { EnrollmentCertificateIssueButton } from "@/components/student-requests/EnrollmentCertificateIssueButton";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
@@ -296,12 +299,23 @@ export function StaffRequestDetailPanel({
           const active = detail.activeStep;
           const activeType = active?.actionType ?? null;
 
-          const showFee = activeType === "assess_fee" || activeType === "confirm_payment";
+          const isB1ServiceForGating = isB1StaffRoutedRequestType(detail.requestTypeCode);
+          // B1 five services confirm external payment through the dedicated B1
+          // revenue receipt card, never through the generic fee section (which
+          // renders nothing without an in-portal fee assessment).
+          const isB1PaymentConfirmation =
+            isB1ServiceForGating && activeType === "confirm_payment";
+          const showFee =
+            !isB1PaymentConfirmation &&
+            (activeType === "assess_fee" || activeType === "confirm_payment");
           const showFinanceClearance = activeType === "clearance" || activeType === "finance_clearance";
-          const showArchivePanel = activeType === "archive";
+          // B1 five services execute `archive` literally through the B1 atomic
+          // panel; only non-B1 services use the generic archive panel.
+          const showArchivePanel = activeType === "archive" && !isB1ServiceForGating;
           const showEcIssueButton = activeType === "issue_document";
           const showSignPanel = activeType === "sign";
           const isReviewStep = activeType === "review";
+          const isB1Service = isB1ServiceForGating;
 
           return (
             <>
@@ -354,7 +368,24 @@ export function StaffRequestDetailPanel({
                 />
               )}
 
-              {!showSignPanel && !showArchivePanel && (
+              {isB1Service && !showSignPanel && !showArchivePanel && !showFee && !showEcIssueButton && (
+                <B1StaffStepActionSection
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                  stepId={active?.id ?? null}
+                  stepKey={active?.stepKey ?? null}
+                  stepLabelAr={
+                    (active?.stepKey && B1_STEP_LABELS_AR[active.stepKey]) ||
+                    active?.stepKey ||
+                    "المرحلة النشطة"
+                  }
+                  configuredActionType={activeType}
+                  allowedAction={activeType}
+                  isActionable={active?.isActionable ?? false}
+                />
+              )}
+
+              {!isB1Service && !showSignPanel && !showArchivePanel && (
                 <StaffRequestActionPanel
                   requestId={detail.id}
                   requestTypeCode={detail.requestTypeCode}

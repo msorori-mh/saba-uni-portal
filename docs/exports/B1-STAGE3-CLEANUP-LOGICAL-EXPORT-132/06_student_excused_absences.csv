@@ -1,0 +1,2 @@
+id,student_profile_id,course_section_id,absence_date,reason_type,absence_excuse_request_id,applied_at,created_at
+383d4630-359b-4ad9-a33d-8c4c040ec899,7020e51d-19e3-4acb-9597-5145b65d117e,92a920b4-5e7d-401c-aae3-aa2f22c8b1b9,2026-07-20,medical,de9e6c7f-eaec-4d32-9e8c-7ce168d542c5,2026-07-27 10:59:32.75921+00,2026-07-27 10:59:32.75921+00

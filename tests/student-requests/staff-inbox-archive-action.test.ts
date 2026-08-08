@@ -173,7 +173,7 @@ describe("StaffRequestDetailPanel — action_type='archive' gating", () => {
   it("HIDES the generic review action panel when the active step is an archive step", () => {
     // The review action panel must be wrapped in both !showSignPanel AND !showArchivePanel.
     expect(DETAIL_PANEL_SRC).toMatch(
-      /\{!showSignPanel\s*&&\s*!showArchivePanel\s*&&\s*\(?\s*<StaffRequestActionPanel/,
+      /!showSignPanel\s*&&\s*!showArchivePanel\s*&&\s*\(?\s*<StaffRequestActionPanel/,
     );
   });
 

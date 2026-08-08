@@ -161,7 +161,7 @@ describe("StaffRequestDetailPanel — action_type='sign' gating", () => {
   it("HIDES the generic review action panel when the active step is a sign step", () => {
     // The review action panel must be wrapped in a guard that includes !showSignPanel.
     expect(DETAIL_PANEL_SRC).toMatch(
-      /\{!showSignPanel[\s\S]{0,80}<StaffRequestActionPanel/,
+      /!showSignPanel[\s\S]{0,120}<StaffRequestActionPanel/,
     );
   });
 });

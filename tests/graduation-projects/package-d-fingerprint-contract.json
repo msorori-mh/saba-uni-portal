@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Package D Fingerprint and Cleanup Contract",
+  "mission": "PORTAL_GRADUATION_PROJECTS_MVP_PACKAGE_D_AUTHORIZATION_E2E_IMPLEMENTATION_01_CORRECTED",
+  "authority": "docs/PORTAL-GRADUATION-PROJECTS-MVP-SCOPE-AND-CONTRACT-FREEZE-01.md",
+  "marker": "TEST_ONLY_GP_MVP_E2E_01",
+  "fingerprint_families": {
+    "team_fingerprints": {
+      "required_active_students": ["leader", "member_a", "member_b"],
+      "leader_count": 1,
+      "member_count": 2,
+      "duplicate_leader_allowed": false
+    },
+    "one_team_rule_fingerprints": {
+      "unrelated_student_assignments": 0,
+      "max_active_projects_per_student": 1
+    },
+    "proposal_fingerprints": {
+      "event_order": ["submit", "return", "resubmit", "accept"],
+      "active_proposal_files": 1,
+      "public_urls_allowed": false
+    },
+    "supervisor_fingerprints": {
+      "cardinality": 1,
+      "allowed_statuses": ["pending", "accepted"],
+      "unrelated_supervisor_rights": "none"
+    },
+    "progress_fingerprints": {
+      "event_order": ["submit", "return", "resubmit", "approve"],
+      "milestone_engine_required": false
+    },
+    "final_fingerprints": {
+      "active_final_deliverables": 1,
+      "superseded_versions_auditable": true
+    },
+    "defense_fingerprints": {
+      "schedule_fields": ["date", "time", "venue"],
+      "min_committee_members": 2,
+      "student_discussion_request_required": false
+    },
+    "evaluation_fingerprints": {
+      "score_range": [0, 100],
+      "rubric_designer_required": false,
+      "peer_notes_leakage_allowed": false,
+      "immutability": "on_submit"
+    },
+    "result_fingerprints": {
+      "final_decision_values": ["passed", "revisions_required", "failed"],
+      "root_lifecycle_separated": true,
+      "pass_threshold_auto_computed": false
+    },
+    "archive_fingerprints": {
+      "archived_lifecycle_state": "archived",
+      "immutable_after_archive": true,
+      "administration_viewer_mode": "read_only"
+    },
+    "storage_fingerprints": {
+      "bucket": "graduation-projects",
+      "object_key_shape": "graduation-projects/{project_id}/{category}/{token}-{safe_filename}.pdf",
+      "signed_urls_only": true,
+      "public_urls_forbidden": true
+    },
+    "student_services_protected_fingerprints": {
+      "enrollment_certificate_modified": false,
+      "request_types_student_visible_modified": false
+    }
+  },
+  "cleanup_contract": {
+    "mission_tag": "TEST_ONLY_GP_MVP_E2E_01",
+    "allowlist_ids_only": true,
+    "broad_title_deletion_allowed": false,
+    "preserve_evidence_package": {
+      "project_id": "00000000-0000-4000-c000-000000000001",
+      "archived_state": "archived",
+      "final_decision": "passed"
+    },
+    "temporary_artifact_deletion": {
+      "failed_retry_rows": true,
+      "upload_orphans": true,
+      "non_evidence_test_shells": true
+    },
+    "production_safety_prohibitions": [
+      "No delete of non-TEST_ONLY profiles, requests, or documents",
+      "No modification of real staff or student accounts",
+      "No touch on enrollment_certificate or request_types.student_visible"
+    ]
+  }
+}

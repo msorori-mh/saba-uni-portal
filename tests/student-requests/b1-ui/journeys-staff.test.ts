@@ -83,10 +83,10 @@ describe("staff journey — legal actions only (cases 5-9)", () => {
           onAct: () => {},
         }),
       );
-      const labels = ["اعتماد", "تمت المراجعة", "إرجاع للاستكمال", "رفض"];
+      const labels = ["اعتماد", "مراجعة", "إرجاع للاستكمال", "رفض"];
       const expected = {
         approve: "اعتماد",
-        review: "تمت المراجعة",
+        review: "مراجعة",
         return: "إرجاع للاستكمال",
         reject: "رفض",
       }[action];

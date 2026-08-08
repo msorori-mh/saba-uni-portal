@@ -99,6 +99,7 @@ const groups: NavGroup[] = [
       { to: "/admin/student-progress", label: "تقدم الطلاب الأكاديمي", icon: TrendingUp },
       { to: "/admin/at-risk-students", label: "الطلاب المتعثرون أكاديمياً", icon: AlertCircle },
       { to: "/admin/academic-councils", label: "بوابة إدارة المجالس الأكاديمية", icon: ScrollText },
+      { to: "/admin/graduation-projects", label: "مشاريع التخرج (عرض فقط)", icon: GradCap },
     ],
   },
   {

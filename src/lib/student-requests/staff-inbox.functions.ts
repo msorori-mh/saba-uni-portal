@@ -1,8 +1,15 @@
+import {
+  assertGenericExecutorAuthoritativeRequestType,
+  GENERIC_EXECUTOR_B1_FORBIDDEN_ERROR,
+  isB1StaffRoutedRequestType,
+} from "@/lib/student-requests/b1-staff-action-routing";
+
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
 import {
   isWorkflowRpcUnavailable,
   rpcGetMyRequestActorInbox,
@@ -98,8 +105,10 @@ const inboxInputSchema = z.object({
  * Allows:
  *   - admin / system_admin (broad access).
  *   - any user with at least one ACTIVE `request_processing_assignments`
- *     row (regardless of app_role). This is the source of truth for
- *     "this user is an actor on a workflow role". The RPCs
+ *     row bound through ANY supported identity source (user,
+ *     staff_profile, faculty_profile, position_assignment) — see
+ *     `hasActiveProcessingAssignmentForUser`. This is the source of truth
+ *     for "this user is an actor on a workflow role". The RPCs
  *     `get_my_request_actor_inbox` / `get_student_request_detail_for_actor`
  *     / `act_on_student_request_step` still scope every read/write to the
  *     assigned active step, so unassigned users can never see or act on
@@ -114,17 +123,11 @@ async function assertStaffInboxAccess(userId: string) {
   const roles = await userRoles(userId);
   if (roles.includes("admin") || roles.includes("system_admin")) return;
 
-  const { data, error } = await supabaseAdmin
-    .from("request_processing_assignments")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .limit(1);
-  if (error) throw new Error(error.message);
-  if (data && data.length > 0) return;
+  if (await hasActiveProcessingAssignmentForUser(userId)) return;
 
   throw new Error(STAFF_INBOX_UNAVAILABLE_MSG.unauthorized);
 }
+
 
 function rpcErrorReason(message: string): StaffInboxUnavailableReason {
   if (/permission denied|42501|RLS|violates row-level|غير مصرح/i.test(message)) {
@@ -917,12 +920,27 @@ export const prepareStudentRequestDocumentArchiveAction = createServerFn({ metho
 export const REVIEW_STEP_EXECUTABLE_ACTIONS = ["approve", "reject", "return", "comment"] as const;
 export type ReviewStepExecutableAction = (typeof REVIEW_STEP_EXECUTABLE_ACTIONS)[number];
 
-const executeReviewActionSchema = z.object({
-  requestId: z.string().uuid(),
-  workflowStepRuntimeId: z.string().uuid(),
-  action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
-  comment: z.string().trim().max(4000).optional().nullable(),
-});
+const executeReviewActionSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    // REQUIRED + non-null + non-empty. This is only a first line of defence:
+    // the authoritative decision is taken server-side against the DB value.
+    requestTypeCode: z.string().trim().min(1),
+    workflowStepRuntimeId: z.string().uuid(),
+    action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
+    comment: z.string().trim().max(4000).optional().nullable(),
+  })
+  // Fail-closed BEFORE any DB access: B1 services must use the atomic RPC path.
+  .superRefine((value, ctx) => {
+    if (isB1StaffRoutedRequestType(value.requestTypeCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: GENERIC_EXECUTOR_B1_FORBIDDEN_ERROR,
+        path: ["requestTypeCode"],
+      });
+    }
+  });
+
 
 export type ExecuteStudentRequestStaffActionResult = {
   success: boolean;
@@ -954,7 +972,9 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
     // archive have their own contracts and dedicated executors.
     const { data: stepRow, error: stepErr } = await supabaseAdmin
       .from("student_request_workflow_steps")
-      .select("id, status, student_request_id, config:request_type_workflow_steps!inner(action_type)")
+      .select(
+        "id, status, student_request_id, config:request_type_workflow_steps!inner(action_type), request:student_requests!inner(id, request_type)",
+      )
       .eq("id", data.workflowStepRuntimeId)
       .maybeSingle();
 
@@ -963,6 +983,25 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
     if (stepRow.student_request_id !== data.requestId) {
       throw new Error("الخطوة لا تنتمي لهذا الطلب");
     }
+
+    // AUTHORITATIVE B1 routing guard — runs BEFORE any workflow RPC or write.
+    // The client-provided requestTypeCode is cross-checked against the real
+    // `student_requests.request_type` bound to this step; every ambiguous,
+    // missing, forged or mismatched value fails closed here.
+    await assertGenericExecutorAuthoritativeRequestType({
+      requestId: data.requestId,
+      stepId: data.workflowStepRuntimeId,
+      clientRequestTypeCode: data.requestTypeCode,
+      lookup: async () => {
+        const request = (stepRow as {
+          request?: { id?: string | null; request_type?: string | null } | null;
+        }).request ?? null;
+        return request
+          ? { requestId: request.id ?? null, requestTypeCode: request.request_type ?? null }
+          : null;
+      },
+    });
+
     if (stepRow.status !== "active") {
       throw new Error("الخطوة ليست نشطة — لا يمكن تنفيذ الإجراء");
     }
@@ -976,6 +1015,7 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
     if ((data.action === "reject" || data.action === "return") && !data.comment?.trim()) {
       throw new Error("التعليق مطلوب عند الرفض أو الإرجاع");
     }
+
 
     const { data: rpcData, error: rpcErr } = await (
       context.supabase as {

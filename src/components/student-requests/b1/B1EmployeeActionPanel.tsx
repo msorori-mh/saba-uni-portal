@@ -28,7 +28,19 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
   },
   review: {
-    labelAr: "تمت المراجعة",
+    labelAr: "مراجعة",
+    buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
+  },
+  apply_decision: {
+    labelAr: "تطبيق القرار",
+    buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
+  },
+  clear: {
+    labelAr: "إخلاء طرف",
+    buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
+  },
+  archive: {
+    labelAr: "أرشفة",
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
   },
   return: {
@@ -40,14 +52,6 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
     buttonClass: "bg-destructive text-destructive-foreground hover:opacity-90",
   },
 };
-
-function approveLabelAr(stepKey?: string): string {
-  if (!stepKey) return "اعتماد";
-  if (stepKey.includes("clearance") || stepKey.endsWith("_clear")) return "إخلاء";
-  if (stepKey === "registrar_apply" || stepKey === "record_apply") return "تطبيق القرار";
-  if (stepKey === "archive") return "أرشفة";
-  return "اعتماد";
-}
 
 function ActionIcon({ action }: { action: ExecutableAction }) {
   const cls = "h-4 w-4";
@@ -68,7 +72,6 @@ function ActionIcon({ action }: { action: ExecutableAction }) {
 export function B1EmployeeActionPanel({
   allowedAction,
   stepLabelAr,
-  stepKey,
   acting = false,
   onAct,
   requireComment,
@@ -100,8 +103,8 @@ export function B1EmployeeActionPanel({
   const commentRequired =
     requireComment ?? B1_STAFF_ACTIONS_REQUIRING_COMMENT.includes(allowedAction);
   const meta = ACTION_META[allowedAction];
-  const labelAr =
-    allowedAction === "approve" ? approveLabelAr(stepKey) : meta.labelAr;
+  // Label is derived literally from the configured action — never aliased.
+  const labelAr = meta.labelAr;
   const controlsDisabled = busy || acting;
 
   const handleAct = async () => {

@@ -4,6 +4,7 @@ import {
   type GraduateContactPointView,
 } from "@/lib/graduates-affairs/communications";
 import type { GraduateConsent } from "@/lib/graduates-affairs/foundation";
+import { gaPurposeLabelAr } from "./display-format";
 
 const REASON_LABELS: Record<string, string> = {
   unknown_communication_purpose: "غرض التواصل غير معروف",
@@ -29,15 +30,26 @@ export function GraduateCommunicationPanel(props: {
   drafts: readonly GraduateCommunicationRequest[];
 }) {
   return (
-    <section dir="rtl" aria-labelledby="graduate-communication-title" className="rounded-lg border p-4">
-      <h3 id="graduate-communication-title" className="font-semibold">التواصل مع الخريج</h3>
+    <section
+      dir="rtl"
+      aria-labelledby="graduate-communication-title"
+      className="rounded-lg border p-4"
+    >
+      <h3 id="graduate-communication-title" className="font-semibold">
+        التواصل مع الخريج
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        لا يُرسل أي تواصل إلا بموافقة فعالة للغرض نفسه وإصدار الإشعار، وعبر نقطة اتصال موثقة غير
+        ملغاة لنفس الغرض والقناة.
+      </p>
 
       <h4 className="mt-3 text-sm font-medium">نقاط الاتصال</h4>
       <ul className="mt-1 list-disc ps-5 text-sm" aria-label="نقاط اتصال الخريج">
         {props.contactPoints.length === 0 && <li>لا توجد نقاط اتصال مسجلة.</li>}
         {props.contactPoints.map((point) => (
           <li key={point.contactPointId}>
-            {point.channelType === "email" ? "بريد إلكتروني" : "هاتف"} — الغرض: {point.purposeCode}
+            {point.channelType === "email" ? "بريد إلكتروني" : "هاتف"} — الغرض:{" "}
+            {gaPurposeLabelAr(point.purposeCode)}
             {point.revoked ? (
               <span className="text-red-700"> (ملغاة)</span>
             ) : point.verified ? (
@@ -59,9 +71,13 @@ export function GraduateCommunicationPanel(props: {
             contactPoints: props.contactPoints,
           });
           return (
-            <li key={`${draft.contactPointId}:${draft.templateCode}`} className="rounded border p-2">
+            <li
+              key={`${draft.contactPointId}:${draft.templateCode}`}
+              className="rounded border p-2"
+            >
               <p>
-                القالب: {draft.templateCode} — القناة: {draft.channel === "email" ? "بريد إلكتروني" : "هاتف"}
+                القالب: {draft.templateCode} — القناة:{" "}
+                {draft.channel === "email" ? "بريد إلكتروني" : "هاتف"}
               </p>
               {eligibility.ok ? (
                 <p className="text-green-700">جاهزة للإرسال ضمن الموافقة المسجلة.</p>

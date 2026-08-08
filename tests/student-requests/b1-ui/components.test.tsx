@@ -332,7 +332,7 @@ describe("B1EmployeeActionPanel", () => {
     const html = renderToStaticMarkup(
       createElement(B1EmployeeActionPanel, { ...baseProps, allowedAction: "review" as const }),
     );
-    expect(html).toContain("تمت المراجعة");
+    expect(html).toContain("مراجعة</button>");
     expect(html).not.toContain("رفض");
     expect(html).not.toContain("إرجاع للاستكمال");
   });

@@ -31,16 +31,25 @@ const GATE_SRC = readFileSync(
   join(ROOT, "src/lib/faculty-portal/processing-access.functions.ts"),
   "utf-8",
 );
+const IDENTITY_SRC = readFileSync(
+  join(ROOT, "src/lib/student-requests/processing-assignment-identity.server.ts"),
+  "utf-8",
+);
 
 describe("hasActiveProcessingAssignment server fn — gate", () => {
   it("runs under requireSupabaseAuth", () => {
     expect(GATE_SRC).toMatch(/\.middleware\(\[requireSupabaseAuth\]\)/);
   });
 
-  it("queries request_processing_assignments filtered by user_id and is_active=true", () => {
-    expect(GATE_SRC).toMatch(/from\(\s*["']request_processing_assignments["']\s*\)/);
-    expect(GATE_SRC).toMatch(/\.eq\(\s*["']user_id["']\s*,\s*context\.userId\s*\)/);
-    expect(GATE_SRC).toMatch(/\.eq\(\s*["']is_active["']\s*,\s*true\s*\)/);
+  it("delegates assignment lookup to the shared identity-closure helper", () => {
+    expect(GATE_SRC).toMatch(/hasActiveProcessingAssignmentForUser\(\s*\n?\s*context\.userId/);
+    expect(GATE_SRC).toMatch(
+      /from\s+["']@\/lib\/student-requests\/processing-assignment-identity\.server["']/,
+    );
+    // the gate itself must not re-implement a user_id-only lookup
+    expect(GATE_SRC).not.toMatch(/from\(\s*["']request_processing_assignments["']\s*\)/);
+    expect(IDENTITY_SRC).toMatch(/from\(\s*["']request_processing_assignments["']\s*\)/);
+    expect(IDENTITY_SRC).toMatch(/\.eq\(\s*["']is_active["']\s*,\s*true\s*\)/);
   });
 
   it("returns admin/system_admin short-circuit as isAdmin", () => {

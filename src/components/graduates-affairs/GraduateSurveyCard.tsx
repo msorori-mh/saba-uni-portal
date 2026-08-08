@@ -42,6 +42,7 @@ export function GraduateSurveyCard(props: {
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<string[]>([]);
+  const [submitted, setSubmitted] = useState(false);
   const eligibility = evaluateSurveyResponseEligibility({
     survey: props.survey,
     version: props.version,
@@ -50,14 +51,18 @@ export function GraduateSurveyCard(props: {
   });
 
   const submit = () => {
+    if (submitted) return;
     const result = validateSurveyAnswers(props.version.questions, answers);
     if (!result.ok) {
       setErrors(result.errors);
       return;
     }
     setErrors([]);
+    setSubmitted(true);
     props.onSubmitDraft?.(answers);
   };
+
+  const locked = !eligibility.ok || submitted;
 
   return (
     <section dir="rtl" aria-labelledby="graduate-survey-title" className="rounded-lg border p-4">
@@ -69,55 +74,68 @@ export function GraduateSurveyCard(props: {
           لا يمكن الإجابة: {ELIGIBILITY_LABELS[eligibility.reason] ?? eligibility.reason}
         </p>
       )}
-      <fieldset disabled={!eligibility.ok} className="mt-2 space-y-3">
-        {props.version.questions.map((question) => (
-          <div key={question.key}>
-            <p className="text-sm font-medium">
-              {question.key}
-              {question.required ? <span aria-hidden="true"> *</span> : null}
-            </p>
-            {question.kind === "single_choice" ? (
-              <div role="radiogroup" aria-label={question.key} className="mt-1 flex gap-4">
-                {(question.options ?? []).map((option) => (
-                  <label key={option} className="flex items-center gap-1 text-sm">
-                    <input
-                      type="radio"
-                      name={question.key}
-                      value={option}
-                      checked={answers[question.key] === option}
-                      onChange={() =>
-                        setAnswers((current) => ({ ...current, [question.key]: option }))
-                      }
-                    />
-                    {option}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <textarea
-                aria-label={question.key}
-                className="mt-1 w-full rounded border p-1 text-sm"
-                maxLength={question.maxLength}
-                value={answers[question.key] ?? ""}
-                onChange={(event) =>
-                  setAnswers((current) => ({ ...current, [question.key]: event.target.value }))
-                }
-              />
-            )}
-          </div>
-        ))}
+      <fieldset disabled={locked} className="mt-2 space-y-3">
+        {props.version.questions.map((question, index) => {
+          const questionLabel = `السؤال ${index + 1}`;
+          return (
+            <div key={question.key}>
+              <p className="text-sm font-medium">
+                {questionLabel}
+                {question.required ? <span aria-hidden="true"> *</span> : null}
+                {question.required ? <span className="sr-only"> (إلزامي)</span> : null}
+              </p>
+              {question.kind === "single_choice" ? (
+                <div role="radiogroup" aria-label={questionLabel} className="mt-1 flex gap-4">
+                  {(question.options ?? []).map((option) => (
+                    <label key={option} className="flex items-center gap-1 text-sm">
+                      <input
+                        type="radio"
+                        name={question.key}
+                        value={option}
+                        checked={answers[question.key] === option}
+                        onChange={() =>
+                          setAnswers((current) => ({ ...current, [question.key]: option }))
+                        }
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  aria-label={questionLabel}
+                  className="mt-1 w-full rounded border p-1 text-sm"
+                  maxLength={question.maxLength}
+                  value={answers[question.key] ?? ""}
+                  onChange={(event) =>
+                    setAnswers((current) => ({ ...current, [question.key]: event.target.value }))
+                  }
+                />
+              )}
+            </div>
+          );
+        })}
       </fieldset>
       {errors.length > 0 && (
-        <ul className="mt-2 list-disc ps-5 text-sm text-red-700" aria-label="أخطاء الإجابة">
+        <ul
+          className="mt-2 list-disc ps-5 text-sm text-red-700"
+          aria-label="أخطاء الإجابة"
+          role="alert"
+        >
           {errors.map((error) => (
             <li key={error}>{answerErrorLabel(error)}</li>
           ))}
         </ul>
       )}
+      {submitted && (
+        <p className="mt-2 text-sm text-green-700" role="status">
+          تم استلام إجابتك. لا يمكن إرسالها مرة أخرى.
+        </p>
+      )}
       <button
         type="button"
-        className="mt-3 rounded border px-3 py-1 text-sm disabled:opacity-50"
-        disabled={!eligibility.ok}
+        className="mt-3 min-h-11 rounded border px-3 py-1 text-sm disabled:opacity-50"
+        disabled={locked}
         onClick={submit}
       >
         إرسال الإجابة

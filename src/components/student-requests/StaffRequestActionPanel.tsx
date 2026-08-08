@@ -16,6 +16,10 @@ import {
   type StudentRequestStaffActionResult,
 } from "@/lib/student-requests/staff-action-contract";
 import {
+  assertGenericStaffExecutorAllowed,
+  isB1StaffRoutedRequestType,
+} from "@/lib/student-requests/b1-staff-action-routing";
+import {
   getAvailableUiActionsForRole,
   STAFF_ACTIONS_DISABLED_MSG,
   type StaffRequestActionDefinition,
@@ -97,6 +101,21 @@ export function StaffRequestActionPanel({
   const [executeError, setExecuteError] = useState<string | null>(null);
   const validateInFlightRef = useRef(false);
   const executeInFlightRef = useRef(false);
+
+  // Fail-closed separation: the five B1 services must never reach the generic
+  // action panel or the generic executor — they use the atomic B1 RPC path.
+  if (isB1StaffRoutedRequestType(requestTypeCode)) {
+    return (
+      <div
+        dir="rtl"
+        data-testid="generic-panel-b1-blocked"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
+      >
+        إجراءات هذه الخدمة تُنفَّذ من لوحة B1 المخصصة عبر المسار الذري، وليس من لوحة الإجراءات
+        العامة.
+      </div>
+    );
+  }
 
   const roleKeys = currentRoleKey ? [currentRoleKey] : [];
   const legacyActions = getAvailableUiActionsForRole(roleKeys, workflowRuntimeAvailable);
@@ -187,9 +206,11 @@ export function StaffRequestActionPanel({
     setExecuteError(null);
 
     try {
+      assertGenericStaffExecutorAllowed(requestTypeCode);
       const result = await executeFn({
         data: {
           requestId,
+          requestTypeCode,
           workflowStepRuntimeId,
           action: rpcAction,
           comment: localNote.trim() || null,

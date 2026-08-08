@@ -93,6 +93,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Package 97 PG17 smoke requires the exact postgres:17 image on the runner
+      # (fail-closed when missing). Pull + inspect before tests; do not use latest.
+      - name: Provision PostgreSQL 17 image
+        run: |
+          set -euo pipefail
+          docker pull postgres:17
+          docker image inspect postgres:17
+
       # Fail-closed: any failing test in any tests/ suite fails this job.
       # The discovery guard also fails the job if the suites ever go missing
       # (e.g. a path rename), so the job can never silently become a no-op.
@@ -136,6 +144,16 @@ jobs:
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
               tests/graduates-affairs/graduates-affairs-completion-01.pg-verify.sql
+          # Authorization review chain: own pg-setup (staff/assignment stub
+          # schema) -> foundation draft -> completion draft ->
+          # GRADUATES-AFFAIRS-AUTHORIZATION-04 -> authorization verifier.
+          - name: graduates-affairs-authorization
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-verify.sql
           # Chain: pg-setup -> DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-
           # FOUNDATION-01 -> verifier.
           - name: academic-clearance-foundation
@@ -151,35 +169,48 @@ jobs:
               docs/migration-drafts/DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-FOUNDATION-01.sql
               docs/drafts/ACADEMIC-CLEARANCE-COMPLETION-01.sql
               tests/academic-clearance/academic-clearance-completion.pg-verify.sql
-          # Chain: minimal schema -> GRADUATION-PROJECTS-MVP-FOUNDATION-01 ->
-          # foundation verifier. Fixture ids from postgres-minimal-schema.sql.
+          # Chain: minimal schema -> canonical SET U (A1/A2/A3 + storage insert
+          # predicate fix) -> foundation verifier. Production ledger is P1-U;
+          # SET N is quarantined under docs/migration-evidence.
           - name: graduation-projects-foundation
             files: >-
               tests/graduation-projects/postgres-minimal-schema.sql
-              docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql
+              supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql
+              supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql
+              supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql
+              supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               tests/graduation-projects/postgres-foundation-verifier.sql
-            vars: >-
-              -v department_id=20000000-0000-0000-0000-000000000001
-              -v student_profile_id=30000000-0000-0000-0000-000000000001
-              -v student_user_id=10000000-0000-0000-0000-000000000001
-              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
-              -v faculty_user_id=10000000-0000-0000-0000-000000000002
-          # Chain: minimal schema -> foundation draft -> lifecycle completion
-          # draft (PR #190) -> foundation verifier -> lifecycle verifier.
-          # Same synthetic -v fixtures as the foundation leg.
+          # Chain: minimal schema -> canonical SET U -> foundation verifier ->
+          # lifecycle (Package A) verifier.
           - name: graduation-projects-lifecycle
             files: >-
               tests/graduation-projects/postgres-minimal-schema.sql
-              docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql
-              docs/migration-drafts/GRADUATION-PROJECTS-LIFECYCLE-COMPLETION-01.sql
+              supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql
+              supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql
+              supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql
+              supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               tests/graduation-projects/postgres-foundation-verifier.sql
               tests/graduation-projects/postgres-lifecycle-verifier.sql
-            vars: >-
-              -v department_id=20000000-0000-0000-0000-000000000001
-              -v student_profile_id=30000000-0000-0000-0000-000000000001
-              -v student_user_id=10000000-0000-0000-0000-000000000001
-              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
-              -v faculty_user_id=10000000-0000-0000-0000-000000000002
+          # Chain: minimal schema -> SET U -> storage remediation verifier
+          # (retains dedicated storage INSERT policy proof).
+          - name: graduation-projects-storage
+            files: >-
+              tests/graduation-projects/postgres-minimal-schema.sql
+              supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql
+              supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql
+              supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql
+              supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
+              tests/graduation-projects/postgres-storage-insert-policy-remediation-verifier.sql
+          # Chain: minimal schema -> SET U -> promoted L4 -> L4 verifier.
+          - name: graduation-projects-level4
+            files: >-
+              tests/graduation-projects/postgres-minimal-schema.sql
+              supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql
+              supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql
+              supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql
+              supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
+              supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
+              tests/graduation-projects/postgres-student-level4-eligibility-guard-verifier.sql
           # Chain: minimal schema -> 20260721000000_materials_secure_activation
           # draft -> secure activation verifier (38 assertion groups).
           - name: materials-secure-activation
