@@ -4,6 +4,7 @@
 
 **Branch:** `integration/portal-final-release-candidate-v3-01`  
 **Mission date:** 2026-08-09  
+**FINAL_SHA:** branch tip after push (recorded in draft PR head; avoid self-referential docs pin)  
 
 ## Pins
 
