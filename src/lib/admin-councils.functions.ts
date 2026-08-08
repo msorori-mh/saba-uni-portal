@@ -645,6 +645,7 @@ const MEETING_STATUS_VALUES = [
   "agenda_ready",
   "in_session",
   "minutes_draft",
+  "minutes_review",
   "minutes_locked",
   "archived",
   "cancelled",
@@ -792,6 +793,14 @@ export type UpdateCouncilMeetingResult = {
   status: MeetingStatus | string;
 };
 
+export type TransitionCouncilMeetingResult = {
+  ok: true;
+  meeting_id: string;
+  from_status: MeetingStatus | string;
+  to_status: MeetingStatus | string;
+  transition_id: string;
+};
+
 export const getCouncilMeetingsForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -906,6 +915,74 @@ export const scheduleCouncilMeeting = createServerFn({ method: "POST" })
     };
   });
 
+export const transitionCouncilMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => {
+    rejectMeetingClientOverrides(input, [
+      "council_id",
+      "councilId",
+      "created_by",
+      "createdBy",
+      "updated_by",
+      "updatedBy",
+      "actor_user_id",
+      "actorUserId",
+    ]);
+    return z
+      .object({
+        meetingId: z.string().uuid("معرّف الاجتماع غير صالح"),
+        expectedStatus: z.enum(MEETING_STATUS_VALUES),
+        toStatus: z.enum(MEETING_STATUS_VALUES),
+        evidence: z.record(z.string(), z.unknown()).optional(),
+      })
+      .parse(input);
+  })
+  .handler(async ({ data, context }): Promise<TransitionCouncilMeetingResult> => {
+    const sb = context.supabase;
+
+    const { data: existing, error: readErr } = await sb
+      .from("academic_council_meetings")
+      .select("id, council_id, status")
+      .eq("id", data.meetingId)
+      .maybeSingle();
+    if (readErr) mapMeetingDbError(readErr, "load");
+    if (!existing) throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+
+    await assertCanScheduleCouncilMeeting(
+      sb,
+      context.userId,
+      existing.council_id as string,
+    );
+
+    const { data: transitionRpc, error } = await sb.rpc(
+      "council_transition_meeting" as never,
+      {
+        p_meeting_id: data.meetingId,
+        p_expected_status: data.expectedStatus,
+        p_to_status: data.toStatus,
+        p_evidence: data.evidence ?? {},
+      } as never,
+    );
+
+    if (error) mapMeetingDbError(error, "update");
+    const payload = asCouncilRpcPayload(transitionRpc);
+    if (
+      !payload.ok ||
+      typeof payload.meeting_id !== "string" ||
+      typeof payload.transition_id !== "string"
+    ) {
+      throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+    }
+
+    return {
+      ok: true,
+      meeting_id: payload.meeting_id,
+      from_status: (payload.from_status as string) ?? data.expectedStatus,
+      to_status: (payload.to_status as string) ?? data.toStatus,
+      transition_id: payload.transition_id,
+    };
+  });
+
 export const updateCouncilMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => {
@@ -938,14 +1015,38 @@ export const updateCouncilMeeting = createServerFn({ method: "POST" })
       existing.council_id as string,
     );
 
-    if (
-      data.status === "agenda_ready" ||
-      data.status === "in_session" ||
-      data.status === "minutes_draft" ||
-      data.status === "minutes_locked" ||
-      data.status === "archived"
-    ) {
-      throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+    // Status changes must go through the authoritative transition RPC.
+    if (data.status) {
+      const { data: transitionRpc, error: transitionErr } = await sb.rpc(
+        "council_transition_meeting" as never,
+        {
+          p_meeting_id: data.meetingId,
+          p_expected_status: existing.status,
+          p_to_status: data.status,
+          p_evidence: {},
+        } as never,
+      );
+      if (transitionErr) mapMeetingDbError(transitionErr, "update");
+      const transitionPayload = asCouncilRpcPayload(transitionRpc);
+      if (!transitionPayload.ok || typeof transitionPayload.meeting_id !== "string") {
+        throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+      }
+
+      const hasMetadata =
+        data.title !== undefined ||
+        data.scheduledAt !== undefined ||
+        data.location !== undefined ||
+        data.intakeOpensAt !== undefined ||
+        data.intakeClosesAt !== undefined ||
+        data.notes !== undefined;
+
+      if (!hasMetadata) {
+        return {
+          ok: true,
+          meeting_id: transitionPayload.meeting_id,
+          status: (transitionPayload.to_status as string) ?? data.status,
+        };
+      }
     }
 
     const { data: updatedRpc, error } = await sb.rpc(
@@ -958,7 +1059,8 @@ export const updateCouncilMeeting = createServerFn({ method: "POST" })
         p_intake_opens_at: data.intakeOpensAt,
         p_intake_closes_at: data.intakeClosesAt,
         p_notes: data.notes,
-        p_status: data.status,
+        // Never pass status — council_transition_meeting owns all status mutations.
+        p_status: null,
       } as never,
     );
 
@@ -971,7 +1073,7 @@ export const updateCouncilMeeting = createServerFn({ method: "POST" })
     return {
       ok: true,
       meeting_id: payload.meeting_id,
-      status: (payload.status as string) ?? existing.status,
+      status: (payload.status as string) ?? (data.status ?? existing.status),
     };
   });
 
@@ -1223,7 +1325,8 @@ export type ReorderAgendaItemsResult = {
 export type FinalizeMeetingAgendaResult = {
   ok: true;
   meeting_id: string;
-  status: "agenda_ready";
+  /** Current meeting status after approve-only finalize (not advanced by this RPC). */
+  status: MeetingStatus | string;
   approved_items_count: number;
 };
 
@@ -1699,10 +1802,11 @@ export const finalizeMeetingAgenda = createServerFn({ method: "POST" })
       throw new Error(AGENDA_FINALIZE_DENIED_MESSAGE);
     }
 
+    // Finalize approves agenda items only; advance to agenda_ready via transitionCouncilMeeting.
     return {
       ok: true,
       meeting_id: payload.meeting_id,
-      status: "agenda_ready",
+      status: (payload.status as string) ?? meeting.status,
       approved_items_count:
         typeof payload.approved_items_count === "number"
           ? payload.approved_items_count
