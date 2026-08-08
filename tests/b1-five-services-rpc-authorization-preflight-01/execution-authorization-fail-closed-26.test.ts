@@ -27,7 +27,7 @@ import {
 const root = process.cwd();
 const pkg = join(root, "scripts", "b1-rpc-principal-harness-01");
 const BASELINE_REL = "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json";
-const REQUIRED_HEAD = "20260801021541";
+const REQUIRED_HEAD = "20260807023229";
 const BASELINE_HOLD = "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE";
 const AUTH_HOLD = EXECUTION_AUTH_HOLD_TOKEN;
 
@@ -154,15 +154,14 @@ describe("REMEDIATION-26: corrected gate state machine", () => {
     expect(execGate).toContain("v_status IS DISTINCT FROM 'PINNED'");
   });
 
-  it("2. a synthetic PINNED baseline with execution_authorized=false permits verification only", () => {
+  it("2. a PINNED baseline with execution_authorized=false permits verification only", () => {
     expect(baselineVerificationGate(VALID).allowed).toBe(true);
-    // LONGRUN-08: committed source baseline is PENDING; gate still accepts synthetic PINNED input.
-    expect(baseline.status).toBe("PENDING");
+    expect(baseline.status).toBe("PINNED");
     expect(baseline.execution_authorized).toBe(false);
     expect(baselineBlock.execution_authorized).toBe(false);
     expect(baseline.operator_preflight_executed).toBe(false);
     expect(baseline.negative_cases_executed).toBe(0);
-    expect(baselineBlock.status).toBe("PENDING");
+    expect(baselineBlock.status).toBe("PINNED");
   });
 
   it("3. a PINNED baseline does not itself authorize execution", () => {
@@ -337,12 +336,12 @@ describe("REMEDIATION-26: corrected gate state machine", () => {
 });
 
 describe("REMEDIATION-26: committed source state keeps execution closed", () => {
-  it("the captured baseline values remain PENDING and non-self-authorizing (LONGRUN-08)", () => {
-    expect(baseline.status).toBe("PENDING");
-    expect(baseline.fingerprint).toBeNull();
+  it("the captured baseline values remain PINNED and non-self-authorizing (LONGRUN-10)", () => {
+    expect(baseline.status).toBe("PINNED");
+    expect(baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
     expect(baseline.execution_authorized).toBe(false);
-    expect(baselineBlock.status).toBe("PENDING");
-    expect(baselineBlock.fingerprint).toBeNull();
+    expect(baselineBlock.status).toBe("PINNED");
+    expect(baselineBlock.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
     expect(baselineBlock.execution_authorized).toBe(false);
     expect(authArtifact.status).toBe("NOT_GRANTED");
     expect(authArtifact.execution_authorized).toBe(false);

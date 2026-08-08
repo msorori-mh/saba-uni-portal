@@ -179,9 +179,9 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   it("G5: visibility is proven by baseline fingerprint equality, not row counts", () => {
-    // LONGRUN-08 G11: authoritative_baseline remains PENDING with fingerprint=null.
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
-    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
+    // LONGRUN-10: authoritative_baseline is PINNED with fingerprint 86ccc1bbf280f466b7e7c0a902b17d5d.
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
+    expect(manifest.authoritative_baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
     expect(preflight).toContain("OPERATOR_VISIBILITY_NOT_PROVEN");
     expect(preflight).toMatch(/baseline_fingerprint/u);
   });
@@ -435,12 +435,12 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   // ---- G2 package state ---------------------------------------------------
-  it("G2: 267 = 240 + 24 + 3 and the baseline is PENDING (LONGRUN-08)", () => {
+  it("G2: 267 = 240 + 24 + 3 and the baseline is PINNED (LONGRUN-10)", () => {
     expect(matrix.counts.negative_core).toBe(240);
     expect(matrix.counts.illegal_action).toBe(24);
     expect(matrix.counts.supplemental_department_scope).toBe(3);
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
-    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
+    expect(manifest.authoritative_baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
   });
 
 
@@ -1053,16 +1053,16 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
   });
 
   // ---- 13. authoritative baseline is PENDING (LONGRUN-08 G11) --------------
-  it("13: the authoritative baseline remains PENDING until an explicit later capture", () => {
+  it("13: the authoritative baseline is PINNED with fingerprint 86ccc1bb... (LONGRUN-10 G11)", () => {
     const baseline = manifest.authoritative_baseline;
-    expect(baseline.status).toBe("PENDING");
+    expect(baseline.status).toBe("PINNED");
     expect(baseline.execution_authorized).toBe(false);
-    expect(baseline.fingerprint).toBeNull();
-    expect(baseline.captured_at_utc).toBeNull();
-    expect(baseline.valid_for_minutes).toBeNull();
-    expect(baseline.reviewed_package_sha).toBeNull();
-    expect(baseline.migration_head).toBe("20260801021541");
-    expect(baseline.expected_migration_head).toBe("20260801021541");
+    expect(baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
+    expect(baseline.captured_at_utc).toBeTruthy();
+    expect(baseline.valid_for_minutes).toBe(10080);
+    expect(baseline.reviewed_package_sha).toBe("3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6");
+    expect(baseline.migration_head).toBe("20260807023229");
+    expect(baseline.expected_migration_head).toBe("20260807023229");
     expect(baseline.scope).toHaveLength(8);
     expect(baseline.contains_secrets).toBe(false);
     expect(baseline.artifact_sha256).toMatch(/^[0-9a-f]{64}$/u);
@@ -1071,13 +1071,13 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     const artifact = JSON.parse(artifactRaw) as Record<string, any>;
     expect(createHash("sha256").update(artifactRaw.replace(/\r\n/gu, "\n")).digest("hex"))
       .toBe(baseline.artifact_sha256);
-    expect(artifact.status).toBe("PENDING");
-    expect(artifact.fingerprint).toBeNull();
+    expect(artifact.status).toBe("PINNED");
+    expect(artifact.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
     expect(artifact.operator_preflight_executed).toBe(false);
     expect(artifact.negative_cases_executed).toBe(0);
 
     const check = read(join(pkg, "generated", "fingerprint-check.sql"));
-    expect(check).toContain("v_expected text := NULL");
+    expect(check).toContain("v_expected text := '86ccc1bbf280f466b7e7c0a902b17d5d'");
     expect(check).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
   });
 
@@ -1265,7 +1265,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
     expect(fixtureIdx).toBeLessThan(psqlIdx);
     expect(authIdx).toBeLessThan(psqlIdx);
     expect(launcher).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED");
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
     // REMEDIATION-26: the PINNED baseline never authorizes execution by itself.
     expect(manifest.authoritative_baseline.execution_authorized).toBe(false);
     // the SQL preflight carries the same fail-closed gates

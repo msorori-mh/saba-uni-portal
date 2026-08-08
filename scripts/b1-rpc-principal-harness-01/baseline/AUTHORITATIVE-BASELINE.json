@@ -1,17 +1,17 @@
 {
-  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08",
-  "mode": "SOURCE_PACKAGE_BASELINE_SLOT_PENDING",
-  "status": "PENDING",
+  "mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
+  "mode": "SOURCE_PACKAGE_BASELINE_V2",
+  "status": "PINNED",
   "execution_authorized": false,
-  "fingerprint": null,
-  "fingerprint_recomputed_in_transaction": null,
-  "drift": "N_A_PENDING",
-  "captured_at_utc": null,
-  "valid_for_minutes": null,
-  "reviewed_package_sha": null,
-  "migration_head": "20260801021541",
-  "expected_migration_head": "20260801021541",
-  "previous_migration_head": "20260731203030",
+  "fingerprint": "86ccc1bbf280f466b7e7c0a902b17d5d",
+  "fingerprint_recomputed_in_transaction": "86ccc1bbf280f466b7e7c0a902b17d5d",
+  "drift": "NONE",
+  "captured_at_utc": "2026-08-09T00:50:00Z",
+  "valid_for_minutes": 10080,
+  "reviewed_package_sha": "3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6",
+  "migration_head": "20260807023229",
+  "expected_migration_head": "20260807023229",
+  "previous_migration_head": "20260807001114",
   "function_graph": {
     "closure_entries": 29,
     "resolved": 29,
@@ -21,11 +21,21 @@
     "search_path_violations": 0,
     "entrypoint_signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
     "entrypoint_sha256_normalized": "10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c",
-    "reattestation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08"
+    "reattestation_mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10"
   },
-  "fixture_state": null,
-  "protected_state": null,
-  "state_pins": null,
+  "protected_reference_sentinels": [
+    "SR-20260727-50BEDCE2",
+    "SR-20260727-695EC35B",
+    "SR-20260727-88D885F0",
+    "SR-20260727-42393846",
+    "SR-20260727-3C550070"
+  ],
+  "actionable_fixture_targets": {
+    "marker": "TEST_ONLY_B1_FIXTURE_13",
+    "request_count": 19,
+    "step_count": 104,
+    "active_step_count": 19
+  },
   "scope": [
     "SR-20260713-2DE64041",
     "SR-20260715-FEDCB3E1",
@@ -46,5 +56,5 @@
     "selectable_by_launcher": false
   },
   "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
-  "note": "G11 LONGRUN-08: authoritative_baseline remains PENDING with fingerprint=null until a later explicit baseline capture stage. No production baseline execution in this package."
+  "note": "G11 LONGRUN-10: Baseline Contract V2 distinguishing protected reference sentinels and actionable TEST_ONLY_B1_FIXTURE_13 targets."
 }

@@ -123,7 +123,7 @@
     "attested_at_utc": "2026-08-08T20:30:00Z",
     "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
     "reattestation": {
-      "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08",
+      "mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
       "repinned_entries": 29,
       "graph_verdict": "29_total/29_resolved/29_matching/0_mismatched",
       "channel": "Lovable Cloud query_database SELECT-only",
@@ -265,7 +265,7 @@
       {
         "signature": "public.can_current_user_act_on_step(uuid,text)",
         "entry_point": false,
-        "definition_sha256": "1871e14d4edafbd6b5e7470bba7e9919a83ca8898d5e8b1f4ba35776a140709e",
+        "definition_sha256": "5d2b46d7f5bc7434dacc9a89377e839539223498edfa53afc5dda466be766e22",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
@@ -295,7 +295,7 @@
       {
         "signature": "public.current_user_matches_transfer_department_scope(uuid,text)",
         "entry_point": false,
-        "definition_sha256": "79d1b1d543fefe9f7855a0da004732d89c5744b359d266f010b13c44d904406b",
+        "definition_sha256": "a307d0859bf34e1115624fae3aaa82ac11f931f11b65a3c2335958d9f17acbbd",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
@@ -375,7 +375,7 @@
       {
         "signature": "public.record_external_university_payment_confirmation(uuid,text)",
         "entry_point": true,
-        "definition_sha256": "9d2adec9ef78753006ba1254298285073787d7ff0a2566ce5208d2ae9c9169ed",
+        "definition_sha256": "edbae98c6e95d8d4f14a5a9a675c8bbb3abb0235a2343c24202358161ee983ca",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
@@ -395,7 +395,7 @@
       {
         "signature": "public.user_matches_workflow_runtime_step(uuid)",
         "entry_point": false,
-        "definition_sha256": "2568cf7b11f4e288b4cdb859bd481a736947924c199fa24d55af0b3d8421e0d0",
+        "definition_sha256": "2ecf741a3e8da340da2c55b95714b9518e5e4e0858119e60a46e742b34ebfced",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
@@ -571,16 +571,16 @@
     }
   },
   "authoritative_baseline": {
-    "status": "PENDING",
+    "status": "PINNED",
     "execution_authorized": false,
     "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
-    "artifact_sha256": "f0d5f48954917c7eda8ae987519f8aa73a56df733aeb4e737c40c835e3ce7aec",
-    "fingerprint": null,
-    "generated_by": "LONGRUN-08 source package; baseline capture deferred (fingerprint=null)",
-    "valid_for_minutes": null,
-    "reviewed_package_sha": null,
-    "migration_head": "20260801021541",
-    "expected_migration_head": "20260801021541",
+    "artifact_sha256": "4683b59140eab163af99b8f5943c6600d61c98b1cf995a2c1cc6bca09cba2957",
+    "fingerprint": "86ccc1bbf280f466b7e7c0a902b17d5d",
+    "generated_by": "LONGRUN-10 baseline contract V2; fingerprint 86ccc1bbf280f466b7e7c0a902b17d5d at tip 20260807023229",
+    "valid_for_minutes": 10080,
+    "reviewed_package_sha": "3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6",
+    "migration_head": "20260807023229",
+    "expected_migration_head": "20260807023229",
     "scope": [
       "SR-20260713-2DE64041",
       "SR-20260715-FEDCB3E1",
@@ -595,8 +595,8 @@
     "negative_cases_executed": 0,
     "contains_secrets": false,
     "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
-    "captured_at_utc": null,
-    "invalidation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-STALE-BASELINE-INVALIDATION-09",
+    "captured_at_utc": "2026-08-09T00:50:00Z",
+    "invalidation_mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
     "fail_closed_rules": [
       "status != PINNED",
       "baseline self-authorizes execution (execution_authorized != false in the baseline artifact or in this manifest): a read-only capture must never authorize execution",

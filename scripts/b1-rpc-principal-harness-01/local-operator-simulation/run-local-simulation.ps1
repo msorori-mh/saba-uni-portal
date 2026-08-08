@@ -130,7 +130,7 @@ $reqUuid = ($csv -match 'D_payment_request_uuid,PASS')
 docker rm -f $container | Out-Null
 
 $results = [ordered]@{
-  mission_id = 'PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08'
+  mission_id = 'PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10'
   gate = 'G13_LOCAL_OPERATOR_SIMULATION'
   case_count_rendered = 267
   render_deterministic = $true

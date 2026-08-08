@@ -22,7 +22,7 @@ const pkg = join(root, "scripts/b1-rpc-principal-harness-01");
 const ACTIVE_REL = "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json";
 const ARCHIVE_REL =
   "scripts/b1-rpc-principal-harness-01/baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json";
-const REQUIRED_HEAD = "20260801021541";
+const REQUIRED_HEAD = "20260807023229";
 const HOLD = "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE";
 
 const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/gu, "\n");
@@ -85,7 +85,7 @@ function evaluateBaselineGate(input: {
     return deny("reviewed_package_sha differs from the exact execution SHA");
   }
   if (input.expected_migration_head !== REQUIRED_HEAD || input.migration_head !== REQUIRED_HEAD) {
-    return deny("migration head differs from 20260801021541");
+    return deny("migration head differs from 20260807023229");
   }
   if (input.matrix_sha !== input.expected_matrix_sha) return deny("matrix SHA differs");
   if (input.package_source_hash !== input.expected_package_source_hash) return deny("package-source hash differs");
@@ -179,11 +179,11 @@ describe("G1: the stale baseline is archived as historical evidence", () => {
 
 describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () => {
   it("has the exact required PINNED state", () => {
-    expect(active.status).toBe("PENDING");
-    expect(active.fingerprint).toBeNull();
-    expect(active.captured_at_utc).toBeNull();
-    expect(active.valid_for_minutes).toBeNull();
-    expect(active.reviewed_package_sha).toBeNull();
+    expect(active.status).toBe("PINNED");
+    expect(active.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
+    expect(active.captured_at_utc).toBeTruthy();
+    expect(active.valid_for_minutes).toBe(10080);
+    expect(active.reviewed_package_sha).toBe("3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6");
     expect(active.migration_head).toBe(REQUIRED_HEAD);
     expect(active.scope).toHaveLength(8);
     expect(active.execution_authorized).toBe(false);
@@ -198,7 +198,7 @@ describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () 
   });
 
   it("the manifest mirrors the PINNED state and pins the artifact hash", () => {
-    expect(baselineBlock.status).toBe("PENDING");
+    expect(baselineBlock.status).toBe("PINNED");
     expect(baselineBlock.execution_authorized).toBe(false);
     expect(baselineBlock.fingerprint).toBe(active.fingerprint);
     expect(baselineBlock.artifact_path).toBe(ACTIVE_REL);
@@ -247,7 +247,7 @@ describe("G4: fail-closed validation rules", () => {
     });
   }
 
-  it("the current committed baseline is PENDING and therefore fails closed", () => {
+  it("the current committed baseline is PINNED and valid (LONGRUN-10)", () => {
     const base = {
       ...VALID,
       artifact_path: baselineBlock.artifact_path,
@@ -256,7 +256,7 @@ describe("G4: fail-closed validation rules", () => {
       fingerprint: baselineBlock.fingerprint,
     };
     expect(evaluateBaselineGate({ ...base, observed_fingerprint: baselineBlock.fingerprint }).allowed)
-      .toBe(false);
+      .toBe(true);
     const drifted = evaluateBaselineGate({ ...base, observed_fingerprint: "d".repeat(32) });
     expect(drifted.allowed).toBe(false);
     expect(drifted.hold).toBe(HOLD);
@@ -284,10 +284,10 @@ describe("G4: fail-closed validation rules", () => {
     expect(preflight).toContain(HOLD);
     expect(preflight).toContain("baseline_execution_authorized");
     expect(preflight).toContain("baseline_artifact_path");
-    expect(fingerprintCheck).toContain("v_expected text := NULL");
+    expect(fingerprintCheck).toContain("v_expected text := '86ccc1bbf280f466b7e7c0a902b17d5d'");
     expect(fingerprintCheck).toContain(HOLD);
-    expect(pins).toContain("('baseline_status', 'PENDING')");
-    expect(pins).toContain("('baseline_fingerprint', NULL)");
+    expect(pins).toContain("('baseline_status', 'PINNED')");
+    expect(pins).toContain("('baseline_fingerprint', '86ccc1bbf280f466b7e7c0a902b17d5d')");
     expect(pins).toContain("('baseline_execution_authorized', 'false')");
   });
 

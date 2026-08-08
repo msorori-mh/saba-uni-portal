@@ -128,7 +128,7 @@ Write-Host "target: ref=$projectRef host=$pgHost port=$pgPort db=$pgDatabase ssl
 #     baseline/archive/ is rejected.
 # ---------------------------------------------------------------------------
 $canonicalBaselineRelative = 'scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json'
-$requiredMigrationHead = '20260801021541'
+$requiredMigrationHead = '20260807023229'
 $baselineHold = 'HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE'
 $bl = $manifest.authoritative_baseline
 
