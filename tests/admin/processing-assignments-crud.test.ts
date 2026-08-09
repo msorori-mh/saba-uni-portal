@@ -16,6 +16,10 @@ const ROUTE = readFileSync(
   "utf8",
 );
 const NAV = readFileSync(join(ROOT, "src/lib/admin-nav.ts"), "utf8");
+const NAV_CONFIG = readFileSync(
+  join(ROOT, "src/lib/admin-navigation-config.ts"),
+  "utf8",
+);
 const SHELL = readFileSync(
   join(ROOT, "src/components/admin/AdminShell.tsx"),
   "utf8",
@@ -75,8 +79,9 @@ describe("processing assignments admin — policy contracts", () => {
   });
 
   it("admin shell nav links to the new screen", () => {
-    expect(SHELL).toContain('to: "/admin/processing-assignments"');
-    expect(SHELL).toContain("ممثلو أدوار الطلبات");
+    expect(NAV_CONFIG).toContain('to: "/admin/processing-assignments"');
+    expect(NAV_CONFIG).toContain("ممثلو أدوار الطلبات");
+    expect(SHELL).toContain("ADMIN_NAV_GROUPS");
   });
 
   it("UI disables the assign button when an active assignee already exists", () => {
