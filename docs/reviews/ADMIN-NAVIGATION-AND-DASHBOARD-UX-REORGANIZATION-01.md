@@ -140,7 +140,7 @@ Mission coverage includes role filtering, search visibility, accordion, KPI/atte
 
 ## CI
 
-Draft PR #317. Initial Bun suite failed on 3 source assertions still pointing at inline AdminShell nav strings; remediations retargeted those tests to `admin-navigation-config.ts` / `applyAdminFinanceNavGate`. Re-check pending.
+Draft PR #317 — **SUCCESS** after remediating 3 source assertions that still pointed at inline AdminShell nav strings (`applyAdminFinanceNavGate` / `admin-navigation-config.ts`).
 
 ## Visual check status
 
