@@ -5,8 +5,8 @@
 | **المهمة** | `PORTAL-REPORTS-BY-BENEFICIARY-FULL-CLOSURE-01` |
 | **الفرع** | `feat/reports-by-beneficiary-full-closure-01` |
 | **BASE_SHA** | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
-| **FINAL_SHA** | `faa86fa38fb296a930c1cead36025af6baa186e1` |
-| **PR** | `TBD` |
+| **FINAL_SHA** | `40874728` (tip; implementation `faa86fa38fb296a930c1cead36025af6baa186e1`) |
+| **PR** | https://github.com/msorori-mh/saba-uni-portal/pull/318 |
 | **القرار** | `PASS_WITH_BLOCKED_DEPENDENCIES_PORTAL_REPORTS_BY_BENEFICIARY_01` |
 
 ---
@@ -175,7 +175,7 @@
 
 - الكتالوج في `entries.ts` على رأس الفرع هو مصدر الحقيقة الوحيد للحالات والأعداد.
 - ترقية `EXEC-CORE-KPIS` وHUB-* وREQ-* إلى LIVE تعكس الاختبارات/الربط الحاليين في الفرع؛ لا اختراع LIVE إضافي.
-- `FINAL_SHA` ورابط PR يُملآن بعد الالتزام وإنشاء الـ PR.
+- `FINAL_SHA` ورابط PR مثبتان في رأس التقرير (PR #318).
 
 ## 12) المخاطر
 
