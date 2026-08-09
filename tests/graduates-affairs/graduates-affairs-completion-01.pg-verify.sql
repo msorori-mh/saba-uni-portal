@@ -237,7 +237,8 @@ SET policy_state = 'approved',
     allow_portal_sign_in = true,
     valid_from = now() - interval '1 day',
     expires_at = now() + interval '1 day'
-WHERE policy_code = 'graduate-account-continuity';
+WHERE policy_code = 'graduate-account-continuity'
+  AND is_current;
 
 DO $$
 BEGIN
@@ -261,17 +262,75 @@ BEGIN
   BEGIN
     UPDATE public.graduate_account_continuity_policies
     SET expires_at = now() + interval '30 days'
-    WHERE policy_code = 'graduate-account-continuity';
+    WHERE policy_code = 'graduate-account-continuity'
+      AND is_current;
     RAISE EXCEPTION 'expected decided policy immutability rejection';
   EXCEPTION WHEN others THEN
     IF SQLERRM NOT LIKE '%GRADUATE_ACCOUNT_POLICY_DECIDED_IMMUTABLE%' THEN RAISE; END IF;
   END;
   BEGIN
     DELETE FROM public.graduate_account_continuity_policies
-    WHERE policy_code = 'graduate-account-continuity';
+    WHERE policy_code = 'graduate-account-continuity'
+      AND is_current;
     RAISE EXCEPTION 'expected policy append-only rejection';
   EXCEPTION WHEN others THEN
     IF SQLERRM NOT LIKE '%GRADUATES_AFFAIRS_APPEND_ONLY_RECORD%' THEN RAISE; END IF;
+  END;
+END;
+$$;
+
+-- R8: supersession creates a new current version; old decided row stays
+-- immutable and auditable; evaluator resolves only is_current.
+DO $$
+DECLARE
+  v_old_id uuid;
+  v_new_id uuid;
+  v_current_count integer;
+BEGIN
+  SELECT id INTO v_old_id
+  FROM public.graduate_account_continuity_policies
+  WHERE policy_code = 'graduate-account-continuity' AND is_current;
+
+  v_new_id := public.graduate_supersede_account_continuity_policy(
+    'graduate-account-continuity',
+    'approved',
+    true,
+    false,
+    '["portal_sign_in","survey_participation"]'::jsonb,
+    now() - interval '1 hour',
+    now() + interval '30 days',
+    '33333333-3333-4333-8333-333333333333',
+    now()
+  );
+
+  IF v_new_id IS NULL OR v_new_id = v_old_id THEN
+    RAISE EXCEPTION 'supersession must insert a distinct current version';
+  END IF;
+  SELECT count(*) INTO v_current_count
+  FROM public.graduate_account_continuity_policies
+  WHERE policy_code = 'graduate-account-continuity' AND is_current;
+  IF v_current_count <> 1 THEN
+    RAISE EXCEPTION 'exactly one current version required, got %', v_current_count;
+  END IF;
+  IF (SELECT is_current FROM public.graduate_account_continuity_policies WHERE id = v_old_id) THEN
+    RAISE EXCEPTION 'superseded version must not remain current';
+  END IF;
+  IF (SELECT supersedes_policy_id FROM public.graduate_account_continuity_policies WHERE id = v_new_id)
+     IS DISTINCT FROM v_old_id THEN
+    RAISE EXCEPTION 'new version must reference superseded id';
+  END IF;
+  IF NOT public.evaluate_graduate_account_continuity(
+       'graduate-account-continuity', 'survey_participation', now()) THEN
+    RAISE EXCEPTION 'evaluator must resolve the new current capabilities';
+  END IF;
+  -- Old decided facts remain immutable after demotion.
+  BEGIN
+    UPDATE public.graduate_account_continuity_policies
+    SET allow_portal_sign_in = false
+    WHERE id = v_old_id;
+    RAISE EXCEPTION 'expected superseded decided row immutability rejection';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_ACCOUNT_POLICY_DECIDED_IMMUTABLE%' THEN RAISE; END IF;
   END;
 END;
 $$;
