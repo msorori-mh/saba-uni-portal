@@ -4,51 +4,50 @@
 
 - **المعرّف**: `PORTAL-FINAL-PRODUCTION-RUNBOOK-PREP-01-REPORT`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
-- **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
-- **تركيبة الإصدار المعتمدة المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
-- **مرجع RC313 SHA**: `RC313_SHA=resolve dynamically at finalization` (تحديد ديناميكي عند الاعتماد النهائي — عدم التجميد على `e3db0cc330106518d5ab9ca6874d70d9e98b1411` القديم عند تقدم PR #313 لتضمين PR #314)
-- **مرجع PR314 SHA**: `PR314_SHA=resolve dynamically` (تيار إطلاق أخضر إضافي جاري دمجه بالتوازي في PR #313)
-- **الـ B1 SHA الحالية**: `B1_FINAL_SHA=PENDING` (لحين إغلاق `LONGRUN-18`)
-- **الـ FINAL RC SHA**: `FINAL_RC_SHA=PENDING` (تحديد ديناميكي عند الاعتماد النهائي)
+- **شجرة العمل**: `C:\projects\saba-final-runbook-316-repin`
+- **تركيبة الإصدار المعتمدة المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `#315` + `#317` + `#310`
+- **FINAL_RC_HEAD_SHA**: `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`
+- **RC313_SHA**: `RC313_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` (alias مطابق لـ FINAL_RC_HEAD_SHA)
+- **مرجع PR314 SHA**: `PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f` (`PR314_IN_RC=YES`)
+- **مرجع PR315 SHA**: `PR315_SHA=42a9586fe7b20ca883c2f45a6f683a1e2f2e909c` (`PR315_IN_RC=YES`, `PR315_MIGRATIONS=0`)
+- **مرجع PR317 SHA**: `PR317_SHA=636e26f1d221f784d18bae00c9a4e7254e1be819` (`PR317_IN_RC=YES`, `PR317_MIGRATIONS=0`)
+- **B1_FINAL_HEAD_SHA**: `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12` (`B1_INSERTION_MIGRATIONS=0`)
 - **وضع التنفيذ الإنتاجي**: `PRODUCTION_EXECUTION=NOT_AUTHORIZED` (صفر تنفيذ إنتاجي، صفر تطبيق migrations، صفر تعديل بيانات إنتاجية، صفر نشر Publish/Deploy).
-- **التاريخ**: 2026-08-09
+- **التاريخ**: 2026-08-10
 
 ---
 
-## 1. ملخص التنفيذ والتحقق التلقائي
+## 1. ملخص التثبيت النهائي (Exact Repin Closure-04)
 
-تم إكمال الوثائق المصدرية والحزم التشغيلية الثلاث المطلوبة لإعداد وجاهزية دليل التشغيل الإنتاجي النهائي وفق ضوابط وثيقة `AGENTS.md` وبروتوكول المالك الأحادي (Apply-One Policy).
+تم تثبيت دليل التشغيل الإنتاجي مرة واحدة على FINAL SOURCE RC `#313` وإزالة كل قيم `B1=PENDING` / `FINAL_RC=PENDING` / SHA RC القديم `e3db0cc3…`.
 
-### الوثائق والمستندات المنشأة:
-1. **دليل التطبيق الفردي والتحقق الإنتاجي**:
-   - `docs/release/PORTAL-FINAL-PRODUCTION-APPLY-ONE-OWNER-RUNBOOK-01.md`
-2. **لوحة قرارات المالك البنائية والتشغيلية (22 بوابة)**:
-   - `docs/release/PORTAL-FINAL-OWNER-GATE-BOARD-01.md`
-3. **حزمة الفحص المسبق للقراءة فقط لقواعد البيانات**:
-   - `docs/release/PORTAL-FINAL-READONLY-PREFLIGHT-PACKAGE-01.md`
+### الوثائق والمستندات:
+1. `docs/release/PORTAL-FINAL-PRODUCTION-APPLY-ONE-OWNER-RUNBOOK-01.md`
+2. `docs/release/PORTAL-FINAL-OWNER-GATE-BOARD-01.md`
+3. `docs/release/PORTAL-FINAL-READONLY-PREFLIGHT-PACKAGE-01.md`
+4. `docs/PORTAL-FINAL-PRODUCTION-RUNBOOK-PREP-01-REPORT.md`
 
 ### نتائج الفحص والتحقق الإلزامي:
 
-| نوع التحقق | الأمر المنفذ | النتيجة | التفاصيل |
-|---|---|---|---|
-| **TypeScript Typecheck** | `bunx tsc --noEmit` | **PASS** | صفر أخطاء نوعية (0 TS errors across whole project) |
-| **Master Runbook Unit Tests** | `bun test tests/runbook` | **PASS** | 21 اختبار ناجح (0 فشل) عبر 1 ملف و 138 تأكيد |
-| **Student Requests Suite** | `bun test tests/student-requests` | **PASS** | 1066 اختبار ناجح (0 فشل) عبر 98 ملف اختبار و 7933 تأكيد |
-| **Git Working Tree Audit** | `git status --short` | **PASS** | التغييرات محصورة في وثائق الإطلاق والتقرير المعتمد |
-| **Git Diff Check** | `git diff --check` | **PASS** | خلو المشروع من أخطاء المسافات البيضاء أو التنسيق |
+| نوع التحقق | الأمر المنفذ | النتيجة |
+|---|---|---|
+| **TypeScript Typecheck** | `bunx tsc --noEmit` | **PASS** |
+| **Master Runbook Unit Tests** | `bun test tests/runbook` | **PASS** |
+| **Student Requests Suite** | `bun test tests/student-requests` | **PASS** |
+| **Git Diff Check** | `git diff --check` | **PASS** |
 
 ---
 
 ## 2. مصفوفة الالتزام بقواعد الوكلاء (`AGENTS.md`)
 
-| القاعدة | حالة الالتزام | التوثيق والبرهان |
-|---|---|---|
-| **نطاق العمل (SOURCE-ONLY)** | **ملتزم تماماً** | لم يتم الاتصال بقاعدة بيانات الإنتاج أو تطبيق migrations أو النشر (Deploy/Publish). |
-| **عزل Git والحظر المباشر على main** | **ملتزم تماماً** | التخصيص جرى داخل Branch جديد `docs/portal-final-production-runbook-prep-01` وWorktree مستقل `C:\projects\saba-production-runbook-prep`. |
-| **دورة حياة طلبات الطلاب والتفويض** | **ملتزم تماماً** | كل خطوة موظف محددة بـ `processing_unit` و `processing_role` مع اختبارات RPC لـ ALLOW و DENY مباشرة بدون أي bypass عام للأدمن/المسجل/العميد. |
-| **الرسوم والمالية** | **ملتزم تماماً** | لا توجد بوابة دفع أو عملات أو رصيد داخل البوابة. الخدمات المدفوعة توجه للطالب بالنظام الجامعي، والتأكيد يتم يدوي خارجي عبر `payment_confirmation`. |
-| **إصدار الوثائق وتوقيعها** | **ملتزم تماماً** | إصدار الـ PDF والوثائق محصور في `document_issuance` فقط، والتوقيع لا ينشئ Storage artifacts أو ملفات غير مصرح بها. |
-| **النطاق المحمي** | **ملتزم تماماً** | لم يتم تعديل `enrollment_certificate` أو migrations سابقة أو إجراء cleanup/backfill. |
+| القاعدة | حالة الالتزام |
+|---|---|
+| **نطاق العمل (SOURCE-ONLY)** | **ملتزم تماماً** |
+| **عزل Git والحظر المباشر على main** | **ملتزم تماماً** |
+| **دورة حياة طلبات الطلاب والتفويض** | **ملتزم تماماً** |
+| **الرسوم والمالية** | **ملتزم تماماً** |
+| **إصدار الوثائق وتوقيعها** | **ملتزم تماماً** |
+| **النطاق المحمي** | **ملتزم تماماً** |
 
 ---
 
@@ -71,9 +70,9 @@
 13. **GATE-13 (Councils Feature Activation)**: تفعيل خصائص المجالس الأكاديمية.
 14. **GATE-14 (B1 Operator Provisioning)**: تهيئة مشغلي B1.
 15. **GATE-15 (B1 Fresh Baseline)**: اعتماد خط أساس B1.
-16. **GATE-16 (B1 267 Matrix Execution)**: تنفيذ مصفوفة الـ 267 لـ B1.
-17. **GATE-17 (B1 Cleanup)**: تنظيف بيئة B1 التشغيلية.
-18. **GATE-18 (B1 Visibility Activation)**: تفعيل ظهور الخدمات الخمس لـ B1 فردياً.
+16. **GATE-16 (B1 Sequential Apply)**: Apply-One فقط عند التصريح — بدون اختراع SQL إدراج.
+17. **GATE-17 (B1 Cleanup / Visibility False)**: تنظيف بيئة B1 التشغيلية.
+18. **GATE-18 (B1 Visibility Activation / Fixtures)**: تفعيل ظهور الخدمات الخمس لـ B1 فردياً.
 19. **GATE-19 (Deployment Gate)**: موافقة النشر البرمجي.
 20. **GATE-20 (Publish Gate)**: موافقة الإعلان والنشر الحي.
 21. **GATE-21 (Operational E2E Gate)**: نتائج اختبارات E2E التشغيلية.
@@ -81,31 +80,48 @@
 
 ---
 
-## 4. تقرير الوكيل الموحد (Agent Report)
+## 4. تكافؤ شجرة الـ Migrations (Source ↔ Runbook)
 
-- **الملفات المنشأة والمعدلة**: 
+كتالوج الإطلاق المعتمد يبقى **15** ملفاً فقط. لا تُضاف مداخل من `#315` أو `#317` أو إدراج `#310`.
+
+| Metric | Value |
+|---|---|
+| `RUNBOOK_MIGRATION_COUNT` | `15` |
+| `SOURCE_MIGRATION_COUNT` | `15` |
+| `MISSING_FROM_RUNBOOK` | `0` |
+| `EXTRA_IN_RUNBOOK` | `0` |
+| `PR315_MIGRATIONS` | `0` |
+| `PR317_MIGRATIONS` | `0` |
+| `B1_INSERTION_MIGRATIONS` | `0` |
+| Apply-One semantics | ONE → verify → next only; STOP on failure/partial |
+
+---
+
+## 5. تقرير الوكيل الموحد (Agent Report)
+
+- **الملفات المنشأة والمعدلة**:
   - `docs/release/PORTAL-FINAL-PRODUCTION-APPLY-ONE-OWNER-RUNBOOK-01.md`
   - `docs/release/PORTAL-FINAL-OWNER-GATE-BOARD-01.md`
   - `docs/release/PORTAL-FINAL-READONLY-PREFLIGHT-PACKAGE-01.md`
   - `docs/PORTAL-FINAL-PRODUCTION-RUNBOOK-PREP-01-REPORT.md`
-- **الاختبارات والنتائج**:
-  - `bun test tests/runbook` ⇒ **21 Passed, 0 Failed**
-  - `bun test tests/student-requests` ⇒ **1066 Passed, 0 Failed (7933 assertions)**
-  - `bunx tsc --noEmit` ⇒ **0 Errors**
-  - `git diff --check` ⇒ **PASS (Clean formatting & whitespace)**
+  - `tests/runbook/portal-final-production-runbook-prep-01.test.ts`
+  - `docs/reviews/PORTAL-PR316-FINAL-RC-EXACT-REPIN-AND-GO-LIVE-RUNBOOK-CLOSURE-04.md`
 - **تركيبة الإصدار المستهدفة**:
-  - `PR #293` (مشاريع التخرج Graduation Projects Level-4 Fixture Package)
-  - `PR #291` (معالجة تفويض شؤون الخريجين متعدد النماذج GA Multimodel Authorization Remediation)
-  - `PR #299` (مسار ترقية وتفويض شؤون الخريجين GA Stacked Promotion)
-  - `PR #311` (أساسات المجالس الأكاديمية Academic Councils C0-C9 Foundation)
-  - `PR #312` (إعادة تصميم واجهة أعضاء الهيئة التدريسية حسب الأولوية التشغيلية Faculty Dashboard Redesign)
-  - `PR #314` (تيار إطلاق أخضر إضافي - `PR314_IN_RC=NO`)
-  - `B1 PR #310` (`B1_FINAL_SHA=PENDING` لحين إغلاق `LONGRUN-18`)
+  - `PR #293` (GP Level-4 Fixture Package)
+  - `PR #291` (GA Multimodel Authorization Remediation)
+  - `PR #299` (GA Stacked Promotion)
+  - `PR #311` (Academic Councils C0-C9 Foundation)
+  - `PR #312` (Faculty Dashboard Redesign)
+  - `PR #314` (Faculty Councils Operational UX — `PR314_IN_RC=YES`)
+  - `PR #315` (Portal-wide PWA — `PR315_MIGRATIONS=0`)
+  - `PR #317` (Admin navigation/dashboard UX — `PR317_MIGRATIONS=0`)
+  - `PR #310` (B1 final head — `B1_INSERTION_MIGRATIONS=0`)
 - **متغيرات الإصدار الحالية**:
-  - `RC313_SHA=resolve dynamically at finalization` (ديناميكي عند التثبيت النهائي — عدم التجميد على e3db0cc330106518d5ab9ca6874d70d9e98b1411 القديم)
-  - `PR314_SHA=resolve dynamically` (تحديد ديناميكي — تيار إطلاق أخضر إضافي مدمج بالتوازي في #313)
-  - `B1_FINAL_SHA=PENDING`
-  - `FINAL_RC_SHA=PENDING`
+  - `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`
+  - `RC313_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`
+  - `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`
+  - `PENDING_PIN_COUNT=0`
+  - `STALE_SHA_COUNT=0` (removed old `e3db0cc3…` + pending pins from runbook package)
   - `PRODUCTION_EXECUTION=NOT_AUTHORIZED`
   - `PRODUCTION_READS=0`
   - `PRODUCTION_WRITES=0`
@@ -114,14 +130,14 @@
   - `PUBLISH=NO`
   - `MERGE=NO`
 - **الافتراضات**:
-  - الكود المصدري ووثائق الإطلاق تصرح بالجاهزية الكاملة من الناحية المفهومية والسياسية للإطلاق بمجرد استكمال ثبوت الـ SHA المعلقة لـ B1.
-  - أي تطبيق على قاعدة البيانات الإنتاجية يتطلب قناة اتصال آمنة وموافقة بشرية صريحة مستقلة لكل بوابة على حدة (`max_migrations_per_apply_session=1`).
+  - FINAL SOURCE RC `#313` tip هو المرجع الوحيد للتركيب النهائي.
+  - أي تطبيق إنتاجي لاحق يتطلب موافقة مالك مستقلة لكل migration فردية.
 - **المخاطر**:
-  - محاولة دمج أو تطبيق التغيرات بدون إثبات الـ `DEPLOYED_SHA` المنشور فعلياً قد تؤدي إلى عدم مطابقة بين واجهة المستخدم والـ SQL Runtime.
+  - انحراف `DEPLOYED_SHA` عن `FINAL_RC_HEAD_SHA` بعد النشر دون إثبات قراءة خلفية.
 - **العوائق**:
   - لا توجد عوائق مصدرية (Zero source blockers).
 - **أثر الإنتاج**:
-  - **صفر أثر إنتاجي (Zero Production Impact)**. لم يتم إجراء أي اتصال كتابي، أو تعديل جداول، أو تغيير حالات `student_visible`.
-- **قرار الجاهزية**: 
-  - **PASS** للمصدر والجاهزية التوثيقية (Source & Documentation Readiness: PASS)
-  - **HOLD_RELEASE_SHA_UNPROVEN** لتنفيذ الإنتاج لحين صدور موافقة النشر والتثبيت البشري.
+  - **صفر أثر إنتاجي (Zero Production Impact)**.
+- **قرار الجاهزية**:
+  - **PASS** لتثبيت المصدر ودليل التشغيل (Exact Repin)
+  - **HOLD** للتنفيذ الإنتاجي (`PRODUCTION_EXECUTION=NOT_PERFORMED`)

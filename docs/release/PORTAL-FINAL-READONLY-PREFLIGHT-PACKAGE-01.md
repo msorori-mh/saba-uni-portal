@@ -4,9 +4,9 @@
 
 - **المعرّف**: `PORTAL-FINAL-READONLY-PREFLIGHT-PACKAGE-01`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
-- **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
-- **تركيبة الإصدار المعتمدة المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
-- **حالة الـ SHA الإدارية**: `RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411` و `PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f` يُحلّان ديناميكياً عند الاعتماد النهائي
+- **شجرة العمل**: `C:\projects\saba-final-runbook-316-repin`
+- **تركيبة الإصدار المعتمدة المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `#315` + `#317` + `#310`
+- **حالة الـ SHA الإدارية**: `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` (`RC313_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`)؛ `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`؛ `PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f`؛ `PR315_SHA=42a9586fe7b20ca883c2f45a6f683a1e2f2e909c`؛ `PR317_SHA=636e26f1d221f784d18bae00c9a4e7254e1be819`
 - **حالة التنفيذ الإلزامية**: **DO NOT EXECUTE AGAINST PRODUCTION IN THIS MISSION** (مصممة للاستخدام المباشر قبل أي كتابة مستقبلية فقط).
 - **القيود الأحدية**:
   - `SELECT` وقراءات كتالوج الكائنات وحالات النظام فقط (`SELECT / CATALOG READS ONLY`).

@@ -4,11 +4,13 @@
 
 - **المعرّف**: `PORTAL-FINAL-OWNER-GATE-BOARD-01`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
-- **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
-- **تركيبة الإصدار المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
-- **مرجع RC313**: PR `#313` — الـ SHA الحالي: `e3db0cc330106518d5ab9ca6874d70d9e98b1411` (`RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411` - يُحل ديناميكياً عند تقدم PR #313 لتضمين PR #314)
-- **مرجع PR314**: PR `#314` — الـ SHA الحالي: `faaf96533a6a4b54aed3d453309cfb5779c79e6f` (`PR314_IN_RC=NO`, jari integration)
-- **مرجع B1**: PR `#310` (`B1_FINAL_SHA=PENDING`)
+- **شجرة العمل**: `C:\projects\saba-final-runbook-316-repin`
+- **تركيبة الإصدار المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `#315` + `#317` + `#310`
+- **مرجع RC313 / FINAL SOURCE RC**: PR `#313` — `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` (`RC313_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`)
+- **مرجع PR314**: PR `#314` — `PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f` (`PR314_IN_RC=YES`)
+- **مرجع PR315**: PR `#315` — `PR315_SHA=42a9586fe7b20ca883c2f45a6f683a1e2f2e909c` (`PR315_IN_RC=YES`, `PR315_MIGRATIONS=0`)
+- **مرجع PR317**: PR `#317` — `PR317_SHA=636e26f1d221f784d18bae00c9a4e7254e1be819` (`PR317_IN_RC=YES`, `PR317_MIGRATIONS=0`)
+- **مرجع B1**: PR `#310` (`B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`, `B1_INSERTION_MIGRATIONS=0`)
 - **السيادة السياسية**: لا يجوز استبدال التخويل الصريح لأي بوابة بموافقة سابقة أو موافقة شاملة. كل بوابة تتطلب قرار مالك مستقل وموثق.
 
 ---
@@ -20,19 +22,19 @@
 ### 1. بوابات الدمج والمصدر ومرشح الإصدار (Gates 01 - 03)
 
 #### GATE-01: Source Merges Gate (`GATE_OWNER_SOURCE_MERGES`)
-- **CURRENT_STATUS**: `OPEN_PREPARED` (المصدر متوافق ومجهز لـ PR #313 بالتوازي مع إدراج PR #314)
-- **PREREQUISITE**: مرور كافة اختبارات CI على PR #313 و PR #314 (`bun test`, `tsc`, `build`, `diff --check`).
+- **CURRENT_STATUS**: `SOURCE_RC_PINNED` (FINAL SOURCE RC `#313` مثبت؛ التركيبة `#293/#291/#299/#311/#312/#314/#315/#317/#310` داخل `FINAL_RC_HEAD_SHA`)
+- **PREREQUISITE**: مرور كافة اختبارات CI على PR `#313` وPR `#316` (`bun test`, `tsc`, `build`, `diff --check`).
 - **ACTION**: مراجعة شجرة المصدر المستقلة وتأكيد خلوها من أي تعارضات دمج مع `main`.
-- **VERIFY**: `git merge-base main HEAD` يثبت عدم انحراف السلسلة.
+- **VERIFY**: `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` و `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`.
 - **STOP_CONDITION**: ظهور أي فشل في CI أو التعارضات المصدرية.
 - **OWNER_DECISION_REQUIRED**: قرار مالك الكود المصشتق بالسماح بدمج المصدر (`OWNER_APPROVE_SOURCE_MERGE`).
 
 #### GATE-02: Final RC Acceptance Gate (`GATE_OWNER_FINAL_RC_ACCEPTANCE`)
-- **CURRENT_STATUS**: `PENDING_B1_SLOT_AND_PR314_INTEGRATION` (RC313 يحل الـ SHA ديناميكياً عند الاعتماد النهائي لتضمين PR #314، وفي انتظار تثبيت SHA البناء لـ B1 من PR #310)
-- **PREREQUISITE**: إغلاق `LONGRUN-18` وتحديث `B1_FINAL_SHA` واجتياز الدمج التوازي لـ PR #314.
+- **CURRENT_STATUS**: `PINNED_AWAITING_OWNER_ACCEPTANCE` (`FINAL_RC_HEAD_SHA` و `B1_FINAL_HEAD_SHA` مثبتان؛ لا يوجد `PENDING` pin)
+- **PREREQUISITE**: اكتمال إدراج `#314/#315/#317/#310` داخل FINAL SOURCE RC وثبوت التكافؤ المصدري للـ migrations الـ 15.
 - **ACTION**: توقيع وثيقة مرشح الإصدار النهائي الشامل (Final Integrated Release Candidate SHA).
-- **VERIFY**: المطابقة الرقمية بين الـ SHA الموثق في التقرير والـ HEAD لفرع الإطلاق.
-- **STOP_CONDITION**: بقاء `B1_FINAL_SHA=PENDING` أو وجود تعديلات غير موثقة على شجرة الإصدار.
+- **VERIFY**: المطابقة الرقمية بين `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` وHEAD فرع `#313`.
+- **STOP_CONDITION**: انحراف SHA عن القيم المثبتة أو وجود تعديلات غير موثقة على شجرة الإصدار.
 - **OWNER_DECISION_REQUIRED**: اعتماد المالك التجاري والفني لمرشح الإصدار النهائي (`OWNER_APPROVE_FINAL_RC`).
 
 #### GATE-03: Final Read-Only Production Preflight Gate (`GATE_OWNER_READONLY_PREFLIGHT`)
@@ -140,15 +142,15 @@
 ### 5. بوابات الخدمات الخمس B1 (Gates 14 - 18)
 
 #### GATE-14: B1 Operator Provisioning Gate (`GATE_OWNER_B1_OPERATOR_PROVISIONING`)
-- **CURRENT_STATUS**: `HOLD_PENDING_B1_SHA`
-- **PREREQUISITE**: ثبوت `B1_FINAL_SHA` وتوفر بيانات الموظفين والموكلين المباشرين.
+- **CURRENT_STATUS**: `READY_SHA_PINNED_HOLD_OWNER_GO`
+- **PREREQUISITE**: ثبوت `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12` وتوفر بيانات الموظفين والموكلين المباشرين.
 - **ACTION**: تهيئة وتعيين الأدوار التشغيلية للموظفين والمكلّفين بالمجالات والموعد المعتمد.
 - **VERIFY**: مطابقة تعيينات `processing_unit` و `processing_role` دون إنشاء حسابات وهمية.
 - **STOP_CONDITION**: غياب موظف مكلّف أو تعدد التعيينات المتضاربة.
 - **OWNER_DECISION_REQUIRED**: موافقة المالك على تهيئة المشغلين لـ B1 (`OWNER_APPROVE_B1_OPERATOR_PROVISIONING`).
 
 #### GATE-15: B1 Fresh Production Baseline Gate (`GATE_OWNER_B1_FRESH_BASELINE`)
-- **CURRENT_STATUS**: `HOLD_PENDING_B1_SHA`
+- **CURRENT_STATUS**: `READY_SHA_PINNED_HOLD_OWNER_GO`
 - **PREREQUISITE**: نجاح GATE-14 واجتياز الفحص المسبق الأساسي لـ B1.
 - **ACTION**: تثبيت قاعدة خط الأساس النظيفة للخدمات الخمس على الإنتاج.
 - **VERIFY**: خلو جدول `student_requests` من أي طلبات تجريبية غير رسمية.
@@ -156,10 +158,10 @@
 - **OWNER_DECISION_REQUIRED**: موافقة المالك على تثبيت خط الأساس النظيف لـ B1 (`OWNER_APPROVE_B1_FRESH_BASELINE`).
 
 #### GATE-16: B1 Sequential Migrations Apply Gate (`GATE_OWNER_B1_SEQUENTIAL_APPLY`)
-- **CURRENT_STATUS**: `HOLD_PENDING_B1_SHA`
-- **PREREQUISITE**: نجاح GATE-15 وإغلاق `LONGRUN-18`.
-- **ACTION**: تطبيق migrations الخدمات الخمس بالتسلسل المعتمد في `B1-SEQUENTIAL-APPLY-MANIFEST.json`.
-- **VERIFY**: مطابقة الكائنات المتوقعة بعد كل تطبيق مفرد.
+- **CURRENT_STATUS**: `READY_SHA_PINNED_NO_NEW_INSERTION_SQL`
+- **PREREQUISITE**: نجاح GATE-15 وثبوت `B1_INSERTION_MIGRATIONS=0` في كتالوج الإطلاق الـ 15.
+- **ACTION**: لا تُخترع migrations جديدة. أي خطوة تشغيلية تاريخية لاحقة تُنفَّذ Apply-One فقط بعد موافقة مالك مستقلة: ONE → verify → next، وSTOP عند أي فشل/تطبيق جزئي.
+- **VERIFY**: مطابقة الكائنات المتوقعة بعد كل تطبيق مفرد مصرّح به.
 - **STOP_CONDITION**: أي خطأ في التطبيق الفردي يوقف التسلسل.
 - **OWNER_DECISION_REQUIRED**: موافقة المالك على تنفيذ التسلسل الفردي لـ B1 (`OWNER_APPROVE_B1_SEQUENTIAL_APPLY`).
 

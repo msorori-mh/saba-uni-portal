@@ -4,12 +4,15 @@
 
 - **المعرّف**: `PORTAL-FINAL-PRODUCTION-APPLY-ONE-OWNER-RUNBOOK-01`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
-- **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
-- **تركيبة الإصدار المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
-- **مرجع الـ RC الشامل**: PR `#313` (`rc/portal-final-v4-prebuild-non-b1-01`) — الـ SHA الحالي: `e3db0cc330106518d5ab9ca6874d70d9e98b1411` (`RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411` - يُحل ديناميكياً عند أي تقدم)
-- **حالة دمج PR #314 في RC313**: `PR314_IN_RC=NO` (جاري التكامل المستقل، `PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f`)
-- **حالة دمج PR #315 في RC313**: `PR315_IN_RC=NO` (`PR315_SHA=c2c089003d58578de3b59228198e320775f81cef`)
-- **مرجع B1**: PR `#310` (`B1_FINAL_SHA=PENDING` لحين إغلاق `LONGRUN-18`)
+- **شجرة العمل**: `C:\projects\saba-final-runbook-316-repin`
+- **تركيبة الإصدار المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `#315` + `#317` + `#310`
+- **مرجع الـ RC الشامل (FINAL SOURCE RC)**: PR `#313` (`rc/portal-final-v4-prebuild-non-b1-01`)
+- **FINAL_RC_HEAD_SHA**: `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`
+- **RC313_SHA**: `RC313_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` (alias مطابق لـ FINAL_RC_HEAD_SHA)
+- **حالة دمج PR #314 في RC313**: `PR314_IN_RC=YES` (`PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f`)
+- **حالة دمج PR #315 في RC313**: `PR315_IN_RC=YES` (`PR315_SHA=42a9586fe7b20ca883c2f45a6f683a1e2f2e909c`, `PR315_MIGRATIONS=0`)
+- **حالة دمج PR #317 في RC313**: `PR317_IN_RC=YES` (`PR317_SHA=636e26f1d221f784d18bae00c9a4e7254e1be819`, `PR317_MIGRATIONS=0`)
+- **مرجع B1**: PR `#310` (`B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`, `B1_INSERTION_MIGRATIONS=0`)
 - **وضع التنفيذ**: **PREPARATION ONLY** (`PRODUCTION_EXECUTION=NOT_AUTHORIZED`)
 - **سياسة التطبيق**: **STRICT APPLY-ONE POLICY** (`max_migrations_per_apply_session=1`, `batch_apply_forbidden=true`, `parallel_apply_forbidden=true`, `ci_auto_apply_forbidden=true`)
 
@@ -70,7 +73,7 @@
 
 ## 3. رسم بياني للتسلسل المعتمد (Authoritative Release Migration Graph)
 
-مخطط الإصدار المعتمد النهائي يتكون من 15 ملف migration تنفيذي مكرس ومفصل بالكامل (بالإضافة إلى B1 المعلقة):
+مخطط الإصدار المعتمد النهائي يتكون من 15 ملف migration تنفيذي مكرس ومفصل بالكامل. لا تُضاف مداخل migrations جديدة من `#315` أو `#317` أو إدراج B1 `#310` (`PR315_MIGRATIONS=0`, `PR317_MIGRATIONS=0`, `B1_INSERTION_MIGRATIONS=0`):
 
 ```
 [مشاريع التخرج (GP Level-4 Guard)]
@@ -91,8 +94,9 @@
   MAIN-TIP-MIG-01 (20260809183940)
                                                                                │
                                                                                ▼
-[الخدمات الخمس B1 (PR #310 - PENDING)]
-  B1-Seq01 ──► ... ──► B1-Seq19 ──► B1-Academic-Effects (25..27) [B1_FINAL_SHA=PENDING]
+[الخدمات الخمس B1 (PR #310 — source-integrated, INSERTION_MIGRATIONS=0)]
+  No new release SQL files. Operational apply remains ONE→verify→next via historical B1 manifest only when owner-authorized.
+  B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12
 ```
 
 ---
@@ -507,22 +511,22 @@
 
 ---
 
-### خامساً: نظام الخدمات الخمس B1 (PR #310 — PENDING)
+### خامساً: نظام الخدمات الخمس B1 (PR #310 — FINAL HEAD PINNED)
 
-*(ملاحظة: تبقى هذه المداخل معلقة بحالة `B1_FINAL_SHA=PENDING` لحين إغلاق `LONGRUN-18` وثبوت الـ SHA النهائي)*
+*(ملاحظة: تم تثبيت المصدر. `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`. `B1_INSERTION_MIGRATIONS=0` — لا تُخترع مداخل SQL جديدة في كتالوج الإطلاق الـ 15. أي تطبيق تشغيلي لاحق يبقى Apply-One عبر الـ manifest التاريخي فقط بعد موافقة المالك.)*
 
-#### 5.1 B1 Sequential Manifest (Entries 01 → 19 / Academic Effects 25..27)
-- **SEQUENCE**: `B1-SEQ-01` إلى `B1-SEQ-19`
+#### 5.1 B1 Source Pin (No New Release Migration Entries)
+- **SEQUENCE**: `B1-SOURCE-PIN` (لا يضيف EXACT_FILENAME إلى كتالوج الـ 15)
 - **SYSTEM**: `Student Requests B1 (Five Services)`
-- **EXACT_FILENAME**: المحددة في `docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json`
+- **RELEASE_SQL_ADDITIONS**: `0`
 - **SOURCE_PR**: PR `#310`
-- **SOURCE_SHA/HASH**: `B1_FINAL_SHA=PENDING` (Pending LONGRUN-18 closure)
-- **DEPENDENCY**: التسلسل المباشر للـ manifest.
-- **PRODUCTION_PRESTATE**: `NOT_APPLIED`
-- **READONLY_PREFLIGHT**: Preflight queries documented in `B1-SEQUENTIAL-APPLY-MANIFEST.json`.
+- **SOURCE_SHA/HASH**: `B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12`
+- **DEPENDENCY**: FINAL SOURCE RC `#313` (`FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d`)
+- **PRODUCTION_PRESTATE**: Owner-gated operational steps only; no invented release migrations.
+- **READONLY_PREFLIGHT**: Preflight queries documented in `B1-SEQUENTIAL-APPLY-MANIFEST.json` (historical ops reference).
 - **OWNER_GO_REQUIRED**: `GATE_OWNER_B1_FRESH_BASELINE`
-- **EXACTLY_ONE_APPLY_TEMPLATE**: Apply strictly entry by entry.
-- **POST_VERIFIER**: Expected object proofs per manifest.
+- **EXACTLY_ONE_APPLY_TEMPLATE**: If any historical B1 SQL step is ever re-authorized: apply exactly one → verify → only then next; STOP on any failure/partial.
+- **POST_VERIFIER**: Expected object proofs per authorized step.
 - **PROTECTED_SURFACES**: `enrollment_certificate` and historical reason ledgers.
 - **STOP_CONDITION**: Any preflight, apply, or verifier error.
 - **FORWARD_RECOVERY**: Forward-only recovery (`ROLLBACK_BY_FORWARD`).
@@ -556,7 +560,7 @@
 1. **فحص أصل البناء (Build Provenance Check)**: تأكيد مطابقة الـ Git Commit SHA مع الـ Artifact المبني عبر CI.
 2. **بوابة المالك للنشر (Deployment Owner Gate)**: الحصول على التخويل الصريح والمستقل لإجراء عملية النشر على بيئة الإنتاج.
 3. **التطبيق والنشر (Deploy Execution)**: رفع الأداة والملفات الثابتة إلى بيئة الاستضافة الإنتاجية.
-4. **إثبات بصمة الكود المنشور (Deployed SHA Proof Verification)**: إجراء قراءة عادية (Read-back) من البيئة المباشرة لتأكيد أن `DEPLOYED_SHA` يطابق `RC313_SHA` المعتمد ديناميكياً (عند التثبيت النهائي وتحديث RC313).
+4. **إثبات بصمة الكود المنشور (Deployed SHA Proof Verification)**: إجراء قراءة عادية (Read-back) من البيئة المباشرة لتأكيد أن `DEPLOYED_SHA` يطابق `FINAL_RC_HEAD_SHA=2a283003957b4ea490959a10594a7eaf6a3e115d` (`RC313_SHA` alias).
 5. **قرارات المالك للظهور والخصائص (Feature/Visibility Owner Decisions)**: اتخاذ قرارات فردية لتفعيل رؤية الخدمات الخمس وخصائص المجالس وشؤون الخريجين (`student_visible=true`).
 6. **الاختبارات الدخانية التفاعلية (Smoke Tests)**:
    - فحص واجهة الطالب (`student smoke`).

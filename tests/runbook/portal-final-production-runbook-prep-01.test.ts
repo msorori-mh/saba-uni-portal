@@ -1,7 +1,7 @@
 // PORTAL-FINAL-PRODUCTION-RUNBOOK-PREP-01 - structural invariant & migration graph truth tests.
 // Automated truth test: verifies the portal final release runbook package documents
-// contain the complete release composition (#293, #291, #299, #311, #312, #314 + B1 #310 PENDING),
-// dynamic SHA resolution directives for RC313 and PR314,
+// contain the complete release composition (#293, #291, #299, #311, #312, #314, #315, #317, #310),
+// exact FINAL_RC_HEAD_SHA / B1_FINAL_HEAD_SHA pins (no PENDING pins),
 // exact parity between the runbook migration graph and actual release source files under supabase/migrations/,
 // 0 stale migration entries in release steps, exact Councils/GA/GP release sets, and strict AGENTS.md compliance.
 import { describe, expect, test } from "bun:test";
@@ -24,6 +24,10 @@ const reportContent = readFileSync(reportPath, "utf8");
 const runbookContent = readFileSync(runbookPath, "utf8");
 const gateBoardContent = readFileSync(gateBoardPath, "utf8");
 const preflightContent = readFileSync(preflightPath, "utf8");
+
+const FINAL_RC_HEAD_SHA = "2a283003957b4ea490959a10594a7eaf6a3e115d";
+const B1_FINAL_HEAD_SHA = "1bdd2fafd37515e18031ef79b4f62233ecb12e12";
+const STALE_RC_HEAD_SHA = "e3db0cc330106518d5ab9ca6874d70d9e98b1411";
 
 // Authoritative release migration catalog (15 files)
 const AUTHORITATIVE_RELEASE_MIGRATIONS = [
@@ -91,9 +95,9 @@ describe("portal final runbook package existence", () => {
   });
 });
 
-describe("release composition and dynamic SHA resolution invariants", () => {
-  test("all release PR components #293, #291, #299, #311, #312, #314, #310 are present", () => {
-    const prs = ["#293", "#291", "#299", "#311", "#312", "#314", "#310"];
+describe("release composition and exact SHA pin invariants", () => {
+  test("all release PR components #293, #291, #299, #311, #312, #314, #315, #317, #310 are present", () => {
+    const prs = ["#293", "#291", "#299", "#311", "#312", "#314", "#315", "#317", "#310"];
     for (const pr of prs) {
       expect(reportContent).toContain(pr);
       expect(runbookContent).toContain(pr);
@@ -101,23 +105,50 @@ describe("release composition and dynamic SHA resolution invariants", () => {
     }
   });
 
-  test("PR #314 is recorded as additional green release stream being integrated into #313", () => {
+  test("PR #314/#315/#317 are recorded as integrated into FINAL SOURCE RC #313", () => {
     expect(reportContent).toContain("#314");
     expect(runbookContent).toContain("#314");
     expect(gateBoardContent).toContain("#314");
     expect(preflightContent).toContain("#314");
+    expect(runbookContent).toContain("PR314_IN_RC=YES");
+    expect(runbookContent).toContain("PR315_IN_RC=YES");
+    expect(runbookContent).toContain("PR317_IN_RC=YES");
   });
 
-  test("RC313_SHA and PR314_SHA are specified for dynamic resolution", () => {
-    expect(reportContent).toContain("RC313_SHA=");
-    expect(runbookContent).toContain("RC313_SHA=");
-    expect(gateBoardContent).toContain("RC313_SHA=");
+  test("FINAL_RC_HEAD_SHA and RC313_SHA alias are pinned to current #313 head", () => {
+    for (const content of [reportContent, runbookContent, gateBoardContent, preflightContent]) {
+      expect(content).toContain(`FINAL_RC_HEAD_SHA=${FINAL_RC_HEAD_SHA}`);
+      expect(content).toContain(`RC313_SHA=${FINAL_RC_HEAD_SHA}`);
+    }
   });
 
-  test("B1_FINAL_SHA is specified as PENDING", () => {
-    expect(reportContent).toContain("B1_FINAL_SHA=PENDING");
-    expect(runbookContent).toContain("B1_FINAL_SHA=PENDING");
-    expect(gateBoardContent).toContain("B1_FINAL_SHA=PENDING");
+  test("B1_FINAL_HEAD_SHA is pinned to current #310 head", () => {
+    for (const content of [reportContent, runbookContent, gateBoardContent, preflightContent]) {
+      expect(content).toContain(`B1_FINAL_HEAD_SHA=${B1_FINAL_HEAD_SHA}`);
+    }
+  });
+
+  test("no PENDING pin remains for B1 or FINAL_RC", () => {
+    for (const content of [reportContent, runbookContent, gateBoardContent, preflightContent]) {
+      expect(content).not.toContain("B1_FINAL_SHA=PENDING");
+      expect(content).not.toContain("FINAL_RC_SHA=PENDING");
+      expect(content).not.toContain("B1 #310 PENDING");
+      expect(content).not.toContain("B1_FINAL_HEAD_SHA=PENDING");
+      expect(content).not.toContain("FINAL_RC_HEAD_SHA=PENDING");
+    }
+  });
+
+  test("stale old RC head e3db0cc3 is absent from package pins", () => {
+    for (const content of [reportContent, runbookContent, gateBoardContent, preflightContent]) {
+      expect(content).not.toContain(STALE_RC_HEAD_SHA);
+    }
+  });
+
+  test("zero-migration streams are explicit (#315/#317/#310 insertion)", () => {
+    expect(runbookContent).toContain("PR315_MIGRATIONS=0");
+    expect(runbookContent).toContain("PR317_MIGRATIONS=0");
+    expect(runbookContent).toContain("B1_INSERTION_MIGRATIONS=0");
+    expect(reportContent).toContain("B1_INSERTION_MIGRATIONS=0");
   });
 });
 
@@ -134,7 +165,7 @@ describe("authoritative migration graph parity & truth tests", () => {
     // Extract EXACT_FILENAME entries from Section 4 of the runbook
     const extractedSqlFiles = Array.from(runbookContent.matchAll(/- \*\*EXACT_FILENAME\*\*: `([^`]+)`/g)).map(m => m[1]);
     const uniqueExtracted = Array.from(new Set(extractedSqlFiles));
-    
+
     expect(uniqueExtracted.length).toBe(AUTHORITATIVE_RELEASE_MIGRATIONS.length);
     for (const f of AUTHORITATIVE_RELEASE_MIGRATIONS) {
       expect(uniqueExtracted).toContain(f);
@@ -163,7 +194,7 @@ describe("authoritative migration graph parity & truth tests", () => {
   });
 
   test("RUNBOOK_SOURCE_PARITY is PASS", () => {
-    const runbookParity = AUTHORITATIVE_RELEASE_MIGRATIONS.every(f => 
+    const runbookParity = AUTHORITATIVE_RELEASE_MIGRATIONS.every(f =>
       runbookContent.includes(f) && existsSync(join(migrationsDir, f))
     );
     expect(runbookParity).toBe(true);
@@ -201,6 +232,7 @@ describe("authoritative migration graph parity & truth tests", () => {
     }
     expect(GP_RELEASE_MIGRATIONS.length).toBe(1);
   });
+
   test("no generic unenumerated C3-C9 placeholders are used in execution specs", () => {
     const execSpecsSection = runbookContent.slice(runbookContent.indexOf("## 4. مواصفات التنفيذ التفصيلية"));
     expect(execSpecsSection).not.toContain("C3-C9");
@@ -266,4 +298,3 @@ describe("AGENTS.md and zero-production-execution stance", () => {
     expect(preflightContent).toContain("NO MIGRATION APPLY");
   });
 });
-
