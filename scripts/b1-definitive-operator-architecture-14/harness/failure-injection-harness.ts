@@ -18,8 +18,11 @@ import {
   expectationFor,
 } from "../../b1-rpc-principal-harness-01/render-negative-cases.ts";
 
-const ADMIN_URL = "postgres://postgres:postgres@127.0.0.1:54329/postgres";
+const ADMIN_URL =
+  process.env.B1_ADMIN_DATABASE_URL ||
+  "postgres://postgres:postgres@127.0.0.1:54329/postgres";
 const OPERATOR_URL =
+  process.env.B1_OPERATOR_DATABASE_URL ||
   "postgres://b1_matrix_operator:local-operator-not-a-secret@127.0.0.1:54329/postgres";
 const MATRIX_PATH = join(
   process.cwd(),
@@ -80,7 +83,7 @@ async function operatorExists(sql: SQL): Promise<boolean> {
 
 async function dropOperator(sql: SQL): Promise<void> {
   if (await operatorExists(sql)) {
-    // Revoke every explicit function EXECUTE grant before dropping the role.
+    await sql`DROP TABLE IF EXISTS public.b1_harness_rollback_marker CASCADE`;
     await sql`
       DO $$
       DECLARE
@@ -90,17 +93,15 @@ async function dropOperator(sql: SQL): Promise<void> {
           SELECT p.oid::regprocedure AS sig
           FROM pg_proc p
           JOIN pg_namespace n ON n.oid = p.pronamespace
-          WHERE EXISTS (
-            SELECT 1 FROM aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
-            WHERE a.grantee = 'b1_matrix_operator'::regrole
-              AND a.privilege_type = 'EXECUTE'
-          )
+          WHERE n.nspname = 'public'
+            AND has_function_privilege('b1_matrix_operator', p.oid, 'EXECUTE')
         LOOP
-          EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM b1_matrix_operator', r.sig);
+          EXECUTE format('REVOKE ALL ON FUNCTION %s FROM b1_matrix_operator', r.sig);
         END LOOP;
+        REVOKE ALL ON ALL TABLES IN SCHEMA public FROM b1_matrix_operator;
+        REVOKE ALL ON SCHEMA public FROM b1_matrix_operator;
       END $$;
     `;
-    await sql`REVOKE ALL PRIVILEGES ON SCHEMA public FROM b1_matrix_operator`;
     await sql`DROP ROLE b1_matrix_operator`;
   }
 }

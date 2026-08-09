@@ -1,0 +1,586 @@
+[
+  {
+    "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+    "frozen_hash": "10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c",
+    "production_live_hash": "10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260724061333_abf1bbb5-1bd0-4a7b-a805-866a3b98a61a.sql",
+      "20260727074556_c81dffb0-1afa-442b-b6ed-a3d568ac860f.sql",
+      "20260727102604_16187a17-2d0a-4d7d-bbe6-c415e0a854ea.sql",
+      "20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
+      "20260730175527_89e2a6a3-4e9f-48d7-9371-8e996ae1c00a.sql"
+    ],
+    "final_source_migration": "20260730175527_89e2a6a3-4e9f-48d7-9371-8e996ae1c00a.sql",
+    "final_source_hash_pg17_6": "07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260730175527_89e2a6a3-4e9f-48d7-9371-8e996ae1c00a.sql yields local PG17 hash 07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b vs production live hash 10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.apply_b1_academic_effect_for_request(uuid)",
+    "frozen_hash": "78c7821ba68c686a5997dd5cb9bee89eb17f52ec8a5ad85d47b539c2dc385021",
+    "production_live_hash": "78c7821ba68c686a5997dd5cb9bee89eb17f52ec8a5ad85d47b539c2dc385021",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260727102514_5e73bf3c-d458-4550-9cc9-668ec5081dd9.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql"
+    ],
+    "final_source_migration": "20260727120100_b1_26_academic_effect_functions_01.sql",
+    "final_source_hash_pg17_6": "f65778ae23d6b8114cb6a5be09b97773bd033151c1948d0bb3204abc7135a8ac",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727120100_b1_26_academic_effect_functions_01.sql yields local PG17 hash f65778ae23d6b8114cb6a5be09b97773bd033151c1948d0bb3204abc7135a8ac vs production live hash 78c7821ba68c686a5997dd5cb9bee89eb17f52ec8a5ad85d47b539c2dc385021.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.apply_b1_department_transfer_effect(uuid)",
+    "frozen_hash": "c191a03dee94e0bd40f42f1a4762fb65f28d847f820512607d1330491f4c434f",
+    "production_live_hash": "c191a03dee94e0bd40f42f1a4762fb65f28d847f820512607d1330491f4c434f",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260727102514_5e73bf3c-d458-4550-9cc9-668ec5081dd9.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql"
+    ],
+    "final_source_migration": "20260727120100_b1_26_academic_effect_functions_01.sql",
+    "final_source_hash_pg17_6": "c7025773b88fce8ee6e7547cd8d3b06d378908a9bd054f8da7f8222f7ccfaaa5",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727120100_b1_26_academic_effect_functions_01.sql yields local PG17 hash c7025773b88fce8ee6e7547cd8d3b06d378908a9bd054f8da7f8222f7ccfaaa5 vs production live hash c191a03dee94e0bd40f42f1a4762fb65f28d847f820512607d1330491f4c434f.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.apply_b1_enrollment_suspension_effect(uuid)",
+    "frozen_hash": "dd70aadd24bdfdfb4736f458c667b334b9571ef2b116ccf35cfb09cb76c362bd",
+    "production_live_hash": "dd70aadd24bdfdfb4736f458c667b334b9571ef2b116ccf35cfb09cb76c362bd",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260727102514_5e73bf3c-d458-4550-9cc9-668ec5081dd9.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql"
+    ],
+    "final_source_migration": "20260727120100_b1_26_academic_effect_functions_01.sql",
+    "final_source_hash_pg17_6": "ac25732184d6d4ce7c7804dbc3823b53b213b635b99512b8d4fb09887901c6b9",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727120100_b1_26_academic_effect_functions_01.sql yields local PG17 hash ac25732184d6d4ce7c7804dbc3823b53b213b635b99512b8d4fb09887901c6b9 vs production live hash dd70aadd24bdfdfb4736f458c667b334b9571ef2b116ccf35cfb09cb76c362bd.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.apply_b1_excused_absence_effect(uuid)",
+    "frozen_hash": "07fdd58843dd95535f1703c2f3a9df3408d089df1261e1dec0e00bdb774d997c",
+    "production_live_hash": "07fdd58843dd95535f1703c2f3a9df3408d089df1261e1dec0e00bdb774d997c",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260727102514_5e73bf3c-d458-4550-9cc9-668ec5081dd9.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql"
+    ],
+    "final_source_migration": "20260727120100_b1_26_academic_effect_functions_01.sql",
+    "final_source_hash_pg17_6": "f280ca0c08530409ce949d9bfa33faeb1aac7f2eee8fcb7ce9ee6332e96e8826",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727120100_b1_26_academic_effect_functions_01.sql yields local PG17 hash f280ca0c08530409ce949d9bfa33faeb1aac7f2eee8fcb7ce9ee6332e96e8826 vs production live hash 07fdd58843dd95535f1703c2f3a9df3408d089df1261e1dec0e00bdb774d997c.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.apply_b1_file_withdrawal_effect(uuid)",
+    "frozen_hash": "2ebc422a333d72b397ec017d1b1bc4ba09a793f3f94196aae5fa5db8229b8668",
+    "production_live_hash": "2ebc422a333d72b397ec017d1b1bc4ba09a793f3f94196aae5fa5db8229b8668",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260727102514_5e73bf3c-d458-4550-9cc9-668ec5081dd9.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql"
+    ],
+    "final_source_migration": "20260727120100_b1_26_academic_effect_functions_01.sql",
+    "final_source_hash_pg17_6": "9e489e9668783f022b60e6c2410262e6d29bd20eea26a47f54964f8133fa8c9d",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727120100_b1_26_academic_effect_functions_01.sql yields local PG17 hash 9e489e9668783f022b60e6c2410262e6d29bd20eea26a47f54964f8133fa8c9d vs production live hash 2ebc422a333d72b397ec017d1b1bc4ba09a793f3f94196aae5fa5db8229b8668.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.apply_b1_final_chance_effect(uuid)",
+    "frozen_hash": "98aa43b46ebe3dffc945c598c37d68f088807089a25e17f9c5658f999308a4f1",
+    "production_live_hash": "98aa43b46ebe3dffc945c598c37d68f088807089a25e17f9c5658f999308a4f1",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260727102514_5e73bf3c-d458-4550-9cc9-668ec5081dd9.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql"
+    ],
+    "final_source_migration": "20260727120100_b1_26_academic_effect_functions_01.sql",
+    "final_source_hash_pg17_6": "bd6b16adcfab57dc9be06cb8a0e29f9c3f36b3c5f3f36b38a6175035f9a5fe74",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727120100_b1_26_academic_effect_functions_01.sql yields local PG17 hash bd6b16adcfab57dc9be06cb8a0e29f9c3f36b3c5f3f36b38a6175035f9a5fe74 vs production live hash 98aa43b46ebe3dffc945c598c37d68f088807089a25e17f9c5658f999308a4f1.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.assert_b1_runtime_step_assignee_effective(uuid)",
+    "frozen_hash": "924535219149f124b60f3e0f4ed2b6235d46f7508cca41c37d1065bb13099473",
+    "production_live_hash": "924535219149f124b60f3e0f4ed2b6235d46f7508cca41c37d1065bb13099473",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql"
+    ],
+    "final_source_migration": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "final_source_hash_pg17_6": "cd37c05339c5e7d4142e109ee1ab30352aeaf1bfa3ee49cc43ef5f8e6b30c90e",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql yields local PG17 hash cd37c05339c5e7d4142e109ee1ab30352aeaf1bfa3ee49cc43ef5f8e6b30c90e vs production live hash 924535219149f124b60f3e0f4ed2b6235d46f7508cca41c37d1065bb13099473.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.assert_b1_runtime_step_row_assignee_effective(student_request_workflow_steps)",
+    "frozen_hash": "f5ec0a70f543c0e09d011eefa56920a4dfa513abe8df5e152d6ad1c0809c42be",
+    "production_live_hash": "f5ec0a70f543c0e09d011eefa56920a4dfa513abe8df5e152d6ad1c0809c42be",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql"
+    ],
+    "final_source_migration": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "final_source_hash_pg17_6": "4ed1775bd7598a049ca3f9b5937f11b1ee4725899a81f8ac4a71df7af5634362",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql yields local PG17 hash 4ed1775bd7598a049ca3f9b5937f11b1ee4725899a81f8ac4a71df7af5634362 vs production live hash f5ec0a70f543c0e09d011eefa56920a4dfa513abe8df5e152d6ad1c0809c42be.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_assignment_identity_lock_key()",
+    "frozen_hash": "cc5902f756f69d817dbfa8736497d42c7df65872897f6ad99045658506664ee6",
+    "production_live_hash": "cc5902f756f69d817dbfa8736497d42c7df65872897f6ad99045658506664ee6",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql"
+    ],
+    "final_source_migration": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "final_source_hash_pg17_6": "69dbed6746cd420b0094eb783e37a8a0d674ce7f836aa93044856ccf0b1d43ec",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql yields local PG17 hash 69dbed6746cd420b0094eb783e37a8a0d674ce7f836aa93044856ccf0b1d43ec vs production live hash cc5902f756f69d817dbfa8736497d42c7df65872897f6ad99045658506664ee6.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_e2e_88_correlations_aligned(uuid,uuid,uuid)",
+    "frozen_hash": "b8370052b3724c623b85290c54c4abe5eefaf5bb64c74b3f0557b4004bdaca4c",
+    "production_live_hash": "b8370052b3724c623b85290c54c4abe5eefaf5bb64c74b3f0557b4004bdaca4c",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "ba1e4c18a0ff6c9f0674f667379480dab6c7dc1e02929336eb4402bf7795101c",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash ba1e4c18a0ff6c9f0674f667379480dab6c7dc1e02929336eb4402bf7795101c vs production live hash b8370052b3724c623b85290c54c4abe5eefaf5bb64c74b3f0557b4004bdaca4c.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_e2e_88_is_five_service(text)",
+    "frozen_hash": "c93de84a0012b527c56fecf1269524071f7bd65ccdffe858a2c3fa76fee6026b",
+    "production_live_hash": "c93de84a0012b527c56fecf1269524071f7bd65ccdffe858a2c3fa76fee6026b",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "6084ac4b93385526e2772aef10a724cbea5c28a1cf79c1f5c013f80f837c53f6",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash 6084ac4b93385526e2772aef10a724cbea5c28a1cf79c1f5c013f80f837c53f6 vs production live hash c93de84a0012b527c56fecf1269524071f7bd65ccdffe858a2c3fa76fee6026b.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_e2e_88_marker()",
+    "frozen_hash": "b3c9a6bfa1c9625da61c72e269fa1e70d66e4a4b6808716d8da3daa65c0e324b",
+    "production_live_hash": "b3c9a6bfa1c9625da61c72e269fa1e70d66e4a4b6808716d8da3daa65c0e324b",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "a2c383b1ea1e86d2a1521f66e6cd8edd5bb26a119a144a508bb9ebcfa867eb83",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash a2c383b1ea1e86d2a1521f66e6cd8edd5bb26a119a144a508bb9ebcfa867eb83 vs production live hash b3c9a6bfa1c9625da61c72e269fa1e70d66e4a4b6808716d8da3daa65c0e324b.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_e2e_88_parse_correlation(text)",
+    "frozen_hash": "20820255b9aabd56d4969072a7c12a8a38a48bc263586b080dd9f27c916c806e",
+    "production_live_hash": "20820255b9aabd56d4969072a7c12a8a38a48bc263586b080dd9f27c916c806e",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "bf383657c5c1ca85c7af59fec8cf8dfa70f4c36bb8ddf3b23c10cbd9357ebea5",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash bf383657c5c1ca85c7af59fec8cf8dfa70f4c36bb8ddf3b23c10cbd9357ebea5 vs production live hash 20820255b9aabd56d4969072a7c12a8a38a48bc263586b080dd9f27c916c806e.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_e2e_88_request_correlation(uuid)",
+    "frozen_hash": "280fced47670b1962c5174aa396c03e639d54c0831e8b923831218030a3f5ed2",
+    "production_live_hash": "280fced47670b1962c5174aa396c03e639d54c0831e8b923831218030a3f5ed2",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "08ed13174099047de0564e157511dd4a74aecec2ac62127b9aadf02b05e1e649",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash 08ed13174099047de0564e157511dd4a74aecec2ac62127b9aadf02b05e1e649 vs production live hash 280fced47670b1962c5174aa396c03e639d54c0831e8b923831218030a3f5ed2.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_e2e_88_request_is_marked(uuid)",
+    "frozen_hash": "bc4e928200b60e0c58a8abc7d2f43318a94cdd53a6157ce6f276ea6b711ee775",
+    "production_live_hash": "bc4e928200b60e0c58a8abc7d2f43318a94cdd53a6157ce6f276ea6b711ee775",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "8ad8fb19d22cbe38489e98ace7344398324591741c5182f1836c9ef411b4f1a0",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash 8ad8fb19d22cbe38489e98ace7344398324591741c5182f1836c9ef411b4f1a0 vs production live hash bc4e928200b60e0c58a8abc7d2f43318a94cdd53a6157ce6f276ea6b711ee775.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_lock_assignment_identity_boundary()",
+    "frozen_hash": "fa3a5943001e102e4acb998d35a61ed21f50149dbdf2f18be017ee80e246b72c",
+    "production_live_hash": "fa3a5943001e102e4acb998d35a61ed21f50149dbdf2f18be017ee80e246b72c",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql"
+    ],
+    "final_source_migration": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "final_source_hash_pg17_6": "30ceca8e2a60845093cbaa06b4c011ac4920a80a1874e377f58173c4170b6e30",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql yields local PG17 hash 30ceca8e2a60845093cbaa06b4c011ac4920a80a1874e377f58173c4170b6e30 vs production live hash fa3a5943001e102e4acb998d35a61ed21f50149dbdf2f18be017ee80e246b72c.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_lock_assignment_identity_stmt()",
+    "frozen_hash": "ef7fab64a8f4987e5e5b0baf9d511e535d191d2e755ab7d792cca37a2a53dd5a",
+    "production_live_hash": "ef7fab64a8f4987e5e5b0baf9d511e535d191d2e755ab7d792cca37a2a53dd5a",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql"
+    ],
+    "final_source_migration": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "final_source_hash_pg17_6": "4e63de611e3c0a0ae07574c13be2c6722d697355b806ba4563c50ed513362e48",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql yields local PG17 hash 4e63de611e3c0a0ae07574c13be2c6722d697355b806ba4563c50ed513362e48 vs production live hash ef7fab64a8f4987e5e5b0baf9d511e535d191d2e755ab7d792cca37a2a53dd5a.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.b1_map_ui_staff_action(text)",
+    "frozen_hash": "bec4c955630382d03af1d3f941b8e3d00edaf2caced3c1dd87b2f24636634f0e",
+    "production_live_hash": "bec4c955630382d03af1d3f941b8e3d00edaf2caced3c1dd87b2f24636634f0e",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260725130000_b1_21_secure_read_contracts_01.sql",
+      "20260727063429_3b7dd782-3840-4e40-a7d2-b9bd941deff1.sql"
+    ],
+    "final_source_migration": "20260727063429_3b7dd782-3840-4e40-a7d2-b9bd941deff1.sql",
+    "final_source_hash_pg17_6": "5361cc1543d2329aa3196dda96c6fb9fabf5db75a9b4acef05c257b581305d3f",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727063429_3b7dd782-3840-4e40-a7d2-b9bd941deff1.sql yields local PG17 hash 5361cc1543d2329aa3196dda96c6fb9fabf5db75a9b4acef05c257b581305d3f vs production live hash bec4c955630382d03af1d3f941b8e3d00edaf2caced3c1dd87b2f24636634f0e.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.can_current_user_act_on_step(uuid,text)",
+    "frozen_hash": "5d2b46d7f5bc7434dacc9a89377e839539223498edfa53afc5dda466be766e22",
+    "production_live_hash": "5d2b46d7f5bc7434dacc9a89377e839539223498edfa53afc5dda466be766e22",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260709213935_a5b6ecfc-a2f1-4a2a-bf3c-004a521097f4.sql",
+      "20260710180000_student_request_actor_rpc_rls.sql",
+      "20260716052558_d22ac6eb-e15d-474f-846a-b67b1c907036.sql",
+      "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql",
+      "20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql",
+      "20260727072354_608688a7-56dd-460a-9e6e-ead8f23d934a.sql",
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "5d2b46d7f5bc7434dacc9a89377e839539223498edfa53afc5dda466be766e22",
+    "source_matches_live": true,
+    "difference_class": "NONE_EXACT_MATCH",
+    "semantic_difference_summary": "Source migration matches production live attestation.",
+    "recommended_resolution": "Retain source migration definition."
+  },
+  {
+    "signature": "public.current_user_has_b1_e2e_88_actor_binding(uuid,uuid,text)",
+    "frozen_hash": "4a43bd524d8bcdd9d724a3c2466e5fa5f2df2d1ada9cf601d7a2cd32e6685337",
+    "production_live_hash": "4a43bd524d8bcdd9d724a3c2466e5fa5f2df2d1ada9cf601d7a2cd32e6685337",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "6600873a57eb3754f48e3c83489b153b7850a6a85e21d980d38bebd245b0d606",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash 6600873a57eb3754f48e3c83489b153b7850a6a85e21d980d38bebd245b0d606 vs production live hash 4a43bd524d8bcdd9d724a3c2466e5fa5f2df2d1ada9cf601d7a2cd32e6685337.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.current_user_has_b1_e2e_88_department_binding(uuid,text)",
+    "frozen_hash": "25e8246a87717622161c4e74e3f62cb592b0c703b739d9e30425f5f1d0cad6d2",
+    "production_live_hash": "25e8246a87717622161c4e74e3f62cb592b0c703b739d9e30425f5f1d0cad6d2",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "a021efa5277f944856becdda38b7e9c43947dac1e1e8c65e6599edc1f0925466",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql yields local PG17 hash a021efa5277f944856becdda38b7e9c43947dac1e1e8c65e6599edc1f0925466 vs production live hash 25e8246a87717622161c4e74e3f62cb592b0c703b739d9e30425f5f1d0cad6d2.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.current_user_has_exact_processing_binding(uuid,uuid)",
+    "frozen_hash": "d98443a83201e3dde7f6f7e21575db62d74c7fc4c80707dc51eafa11a691b444",
+    "production_live_hash": "d98443a83201e3dde7f6f7e21575db62d74c7fc4c80707dc51eafa11a691b444",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql"
+    ],
+    "final_source_migration": "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql",
+    "final_source_hash_pg17_6": "d07510198cf7c89a8f574cc39687bcd82825dd16cdc45991d43a64ea929285e9",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql yields local PG17 hash d07510198cf7c89a8f574cc39687bcd82825dd16cdc45991d43a64ea929285e9 vs production live hash d98443a83201e3dde7f6f7e21575db62d74c7fc4c80707dc51eafa11a691b444.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.current_user_matches_transfer_department_scope(uuid,text)",
+    "frozen_hash": "a307d0859bf34e1115624fae3aaa82ac11f931f11b65a3c2335958d9f17acbbd",
+    "production_live_hash": "a307d0859bf34e1115624fae3aaa82ac11f931f11b65a3c2335958d9f17acbbd",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql",
+      "20260724053904_ecf769d1-a414-48b5-985a-d3b55a307402.sql",
+      "20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
+      "20260727065220_7419d7c9-9a04-49a4-a2ae-935ad100ba03.sql",
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "a307d0859bf34e1115624fae3aaa82ac11f931f11b65a3c2335958d9f17acbbd",
+    "source_matches_live": true,
+    "difference_class": "NONE_EXACT_MATCH",
+    "semantic_difference_summary": "Source migration matches production live attestation.",
+    "recommended_resolution": "Retain source migration definition."
+  },
+  {
+    "signature": "public.guard_b1_runtime_step_activation()",
+    "frozen_hash": "2523ae05c2f5f6fb250741c78f3dc2facc2bdece0854f43662d7c843bcb5874e",
+    "production_live_hash": "2523ae05c2f5f6fb250741c78f3dc2facc2bdece0854f43662d7c843bcb5874e",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql"
+    ],
+    "final_source_migration": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "final_source_hash_pg17_6": "cb798f54e981e552a78300cb27550357fb8e0b1668686742f9cc660fd9fac2a1",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql yields local PG17 hash cb798f54e981e552a78300cb27550357fb8e0b1668686742f9cc660fd9fac2a1 vs production live hash 2523ae05c2f5f6fb250741c78f3dc2facc2bdece0854f43662d7c843bcb5874e.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.has_any_role(uuid,text[])",
+    "frozen_hash": "e2e431b29d4ba7f3ffb79ca2bfc3cc6830b50e77fbd6ef54578a2fb475064f38",
+    "production_live_hash": "e2e431b29d4ba7f3ffb79ca2bfc3cc6830b50e77fbd6ef54578a2fb475064f38",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260531222858_bb6a8a90-2945-410c-a835-2268e62c3927.sql",
+      "20260621020140_b6177252-6c0e-41a7-ba0d-eaea6bd7744c.sql",
+      "20260624130000_has_any_role_unify_assignments.sql"
+    ],
+    "final_source_migration": "20260624130000_has_any_role_unify_assignments.sql",
+    "final_source_hash_pg17_6": "2673511089eb62974801e0d1d35c1b8568f69071874c537353abd129236f785a",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260624130000_has_any_role_unify_assignments.sql yields local PG17 hash 2673511089eb62974801e0d1d35c1b8568f69071874c537353abd129236f785a vs production live hash e2e431b29d4ba7f3ffb79ca2bfc3cc6830b50e77fbd6ef54578a2fb475064f38.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.is_b1_stored_request_type(text)",
+    "frozen_hash": "34db4ca396780f9cd8bf28d5c7aa6c4e565835f8369f4212444afdfb4d586b73",
+    "production_live_hash": "34db4ca396780f9cd8bf28d5c7aa6c4e565835f8369f4212444afdfb4d586b73",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260724061333_abf1bbb5-1bd0-4a7b-a805-866a3b98a61a.sql"
+    ],
+    "final_source_migration": "20260724061333_abf1bbb5-1bd0-4a7b-a805-866a3b98a61a.sql",
+    "final_source_hash_pg17_6": "5bc14b53c66c89fb74aaa631c106089dfaf11febb9533a042a8c0c136db6c55c",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260724061333_abf1bbb5-1bd0-4a7b-a805-866a3b98a61a.sql yields local PG17 hash 5bc14b53c66c89fb74aaa631c106089dfaf11febb9533a042a8c0c136db6c55c vs production live hash 34db4ca396780f9cd8bf28d5c7aa6c4e565835f8369f4212444afdfb4d586b73.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.is_owner_of_request(uuid,uuid)",
+    "frozen_hash": "8067b65c9525b2b83bbcf163140c559bf28b2b69c14ca2a0dec06e2e770f57da",
+    "production_live_hash": "8067b65c9525b2b83bbcf163140c559bf28b2b69c14ca2a0dec06e2e770f57da",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260531235203_bea9042d-3ca6-417b-a8e6-1bfd1179394e.sql"
+    ],
+    "final_source_migration": "20260531235203_bea9042d-3ca6-417b-a8e6-1bfd1179394e.sql",
+    "final_source_hash_pg17_6": "3af5fce62271fb2c998b8066d2185553d7f7bd5cae5fad704fde761ecb263234",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260531235203_bea9042d-3ca6-417b-a8e6-1bfd1179394e.sql yields local PG17 hash 3af5fce62271fb2c998b8066d2185553d7f7bd5cae5fad704fde761ecb263234 vs production live hash 8067b65c9525b2b83bbcf163140c559bf28b2b69c14ca2a0dec06e2e770f57da.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.is_valid_actor_request_action(text)",
+    "frozen_hash": "65050f9d11e2ad2aa02835eec0be7d0221e71eb20035e2935c7b7bbf852b5c22",
+    "production_live_hash": "65050f9d11e2ad2aa02835eec0be7d0221e71eb20035e2935c7b7bbf852b5c22",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260709213935_a5b6ecfc-a2f1-4a2a-bf3c-004a521097f4.sql",
+      "20260710180000_student_request_actor_rpc_rls.sql",
+      "20260713100000_enrollment_certificate_post_zero_fee_execution_contract_remediation_01.sql",
+      "20260714234442_f5b05276-e371-4552-8c53-240675ba8863.sql",
+      "20260727072354_608688a7-56dd-460a-9e6e-ead8f23d934a.sql"
+    ],
+    "final_source_migration": "20260727072354_608688a7-56dd-460a-9e6e-ead8f23d934a.sql",
+    "final_source_hash_pg17_6": "1a261965401a0978ee6130a92d9170f99a10f17fff9dcae351bc67bd1f2f80b6",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260727072354_608688a7-56dd-460a-9e6e-ead8f23d934a.sql yields local PG17 hash 1a261965401a0978ee6130a92d9170f99a10f17fff9dcae351bc67bd1f2f80b6 vs production live hash 65050f9d11e2ad2aa02835eec0be7d0221e71eb20035e2935c7b7bbf852b5c22.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.is_valid_b1_runtime_step_contract(text,text,text,text,text)",
+    "frozen_hash": "5a584c5915437b335c2e6787b5a19dfe3d013735365fb751086008eb67e18ee5",
+    "production_live_hash": "5a584c5915437b335c2e6787b5a19dfe3d013735365fb751086008eb67e18ee5",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql"
+    ],
+    "final_source_migration": "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql",
+    "final_source_hash_pg17_6": "3e02f7d89ae45fc2896908f2409f6a96008e8893ef6f0f4d77546a8497650720",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql yields local PG17 hash 3e02f7d89ae45fc2896908f2409f6a96008e8893ef6f0f4d77546a8497650720 vs production live hash 5a584c5915437b335c2e6787b5a19dfe3d013735365fb751086008eb67e18ee5.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.protect_student_sensitive_fields()",
+    "frozen_hash": "45d6df61ecdb0fce6bb6a759171400cfd60f32d1f07218556a342d7c6e713708",
+    "production_live_hash": "45d6df61ecdb0fce6bb6a759171400cfd60f32d1f07218556a342d7c6e713708",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260531223457_2c9e7828-e98e-42e0-b688-0c49f4810787.sql"
+    ],
+    "final_source_migration": "20260531223457_2c9e7828-e98e-42e0-b688-0c49f4810787.sql",
+    "final_source_hash_pg17_6": "0aa3efc8e2dce49b7f0aa92a591da44ed7e8aec8b27967f59ee922fa7ecc6583",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260531223457_2c9e7828-e98e-42e0-b688-0c49f4810787.sql yields local PG17 hash 0aa3efc8e2dce49b7f0aa92a591da44ed7e8aec8b27967f59ee922fa7ecc6583 vs production live hash 45d6df61ecdb0fce6bb6a759171400cfd60f32d1f07218556a342d7c6e713708.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.record_external_university_payment_confirmation(uuid,text)",
+    "frozen_hash": "edbae98c6e95d8d4f14a5a9a675c8bbb3abb0235a2343c24202358161ee983ca",
+    "production_live_hash": "edbae98c6e95d8d4f14a5a9a675c8bbb3abb0235a2343c24202358161ee983ca",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql",
+      "20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
+      "20260727063157_40b649a6-addb-4570-afe7-abc2fa85e3ba.sql",
+      "20260806003612_3e34513d-28e3-4047-9d2d-73d4f54ca142.sql"
+    ],
+    "final_source_migration": "20260806003612_3e34513d-28e3-4047-9d2d-73d4f54ca142.sql",
+    "final_source_hash_pg17_6": "edbae98c6e95d8d4f14a5a9a675c8bbb3abb0235a2343c24202358161ee983ca",
+    "source_matches_live": true,
+    "difference_class": "NONE_EXACT_MATCH",
+    "semantic_difference_summary": "Source migration matches production live attestation.",
+    "recommended_resolution": "Retain source migration definition."
+  },
+  {
+    "signature": "public.update_updated_at_column()",
+    "frozen_hash": "4f969bb9535c476c235c45b984a7030118dc8a0e520b233d066e91beb4cb2f07",
+    "production_live_hash": "4f969bb9535c476c235c45b984a7030118dc8a0e520b233d066e91beb4cb2f07",
+    "frozen_matches_live": true,
+    "all_source_migrations": [],
+    "final_source_migration": null,
+    "final_source_hash_pg17_6": null,
+    "source_matches_live": false,
+    "difference_class": "SOURCE_DEFINITION_NOT_LEDGERED",
+    "semantic_difference_summary": "Source migration definition from null yields local PG17 hash null vs production live hash 4f969bb9535c476c235c45b984a7030118dc8a0e520b233d066e91beb4cb2f07.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.user_matches_workflow_runtime_step(uuid)",
+    "frozen_hash": "2ecf741a3e8da340da2c55b95714b9518e5e4e0858119e60a46e742b34ebfced",
+    "production_live_hash": "2ecf741a3e8da340da2c55b95714b9518e5e4e0858119e60a46e742b34ebfced",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260709213935_a5b6ecfc-a2f1-4a2a-bf3c-004a521097f4.sql",
+      "20260710180000_student_request_actor_rpc_rls.sql",
+      "20260716052558_d22ac6eb-e15d-474f-846a-b67b1c907036.sql",
+      "20260723070041_de7de665-d929-4894-a5a7-b4839dad0b8b.sql",
+      "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql",
+      "20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql"
+    ],
+    "final_source_migration": "20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+    "final_source_hash_pg17_6": "2ecf741a3e8da340da2c55b95714b9518e5e4e0858119e60a46e742b34ebfced",
+    "source_matches_live": true,
+    "difference_class": "NONE_EXACT_MATCH",
+    "semantic_difference_summary": "Source migration matches production live attestation.",
+    "recommended_resolution": "Retain source migration definition."
+  },
+  {
+    "signature": "public.workflow_action_result_matches(text,text)",
+    "frozen_hash": "866ed42a5f38cedb24008b8d7844dd144a948578c455be0fded031c9506af9f8",
+    "production_live_hash": "866ed42a5f38cedb24008b8d7844dd144a948578c455be0fded031c9506af9f8",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql"
+    ],
+    "final_source_migration": "20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql",
+    "final_source_hash_pg17_6": "ad701791847740302d60eabc84c533cb35dcb1f5f880b0643fdcc0b164d83e16",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql yields local PG17 hash ad701791847740302d60eabc84c533cb35dcb1f5f880b0643fdcc0b164d83e16 vs production live hash 866ed42a5f38cedb24008b8d7844dd144a948578c455be0fded031c9506af9f8.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  },
+  {
+    "signature": "public.workflow_runtime_predecessors_satisfied(uuid)",
+    "frozen_hash": "701fb6499fb36616a49c0ae71f0c4640ed4d86745d2add016f216c61b3900356",
+    "production_live_hash": "701fb6499fb36616a49c0ae71f0c4640ed4d86745d2add016f216c61b3900356",
+    "frozen_matches_live": true,
+    "all_source_migrations": [
+      "20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql"
+    ],
+    "final_source_migration": "20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql",
+    "final_source_hash_pg17_6": "a47e0c17f91af232335eef086a3aaa5590865ee9506e85f039e4ed1bca1064b1",
+    "source_matches_live": false,
+    "difference_class": "FUNCTION_BODY_SOURCE_DRIFT",
+    "semantic_difference_summary": "Source migration definition from 20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql yields local PG17 hash a47e0c17f91af232335eef086a3aaa5590865ee9506e85f039e4ed1bca1064b1 vs production live hash 701fb6499fb36616a49c0ae71f0c4640ed4d86745d2add016f216c61b3900356.",
+    "recommended_resolution": "Reconcile local canonical fixture with authoritative production definition."
+  }
+]

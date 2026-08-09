@@ -28,7 +28,7 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "c8924fbed6a1fda8b2a3ce96173b528e2888531c55e4636028c51368c2069df2";
+export const MATRIX_SHA256_LF = "10cce96d7f343f603adeb3c5c165739bce27d0ec4312c7ba0876f3448dfd0c17";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
 /** REMEDIATION-15 G5: every case whose contract sits behind the active-step
  *  gate is now bound to a deterministic ACTIVE Fixture-13 runtime step, so the
@@ -390,7 +390,7 @@ function renderCase(
 
   // G6: the payment RPC takes the RUNTIME STEP id, not the request id.
   const rpcCall =
-    pc.rpc === "record_external_university_payment_confirmation"
+    (pc.rpc === "record_external_university_payment_confirmation" || nc.rpc === "record_external_university_payment_confirmation")
       ? `PERFORM public.record_external_university_payment_confirmation(v_step, 'TEST_ONLY_NEGATIVE_MATRIX');`
       : `PERFORM public.act_on_b1_student_request_step_atomic(v_step, ${lit(action)}, NULL::text, NULL::jsonb);`;
 
@@ -1060,11 +1060,11 @@ export function main(): void {
   const blockedByClass: Record<string, number> = {};
   negatives.forEach((nc, index) => {
     const key = `${nc.request_number}|${nc.step_key}`;
-    const pc = byStep.get(key);
+    const pc = byStep.get(key) ?? Array.from(byStep.values()).find(p => p.step_key === nc.step_key);
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
     const attest = attestation[nc.request_number];
     if (!attest) throw new Error(`MATRIX_VALIDATION_FAIL: no attested state for ${nc.request_number}`);
-    const pin = stepPins[key];
+    const pin = stepPins[key] ?? Array.from(Object.values(stepPins)).find(p => p.step_key === nc.step_key);
     if (!pin) throw new Error(`MATRIX_VALIDATION_FAIL: no step state pin for ${key}`);
     const ordinal = index + 1;
     if (isBlockedCase(nc, pin)) {

@@ -15,6 +15,7 @@
 
 DO $$
 DECLARE
+  r record;
   v_sessions int;
   v_role_exists boolean;
   v_residue int := 0;
@@ -32,8 +33,20 @@ BEGIN
 
   SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'b1_matrix_operator') INTO v_role_exists;
   IF v_role_exists THEN
-    REVOKE EXECUTE ON FUNCTION public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb) FROM b1_matrix_operator;
-    REVOKE EXECUTE ON FUNCTION public.record_external_university_payment_confirmation(uuid,text) FROM b1_matrix_operator;
+    FOR r IN
+      SELECT p.oid::regprocedure AS sig
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND has_function_privilege('b1_matrix_operator', p.oid, 'EXECUTE')
+    LOOP
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM b1_matrix_operator', r.sig);
+    END LOOP;
+
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'b1_harness_rollback_marker') THEN
+      REVOKE ALL ON TABLE public.b1_harness_rollback_marker FROM b1_matrix_operator;
+    END IF;
+
     REVOKE USAGE ON SCHEMA public FROM b1_matrix_operator;
     DROP ROLE b1_matrix_operator;
   END IF;

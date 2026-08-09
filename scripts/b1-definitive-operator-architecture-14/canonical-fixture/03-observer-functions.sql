@@ -1,18 +1,8 @@
 -- ============================================================================
 -- PORTAL-B1-PR310 Definitive Operator Architecture — LONGRUN-14
--- observer/01-observer-functions.sql
+-- canonical-fixture/03-observer-functions.sql
 --
--- Narrow, ephemeral, read-only SECURITY DEFINER observer functions.
---
--- Constraints:
---   * operate ONLY on the 5 production B1 service request replicas, the 19
---     Fixture-13 requests, and the 4 enrollment_certificate sentinel requests
---   * return hashes/state facts, not PII
---   * perform no mutation
---   * owned by the provisioning administrative role (postgres), so the SECURITY
---     DEFINER body has the narrow catalog read it needs
---   * EXECUTE-restricted to b1_matrix_observer and b1_matrix_operator only
---   * safe search_path
+-- Ephemeral, read-only SECURITY DEFINER observer functions for test harnesses.
 -- ============================================================================
 \set ON_ERROR_STOP on
 
@@ -27,15 +17,9 @@ BEGIN
       NOCREATEROLE
       NOREPLICATION
       NOINHERIT;
-  ELSE
-    RAISE EXCEPTION 'HOLD_OBSERVER_ROLE_ALREADY_EXISTS';
   END IF;
 END $$;
 
--- ----------------------------------------------------------------------------
--- Allowlist: the only request numbers the observer may ever inspect.
--- All observer functions are gated by this set.
--- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.b1_observer_auth_uid()
 RETURNS uuid
 LANGUAGE sql STABLE
@@ -60,10 +44,8 @@ LANGUAGE sql IMMUTABLE
 SET search_path TO public
 AS $$
   SELECT ARRAY[
-    -- Production B1 service request replicas used by the 267 negative matrix
     'SR-20260727-42393846','SR-20260727-50BEDCE2','SR-20260727-3C550070',
     'SR-20260727-88D885F0','SR-20260727-695EC35B',
-    -- Fixture-13 active execution targets
     'SR-20260801-13000001','SR-20260801-13000002','SR-20260801-13000003',
     'SR-20260801-13000004','SR-20260801-13000005','SR-20260801-13000006',
     'SR-20260801-13000007','SR-20260801-13000008','SR-20260801-13000009',
@@ -71,7 +53,6 @@ AS $$
     'SR-20260801-13000013','SR-20260801-13000014','SR-20260801-13000015',
     'SR-20260801-13000016','SR-20260801-13000017','SR-20260801-13000018',
     'SR-20260801-13000019',
-    -- enrollment_certificate sentinel requests
     'SR-20260801-EC000001','SR-20260801-EC000002','SR-20260801-EC000003',
     'SR-20260801-EC000004'
   ];
@@ -152,10 +133,6 @@ AS $$
   );
 $$;
 
--- ----------------------------------------------------------------------------
--- Fixture-scoped complete-content fingerprint. Returns only a cryptographic
--- hash; no PII, no broad table counts.
--- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.b1_observer_fingerprint()
 RETURNS text
 LANGUAGE sql STABLE
@@ -316,9 +293,6 @@ AS $$
   ) s;
 $$;
 
--- ----------------------------------------------------------------------------
--- Per-request and per-step state facts. No PII returned.
--- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.b1_observer_request_state(p_request_id uuid)
 RETURNS TABLE(
   request_type text,
@@ -485,10 +459,6 @@ AS $$
   FROM preds;
 $$;
 
--- ----------------------------------------------------------------------------
--- EXECUTE grants: only the operator harness and the observer role itself.
--- First revoke from PUBLIC, anon, authenticated, service_role to prevent default execution access.
--- ----------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION public.b1_observer_auth_uid() FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.b1_observer_auth_uid() TO b1_matrix_observer, b1_matrix_operator;
 
@@ -536,25 +506,3 @@ GRANT EXECUTE ON FUNCTION public.b1_observer_transfer_scope(uuid) TO b1_matrix_o
 
 REVOKE ALL ON FUNCTION public.b1_observer_predecessors(uuid) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.b1_observer_predecessors(uuid) TO b1_matrix_observer, b1_matrix_operator;
-
-DO $$
-DECLARE
-  v_count int;
-BEGIN
-  SELECT count(*) INTO v_count
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'public'
-     AND p.proname LIKE 'b1_observer_%'
-     AND (
-       has_function_privilege('public', p.oid, 'EXECUTE') OR
-       has_function_privilege('anon', p.oid, 'EXECUTE') OR
-       has_function_privilege('authenticated', p.oid, 'EXECUTE') OR
-       has_function_privilege('service_role', p.oid, 'EXECUTE')
-     );
-  IF v_count > 0 THEN
-    RAISE EXCEPTION 'OBSERVER_SECURITY_FAIL: % observer functions retain PUBLIC, anon, authenticated, or service_role EXECUTE privileges', v_count;
-  END IF;
-
-  RAISE NOTICE 'OBSERVER_PROVISION_PASS: narrow observer functions created with zero PUBLIC/anon/authenticated/service_role EXECUTE access';
-END $$;

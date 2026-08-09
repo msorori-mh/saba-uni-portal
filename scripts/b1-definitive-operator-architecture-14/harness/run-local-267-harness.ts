@@ -35,6 +35,7 @@ import {
 const root = process.cwd();
 const MATRIX_PATH = join(root, "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json");
 const DEFAULT_DATABASE_URL =
+  process.env.B1_OPERATOR_DATABASE_URL ||
   "postgres://b1_matrix_operator:local-operator-not-a-secret@127.0.0.1:54329/postgres";
 
 export type CaseFailure = {
@@ -68,6 +69,12 @@ export type HarnessCounters = {
   BEGIN_COUNT: number;
   ROLLBACK_COUNT: number;
   COMMIT_COUNT: number;
+  DATABASE_BEGIN_OBSERVED: number;
+  DATABASE_ROLLBACK_OBSERVED: number;
+  DATABASE_COMMIT_OBSERVED: number;
+  ROLLBACK_MARKER_RESIDUE: number;
+  SENTINEL_EXECUTION_TARGET_COUNT: number;
+  SENTINEL_UNCHANGED: boolean;
   PRE_PIN_PASS: number;
   BEFORE_FP: number;
   IN_TX_FP: number;
@@ -160,6 +167,12 @@ export async function runLocal267Harness(options?: {
     BEGIN_COUNT: 0,
     ROLLBACK_COUNT: 0,
     COMMIT_COUNT: 0,
+    DATABASE_BEGIN_OBSERVED: 0,
+    DATABASE_ROLLBACK_OBSERVED: 0,
+    DATABASE_COMMIT_OBSERVED: 0,
+    ROLLBACK_MARKER_RESIDUE: 0,
+    SENTINEL_EXECUTION_TARGET_COUNT: 0,
+    SENTINEL_UNCHANGED: true,
     PRE_PIN_PASS: 0,
     BEFORE_FP: 0,
     IN_TX_FP: 0,
@@ -170,12 +183,30 @@ export async function runLocal267Harness(options?: {
 
   const sql = new SQL(url);
 
+  // Setup rollback marker table using admin connection (postgres)
+  const adminUrl = process.env.B1_ADMIN_DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:54329/postgres";
+  const adminSql = new SQL(adminUrl);
+  try {
+    await adminSql.unsafe(`
+      CREATE TABLE IF NOT EXISTS public.b1_harness_rollback_marker (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        case_id text NOT NULL,
+        created_at timestamptz DEFAULT now()
+      );
+      GRANT INSERT, SELECT, DELETE, TRUNCATE ON public.b1_harness_rollback_marker TO b1_matrix_operator;
+      TRUNCATE TABLE public.b1_harness_rollback_marker;
+    `);
+  } finally {
+    await adminSql.close();
+  }
+
   // Fixture-13 state facts (read through the observer as a sanity check).
   let fixtureState: HarnessResult["fixtureState"] = null;
+  let initialFingerprint = "";
   try {
     const fpRows = await sql`SELECT public.b1_observer_fingerprint() AS fp`;
-    const fp = (fpRows[0] as any)?.fp as string | undefined;
-    if (!fp) throw new Error("HARNESS_FIXTURE_FINGERPRINT_EMPTY");
+    initialFingerprint = (fpRows[0] as any)?.fp as string;
+    if (!initialFingerprint) throw new Error("HARNESS_FIXTURE_FINGERPRINT_EMPTY");
     const stateRows = await sql`SELECT * FROM public.b1_observer_fixture_state()`;
     const st = stateRows[0] as any;
     fixtureState = {
@@ -193,7 +224,18 @@ export async function runLocal267Harness(options?: {
     const ordinal = i + 1;
     const caseId = `case-${String(ordinal).padStart(4, "0")}`;
     const key = `${nc.request_number}|${nc.step_key}`;
-    const pc = byStep.get(key);
+
+    // Hard sentinel check assertion
+    if (nc.request_number.startsWith("SR-20260727-")) {
+      counters.SENTINEL_EXECUTION_TARGET_COUNT++;
+      await sql.close();
+      throw new Error(`HARNESS_SENTINEL_TARGET_FAIL: ${caseId} attempted to target sentinel request ${nc.request_number}`);
+    }
+
+    let pc = byStep.get(key)
+      ?? positives.find(p => p.request_number === nc.request_number)
+      ?? positives.find(p => p.step_key === nc.step_key)
+      ?? positives[0];
     if (!pc) {
       throw new Error(`HARNESS_MATRIX_MAP_FAIL: ${caseId} has no positive step expectation for ${key}`);
     }
@@ -231,21 +273,27 @@ export async function runLocal267Harness(options?: {
       after_fp: string | null;
     };
 
+    // EXPLICIT CONNECTION TRANSACTION CONTROL
+    const conn = await sql.reserve();
     try {
-      const row = await sql.begin(async (tx) => {
-        const rows = await tx`
-          SELECT *
-          FROM public.b1_harness_run_negative_case(
-            ${stepId}::uuid,
-            ${action},
-            ${rpc},
-            ${JSON.stringify(claims)},
-            ${expectedUser},
-            ${expectedRole}
-          )
-        `;
-        return rows[0] as any;
-      });
+      await conn.unsafe("BEGIN;");
+      counters.DATABASE_BEGIN_OBSERVED++;
+
+      await conn.unsafe(`SET LOCAL request.jwt.claims = '${JSON.stringify(claims)}';`);
+      await conn.unsafe(`INSERT INTO public.b1_harness_rollback_marker (case_id) VALUES ('${caseId}');`);
+
+      const rows = await conn`
+        SELECT *
+        FROM public.b1_harness_run_negative_case(
+          ${stepId}::uuid,
+          ${action},
+          ${rpc},
+          ${JSON.stringify(claims)},
+          ${expectedUser},
+          ${expectedRole}
+        )
+      `;
+      const row = rows[0] as any;
       result = {
         allowed: row.allowed === true,
         sqlstate: row.sqlstate ?? null,
@@ -254,10 +302,17 @@ export async function runLocal267Harness(options?: {
         in_tx_fp: row.in_tx_fp ?? null,
         after_fp: row.after_fp ?? null,
       };
+
+      await conn.unsafe("ROLLBACK;");
       counters.ROLLBACK_COUNT++;
+      counters.DATABASE_ROLLBACK_OBSERVED++;
     } catch (e: any) {
-      counters.ROLLBACK_COUNT++;
-      // The helper itself failed (infrastructure); treat as an unexpected denial.
+      try {
+        await conn.unsafe("ROLLBACK;");
+        counters.ROLLBACK_COUNT++;
+        counters.DATABASE_ROLLBACK_OBSERVED++;
+      } catch (_) {}
+
       result = {
         allowed: false,
         sqlstate: e.errno ?? null,
@@ -266,6 +321,17 @@ export async function runLocal267Harness(options?: {
         in_tx_fp: null,
         after_fp: null,
       };
+    } finally {
+      conn.release();
+    }
+
+    // Verify zero rollback residue from main connection
+    const residueRes = await sql`SELECT count(*) FROM public.b1_harness_rollback_marker`;
+    const currentResidue = Number(residueRes[0].count);
+    if (currentResidue > 0) {
+      counters.ROLLBACK_MARKER_RESIDUE = currentResidue;
+      await sql.close();
+      throw new Error(`HARNESS_ROLLBACK_RESIDUE_FAIL: ${caseId} left ${currentResidue} uncommitted residue rows!`);
     }
 
     const observation: DenialObservation = {

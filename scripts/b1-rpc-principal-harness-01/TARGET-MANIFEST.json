@@ -731,7 +731,7 @@
   "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab",
   "matrix": {
     "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
-    "sha256_lf": "c8924fbed6a1fda8b2a3ce96173b528e2888531c55e4636028c51368c2069df2",
+    "sha256_lf": "10cce96d7f343f603adeb3c5c165739bce27d0ec4312c7ba0876f3448dfd0c17",
     "negative_total": 267,
     "decomposition": "240 core + 24 illegal-action + 3 transfer-scope = 267 defined; 267 executable; 0 blocked (the 22 previously blocked cases are rebound to deterministic ACTIVE TEST_ONLY fixture steps)",
     "executable_negative_total": 267,

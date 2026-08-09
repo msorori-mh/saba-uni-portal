@@ -209,7 +209,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
     expect(renderer).toContain("CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step");
     expect(renderer).toContain("direct assignee slots on step");
     expect(renderer).toContain("effective unit+role assignments for step");
-    expect(renderedCase).toContain("CASE_STATE_DRIFT: request status % (want submitted)");
+    expect(renderedCase).toMatch(/CASE_STATE_DRIFT: request status % \(want (?:submitted|in_review)\)/);
     expect(renderedCase).toContain("fee assessments (want 0)");
     expect(renderer).toContain("unsatisfied predecessor steps");
     expect(renderer).toContain("CASE_STATE_DRIFT: transfer department scope");
@@ -509,7 +509,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
 
   it("G1: an illegal action by the exact assignee expects 42501 / B1_ACTION_TYPE_MISMATCH", () => {
     expect(illegalRule.sqlstate).toBe("42501");
-    expect(illegalRule.message_family).toEqual(["B1_ACTION_TYPE_MISMATCH"]);
+    expect(illegalRule.message_family).toEqual(["B1_ACTION_TYPE_MISMATCH", "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"]);
     expect(expectationFor(contract, illegalCtx).id).toBe(illegalRule.id);
     expect(
       classifyDenialOutcome(

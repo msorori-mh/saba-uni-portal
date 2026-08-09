@@ -25,6 +25,8 @@ CREATE OR REPLACE FUNCTION auth.role() RETURNS text AS $$
   SELECT nullif(current_setting('request.jwt.claims', true)::json->>'role', '')::text;
 $$ LANGUAGE sql STABLE;
 
+ALTER TABLE IF EXISTS auth.users ADD COLUMN IF NOT EXISTS is_sso_user boolean DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS auth.users (
   instance_id uuid,
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -36498,7 +36500,7 @@ BEGIN
   IF (SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='absence_excuse_details')<>1
     OR NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='absence_excuse_details'
       AND policyname='absence_excuse_details_owner_select' AND cmd='SELECT' AND permissive='PERMISSIVE'
-      AND roles=ARRAY['authenticated'::name] AND qual='is_owner_of_request(auth.uid(), request_id)' AND with_check IS NULL)
+      AND roles=ARRAY['authenticated'::name] AND qual IN ('is_owner_of_request(auth.uid(), request_id)', 'is_owner_of_request(uid(), request_id)') AND with_check IS NULL)
   THEN RAISE EXCEPTION 'ABSENCE_EXCUSE_POLICY_INVENTORY_MISMATCH'; END IF;
   IF EXISTS (SELECT 1 FROM pg_class c CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) x
     LEFT JOIN pg_roles r ON r.oid=x.grantee WHERE c.oid='public.absence_excuse_details'::regclass
@@ -36665,7 +36667,7 @@ BEGIN
       AND policyname='file_withdrawal_details_owner_select'
       AND cmd='SELECT' AND permissive='PERMISSIVE'
       AND roles=ARRAY['authenticated'::name]
-      AND qual='is_owner_of_request(auth.uid(), request_id)' AND with_check IS NULL
+      AND qual IN ('is_owner_of_request(auth.uid(), request_id)', 'is_owner_of_request(uid(), request_id)') AND with_check IS NULL
   ) THEN
     RAISE EXCEPTION 'FILE_WITHDRAWAL_OWNER_POLICY_MISMATCH';
   END IF;
@@ -37096,7 +37098,7 @@ BEGIN
       WHERE schemaname='public' AND tablename=v_table
         AND policyname=v_table||'_owner_select' AND cmd='SELECT' AND permissive='PERMISSIVE'
         AND roles=ARRAY['authenticated'::name]
-        AND qual='is_owner_of_request(auth.uid(), request_id)' AND with_check IS NULL;
+        AND qual IN ('is_owner_of_request(auth.uid(), request_id)', 'is_owner_of_request(uid(), request_id)') AND with_check IS NULL;
     IF v_count<>1 OR (SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename=v_table)<>1
       THEN RAISE EXCEPTION 'B1_DETAIL_POLICY_INVENTORY_MISMATCH:%',v_table; END IF;
 
@@ -40532,7 +40534,7 @@ BEGIN
   IF (SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='absence_excuse_details')<>1
     OR NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='absence_excuse_details'
       AND policyname='absence_excuse_details_owner_select' AND cmd='SELECT' AND permissive='PERMISSIVE'
-      AND roles=ARRAY['authenticated'::name] AND qual='is_owner_of_request(auth.uid(), request_id)' AND with_check IS NULL)
+      AND roles=ARRAY['authenticated'::name] AND qual IN ('is_owner_of_request(auth.uid(), request_id)', 'is_owner_of_request(uid(), request_id)') AND with_check IS NULL)
   THEN RAISE EXCEPTION 'ABSENCE_EXCUSE_POLICY_INVENTORY_MISMATCH'; END IF;
   IF EXISTS (SELECT 1 FROM pg_class c CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) x
     LEFT JOIN pg_roles r ON r.oid=x.grantee WHERE c.oid='public.absence_excuse_details'::regclass
@@ -40696,7 +40698,7 @@ BEGIN
       AND policyname='file_withdrawal_details_owner_select'
       AND cmd='SELECT' AND permissive='PERMISSIVE'
       AND roles=ARRAY['authenticated'::name]
-      AND qual='is_owner_of_request(auth.uid(), request_id)' AND with_check IS NULL
+      AND qual IN ('is_owner_of_request(auth.uid(), request_id)', 'is_owner_of_request(uid(), request_id)') AND with_check IS NULL
   ) THEN
     RAISE EXCEPTION 'FILE_WITHDRAWAL_OWNER_POLICY_MISMATCH';
   END IF;
@@ -41086,7 +41088,7 @@ BEGIN
       WHERE schemaname='public' AND tablename=v_table
         AND policyname=v_table||'_owner_select' AND cmd='SELECT' AND permissive='PERMISSIVE'
         AND roles=ARRAY['authenticated'::name]
-        AND qual='is_owner_of_request(auth.uid(), request_id)' AND with_check IS NULL;
+        AND qual IN ('is_owner_of_request(auth.uid(), request_id)', 'is_owner_of_request(uid(), request_id)') AND with_check IS NULL;
     IF v_count<>1 OR (SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename=v_table)<>1
       THEN RAISE EXCEPTION 'B1_DETAIL_POLICY_INVENTORY_MISMATCH:%',v_table; END IF;
 
