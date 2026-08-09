@@ -4,7 +4,7 @@
 **PR:** #311  
 **Branch:** `fix/councils-legacy-production-reconciliation-longrun-13`  
 **OLD_SHA:** `6ff245fc0245db3ce8ecbe3e5fb80a2362027c0f`  
-**NEW_SHA:** `fbe6929af728f9f5ae1ebd90dfb00912b1dfc0d6`  
+**NEW_SHA:** `10db4d70f7cb842d22b491e84ed9c62821cf67a8`  
 **Decision:** `PASS_ACADEMIC_COUNCILS_PR311_FULL_CHAIN_PRODUCTION_GUARD_CLOSURE`
 
 Closes the LONGRUN-16 HIGH finding: in production-ledger context, when the ledger+schema already classify as `FULL_NEW_CHAIN_VERIFIED`, the preflight was returning the successful terminal before enforcing the production-only forbidden configuration guards (`councils.fingerprint_expected` and `councils.local_test_fingerprint_mode`).
