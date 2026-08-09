@@ -5,7 +5,7 @@
 | **المهمة** | `PORTAL-REPORTS-BY-BENEFICIARY-FULL-CLOSURE-01` |
 | **الفرع** | `feat/reports-by-beneficiary-full-closure-01` |
 | **BASE_SHA** | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
-| **FINAL_SHA** | `TBD` |
+| **FINAL_SHA** | `faa86fa38fb296a930c1cead36025af6baa186e1` |
 | **PR** | `TBD` |
 | **القرار** | `PASS_WITH_BLOCKED_DEPENDENCIES_PORTAL_REPORTS_BY_BENEFICIARY_01` |
 
