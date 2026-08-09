@@ -9,6 +9,10 @@
 
 Closes the LONGRUN-16 HIGH finding: in production-ledger context, when the ledger+schema already classify as `FULL_NEW_CHAIN_VERIFIED`, the preflight was returning the successful terminal before enforcing the production-only forbidden configuration guards (`councils.fingerprint_expected` and `councils.local_test_fingerprint_mode`).
 
+CI (same PR #311):
+- Web CI: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31325245573 — SUCCESS
+- Migration Review: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31325245574 — SUCCESS
+
 ---
 
 ## HIGH reproduction
