@@ -19,8 +19,10 @@ on:
       - "tsconfig.*.json"
       - "eslint.config.js"
       - ".github/workflows/ci.yml"
+  # Open PR trigger (no main-only filter) preserves stacked councils/GA CI.
+  # workflow_dispatch preserves GA promotion manual verification.
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -95,11 +97,14 @@ jobs:
 
       # Package 97 PG17 smoke requires the exact postgres:17 image on the runner
       # (fail-closed when missing). Pull + inspect before tests; do not use latest.
-      - name: Provision PostgreSQL 17 image
+      # Councils PR306 PostgREST HTTP auth matrix also needs postgrest/postgrest.
+      - name: Provision PostgreSQL 17 and PostgREST images
         run: |
           set -euo pipefail
           docker pull postgres:17
           docker image inspect postgres:17
+          docker pull postgrest/postgrest:v12.2.3
+          docker image inspect postgrest/postgrest:v12.2.3
 
       # Fail-closed: any failing test in any tests/ suite fails this job.
       # The discovery guard also fails the job if the suites ever go missing
@@ -154,6 +159,40 @@ jobs:
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
               docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
               tests/graduates-affairs/graduates-affairs-authorization-04.pg-verify.sql
+          # Targeted R6 concurrency: FOR SHARE serializes self-write vs revocation
+          # (forward + reverse TOCTOU directions).
+          - name: graduates-affairs-remediation-concurrency
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-remediation-concurrency-01.pg-verify.sql
+          # Follow-up authority-loss concurrency: FOR SHARE on exact assignment /
+          # profile / department authority rows (forward + reverse).
+          - name: graduates-affairs-followup-authority-race
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql
+          # Codex final HIGH-1/HIGH-2: direct-user active-staff + profile-bound scope.
+          - name: graduates-affairs-codex-final-high-profile-binding
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-codex-final-high-profile-binding-03.pg-verify.sql
+          # Qwen context RPC functional matrix (auth.uid()-driven actor behavior).
+          - name: graduates-affairs-context-rpc-functional-matrix
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-context-rpc-functional-matrix-04.pg-verify.sql
           # Chain: pg-setup -> DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-
           # FOUNDATION-01 -> verifier.
           - name: academic-clearance-foundation
@@ -211,6 +250,34 @@ jobs:
               supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
               tests/graduation-projects/postgres-student-level4-eligibility-guard-verifier.sql
+          # Chain: GA authorization setup -> promoted Foundation ->
+          # promoted Completion -> promoted AUTH04 -> post-verifier.
+          - name: graduates-affairs-promotion-foundation
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              tests/graduates-affairs/ga-production-promotion-post-verifier-foundation.sql
+          - name: graduates-affairs-promotion-completion
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              supabase/migrations/20260808210100_ga_mvp_completion_01.sql
+              tests/graduates-affairs/ga-production-promotion-post-verifier-completion.sql
+          - name: graduates-affairs-promotion-auth04
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              supabase/migrations/20260808210100_ga_mvp_completion_01.sql
+              supabase/migrations/20260808210200_ga_authorization_04.sql
+              tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql
+          # Promoted AUTH04 + follow-up authority-loss concurrency (forward/reverse).
+          - name: graduates-affairs-promotion-followup-authority-race
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              supabase/migrations/20260808210100_ga_mvp_completion_01.sql
+              supabase/migrations/20260808210200_ga_authorization_04.sql
+              tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql
           # Chain: minimal schema -> 20260721000000_materials_secure_activation
           # draft -> secure activation verifier (38 assertion groups).
           - name: materials-secure-activation

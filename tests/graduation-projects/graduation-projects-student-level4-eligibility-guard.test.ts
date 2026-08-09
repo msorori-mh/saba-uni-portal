@@ -329,7 +329,8 @@ describe("GP student Level-4-only eligibility guard", () => {
     );
     const ready = await waitReady();
     expect(ready).toBe(true);
-    // Brief settle — CI runners can race between pg_isready and first SQL apply.
+    // Brief settle — CI runners can race between pg_isready and first SQL apply
+    // when many disposable PG17 harnesses start in the same bun test process.
     await Bun.sleep(1000);
     const settled = await waitReady();
     expect(settled).toBe(true);
@@ -351,7 +352,7 @@ describe("GP student Level-4-only eligibility guard", () => {
       let result = psqlFile(path);
       if (!result.ok) {
         // One retry after a short settle for transient docker socket races.
-        await Bun.sleep(1000);
+        await Bun.sleep(1500);
         if (!(await waitReady())) {
           throw new Error(`${label} failed (postgres not ready):\n${result.out}`);
         }

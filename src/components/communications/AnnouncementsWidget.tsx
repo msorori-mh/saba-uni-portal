@@ -13,7 +13,14 @@ const TYPE_COLOR: Record<string, string> = {
 };
 const TYPE_LABEL: Record<string, string> = { urgent: "عاجل", academic: "أكاديمي", finance: "مالي", general: "عام" };
 
-export function AnnouncementsWidget({ limit = 5 }: { limit?: number }) {
+export function AnnouncementsWidget({
+  limit = 5,
+  compactEmpty = false,
+}: {
+  limit?: number;
+  /** Tighter empty state for operational dashboards. */
+  compactEmpty?: boolean;
+}) {
   const qc = useQueryClient();
   const listFn = useServerFn(listMyAnnouncements);
   const markFn = useServerFn(markAnnouncementViewed);
@@ -46,9 +53,17 @@ export function AnnouncementsWidget({ limit = 5 }: { limit?: number }) {
       </div>
 
       {isLoading ? (
-        <div className="h-20 grid place-items-center text-xs text-muted-foreground">جارٍ التحميل…</div>
+        <div
+          className={`${compactEmpty ? "h-10" : "h-20"} grid place-items-center text-xs text-muted-foreground`}
+        >
+          جارٍ التحميل…
+        </div>
       ) : !data?.length ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">لا توجد إعلانات.</p>
+        <p
+          className={`text-sm text-muted-foreground text-center ${compactEmpty ? "py-1.5" : "py-4"}`}
+        >
+          {compactEmpty ? "لا توجد إعلانات جديدة" : "لا توجد إعلانات."}
+        </p>
       ) : (
         <ul className="divide-y divide-border">
           {data.map((a) => (

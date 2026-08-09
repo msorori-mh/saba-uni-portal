@@ -386,21 +386,24 @@ BEGIN
     IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
   END;
 
-  -- Employer verification chain: unverified -> in_review -> verified.
-  PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'in_review');
-  PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'verified');
-  SELECT * INTO v_row FROM public.graduate_employers WHERE id = '95000000-0000-4000-8000-000000000001';
-  IF v_row.verification_state <> 'verified'
-     OR v_row.verified_by <> '10000000-0000-4000-8000-00000000000d'
-     OR v_row.verified_at IS NULL THEN
-    RAISE EXCEPTION 'employer verification provenance not recorded: %', v_row;
-  END IF;
+  -- MVP manager-only: specialist must be denied moderation and verification.
   BEGIN
-    PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'rejected');
-    RAISE EXCEPTION 'expected invalid employer transition rejection';
+    PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'in_review');
+    RAISE EXCEPTION 'expected specialist employer verification denial';
   EXCEPTION WHEN others THEN
-    IF SQLERRM NOT LIKE '%GRADUATE_EMPLOYER_INVALID_TRANSITION%' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
   END;
+  BEGIN
+    PERFORM public.graduate_affairs_moderate_opportunity(
+      '94000000-0000-4000-8000-000000000001', 'archived');
+    RAISE EXCEPTION 'expected specialist opportunity moderation denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+  IF (SELECT verification_state FROM public.graduate_employers
+      WHERE id = '95000000-0000-4000-8000-000000000001') <> 'unverified' THEN
+    RAISE EXCEPTION 'specialist denial mutated employer verification';
+  END IF;
 
   -- Cohort report: P1 in scope returns a row; P2 out of scope denies.
   SELECT * INTO v_row FROM public.graduate_affairs_cohort_employment_report(
@@ -484,6 +487,20 @@ BEGIN
   INSERT INTO verify_ids VALUES ('followup_b', v_followup);
 
   -- Opportunity moderation chain on the empty-audience draft.
+  -- Manager employer verification chain: unverified -> in_review -> verified.
+  PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'in_review');
+  PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'verified');
+  IF (SELECT verification_state FROM public.graduate_employers
+      WHERE id = '95000000-0000-4000-8000-000000000001') <> 'verified' THEN
+    RAISE EXCEPTION 'manager employer verification failed';
+  END IF;
+  BEGIN
+    PERFORM public.graduate_affairs_set_employer_verification('95000000-0000-4000-8000-000000000001', 'rejected');
+    RAISE EXCEPTION 'expected invalid employer transition rejection';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_EMPLOYER_INVALID_TRANSITION%' THEN RAISE; END IF;
+  END;
+
   PERFORM public.graduate_affairs_moderate_opportunity('94000000-0000-4000-8000-000000000003', 'in_review');
   PERFORM public.graduate_affairs_moderate_opportunity('94000000-0000-4000-8000-000000000003', 'published');
   SELECT * INTO v_row FROM public.graduate_opportunities WHERE id = '94000000-0000-4000-8000-000000000003';
@@ -1000,7 +1017,7 @@ $$;
 
 DO $$
 DECLARE
-  v_rpcs text[] := ARRAY[
+    v_rpcs text[] := ARRAY[
     'graduate_update_own_profile(uuid,text,text,text,text,integer)',
     'graduate_grant_consent(uuid,text,text)',
     'graduate_withdraw_consent(uuid)',
@@ -1020,18 +1037,27 @@ DECLARE
     'graduate_affairs_transition_followup(uuid,graduate_followup_state,text,timestamp with time zone)',
     'graduate_affairs_moderate_opportunity(uuid,graduate_opportunity_state)',
     'graduate_affairs_set_employer_verification(uuid,text)',
-    'graduate_affairs_cohort_employment_report(uuid,integer,integer)'
+    'graduate_affairs_cohort_employment_report(uuid,integer,integer)',
+    'graduate_affairs_resolve_self_context(text)',
+    'graduate_affairs_resolve_staff_record_access(uuid)'
   ];
   v_helpers text[] := ARRAY[
     'graduate_affairs_audit(text,text,uuid,text,jsonb)',
+    'graduate_affairs_resolve_authorized_staff_profile_id(uuid,text)',
+    'graduate_affairs_resolve_caller_authorized_staff_profile_id(text)',
+    'graduate_affairs_lock_authorized_staff_profile_id(uuid,text)',
+    'graduate_affairs_lock_caller_authorized_staff_profile(text)',
     'graduate_affairs_is_manager()',
     'graduate_affairs_is_specialist()',
     'graduate_affairs_specialist_department_ids()',
     'graduate_affairs_can_access_record(uuid)',
-    'graduate_is_current_self(uuid)'
+    'graduate_require_approved_record_locked(uuid)',
+    'graduate_affairs_user_is_active_staff(uuid)',
+    'graduate_affairs_user_specialist_department_ids(uuid)',
+    'graduate_is_self(uuid)'
   ];
   v_policy_helpers text[] := ARRAY[
-    'graduate_is_self(uuid)',
+    'graduate_is_current_self(uuid)',
     'graduate_audience_matches(jsonb,uuid,uuid)',
     'graduate_self_matches_audience(jsonb)'
   ];
@@ -1141,6 +1167,239 @@ BEGIN
     RAISE EXCEPTION 'expected append-only delete rejection';
   EXCEPTION WHEN others THEN
     IF SQLERRM NOT LIKE '%GRADUATES_AFFAIRS_APPEND_ONLY_RECORD%' THEN RAISE; END IF;
+  END;
+END;
+$$;
+
+-- =====================================================================
+-- R. Multimodel remediation matrix (R1-R7 / R12)
+-- =====================================================================
+
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_record_b uuid := (SELECT id FROM verify_ids WHERE key = 'record_b');
+  v_scope uuid[];
+  v_events integer;
+  v_followup uuid;
+  v_count integer;
+BEGIN
+  -- Cancel any active follow-ups so R1/R2 measure department scope alone
+  -- (earlier sections create a direct-assignment fixture on record B).
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000c', 'role', 'authenticated')::text, true);
+  FOR v_followup IN
+    SELECT id FROM public.graduate_followups WHERE state IN ('open','in_progress')
+  LOOP
+    PERFORM public.graduate_affairs_transition_followup(v_followup, 'cancelled');
+  END LOOP;
+
+  -- R1: disjoint specialist scopes (d=D1, 6=D2); no union leak.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000d', 'role', 'authenticated')::text, true);
+  SELECT array_agg(d ORDER BY d) INTO v_scope
+  FROM public.graduate_affairs_specialist_department_ids() d;
+  IF v_scope IS DISTINCT FROM ARRAY['30000000-0000-4000-8000-000000000001'::uuid] THEN
+    RAISE EXCEPTION 'R1 specialistU scope leaked: %', v_scope;
+  END IF;
+  BEGIN
+    PERFORM public.graduate_affairs_get_graduate_file(v_record_b);
+    RAISE EXCEPTION 'R1 expected D1 specialist denied on D2 file';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_search_records('30000000-0000-4000-8000-000000000002');
+    RAISE EXCEPTION 'R1 expected D1 specialist D2 search denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_OUT_OF_SCOPE%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_create_followup(
+      v_record_b, '10000000-0000-4000-8000-00000000000c', 'career_followup');
+    RAISE EXCEPTION 'R1 expected D1 specialist D2 followup denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_cohort_employment_report(
+      '40000000-0000-4000-8000-000000000002', 2026, 3);
+    RAISE EXCEPTION 'R1 expected D1 specialist D2 cohort denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_OUT_OF_SCOPE%' THEN RAISE; END IF;
+  END;
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-000000000006', 'role', 'authenticated')::text, true);
+  SELECT array_agg(d ORDER BY d) INTO v_scope
+  FROM public.graduate_affairs_specialist_department_ids() d;
+  IF v_scope IS DISTINCT FROM ARRAY['30000000-0000-4000-8000-000000000002'::uuid] THEN
+    RAISE EXCEPTION 'R1 specialist2U scope incorrect: %', v_scope;
+  END IF;
+  BEGIN
+    PERFORM public.graduate_affairs_get_graduate_file(v_record_a);
+    RAISE EXCEPTION 'R1 expected D2 specialist denied on D1 file';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+
+  -- R2: suspended staff profile loses specialist capability.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-000000000007', 'role', 'authenticated')::text, true);
+  IF public.graduate_affairs_is_specialist() THEN
+    RAISE EXCEPTION 'R2 suspended profile still specialist';
+  END IF;
+  BEGIN
+    PERFORM public.graduate_affairs_get_graduate_file(v_record_a);
+    RAISE EXCEPTION 'R2 expected suspended specialist file denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+
+  -- R4: same-department specialist assign positive; cross-department negative;
+  -- inactive/expired assignee negative; manager cross-scope positive.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000d', 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO v_events FROM public.graduate_domain_events;
+  BEGIN
+    PERFORM public.graduate_affairs_create_followup(
+      v_record_a, '10000000-0000-4000-8000-000000000006', 'cross_scope');
+    RAISE EXCEPTION 'R4 expected cross-scope specialist assignee denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_FOLLOWUP_ASSIGNEE_OUT_OF_SCOPE%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_create_followup(
+      v_record_a, '10000000-0000-4000-8000-000000000001', 'inactive_assignee');
+    RAISE EXCEPTION 'R4 expected inactive assignee denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_FOLLOWUP_ASSIGNEE_NOT_STAFF%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_create_followup(
+      v_record_a, '10000000-0000-4000-8000-000000000002', 'expired_assignee');
+    RAISE EXCEPTION 'R4 expected expired assignee denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_FOLLOWUP_ASSIGNEE_NOT_STAFF%' THEN RAISE; END IF;
+  END;
+  IF (SELECT count(*) FROM public.graduate_domain_events) <> v_events THEN
+    RAISE EXCEPTION 'R4 denial mutated audit events';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.graduate_followups
+    WHERE graduate_record_id = v_record_a AND purpose_code IN ('cross_scope','inactive_assignee','expired_assignee')
+  ) THEN
+    RAISE EXCEPTION 'R4 denial inserted follow-up rows';
+  END IF;
+END;
+$$;
+
+-- Manager cross-scope assign + R3 revocation + R7 self-read after correction
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_record_b uuid := (SELECT id FROM verify_ids WHERE key = 'record_b');
+  v_followup uuid;
+  v_events integer;
+  v_count integer;
+BEGIN
+  -- Ensure record B has no active follow-up, then manager assigns D1 specialist cross-scope.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000c', 'role', 'authenticated')::text, true);
+
+  -- Cancel any active follow-up on B created earlier in the harness.
+  FOR v_followup IN
+    SELECT id FROM public.graduate_followups
+    WHERE graduate_record_id = v_record_b AND state IN ('open','in_progress')
+  LOOP
+    PERFORM public.graduate_affairs_transition_followup(v_followup, 'cancelled');
+  END LOOP;
+
+  v_followup := public.graduate_affairs_create_followup(
+    v_record_b, '10000000-0000-4000-8000-00000000000d', 'manager_cross_scope');
+  IF v_followup IS NULL THEN
+    RAISE EXCEPTION 'R4 manager cross-scope assign failed';
+  END IF;
+
+  -- Specialist assignee can access out-of-scope record via direct assignment
+  -- while still active.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000d', 'role', 'authenticated')::text, true);
+  PERFORM public.graduate_affairs_get_graduate_file(v_record_b);
+
+  -- R3: revoke specialist assignment -> lose follow-up read/transition; row kept.
+  UPDATE public.request_processing_assignments
+  SET is_active = false
+  WHERE id = '80000000-0000-4000-8000-000000000002';
+
+  SELECT count(*) INTO v_events FROM public.graduate_domain_events;
+  BEGIN
+    PERFORM public.graduate_affairs_get_graduate_file(v_record_b);
+    RAISE EXCEPTION 'R3 expected revoked assignee file denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_transition_followup(v_followup, 'in_progress');
+    RAISE EXCEPTION 'R3 expected revoked assignee transition denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_FOLLOWUP_NOT_ASSIGNEE%' THEN RAISE; END IF;
+  END;
+  IF (SELECT count(*) FROM public.graduate_domain_events) <> v_events THEN
+    RAISE EXCEPTION 'R3 denial mutated audit events';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.graduate_followups WHERE id = v_followup AND state = 'open') THEN
+    RAISE EXCEPTION 'R3 follow-up row must remain for audit';
+  END IF;
+
+  -- Restore specialist assignment for later sections / cleanliness.
+  UPDATE public.request_processing_assignments
+  SET is_active = true
+  WHERE id = '80000000-0000-4000-8000-000000000002';
+
+  -- Manager may still cancel the retained follow-up.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000c', 'role', 'authenticated')::text, true);
+  PERFORM public.graduate_affairs_transition_followup(v_followup, 'cancelled');
+END;
+$$;
+
+-- R7: after section J corrected record A, GA-private self reads must be empty.
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_count integer;
+BEGIN
+  IF (SELECT record_state FROM public.graduate_records WHERE id = v_record_a) <> 'corrected' THEN
+    RAISE EXCEPTION 'R7 precondition: record A must already be corrected by section J';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000a', 'role', 'authenticated')::text, true);
+  SET ROLE authenticated;
+  SELECT count(*) INTO v_count FROM public.graduate_profiles WHERE graduate_record_id = v_record_a;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'R7 profile still visible after correction: %', v_count; END IF;
+  SELECT count(*) INTO v_count FROM public.graduate_consents WHERE graduate_record_id = v_record_a;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'R7 consents still visible after correction: %', v_count; END IF;
+  SELECT count(*) INTO v_count FROM public.graduate_employment_events WHERE graduate_record_id = v_record_a;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'R7 employment_events still visible after correction'; END IF;
+  SELECT count(*) INTO v_count FROM public.graduate_survey_responses WHERE graduate_record_id = v_record_a;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'R7 survey_responses still visible after correction'; END IF;
+  SELECT count(*) INTO v_count FROM public.graduate_event_registrations WHERE graduate_record_id = v_record_a;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'R7 event_registrations still visible after correction'; END IF;
+  RESET ROLE;
+
+  BEGIN
+    PERFORM public.graduate_my_contact_points(v_record_a);
+    RAISE EXCEPTION 'R7 expected my_contact_points denial after correction';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_affairs_get_graduate_file(v_record_a);
+    RAISE EXCEPTION 'R7 expected self get_graduate_file denial after correction';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
   END;
 END;
 $$;
