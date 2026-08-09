@@ -4,7 +4,7 @@
 - **Base:** PR #306 / `1f50e7dcc8042cf15780c7817ecefa579c49f431`
 - **Hash contract:** `SHA256_LF_NORMALIZED_V1` (FULL file LF hash — authoritative)
 - **Rule:** **ONE migration per session.** No batch. No parallel. No CI auto-apply.
-- **Supported prestates (V2 preflight):** `LEGACY_SUPPORTED_EXACT` or `FULL_NEW_CHAIN`. Unknown variation = HOLD.
+- **Supported preflight outcomes:** `LEGACY_SUPPORTED_EXACT` authorizes C0; `PARTIAL_NEW_CHAIN_EXACT_PREFIX` and `FULL_NEW_CHAIN_VERIFIED` are successful STOP states. Unknown variation = HOLD.
 - **Status:** SOURCE READY — **NOT APPLIED**
 
 Pinned hashes: `docs/migration-evidence/academic-councils/HASHES.txt`  
@@ -45,8 +45,11 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 ## Step 0 — Preflight (READ ONLY)
 
 1. Run `docs/migration-drafts/COUNCILS-C0-C9-PRODUCTION-READONLY-PREFLIGHT-01.sql`
-2. Expect: `READY_FOR_APPLY_C0`
-3. **STOP** on any `HOLD:`
+2. Interpret the terminal Phase N result:
+   - `LEGACY_SUPPORTED_EXACT` → `READY_FOR_APPLY_C0`; C0 may be considered under the separate approval process.
+   - `PARTIAL_NEW_CHAIN_EXACT_PREFIX` → **STOP** and report `PARTIAL_NEXT_EXPECTED`; do not apply automatically.
+   - `FULL_NEW_CHAIN_VERIFIED` → **NO APPLY**; expect `COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED`.
+3. **STOP** on any `HOLD:`. A full ledger alone never produces `READY_FOR_APPLY_C0`.
 
 ## Step C0
 

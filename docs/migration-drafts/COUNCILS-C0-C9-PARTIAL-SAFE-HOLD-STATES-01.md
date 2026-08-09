@@ -14,11 +14,11 @@ Companion: `docs/migration-drafts/COUNCILS-C0-C9-ROLLBACK-BY-FORWARD-01.sql`
 |---|---|---|
 | `LEGACY_SUPPORTED_EXACT` | Exact production predecessor schema present (8 tables + 5 enums + 16 functions + 23 public policies + 2 storage policies + fingerprint match); C0+ objects absent. Safe to apply C0. | C0 |
 | `LEGACY_VARIANT_HOLD` | Legacy-like but fingerprint or inventory drift. | HOLD |
-| `PARTIAL_NEW_CHAIN` | Some C0+ RPCs exist or some C1+ extension tables exist without complete ledger. Mixed state. | HOLD |
-| `FULL_NEW_CHAIN` | All ten promoted migrations already applied. Nothing to do. | N/A |
+| `PARTIAL_NEW_CHAIN_EXACT_PREFIX` | Ledger and schema are the same contiguous C0..Ck prefix; preflight reports the next migration but never authorizes an automatic apply. | STOP and report `NEXT_EXPECTED` |
+| `FULL_NEW_CHAIN_VERIFIED` | All ten promoted migrations, all schema markers, and the full security/catalog proof pass. Nothing to apply. | N/A |
 | `UNKNOWN_UNSAFE` | Does not match any known supported prestate. | HOLD |
 
-Preflight V2 emits the classification and raises `HOLD:` for any state other than `LEGACY_SUPPORTED_EXACT` or `FULL_NEW_CHAIN`.
+Preflight emits `READY_FOR_APPLY_C0` only for `LEGACY_SUPPORTED_EXACT`. It emits `PARTIAL_NEW_CHAIN_EXACT_PREFIX` or `FULL_NEW_CHAIN_VERIFIED` as successful non-apply terminal states. `HOLD_FULL_LEDGER_SCHEMA_MISMATCH`, `HOLD_FULL_SCHEMA_INCOMPLETE_LEDGER`, and `HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH` stop mixed states before any apply.
 
 ---
 
@@ -135,3 +135,7 @@ If any later-step object exists without its ledger entry, or ledger exists witho
 
 - Label: `HOLD_MIXED_PARTIAL_STATE`
 - Action: stop apply; run rollback-by-forward classifier; open forward remediation — never DROP reset.
+
+In particular, a full ledger with zero or partial council schema is
+`HOLD_FULL_LEDGER_SCHEMA_MISMATCH`; a complete schema with an incomplete ledger is
+`HOLD_FULL_SCHEMA_INCOMPLETE_LEDGER`. Neither state is evidence that the chain was applied.

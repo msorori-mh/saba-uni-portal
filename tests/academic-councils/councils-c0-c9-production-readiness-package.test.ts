@@ -94,6 +94,59 @@ function psqlFile(filePath: string, vars: string[] = []): { ok: boolean; out: st
   return psql(readFileSync(filePath, "utf8"), vars);
 }
 
+function discoverSchemaFingerprint(): string {
+  const r = psql(`
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    SELECT encode(digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
+    FROM (
+      SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute a ON a.attrelid = c.oid
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%' AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+      UNION ALL SELECT 'constraint:' || con.conname || ':' || pg_get_constraintdef(con.oid)
+      FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%'
+      UNION ALL SELECT 'index:' || i.relname || ':' || pg_get_indexdef(i.oid)
+      FROM pg_index idx JOIN pg_class i ON i.oid = idx.indexrelid JOIN pg_class c ON c.oid = idx.indrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%'
+      UNION ALL SELECT 'trigger:' || t.tgname || ':' || pg_get_triggerdef(t.oid, true)
+      FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%' AND NOT t.tgisinternal
+      UNION ALL SELECT 'enum:' || t.typname || ':' || string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder)
+      FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public' AND t.typname LIKE 'academic_council%' GROUP BY t.typname
+      UNION ALL SELECT 'function:' || p.proname || ':' || pg_get_function_identity_arguments(p.oid) || ':' || btrim(regexp_replace(pg_get_functiondef(p.oid), '\\s+', ' ', 'g'))
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = ANY (ARRAY[
+        'is_council_admin', 'is_council_member', 'has_council_role', 'can_manage_council',
+        'can_write_council_agenda', 'can_schedule_council_meeting', 'was_council_member_on',
+        'can_submit_council_topic', 'tg_academic_councils_touch_updated_at',
+        'tg_councils_validate_department_binding', 'tg_minutes_block_locked_edits',
+        'council_topic_attachment_count', 'can_add_council_topic_attachment',
+        'can_read_council_topic_attachment', 'can_upload_council_topic_attachment',
+        'tg_enforce_council_topic_attachment'
+      ])
+      UNION ALL SELECT 'policy:' || p.schemaname || ':' || p.tablename || ':' || p.policyname || ':' || p.cmd || ':' ||
+        coalesce(p.qual::text, 'NULL') || ':' || coalesce(p.with_check::text, 'NULL')
+      FROM pg_policies p
+      WHERE (p.schemaname = 'public' AND p.tablename LIKE 'academic_council%')
+         OR (p.schemaname = 'storage' AND p.tablename = 'objects' AND p.policyname LIKE 'acta_%')
+    ) s;
+  `);
+  if (!r.ok) throw new Error(`fingerprint discovery failed:\n${r.out}`);
+  const m = r.out.match(/([0-9a-f]{64})/);
+  if (!m) throw new Error(`fingerprint missing:\n${r.out}`);
+  return m[1]!;
+}
+
+function runPreflightLocal(): { ok: boolean; out: string } {
+  const expected = discoverSchemaFingerprint();
+  return psql(
+    `SET councils.local_test_fingerprint_mode = 'LOCAL_TEST_ONLY';\n` +
+      `SET councils.local_test_fingerprint_expected = '${expected}';\n` +
+      readFileSync(packageFiles.preflight, "utf8"),
+  );
+}
+
 async function waitReady(): Promise<boolean> {
   for (let i = 0; i < 60; i++) {
     const r = spawnSync("docker", ["exec", container, "pg_isready", "-U", "postgres"], {
@@ -273,9 +326,10 @@ describe("Academic Councils C0-C9 production readiness package", () => {
       if (!r.ok) throw new Error(`predecessor ${pred} failed:\n${r.out}`);
     }
 
-    const pre = psqlFile(packageFiles.preflight);
+    const pre = runPreflightLocal();
     if (!pre.ok) throw new Error(`preflight failed:\n${pre.out}`);
     expect(pre.out).toContain("READY_FOR_APPLY_C0");
+    expect(pre.out).toContain("PREFLIGHT_LOCAL_TEST_FINGERPRINT_MODE: LOCAL_TEST_ONLY");
 
     for (const step of chain) {
       const applied = psqlFile(join(root, step.migration));
@@ -284,6 +338,35 @@ describe("Academic Councils C0-C9 production readiness package", () => {
       if (!verified.ok) throw new Error(`${step.step} post-verifier failed:\n${verified.out}`);
       expect(verified.out).toContain(step.pass);
     }
+
+    // Record promoted ledger after full chain, then prove FULL_NEW_CHAIN_VERIFIED.
+    const ledgerSeed = psql(`
+      CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+      CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+        version text PRIMARY KEY,
+        name text,
+        statements text[]
+      );
+      INSERT INTO supabase_migrations.schema_migrations(version, name) VALUES
+        ('20260808120000', '20260808120000_councils_c0_write_surface_hardening_01'),
+        ('20260808121000', '20260808121000_councils_c1_meeting_state_machine_01'),
+        ('20260808122000', '20260808122000_councils_c2_topic_intake_review_01'),
+        ('20260808130000', '20260808130000_councils_c3_attendance_quorum_01'),
+        ('20260808140000', '20260808140000_councils_c4_session_voting_01'),
+        ('20260808150000', '20260808150000_councils_c5_minutes_lifecycle_01'),
+        ('20260808160000', '20260808160000_councils_c6_decisions_followup_01'),
+        ('20260808170000', '20260808170000_councils_c7_audit_archive_01'),
+        ('20260808171000', '20260808171000_councils_c0_c8_final_security_closure_01'),
+        ('20260808180000', '20260808180000_councils_c9_notifications_reporting_01')
+      ON CONFLICT (version) DO NOTHING;
+    `);
+    if (!ledgerSeed.ok) throw new Error(`ledger seed failed:\n${ledgerSeed.out}`);
+    const postC9Pre = psql(readFileSync(packageFiles.preflight, "utf8"));
+    if (!postC9Pre.ok) throw new Error(`post-C9 preflight failed:\n${postC9Pre.out}`);
+    expect(postC9Pre.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: FULL_NEW_CHAIN_VERIFIED");
+    expect(postC9Pre.out).toContain("COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED");
+    expect(postC9Pre.out).toContain("NO_APPLY_REQUIRED");
+    expect(postC9Pre.out).not.toContain("READY_FOR_APPLY_C0");
 
     // Behavioral positives (existing local verifiers — never for production)
     const behavioralC9 = psqlFile(

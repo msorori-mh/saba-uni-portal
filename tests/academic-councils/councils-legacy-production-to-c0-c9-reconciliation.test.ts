@@ -222,6 +222,15 @@ function discoverSchemaFingerprint(): string {
   return m[1]!;
 }
 
+function runPreflightLocal(): { ok: boolean; out: string } {
+  const expected = discoverSchemaFingerprint();
+  return psql(
+    `SET councils.local_test_fingerprint_mode = 'LOCAL_TEST_ONLY';\n` +
+      `SET councils.local_test_fingerprint_expected = '${expected}';\n` +
+      readFileSync(preflightV2, "utf8"),
+  );
+}
+
 async function waitReady(): Promise<boolean> {
   for (let i = 0; i < 60; i++) {
     const r = spawnSync("docker", ["exec", container, "pg_isready", "-U", "postgres"], {
@@ -284,8 +293,13 @@ describe("Academic Councils legacy production → C0-C9 reconciliation", () => {
     expect(body).toContain("LEGACY_VARIANT_HOLD");
     expect(body).toContain("PARTIAL_NEW_CHAIN");
     expect(body).toContain("FULL_NEW_CHAIN");
-    expect(body).toContain("UNKNOWN_UNSAFE");
+    expect(body).toContain("FULL_NEW_CHAIN_VERIFIED");
+    expect(body).toContain("HOLD_FULL_LEDGER_SCHEMA_MISMATCH");
+    expect(body).toContain("HOLD_PRODUCTION_FINGERPRINT_OVERRIDE_FORBIDDEN");
+    expect(body).toContain("LOCAL_TEST_ONLY");
     expect(body).toContain("READY_FOR_APPLY_C0");
+    expect(body).toContain("COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED");
+    expect(body).toContain("NO_APPLY_REQUIRED");
   });
 
   it(
@@ -323,18 +337,45 @@ describe("Academic Councils legacy production → C0-C9 reconciliation", () => {
       const fingerprintBefore = legacyFingerprint();
 
       // ---- PHASE C: V2 preflight must classify as LEGACY_SUPPORTED_EXACT ----
-      const localFingerprint = discoverSchemaFingerprint();
-      const preflight = psql(
-        `SET councils.fingerprint_expected = '${localFingerprint}';\n` +
-          readFileSync(preflightV2, "utf8"),
-      );
+      const preflight = runPreflightLocal();
       if (!preflight.ok) throw new Error(`preflight V2 failed:\n${preflight.out}`);
       expect(preflight.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: LEGACY_SUPPORTED_EXACT");
       expect(preflight.out).toContain("PREFLIGHT_FINGERPRINT_MATCH: LEGACY_SUPPORTED_EXACT");
+      expect(preflight.out).toContain("PREFLIGHT_LOCAL_TEST_FINGERPRINT_MODE: LOCAL_TEST_ONLY");
       expect(preflight.out).toContain("READY_FOR_APPLY_C0");
 
       // ---- PHASE D: apply C0-C9 chain with post-verifiers ----
       applyChain();
+
+      // ---- PHASE D.0: seed promoted ledger and prove FULL_NEW_CHAIN_VERIFIED ----
+      const ledgerSeed = psql(`
+        CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+        CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+          version text PRIMARY KEY,
+          name text,
+          statements text[]
+        );
+        INSERT INTO supabase_migrations.schema_migrations(version, name) VALUES
+          ('20260808120000', '20260808120000_councils_c0_write_surface_hardening_01'),
+          ('20260808121000', '20260808121000_councils_c1_meeting_state_machine_01'),
+          ('20260808122000', '20260808122000_councils_c2_topic_intake_review_01'),
+          ('20260808130000', '20260808130000_councils_c3_attendance_quorum_01'),
+          ('20260808140000', '20260808140000_councils_c4_session_voting_01'),
+          ('20260808150000', '20260808150000_councils_c5_minutes_lifecycle_01'),
+          ('20260808160000', '20260808160000_councils_c6_decisions_followup_01'),
+          ('20260808170000', '20260808170000_councils_c7_audit_archive_01'),
+          ('20260808171000', '20260808171000_councils_c0_c8_final_security_closure_01'),
+          ('20260808180000', '20260808180000_councils_c9_notifications_reporting_01')
+        ON CONFLICT (version) DO NOTHING;
+      `);
+      if (!ledgerSeed.ok) throw new Error(`ledger seed failed:\n${ledgerSeed.out}`);
+      const postC9Pre = psql(readFileSync(preflightV2, "utf8"));
+      if (!postC9Pre.ok) throw new Error(`post-C9 preflight failed:\n${postC9Pre.out}`);
+      expect(postC9Pre.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: FULL_NEW_CHAIN_VERIFIED");
+      expect(postC9Pre.out).toContain("FULL_NEW_CHAIN_STRUCTURAL_PROOF_PASS");
+      expect(postC9Pre.out).toContain("COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED");
+      expect(postC9Pre.out).toContain("NO_APPLY_REQUIRED");
+      expect(postC9Pre.out).not.toContain("READY_FOR_APPLY_C0");
 
       // ---- PHASE D.1: prove authenticated direct DML was rescoped (no bypass) ----
       const directDmlRescoped = psql(`

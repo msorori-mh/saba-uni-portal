@@ -72,6 +72,59 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
   return psql(readFileSync(filePath, "utf8"));
 }
 
+function discoverSchemaFingerprint(): string {
+  const r = psql(`
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    SELECT encode(digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
+    FROM (
+      SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute a ON a.attrelid = c.oid
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%' AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+      UNION ALL SELECT 'constraint:' || con.conname || ':' || pg_get_constraintdef(con.oid)
+      FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%'
+      UNION ALL SELECT 'index:' || i.relname || ':' || pg_get_indexdef(i.oid)
+      FROM pg_index idx JOIN pg_class i ON i.oid = idx.indexrelid JOIN pg_class c ON c.oid = idx.indrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%'
+      UNION ALL SELECT 'trigger:' || t.tgname || ':' || pg_get_triggerdef(t.oid, true)
+      FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname LIKE 'academic_council%' AND NOT t.tgisinternal
+      UNION ALL SELECT 'enum:' || t.typname || ':' || string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder)
+      FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public' AND t.typname LIKE 'academic_council%' GROUP BY t.typname
+      UNION ALL SELECT 'function:' || p.proname || ':' || pg_get_function_identity_arguments(p.oid) || ':' || btrim(regexp_replace(pg_get_functiondef(p.oid), '\\s+', ' ', 'g'))
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = ANY (ARRAY[
+        'is_council_admin', 'is_council_member', 'has_council_role', 'can_manage_council',
+        'can_write_council_agenda', 'can_schedule_council_meeting', 'was_council_member_on',
+        'can_submit_council_topic', 'tg_academic_councils_touch_updated_at',
+        'tg_councils_validate_department_binding', 'tg_minutes_block_locked_edits',
+        'council_topic_attachment_count', 'can_add_council_topic_attachment',
+        'can_read_council_topic_attachment', 'can_upload_council_topic_attachment',
+        'tg_enforce_council_topic_attachment'
+      ])
+      UNION ALL SELECT 'policy:' || p.schemaname || ':' || p.tablename || ':' || p.policyname || ':' || p.cmd || ':' ||
+        coalesce(p.qual::text, 'NULL') || ':' || coalesce(p.with_check::text, 'NULL')
+      FROM pg_policies p
+      WHERE (p.schemaname = 'public' AND p.tablename LIKE 'academic_council%')
+         OR (p.schemaname = 'storage' AND p.tablename = 'objects' AND p.policyname LIKE 'acta_%')
+    ) s;
+  `);
+  if (!r.ok) throw new Error(`fingerprint discovery failed:\n${r.out}`);
+  const m = r.out.match(/([0-9a-f]{64})/);
+  if (!m) throw new Error(`fingerprint missing:\n${r.out}`);
+  return m[1]!;
+}
+
+function runPreflightLocal(): { ok: boolean; out: string } {
+  const expected = discoverSchemaFingerprint();
+  return psql(
+    `SET councils.local_test_fingerprint_mode = 'LOCAL_TEST_ONLY';\n` +
+      `SET councils.local_test_fingerprint_expected = '${expected}';\n` +
+      readFileSync(packageFiles.preflight, "utf8"),
+  );
+}
+
 async function waitReady(): Promise<boolean> {
   for (let i = 0; i < 60; i++) {
     const r = spawnSync("docker", ["exec", container, "pg_isready", "-U", "postgres"], {
@@ -211,7 +264,7 @@ describe("Academic Councils PR306 release qualification remediation", () => {
       applyPredecessors();
 
       // ---- PHASE E: preflight PASS on clean predecessors ----
-      const preOk = psqlFile(packageFiles.preflight);
+      const preOk = runPreflightLocal();
       if (!preOk.ok) throw new Error(`preflight PASS expected:\n${preOk.out}`);
       expect(preOk.out).toContain("READY_FOR_APPLY_C0");
 
@@ -346,7 +399,7 @@ CREATE POLICY meetings_update ON public.academic_council_meetings FOR UPDATE TO 
       for (const drift of driftCases) {
         const m = psql(drift.mutate);
         if (!m.ok) throw new Error(`drift mutate ${drift.label} failed:\n${m.out}`);
-        const hold = psqlFile(packageFiles.preflight);
+        const hold = runPreflightLocal();
         expect(hold.ok, `${drift.label} should HOLD`).toBe(false);
         expect(hold.out).toMatch(/HOLD:/);
         PREFLIGHT_DRIFT_CASE_COUNT += 1;
@@ -355,7 +408,7 @@ CREATE POLICY meetings_update ON public.academic_council_meetings FOR UPDATE TO 
       }
       expect(PREFLIGHT_DRIFT_CASE_COUNT).toBeGreaterThanOrEqual(10);
 
-      const preRestored = psqlFile(packageFiles.preflight);
+      const preRestored = runPreflightLocal();
       if (!preRestored.ok) throw new Error(`preflight after restore failed:\n${preRestored.out}`);
       expect(preRestored.out).toContain("READY_FOR_APPLY_C0");
 
