@@ -1,6 +1,6 @@
 /**
  * Reports-center contract — presentational shell types for the canonical
- * reports catalog. Props-driven only: no data fetching, no routes.
+ * reports catalog.
  */
 
 import type {
@@ -12,16 +12,20 @@ import type {
 
 export interface ReportCardProps {
   readonly entry: ReportEntry;
+  readonly favorite?: boolean;
+  readonly onToggleFavorite?: () => void;
 }
 
 export interface ReportsCenterProps {
-  /** Full catalog (already authorized upstream is NOT required — the center
-   *  re-applies fail-closed visibility against `viewerRoles`). */
+  /** Full catalog (center re-applies fail-closed visibility against roles). */
   readonly entries: readonly ReportEntry[];
   /** Roles of the current viewer; empty/unknown ⇒ sees nothing. */
   readonly viewerRoles: readonly string[];
   readonly title?: string;
   readonly subtitle?: string;
+  /** When false, hide SOURCE_READY / UNDER_DEVELOPMENT preparation cards. */
+  readonly showPreparation?: boolean;
+  readonly defaultGrouping?: ReportsCenterGrouping;
 }
 
 export type ReportsCenterGrouping = "status" | "beneficiary";

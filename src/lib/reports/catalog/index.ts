@@ -30,5 +30,10 @@ export {
   searchReports,
   findByCode,
   countByStatus,
+  isReportOpenable,
+  isReportInPreparation,
+  isHiddenFromEndUserCatalog,
+  endUserCatalogEntries,
+  openableReports,
   type ReportFilter,
 } from "./visibility";

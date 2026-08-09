@@ -146,3 +146,50 @@ export function countByStatus(
   }
   return counts;
 }
+
+/**
+ * Openable surface: LIVE or DATA_DEPENDENT with a real route.
+ * UI may link only when this returns true — never for BLOCKED/NOT_ACTIVATED.
+ */
+export function isReportOpenable(entry: ReportEntry): boolean {
+  return (
+    (entry.status === "LIVE" || entry.status === "DATA_DEPENDENT") &&
+    entry.route !== null
+  );
+}
+
+/**
+ * Non-openable "قيد التجهيز" cards (SOURCE_READY / UNDER_DEVELOPMENT).
+ * Never pretend data exists.
+ */
+export function isReportInPreparation(entry: ReportEntry): boolean {
+  return (
+    entry.status === "SOURCE_READY" || entry.status === "UNDER_DEVELOPMENT"
+  );
+}
+
+/** Hide BLOCKED / NOT_ACTIVATED from end-user catalog listings by default. */
+export function isHiddenFromEndUserCatalog(entry: ReportEntry): boolean {
+  return entry.status === "BLOCKED" || entry.status === "NOT_ACTIVATED";
+}
+
+/**
+ * End-user catalog projection: role-visible, excludes blocked/not-activated.
+ * Preparation entries remain visible but are not openable.
+ */
+export function endUserCatalogEntries(
+  entries: readonly ReportEntry[],
+  viewerRoles: readonly string[] | null | undefined,
+): ReportEntry[] {
+  return visibleReports(entries, viewerRoles).filter(
+    (entry) => !isHiddenFromEndUserCatalog(entry),
+  );
+}
+
+/** Filter visible openable reports only (for hubs that list actionable links). */
+export function openableReports(
+  entries: readonly ReportEntry[],
+  viewerRoles: readonly string[] | null | undefined,
+): ReportEntry[] {
+  return endUserCatalogEntries(entries, viewerRoles).filter(isReportOpenable);
+}

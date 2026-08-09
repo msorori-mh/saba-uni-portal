@@ -17,7 +17,8 @@ export type FacultyNavPath =
   | "/faculty-portal/academic-councils"
   | "/faculty-portal/graduation-projects"
   | "/faculty-portal/materials"
-  | "/faculty-portal/processing-requests";
+  | "/faculty-portal/processing-requests"
+  | "/faculty-portal/reports";
 
 export interface FacultyBreadcrumb {
   label: string;
@@ -42,6 +43,7 @@ type NavItem = { to: FacultyNavPath; label: string; exact?: boolean };
 const NAV_ITEMS: NavItem[] = [
   { to: "/faculty-portal", label: "الرئيسية", exact: true },
   { to: "/faculty-portal/schedule", label: "جدول التدريس" },
+  { to: "/faculty-portal/reports", label: "تقاريري" },
   { to: "/faculty-portal/academic-councils", label: "المجالس الأكاديمية" },
   { to: "/faculty-portal/graduation-projects", label: "مشاريع التخرج" },
 ];

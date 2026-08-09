@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,8 +30,11 @@ import {
 } from "@/lib/admin-reports.functions";
 import { buildExtendedReportTypeOptions } from "@/lib/student-requests/request-type-registry";
 import { logReportEvent } from "@/lib/reports/report-audit.functions";
+import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
+import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog";
 
-const VALID_TABS = ["students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
+
+const VALID_TABS = ["catalog", "students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
 type TabId = typeof VALID_TABS[number];
 
 export const Route = createFileRoute("/admin/reports")({
@@ -298,6 +301,7 @@ function ReportsPage() {
   };
 
   const sections: Array<{ id: TabId; title: string; icon: any; active?: boolean }> = [
+    { id: "catalog", title: "كتالوج حسب المستفيد", icon: BarChart3, active: true },
     { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
     { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
     { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
@@ -349,13 +353,16 @@ function ReportsPage() {
         })}
       </section>
 
+      {activeSection === "catalog" && (
+        <CatalogReportsTab />
+      )}
       {activeSection === "students" && <StudentsReport />}
       {activeSection === "imports" && <ImportJobsReport />}
       {activeSection === "accounts" && <StudentAccountsReport />}
       {activeSection === "academic" && <AcademicReports />}
       {activeSection === "schedules" && <ScheduleReports />}
       {activeSection === "requests" && <RequestsReport />}
-      {!["students", "imports", "accounts", "academic", "schedules", "requests"].includes(activeSection) && (
+      {!["catalog", "students", "imports", "accounts", "academic", "schedules", "requests"].includes(activeSection) && (
         <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
@@ -2318,5 +2325,20 @@ function ReportField({ label, children }: { label: string; children: React.React
       <span className="text-xs font-bold text-primary">{label}</span>
       {children}
     </label>
+  );
+}
+
+
+function CatalogReportsTab() {
+  const { adminSession } = useRouteContext({ from: "/admin" });
+  const roles = adminSession?.roles ?? [];
+  return (
+    <ReportsCenter
+      entries={REPORT_CATALOG_ENTRIES}
+      viewerRoles={roles}
+      title="كتالوج التقارير حسب المستفيد"
+      subtitle="الرؤية fail-closed — التقارير المحجوبة لا تُعرض كأنها متاحة."
+      defaultGrouping="beneficiary"
+    />
   );
 }

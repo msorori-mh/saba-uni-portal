@@ -262,6 +262,12 @@ const SERVICE_LINKS = [
     desc: "تقديم ومتابعة الخدمات الطلابية.",
     Icon: FileText,
   },
+  {
+    to: "/student/reports" as const,
+    title: "تقاريري",
+    desc: "ملخص أكاديمي وطلبات ووثائق ذاتية فقط.",
+    Icon: FileText,
+  },
   ...(portalFeatures.studentCourseMaterials
     ? ([{
         to: "/student/materials" as const,
