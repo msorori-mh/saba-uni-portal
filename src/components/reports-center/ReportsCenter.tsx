@@ -78,10 +78,17 @@ function buildGroups(
  * Central reports catalog shell — role/scope/beneficiary aware.
  * Hides BLOCKED/NOT_ACTIVATED from end users. Preparation cards are
  * non-openable ("قيد التجهيز"). Favorites are local-only.
+ *
+ * Binding contract: pass `viewerScope` (preferred) or `viewerBindings`, or
+ * `prefiltered` entries from getVisibleCatalogForViewer. Never advertise
+ * LIVE cards from role alone when org identity/binding is missing.
  */
 export function ReportsCenter({
   entries,
   viewerRoles,
+  viewerScope = null,
+  viewerBindings = null,
+  prefiltered = false,
   title = "مركز التقارير",
   subtitle = "التقارير وفق الصلاحية والنطاق والمستفيد — الرؤية fail-closed.",
   showPreparation = true,
@@ -108,11 +115,24 @@ export function ReportsCenter({
   };
 
   const catalog = useMemo(() => {
-    const base = endUserCatalogEntries(entries, viewerRoles);
+    const base = prefiltered
+      ? [...entries]
+      : endUserCatalogEntries(
+          entries,
+          viewerRoles,
+          viewerScope ?? viewerBindings ?? null,
+        );
     return showPreparation
       ? base
       : base.filter((e) => !isReportInPreparation(e));
-  }, [entries, viewerRoles, showPreparation]);
+  }, [
+    entries,
+    viewerRoles,
+    viewerScope,
+    viewerBindings,
+    prefiltered,
+    showPreparation,
+  ]);
 
   const filtered = useMemo(() => {
     let list = searchReports(catalog, query);

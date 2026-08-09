@@ -2,10 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, BarChart3, Loader2 } from "lucide-react";
-import { getStudentSelfReportsSummary } from "@/lib/beneficiary-reports.functions";
+import {
+  getMyReportScope,
+  getStudentSelfReportsSummary,
+} from "@/lib/beneficiary-reports.functions";
 import { ScopedKpiGrid } from "@/components/reports/ScopedKpiGrid";
 import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
-import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog";
+import {
+  REPORT_CATALOG_ENTRIES,
+  catalogViewerFromActorScope,
+} from "@/lib/reports/catalog";
 
 export const Route = createFileRoute("/student/reports")({
   head: () => ({
@@ -19,12 +25,26 @@ export const Route = createFileRoute("/student/reports")({
 
 function StudentReportsPage() {
   const fetchSummary = useServerFn(getStudentSelfReportsSummary);
+  const fetchScope = useServerFn(getMyReportScope);
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-self-reports"],
     queryFn: () => fetchSummary(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+  const { data: actorScope } = useQuery({
+    queryKey: ["student-reports-scope"],
+    queryFn: () => fetchScope(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const viewerScope = actorScope
+    ? catalogViewerFromActorScope(actorScope)
+    : null;
+  const viewerRoles = viewerScope?.roles?.length
+    ? viewerScope.roles
+    : ["student"];
 
   return (
     <div dir="rtl" className="container mx-auto max-w-5xl space-y-6 px-4 py-6">
@@ -86,7 +106,8 @@ function StudentReportsPage() {
 
       <ReportsCenter
         entries={REPORT_CATALOG_ENTRIES}
-        viewerRoles={["student"]}
+        viewerRoles={viewerRoles}
+        viewerScope={viewerScope}
         title="كتالوج تقارير الطالب"
         subtitle="ما يخصك فقط — التقارير المحجوبة لا تُعرض كأنها متاحة."
         showPreparation={false}

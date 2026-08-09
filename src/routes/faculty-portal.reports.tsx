@@ -5,8 +5,14 @@ import { Loader2 } from "lucide-react";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { ScopedKpiGrid } from "@/components/reports/ScopedKpiGrid";
 import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
-import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog";
-import { getFacultySelfReportsSummary } from "@/lib/beneficiary-reports.functions";
+import {
+  REPORT_CATALOG_ENTRIES,
+  catalogViewerFromActorScope,
+} from "@/lib/reports/catalog";
+import {
+  getFacultySelfReportsSummary,
+  getMyReportScope,
+} from "@/lib/beneficiary-reports.functions";
 
 export const Route = createFileRoute("/faculty-portal/reports")({
   head: () => ({
@@ -20,12 +26,26 @@ export const Route = createFileRoute("/faculty-portal/reports")({
 
 function FacultyReportsPage() {
   const fetchSummary = useServerFn(getFacultySelfReportsSummary);
+  const fetchScope = useServerFn(getMyReportScope);
   const { data, isLoading, error } = useQuery({
     queryKey: ["faculty-self-reports"],
     queryFn: () => fetchSummary(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+  const { data: actorScope } = useQuery({
+    queryKey: ["faculty-reports-scope"],
+    queryFn: () => fetchScope(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const viewerScope = actorScope
+    ? catalogViewerFromActorScope(actorScope)
+    : null;
+  const viewerRoles = viewerScope?.roles?.length
+    ? viewerScope.roles
+    : ["faculty_member"];
 
   return (
     <FacultyPortalShell
@@ -88,7 +108,8 @@ function FacultyReportsPage() {
 
         <ReportsCenter
           entries={REPORT_CATALOG_ENTRIES}
-          viewerRoles={["faculty_member"]}
+          viewerRoles={viewerRoles}
+          viewerScope={viewerScope}
           title="كتالوج تقارير عضو هيئة التدريس"
           showPreparation={false}
         />

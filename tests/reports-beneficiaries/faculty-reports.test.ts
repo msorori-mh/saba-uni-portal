@@ -21,6 +21,12 @@ const FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/beneficiary-reports.functions.ts", import.meta.url)),
   "utf8",
 );
+const SERVICES_SRC = readFileSync(
+  fileURLToPath(
+    new URL("../../src/lib/reports/beneficiary-report-services.ts", import.meta.url),
+  ),
+  "utf8",
+);
 const ROUTE_SRC = readFileSync(
   fileURLToPath(new URL("../../src/routes/faculty-portal.reports.tsx", import.meta.url)),
   "utf8",
@@ -77,8 +83,9 @@ describe("faculty reports — wrong scope (assigned only)", () => {
 
   test("server function filters course_sections by faculty_profile_id", () => {
     expect(FUNCTIONS_SRC).toContain("getFacultySelfReportsSummary");
+    expect(FUNCTIONS_SRC).toContain("runFacultySelfReportsSummary");
     expect(FUNCTIONS_SRC).toContain('.eq("faculty_profile_id", facultyId)');
-    expect(FUNCTIONS_SRC).toContain("المقررات والمجموعات المسندة فقط");
+    expect(SERVICES_SRC).toContain("المقررات والمجموعات المسندة فقط");
   });
 });
 

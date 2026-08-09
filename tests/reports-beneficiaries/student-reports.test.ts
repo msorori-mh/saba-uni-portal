@@ -19,6 +19,12 @@ const FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/beneficiary-reports.functions.ts", import.meta.url)),
   "utf8",
 );
+const SERVICES_SRC = readFileSync(
+  fileURLToPath(
+    new URL("../../src/lib/reports/beneficiary-report-services.ts", import.meta.url),
+  ),
+  "utf8",
+);
 const ROUTE_SRC = readFileSync(
   fileURLToPath(new URL("../../src/routes/student.reports.tsx", import.meta.url)),
   "utf8",
@@ -88,9 +94,10 @@ describe("student reports — empty/partial metric markers", () => {
 
   test("student summary server source uses metricValue for KPI counters", () => {
     expect(FUNCTIONS_SRC).toContain("getStudentSelfReportsSummary");
-    expect(FUNCTIONS_SRC).toContain("activeEnrollments: metricValue");
-    expect(FUNCTIONS_SRC).toContain("openRequests: metricValue");
-    expect(FUNCTIONS_SRC).toContain("issuedDocuments: metricValue");
+    expect(FUNCTIONS_SRC).toContain("runStudentSelfReportsSummary");
+    expect(SERVICES_SRC).toContain("activeEnrollments: metricValue");
+    expect(SERVICES_SRC).toContain("openRequests: metricValue");
+    expect(SERVICES_SRC).toContain("issuedDocuments: metricValue");
   });
 });
 
@@ -99,8 +106,8 @@ describe("student reports — server function + route contracts", () => {
     expect(FUNCTIONS_SRC).toMatch(
       /export const getStudentSelfReportsSummary = createServerFn\(\{ method: "POST" \}\)\s*\n\s*\.middleware\(\[requireSupabaseAuth\]\)/,
     );
-    expect(FUNCTIONS_SRC).toContain('throw new Error("غير مصرح — تقارير الطالب ذاتية فقط")');
-    expect(FUNCTIONS_SRC).toContain(".eq(\"user_id\", context.userId)");
+    expect(SERVICES_SRC).toContain("غير مصرح — تقارير الطالب ذاتية فقط");
+    expect(FUNCTIONS_SRC).toContain('.eq("user_id", userId)');
   });
 
   test("beneficiary-reports.functions.ts uses assertAnyRole for guarded hubs", () => {

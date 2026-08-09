@@ -6,8 +6,8 @@
  * see the report. Authorization tokens that are pending/undecided (e.g.
  * `pending:*`, Arabic placeholders) match no real role by construction.
  *
- * HARDENING-02: optional org bindings further hide hubs that the server would
- * DENY for missing VP / college / operational binding.
+ * HARDENING-03: optional CatalogViewerFacts / bindings apply the full
+ * ActorScope contract (identity + org bindings), not only five hub codes.
  */
 
 import type {
@@ -17,12 +17,10 @@ import type {
 } from "./types";
 import type { ExplicitOrgBindings } from "../scope/org-identity";
 import {
-  actorMayAccessDeanCollegeHub,
-  actorMayAccessOperationalHub,
-  actorMayAccessPresidencyHub,
-  actorMayAccessVpAcademicHub,
-  actorMayAccessVpStudentHub,
-} from "../scope/org-identity";
+  actorSatisfiesReportScope,
+  emptyCatalogViewer,
+  type CatalogViewerFacts,
+} from "./viewer-scope";
 
 /**
  * Fail-closed visibility check.
@@ -40,10 +38,25 @@ export function canSeeReport(
   return entry.required_role.some((required) => roles.has(required));
 }
 
+function factsFromBindings(
+  viewerRoles: readonly string[] | null | undefined,
+  bindings: ExplicitOrgBindings | null | undefined,
+): CatalogViewerFacts {
+  return {
+    roles: viewerRoles ?? [],
+    bindings: bindings ?? emptyCatalogViewer().bindings,
+    studentProfileId: null,
+    facultyProfileId: null,
+    departmentId: null,
+    denied: false,
+    denyReasonAr: null,
+  };
+}
+
 /**
- * Role match + organizational binding gate.
+ * Role match + full ActorScope binding/identity gate.
  * When `bindings` is omitted, only role matching applies (pure unit tests).
- * Server catalog projection MUST pass bindings so cards never advertise DENY hubs.
+ * Server / ReportsCenter MUST pass bindings or CatalogViewerFacts.
  */
 export function canSeeReportWithBindings(
   entry: ReportEntry,
@@ -52,29 +65,18 @@ export function canSeeReportWithBindings(
 ): boolean {
   if (!canSeeReport(entry, viewerRoles)) return false;
   if (!bindings) return true;
+  return actorSatisfiesReportScope(entry, factsFromBindings(viewerRoles, bindings));
+}
 
-  const code = entry.report_code;
-  if (code === "HUB-VP-STUDENT-AFFAIRS") {
-    return actorMayAccessVpStudentHub(bindings);
-  }
-  if (code === "HUB-VP-ACADEMIC-AFFAIRS") {
-    return actorMayAccessVpAcademicHub(bindings);
-  }
-  if (code === "HUB-UNIVERSITY-STRATEGIC") {
-    return actorMayAccessPresidencyHub(bindings);
-  }
-  if (code === "HUB-DEAN-COLLEGE") {
-    return actorMayAccessDeanCollegeHub(bindings);
-  }
-  if (
-    code === "HUB-OPERATIONAL-UNITS" ||
-    code === "REQ-PROCESSING-TIME" ||
-    code === "REQ-OVERDUE-SLA" ||
-    code === "REQ-DOCUMENTS-ISSUED"
-  ) {
-    return actorMayAccessOperationalHub(bindings, viewerRoles ?? []);
-  }
-  return true;
+/**
+ * Full ActorScope-aware visibility (preferred for hubs and server catalog).
+ */
+export function canSeeReportForViewer(
+  entry: ReportEntry,
+  viewer: CatalogViewerFacts | null | undefined,
+): boolean {
+  if (!viewer || !canSeeReport(entry, viewer.roles)) return false;
+  return actorSatisfiesReportScope(entry, viewer);
 }
 
 /** Entries visible to a viewer with the given roles (fail-closed). */
@@ -94,6 +96,14 @@ export function visibleReportsWithBindings(
   return entries.filter((entry) =>
     canSeeReportWithBindings(entry, viewerRoles, bindings),
   );
+}
+
+/** Full viewer-facts visibility (identity + bindings + denied-safe gates). */
+export function visibleReportsForViewer(
+  entries: readonly ReportEntry[],
+  viewer: CatalogViewerFacts | null | undefined,
+): ReportEntry[] {
+  return entries.filter((entry) => canSeeReportForViewer(entry, viewer));
 }
 
 /** Group entries by beneficiary (an entry may appear under several). */
@@ -235,15 +245,36 @@ export function isHiddenFromEndUserCatalog(entry: ReportEntry): boolean {
 /**
  * End-user catalog projection: role-visible, excludes blocked/not-activated.
  * Preparation entries remain visible but are not openable.
+ *
+ * Prefer `viewer` (CatalogViewerFacts / ActorScope) so cards never advertise
+ * reports the server would DENY for missing identity or org binding.
+ * Legacy `bindings`-only form remains for older call sites.
  */
 export function endUserCatalogEntries(
   entries: readonly ReportEntry[],
   viewerRoles: readonly string[] | null | undefined,
-  bindings?: ExplicitOrgBindings | null,
+  bindingsOrViewer?: ExplicitOrgBindings | CatalogViewerFacts | null,
 ): ReportEntry[] {
-  const visible = bindings
-    ? visibleReportsWithBindings(entries, viewerRoles, bindings)
-    : visibleReports(entries, viewerRoles);
+  let visible: ReportEntry[];
+  if (
+    bindingsOrViewer &&
+    typeof bindingsOrViewer === "object" &&
+    "roles" in bindingsOrViewer &&
+    "studentProfileId" in bindingsOrViewer
+  ) {
+    visible = visibleReportsForViewer(
+      entries,
+      bindingsOrViewer as CatalogViewerFacts,
+    );
+  } else if (bindingsOrViewer) {
+    visible = visibleReportsWithBindings(
+      entries,
+      viewerRoles,
+      bindingsOrViewer as ExplicitOrgBindings,
+    );
+  } else {
+    visible = visibleReports(entries, viewerRoles);
+  }
   return visible.filter((entry) => !isHiddenFromEndUserCatalog(entry));
 }
 
@@ -251,9 +282,9 @@ export function endUserCatalogEntries(
 export function openableReports(
   entries: readonly ReportEntry[],
   viewerRoles: readonly string[] | null | undefined,
-  bindings?: ExplicitOrgBindings | null,
+  bindingsOrViewer?: ExplicitOrgBindings | CatalogViewerFacts | null,
 ): ReportEntry[] {
-  return endUserCatalogEntries(entries, viewerRoles, bindings).filter(
+  return endUserCatalogEntries(entries, viewerRoles, bindingsOrViewer).filter(
     isReportOpenable,
   );
 }

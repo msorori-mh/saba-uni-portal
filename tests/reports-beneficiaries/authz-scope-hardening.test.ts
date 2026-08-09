@@ -213,15 +213,13 @@ describe("G4 — auth denial never becomes DATA_INCOMPLETE", () => {
     expect(isAuthorizationDenialMessage("مصدر المواد غير متاح")).toBe(false);
   });
 
-  test("getMaterialsCoverageReport rethrows auth denials before metricIncomplete", () => {
+  test("getMaterialsCoverageReport uses runMaterialsCoverageReport service", () => {
     const block = FUNCTIONS_SRC.slice(
       FUNCTIONS_SRC.indexOf("getMaterialsCoverageReport"),
       FUNCTIONS_SRC.indexOf("getRequestProcessingTimeReport"),
     );
-    expect(block).toContain("rethrowIfAuthorizationDenial");
-    expect(block.indexOf("rethrowIfAuthorizationDenial")).toBeLessThan(
-      block.indexOf("metricIncomplete"),
-    );
+    expect(block).toContain("runMaterialsCoverageReport");
+    expect(block).toContain("department_id");
   });
 
   test("metricIncomplete remains distinct from auth throw", () => {
@@ -263,8 +261,8 @@ describe("G5 — catalog visibility matches server authorization", () => {
     ).toBe(true);
   });
 
-  test("getVisibleCatalogForViewer passes bindings into endUserCatalogEntries", () => {
-    expect(FUNCTIONS_SRC).toContain("endUserCatalogEntries(REPORT_CATALOG_ENTRIES, roles,");
+  test("getVisibleCatalogForViewer projects via projectVisibleCatalogForScope", () => {
+    expect(FUNCTIONS_SRC).toContain("projectVisibleCatalogForScope");
     expect(FUNCTIONS_SRC).toContain("scope.bindings");
   });
 });
@@ -279,7 +277,8 @@ describe("G6 — cross-actor negative behavioral matrix", () => {
     );
     expect(a.studentProfileId).toBe("stu-a");
     expect(a.studentProfileId).not.toBe("stu-b");
-    expect(FUNCTIONS_SRC).toContain('.eq("user_id", context.userId)');
+    expect(FUNCTIONS_SRC).toContain("runStudentSelfReportsSummary");
+    expect(FUNCTIONS_SRC).toContain('.eq("user_id", userId)');
   });
 
   test("2. faculty assigned scope is own facultyProfileId only", () => {
@@ -350,8 +349,15 @@ describe("G6 — cross-actor negative behavioral matrix", () => {
   });
 
   test("13–14. auth denial path + no silent university expand for ops", () => {
-    expect(FUNCTIONS_SRC).toContain("rethrowIfAuthorizationDenial");
-    expect(FUNCTIONS_SRC).toContain("لا توسيع تلقائي لنطاق جامعي");
+    expect(FUNCTIONS_SRC).toContain("requireOperationalUnits");
+    const services = readFileSync(
+      fileURLToPath(
+        new URL("../../src/lib/reports/beneficiary-report-services.ts", import.meta.url),
+      ),
+      "utf8",
+    );
+    expect(services).toContain("لا توسيع تلقائي لنطاق جامعي");
+    expect(services).toContain("rethrowIfAuthorizationDenial");
   });
 });
 

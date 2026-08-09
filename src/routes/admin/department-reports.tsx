@@ -2,10 +2,16 @@ import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Loader2 } from "lucide-react";
-import { getDepartmentReportsSummary } from "@/lib/beneficiary-reports.functions";
+import {
+  getDepartmentReportsSummary,
+  getMyReportScope,
+} from "@/lib/beneficiary-reports.functions";
 import { ScopedKpiGrid } from "@/components/reports/ScopedKpiGrid";
 import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
-import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog";
+import {
+  REPORT_CATALOG_ENTRIES,
+  catalogViewerFromActorScope,
+} from "@/lib/reports/catalog";
 
 export const Route = createFileRoute("/admin/department-reports")({
   head: () => ({
@@ -21,12 +27,23 @@ function DepartmentReportsPage() {
   const { adminSession } = useRouteContext({ from: "/admin" });
   const roles = adminSession?.roles ?? ["department_head"];
   const fetchSummary = useServerFn(getDepartmentReportsSummary);
+  const fetchScope = useServerFn(getMyReportScope);
   const { data, isLoading, error } = useQuery({
     queryKey: ["department-reports-summary"],
     queryFn: () => fetchSummary({ data: {} }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+  const { data: actorScope } = useQuery({
+    queryKey: ["department-reports-scope"],
+    queryFn: () => fetchScope(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const viewerScope = actorScope
+    ? catalogViewerFromActorScope(actorScope)
+    : null;
 
   return (
     <div dir="rtl" className="space-y-6 p-4 md:p-6">
@@ -100,7 +117,14 @@ function DepartmentReportsPage() {
 
       <ReportsCenter
         entries={REPORT_CATALOG_ENTRIES}
-        viewerRoles={roles.length ? roles : ["department_head"]}
+        viewerRoles={
+          viewerScope?.roles?.length
+            ? viewerScope.roles
+            : roles.length
+              ? roles
+              : ["department_head"]
+        }
+        viewerScope={viewerScope}
         title="كتالوج تقارير رئيس القسم"
         defaultGrouping="status"
       />

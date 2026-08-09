@@ -15,7 +15,10 @@ import {
 } from "@/lib/beneficiary-reports.functions";
 import { ScopedKpiGrid } from "@/components/reports/ScopedKpiGrid";
 import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
-import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog";
+import {
+  REPORT_CATALOG_ENTRIES,
+  catalogViewerFromActorScope,
+} from "@/lib/reports/catalog";
 import type { ScopedMetric } from "@/lib/reports/scope";
 
 export const Route = createFileRoute("/admin/executive-reports")({
@@ -204,7 +207,12 @@ function ExecutiveReportsPage() {
 
       <ReportsCenter
         entries={REPORT_CATALOG_ENTRIES}
-        viewerRoles={roles}
+        viewerRoles={
+          actorScope?.roles?.length ? actorScope.roles : roles
+        }
+        viewerScope={
+          actorScope ? catalogViewerFromActorScope(actorScope) : null
+        }
         title="كتالوج التقارير حسب المستفيد"
         defaultGrouping="beneficiary"
       />

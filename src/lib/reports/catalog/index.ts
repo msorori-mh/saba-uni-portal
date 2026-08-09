@@ -24,8 +24,10 @@ export {
 export {
   canSeeReport,
   canSeeReportWithBindings,
+  canSeeReportForViewer,
   visibleReports,
   visibleReportsWithBindings,
+  visibleReportsForViewer,
   groupByBeneficiary,
   groupByStatus,
   filterReports,
@@ -39,3 +41,10 @@ export {
   openableReports,
   type ReportFilter,
 } from "./visibility";
+export {
+  catalogViewerFromActorScope,
+  emptyCatalogViewer,
+  entryDependsOnGate,
+  actorSatisfiesReportScope,
+  type CatalogViewerFacts,
+} from "./viewer-scope";

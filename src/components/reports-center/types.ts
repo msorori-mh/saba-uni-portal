@@ -8,7 +8,9 @@ import type {
   ReportEntry,
   ReportSensitivity,
   ReportStatus,
+  CatalogViewerFacts,
 } from "@/lib/reports/catalog";
+import type { ExplicitOrgBindings } from "@/lib/reports/scope";
 
 export interface ReportCardProps {
   readonly entry: ReportEntry;
@@ -17,10 +19,26 @@ export interface ReportCardProps {
 }
 
 export interface ReportsCenterProps {
-  /** Full catalog (center re-applies fail-closed visibility against roles). */
+  /**
+   * Catalog entries. When `prefiltered` is true these are already
+   * server-projected via getVisibleCatalogForViewer / projectVisibleCatalogForScope.
+   * Otherwise the center re-applies fail-closed visibility.
+   */
   readonly entries: readonly ReportEntry[];
-  /** Roles of the current viewer; empty/unknown ⇒ sees nothing. */
+  /** Roles of the current viewer; empty/unknown ⇒ sees nothing (unless prefiltered). */
   readonly viewerRoles: readonly string[];
+  /**
+   * Full ActorScope viewer facts (preferred). When set, catalog cards respect
+   * identity + org bindings — never role-only advertisement of DENY hubs.
+   */
+  readonly viewerScope?: CatalogViewerFacts | null;
+  /** Org bindings only (legacy). Prefer viewerScope when identity facts exist. */
+  readonly viewerBindings?: ExplicitOrgBindings | null;
+  /**
+   * When true, `entries` are already scope-filtered server-side; do not
+   * re-project by role alone.
+   */
+  readonly prefiltered?: boolean;
   readonly title?: string;
   readonly subtitle?: string;
   /** When false, hide SOURCE_READY / UNDER_DEVELOPMENT preparation cards. */

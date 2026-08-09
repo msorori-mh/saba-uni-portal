@@ -31,7 +31,11 @@ import {
 import { buildExtendedReportTypeOptions } from "@/lib/student-requests/request-type-registry";
 import { logReportEvent } from "@/lib/reports/report-audit.functions";
 import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
-import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog";
+import {
+  REPORT_CATALOG_ENTRIES,
+  catalogViewerFromActorScope,
+} from "@/lib/reports/catalog";
+import { getMyReportScope } from "@/lib/beneficiary-reports.functions";
 
 
 const VALID_TABS = ["catalog", "students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
@@ -2332,10 +2336,24 @@ function ReportField({ label, children }: { label: string; children: React.React
 function CatalogReportsTab() {
   const { adminSession } = useRouteContext({ from: "/admin" });
   const roles = adminSession?.roles ?? [];
+  const fetchScope = useServerFn(getMyReportScope);
+  const { data: actorScope } = useQuery({
+    queryKey: ["admin-catalog-reports-scope"],
+    queryFn: () => fetchScope(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const viewerScope = actorScope
+    ? catalogViewerFromActorScope(actorScope)
+    : null;
+
   return (
     <ReportsCenter
       entries={REPORT_CATALOG_ENTRIES}
-      viewerRoles={roles}
+      viewerRoles={
+        viewerScope?.roles?.length ? viewerScope.roles : roles
+      }
+      viewerScope={viewerScope}
       title="كتالوج التقارير حسب المستفيد"
       subtitle="الرؤية fail-closed — التقارير المحجوبة لا تُعرض كأنها متاحة."
       defaultGrouping="beneficiary"

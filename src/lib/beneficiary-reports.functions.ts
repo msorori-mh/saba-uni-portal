@@ -5,7 +5,8 @@
  * No mock production data. Missing sources return metric presence markers.
  * Authorization/scope denials THROW — never coerced to DATA_INCOMPLETE.
  *
- * Task: PORTAL-REPORTS-BENEFICIARY-AUTHZ-SCOPE-HARDENING-02
+ * Pattern: createServerFn → auth → testable service → scoped loader.
+ * Task: PORTAL-REPORTS-BENEFICIARY-AUTHZ-SCOPE-HARDENING-03
  */
 
 import { createServerFn } from "@tanstack/react-start";
@@ -16,7 +17,6 @@ import {
   hasAnyRole,
   REPORTS_ROLES,
   EXEC_ROLES,
-  userRoles,
 } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
@@ -32,7 +32,6 @@ import {
   metricNoAccess,
   metricNoData,
   metricValue,
-  rethrowIfAuthorizationDenial,
   ORG_BINDING_DEPENDENCIES,
   type ReportActorScope,
   type ScopedMetric,
@@ -40,10 +39,19 @@ import {
 import { loadProcessingRoleKeysForUnits } from "@/lib/reports/scope/org-identity.server";
 import { buildTeachingLoadKpis } from "@/lib/reports/teaching-load";
 import { buildProcessingTimeKpis } from "@/lib/reports/processing-time";
-import { buildMaterialsCoverageKpis } from "@/lib/reports/materials-coverage";
 import { buildRequestsAggregateReport } from "@/lib/reports/request-reports";
-import { endUserCatalogEntries } from "@/lib/reports/catalog";
-import { REPORT_CATALOG_ENTRIES } from "@/lib/reports/catalog/entries";
+import {
+  assertDeanCollegeConfigured,
+  assertPresidencyBinding,
+  assertVpAcademicBinding,
+  assertVpStudentBinding,
+  authorizeDepartmentReportScope,
+  projectVisibleCatalogForScope,
+  requireOperationalUnits,
+  runFacultySelfReportsSummary,
+  runMaterialsCoverageReport,
+  runStudentSelfReportsSummary,
+} from "@/lib/reports/beneficiary-report-services";
 
 const DEPT_REPORT_ROLES = [
   "system_admin",
@@ -64,61 +72,6 @@ const ALUMNI_ROLES = ["system_admin", "admin", "dean", "registrar"] as const;
 
 function isPrivilegedOperator(roles: readonly string[]): boolean {
   return roles.some((r) => r === "system_admin" || r === "admin");
-}
-
-/** Require explicit VP Student Affairs binding — never student_affairs role alone. */
-function assertVpStudentBinding(scope: ReportActorScope): void {
-  if (!scope.bindings.vpStudentAffairsBound) {
-    denyNotConfigured(
-      `مركز نائب شؤون الطلاب غير مكوّن — ${ORG_BINDING_DEPENDENCIES.vp_student_affairs}`,
-    );
-  }
-}
-
-/** Require explicit VP Academic Affairs binding — never dean/registrar alone. */
-function assertVpAcademicBinding(scope: ReportActorScope): void {
-  if (!scope.bindings.vpAcademicAffairsBound) {
-    denyNotConfigured(
-      `مركز نائب الشؤون الأكاديمية غير مكوّن — ${ORG_BINDING_DEPENDENCIES.vp_academic_affairs}`,
-    );
-  }
-}
-
-function assertPresidencyBinding(scope: ReportActorScope): void {
-  if (!scope.bindings.universityPresidencyBound) {
-    denyNotConfigured(
-      `مركز رئاسة/مجلس الجامعة غير مكوّن — ${ORG_BINDING_DEPENDENCIES.university_presidency_council}`,
-    );
-  }
-}
-
-function assertDeanCollegeConfigured(scope: ReportActorScope): void {
-  if (!scope.bindings.deanIdentityBound && !isPrivilegedOperator(scope.roles)) {
-    denyAuthz("ليس لديك صلاحية تقارير الكلية — هوية العميد غير مثبتة");
-  }
-  if (!scope.bindings.collegeScopeConfigured) {
-    denyNotConfigured(
-      `تقارير كلية العميد غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
-    );
-  }
-}
-
-/**
- * Resolve operational unit codes for query scoping.
- * Ordinary ops staff: require binding. Admin: may pass explicit unit or DENY
- * university-wide silent fallback for unit-labelled reports.
- */
-function requireOperationalUnits(scope: ReportActorScope): string[] {
-  const units = [...scope.bindings.operationalUnitCodes];
-  if (units.length > 0) return units;
-  if (isPrivilegedOperator(scope.roles)) {
-    denyNotConfigured(
-      "يجب تحديد وحدة تشغيلية صريحة — لا توسيع تلقائي لنطاق جامعي لتقارير الوحدات",
-    );
-  }
-  denyNotConfigured(
-    `ربط الوحدة التشغيلية مفقود — ${ORG_BINDING_DEPENDENCIES.operational_unit}`,
-  );
 }
 
 async function loadUnitScopedRequestRows(unitCodes: readonly string[], limit = 1000) {
@@ -186,21 +139,12 @@ export const getVisibleCatalogForViewer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const scope = await resolveReportActorScope(context.userId);
-    const roles = scope.roles.length > 0 ? [...scope.roles] : await userRoles(context.userId);
-    const entries = endUserCatalogEntries(REPORT_CATALOG_ENTRIES, roles, {
-      positionCodes: [],
-      vpStudentAffairsBound: scope.bindings.vpStudentAffairsBound,
-      vpAcademicAffairsBound: scope.bindings.vpAcademicAffairsBound,
-      universityPresidencyBound: scope.bindings.universityPresidencyBound,
-      deanIdentityBound: scope.bindings.deanIdentityBound,
-      collegeId: scope.bindings.collegeId,
-      collegeScopeConfigured: scope.bindings.collegeScopeConfigured,
-      operationalUnitCodes: scope.bindings.operationalUnitCodes,
-    });
+    const projected = projectVisibleCatalogForScope(scope);
     return {
-      roles,
-      bindings: scope.bindings,
-      entries: entries.map((e) => ({
+      roles: projected.roles,
+      bindings: projected.bindings,
+      denied: projected.denied,
+      entries: projected.entries.map((e) => ({
         report_code: e.report_code,
         name_ar: e.name_ar,
         description: e.description,
@@ -219,80 +163,79 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const scope = await resolveReportActorScope(context.userId);
-    if (!scope.roles.includes("student") && !scope.roles.includes("graduate")) {
-      // Students may only have student_profiles without user_roles.role=student
-      // in some deployments — fall back to profile ownership.
-      if (!scope.studentProfileId) {
-        throw new Error("غير مصرح — تقارير الطالب ذاتية فقط");
-      }
-    }
-    if (!scope.studentProfileId) {
-      throw new Error("لا يوجد ملف طالب مرتبط");
-    }
-    const studentId = scope.studentProfileId;
+    const summary = await runStudentSelfReportsSummary({
+      scope,
+      actorUserId: context.userId,
+      loaders: {
+        loadProfile: async (studentId, userId) => {
+          const { data, error } = await supabaseAdmin
+            .from("student_profiles")
+            .select(
+              "id, academic_number, full_name_ar, status, program_id, department_id, study_system, department:departments(name_ar), program:programs(name_ar)",
+            )
+            .eq("id", studentId)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (error) throw new Error(error.message);
+          return data as Record<string, unknown> | null;
+        },
+        loadAcademicStatus: async (studentId) => {
+          const { data } = await supabaseAdmin
+            .from("student_academic_status")
+            .select(
+              "enrollment_status, level:academic_levels(name, level_number), academic_year:academic_years(name), semester:semesters(name)",
+            )
+            .eq("student_profile_id", studentId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          return data ?? null;
+        },
+        loadRequests: async (studentId) => {
+          const { data } = await supabaseAdmin
+            .from("student_requests")
+            .select("id, status, request_type, current_step_name, updated_at, created_at")
+            .eq("student_profile_id", studentId)
+            .order("created_at", { ascending: false })
+            .limit(50);
+          return data ?? [];
+        },
+        loadDocuments: async (studentId) => {
+          const { data } = await supabaseAdmin
+            .from("official_documents")
+            .select("id, document_type, status, issued_at")
+            .eq("student_profile_id", studentId)
+            .order("issued_at", { ascending: false })
+            .limit(50);
+          return data ?? [];
+        },
+        loadEnrollments: async (studentId) => {
+          const { data } = await supabaseAdmin
+            .from("student_enrollments")
+            .select("id, enrollment_status")
+            .eq("student_profile_id", studentId);
+          return data ?? [];
+        },
+      },
+    });
 
-    const [profileRes, statusRes, requestsRes, docsRes, enrollRes] = await Promise.all([
-      supabaseAdmin
-        .from("student_profiles")
-        .select(
-          "id, academic_number, full_name_ar, status, program_id, department_id, study_system, department:departments(name_ar), program:programs(name_ar)",
-        )
-        .eq("id", studentId)
-        .eq("user_id", context.userId)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("student_academic_status")
-        .select(
-          "enrollment_status, level:academic_levels(name, level_number), academic_year:academic_years(name), semester:semesters(name)",
-        )
-        .eq("student_profile_id", studentId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("student_requests")
-        .select("id, status, request_type, current_step_name, updated_at, created_at")
-        .eq("student_profile_id", studentId)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabaseAdmin
-        .from("official_documents")
-        .select("id, document_type, status, issued_at")
-        .eq("student_profile_id", studentId)
-        .order("issued_at", { ascending: false })
-        .limit(50),
-      supabaseAdmin
-        .from("student_enrollments")
-        .select("id, enrollment_status")
-        .eq("student_profile_id", studentId),
-    ]);
-
-    if (profileRes.error) throw new Error(profileRes.error.message);
-    if (!profileRes.data) throw new Error("غير مصرح — لا يمكن قراءة ملف طالب آخر");
-
-    const requests = requestsRes.data ?? [];
-    const docs = docsRes.data ?? [];
-    const enrollments = enrollRes.data ?? [];
+    const requests = await supabaseAdmin
+      .from("student_requests")
+      .select("id, status, request_type, current_step_name, updated_at, created_at")
+      .eq("student_profile_id", summary.studentProfileId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    const docs = await supabaseAdmin
+      .from("official_documents")
+      .select("id, document_type, status, issued_at")
+      .eq("student_profile_id", summary.studentProfileId)
+      .order("issued_at", { ascending: false })
+      .limit(10);
 
     return {
-      scopeLabelAr: "ذاتي فقط",
-      profile: profileRes.data,
-      academicStatus: statusRes.data ?? null,
-      kpis: {
-        activeEnrollments: metricValue(
-          enrollments.filter((e) => e.enrollment_status === "enrolled" || e.enrollment_status === "active").length,
-        ),
-        openRequests: metricValue(
-          requests.filter((r) =>
-            ["submitted", "pending", "in_progress", "under_review", "returned"].includes(r.status),
-          ).length,
-        ),
-        issuedDocuments: metricValue(
-          docs.filter((d) => d.status === "issued" || d.status === "archived").length,
-        ),
-      },
-      recentRequests: requests.slice(0, 10),
-      recentDocuments: docs.slice(0, 10),
+      ...summary,
+      recentRequests: requests.data ?? [],
+      recentDocuments: docs.data ?? [],
       links: [
         { to: "/student/progress", label: "التقدم الأكاديمي" },
         { to: "/student/study-plan", label: "الخطة الدراسية" },
@@ -309,73 +252,37 @@ export const getFacultySelfReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const scope = await resolveReportActorScope(context.userId);
-    if (!scope.facultyProfileId) {
-      throw new Error("لا يوجد ملف هيئة تدريس مرتبط");
-    }
-    if (
-      !scope.roles.some((r) =>
-        ["faculty_member", "department_head", "dean", "admin", "system_admin"].includes(r),
-      )
-    ) {
-      // Profile ownership is the hard gate.
-    }
-
-    const facultyId = scope.facultyProfileId;
-    const { data: sections, error } = await supabaseAdmin
-      .from("course_sections")
-      .select(
-        "id, section_code, status, faculty_profile_id, offering:course_offerings(course:courses(code, name_ar, credit_hours), department_id:programs(department_id))",
-      )
-      .eq("faculty_profile_id", facultyId)
-      .eq("status", "active");
-    if (error) throw new Error(error.message);
-
-    const rows = (sections ?? []).map((s: any) => ({
-      facultyProfileId: facultyId,
-      facultyNameAr: null,
-      departmentId: null,
-      courseCode: s.offering?.course?.code ?? null,
-      sectionCode: s.section_code,
-      creditHours: s.offering?.course?.credit_hours ?? null,
-      assigned: true,
-    }));
-
-    const load = buildTeachingLoadKpis(rows, { treatEmptyAsZero: true });
-
-    let materialsKpis = null;
-    try {
-      const { data: mats } = await (supabaseAdmin as any)
-        .from("course_materials")
-        .select("id, course_section_id, status, updated_at, faculty_profile_id")
-        .eq("faculty_profile_id", facultyId)
-        .limit(500);
-      materialsKpis = buildMaterialsCoverageKpis(
-        (mats ?? []).map((m: any) => ({
-          materialId: m.id,
-          sectionId: m.course_section_id,
-          courseCode: null,
-          published: m.status === "published",
-          updatedAt: m.updated_at,
-          facultyProfileId: m.faculty_profile_id,
-        })),
-        { treatEmptyAsZero: true },
-      );
-    } catch {
-      materialsKpis = {
-        totalMaterials: metricIncomplete("مصدر المواد غير متاح"),
-        published: metricIncomplete(),
-        draft: metricIncomplete(),
-        sectionsWithMaterials: metricIncomplete(),
-        staleMaterials: metricIncomplete(),
-      };
-    }
+    const summary = await runFacultySelfReportsSummary({
+      scope,
+      loaders: {
+        loadAssignedSections: async (facultyId) => {
+          const { data: sections, error } = await supabaseAdmin
+            .from("course_sections")
+            .select(
+              "id, section_code, status, faculty_profile_id, offering:course_offerings(course:courses(code, name_ar, credit_hours), department_id:programs(department_id))",
+            )
+            .eq("faculty_profile_id", facultyId)
+            .eq("status", "active");
+          if (error) throw new Error(error.message);
+          return (sections ?? []).map((s: any) => ({
+            section_code: s.section_code,
+            credit_hours: s.offering?.course?.credit_hours ?? null,
+            course_code: s.offering?.course?.code ?? null,
+          }));
+        },
+        loadMaterials: async (facultyId) => {
+          const { data: mats } = await (supabaseAdmin as any)
+            .from("course_materials")
+            .select("id, course_section_id, status, updated_at, faculty_profile_id")
+            .eq("faculty_profile_id", facultyId)
+            .limit(500);
+          return mats ?? [];
+        },
+      },
+    });
 
     return {
-      scopeLabelAr: "المقررات والمجموعات المسندة فقط",
-      facultyProfileId: facultyId,
-      teachingLoad: load,
-      materials: materialsKpis,
-      sectionCount: rows.length,
+      ...summary,
       links: [
         { to: "/faculty-portal/schedule", label: "جدول التدريس" },
         { to: "/faculty-portal/materials", label: "المواد التعليمية" },
@@ -452,42 +359,10 @@ export const getDepartmentReportsSummary = createServerFn({ method: "POST" })
       "ليس لديك صلاحية تقارير القسم",
     );
     const scope = await resolveReportActorScope(context.userId);
-    const enforced = enforceDepartmentFilter({
+    const departmentId = await authorizeDepartmentReportScope({
       scope,
       requestedDepartmentId: data.department_id ?? null,
     });
-    if (enforced.denied || !enforced.departmentId) {
-      // Dean/admin without requested dept: require explicit department_id
-      const isWide = scope.roles.some((r) =>
-        ["system_admin", "admin", "dean"].includes(r),
-      );
-      if (isWide && data.department_id) {
-        // allowed above via enforce when not dept-only
-      } else if (isWide && !data.department_id && scope.departmentId) {
-        // use own faculty dept if present
-      } else if (!enforced.departmentId) {
-        throw new Error(
-          enforced.reasonAr ?? "يجب تحديد القسم — رئيس القسم لا يرى قسماً آخر",
-        );
-      }
-    }
-
-    let departmentId = enforced.departmentId;
-    if (!departmentId) {
-      throw new Error("نطاق القسم مفقود");
-    }
-
-    // Extra hard check for pure department_head
-    const isDeptOnly =
-      scope.roles.includes("department_head") &&
-      !scope.roles.some((r) => ["system_admin", "admin", "dean"].includes(r));
-    if (isDeptOnly && scope.departmentId && departmentId !== scope.departmentId) {
-      throw new Error("رئيس القسم لا يرى قسماً آخر");
-    }
-    if (isDeptOnly) {
-      assertScopeAllowed(scope);
-      departmentId = scope.departmentId!;
-    }
 
     const { data: dept } = await supabaseAdmin
       .from("departments")
@@ -889,96 +764,72 @@ export const getMaterialsCoverageReport = createServerFn({ method: "POST" })
     z
       .object({
         mode: z.enum(["self", "department", "college"]).default("self"),
+        department_id: z.string().uuid().optional().nullable(),
       })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const scope = await resolveReportActorScope(context.userId);
 
-    try {
-      let query = (supabaseAdmin as any)
-        .from("course_materials")
-        .select("id, course_section_id, status, updated_at, faculty_profile_id")
-        .limit(2000);
+    if (data.mode === "department") {
+      await assertAnyRole(context.userId, DEPT_REPORT_ROLES, "غير مصرح");
+    } else if (data.mode === "college") {
+      await assertAnyRole(
+        context.userId,
+        ["system_admin", "admin", "dean", "registrar"],
+        "غير مصرح",
+      );
+    }
 
-      if (data.mode === "self") {
-        if (!scope.facultyProfileId) denyAuthz("لا ملف هيئة تدريس");
-        query = query.eq("faculty_profile_id", scope.facultyProfileId);
-      } else if (data.mode === "department") {
-        await assertAnyRole(context.userId, DEPT_REPORT_ROLES, "غير مصرح");
-        assertScopeAllowed(scope);
-        if (
-          !scope.departmentId &&
-          !scope.roles.some((r) => ["admin", "system_admin", "dean"].includes(r))
-        ) {
-          denyScope("نطاق القسم مفقود");
-        }
-        if (scope.departmentId) {
+    return runMaterialsCoverageReport({
+      scope,
+      mode: data.mode,
+      requestedDepartmentId: data.department_id ?? null,
+      loaders: {
+        loadMaterialsByFacultyId: async (facultyId) => {
+          const { data: mats, error } = await (supabaseAdmin as any)
+            .from("course_materials")
+            .select("id, course_section_id, status, updated_at, faculty_profile_id")
+            .eq("faculty_profile_id", facultyId)
+            .limit(2000);
+          if (error) throw new Error(error.message);
+          return mats ?? [];
+        },
+        loadMaterialsByFacultyIds: async (facultyIds) => {
+          const { data: mats, error } = await (supabaseAdmin as any)
+            .from("course_materials")
+            .select("id, course_section_id, status, updated_at, faculty_profile_id")
+            .in("faculty_profile_id", facultyIds)
+            .limit(2000);
+          if (error) throw new Error(error.message);
+          return mats ?? [];
+        },
+        loadFacultyIdsInDepartment: async (departmentId) => {
           const { data: fac } = await supabaseAdmin
             .from("faculty_profiles")
             .select("id")
-            .eq("department_id", scope.departmentId);
-          const ids = (fac ?? []).map((f) => f.id);
-          if (ids.length === 0) {
-            return {
-              kpis: buildMaterialsCoverageKpis([], { treatEmptyAsZero: true }),
-              scopeLabelAr: "قسم",
-            };
-          }
-          query = query.in("faculty_profile_id", ids);
-        }
-      } else {
-        await assertAnyRole(
-          context.userId,
-          ["system_admin", "admin", "dean", "registrar"],
-          "غير مصرح",
-        );
-        if (
-          scope.roles.includes("dean") &&
-          !isPrivilegedOperator(scope.roles) &&
-          !scope.bindings.collegeScopeConfigured
-        ) {
-          denyNotConfigured(
-            `تغطية مواد الكلية غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
-          );
-        }
-      }
-
-      const { data: mats, error } = await query;
-      if (error) throw new Error(error.message);
-
-      return {
-        kpis: buildMaterialsCoverageKpis(
-          (mats ?? []).map((m: any) => ({
-            materialId: m.id,
-            sectionId: m.course_section_id,
-            courseCode: null,
-            published: m.status === "published",
-            updatedAt: m.updated_at,
-            facultyProfileId: m.faculty_profile_id,
-          })),
-          { treatEmptyAsZero: true },
-        ),
-        scopeLabelAr:
-          data.mode === "self"
-            ? "ذاتي"
-            : data.mode === "department"
-              ? "قسم"
-              : "كلية",
-      };
-    } catch (e) {
-      rethrowIfAuthorizationDenial(e);
-      return {
-        kpis: {
-          totalMaterials: metricIncomplete((e as Error).message),
-          published: metricIncomplete(),
-          draft: metricIncomplete(),
-          sectionsWithMaterials: metricIncomplete(),
-          staleMaterials: metricIncomplete(),
+            .eq("department_id", departmentId);
+          return (fac ?? []).map((f) => f.id);
         },
-        scopeLabelAr: data.mode,
-      };
-    }
+        departmentExists: async (departmentId) => {
+          const { data: dept } = await supabaseAdmin
+            .from("departments")
+            .select("id")
+            .eq("id", departmentId)
+            .maybeSingle();
+          return Boolean(dept?.id);
+        },
+        loadAllMaterialsInCollege: async () => {
+          // College-wide load only after authorize path in service.
+          const { data: mats, error } = await (supabaseAdmin as any)
+            .from("course_materials")
+            .select("id, course_section_id, status, updated_at, faculty_profile_id")
+            .limit(2000);
+          if (error) throw new Error(error.message);
+          return mats ?? [];
+        },
+      },
+    });
   });
 
 /** Request processing-time report — unit-scoped for operational staff. */

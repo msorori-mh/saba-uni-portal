@@ -23,6 +23,12 @@ const FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/beneficiary-reports.functions.ts", import.meta.url)),
   "utf8",
 );
+const SERVICES_SRC = readFileSync(
+  fileURLToPath(
+    new URL("../../src/lib/reports/beneficiary-report-services.ts", import.meta.url),
+  ),
+  "utf8",
+);
 const ADMIN_FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/admin-reports.functions.ts", import.meta.url)),
   "utf8",
@@ -111,7 +117,7 @@ describe("cross-scope negative — department widen attempts", () => {
     expect(enforced.reasonAr).toContain("رئيس القسم لا يرى قسماً آخر");
 
     expect(FUNCTIONS_SRC).toContain("enforceDepartmentFilter");
-    expect(FUNCTIONS_SRC).toContain("رئيس القسم لا يرى قسماً آخر");
+    expect(SERVICES_SRC).toContain("رئيس القسم لا يرى قسماً آخر");
     expect(ADMIN_FUNCTIONS_SRC).toContain("applyScheduleDepartmentScope");
     expect(ADMIN_FUNCTIONS_SRC).toContain("enforceDepartmentFilter");
   });

@@ -24,6 +24,12 @@ const FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/beneficiary-reports.functions.ts", import.meta.url)),
   "utf8",
 );
+const SERVICES_SRC = readFileSync(
+  fileURLToPath(
+    new URL("../../src/lib/reports/beneficiary-report-services.ts", import.meta.url),
+  ),
+  "utf8",
+);
 const ADMIN_FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/admin-reports.functions.ts", import.meta.url)),
   "utf8",
@@ -81,8 +87,8 @@ describe("department head — wrong scope (cannot request other department)", ()
   });
 
   test("beneficiary + admin schedule sources force actor department scope", () => {
-    expect(FUNCTIONS_SRC).toContain("enforceDepartmentFilter");
-    expect(FUNCTIONS_SRC).toContain("رئيس القسم لا يرى قسماً آخر");
+    expect(FUNCTIONS_SRC).toContain("authorizeDepartmentReportScope");
+    expect(SERVICES_SRC).toContain("رئيس القسم لا يرى قسماً آخر");
     expect(FUNCTIONS_SRC).toContain("getDepartmentReportsSummary");
     expect(ADMIN_FUNCTIONS_SRC).toContain("applyScheduleDepartmentScope");
     expect(ADMIN_FUNCTIONS_SRC).toContain("enforceDepartmentFilter");
