@@ -1,4 +1,4 @@
-# PORTAL-FINAL-RC313-REPORTS318-SEMANTIC-INTEGRATION-AND-FINAL-SOURCE-CLOSURE-LONGRUN-06
+﻿# PORTAL-FINAL-RC313-REPORTS318-SEMANTIC-INTEGRATION-AND-FINAL-SOURCE-CLOSURE-LONGRUN-06
 
 **Decision:** `PASS_PORTAL_FINAL_RC313_REPORTS318_SEMANTIC_INTEGRATION_AND_FINAL_SOURCE_CLOSURE_LONGRUN_06`  
 **PR:** [#313](https://github.com/msorori-mh/saba-uni-portal/pull/313) (Draft retained)  
@@ -15,7 +15,7 @@
 | REPORTS318_HEAD | `6f9d2d83593a018c11af4eaee51bfbbe28d4e33a` |
 | PRE_REPORTS_RC_HEAD_SHA | `2a283003957b4ea490959a10594a7eaf6a3e115d` |
 | FINAL_RC_PRODUCT_SHA | `061b32a5028299ba7aa30c8aff5730e771825e2f` |
-| FINAL_RC_HEAD_SHA | `1f39b57a3c29bb9031b8ed36ffcc3940335cc236` |
+| FINAL_RC_HEAD_SHA | `93a375b36f15d88f8a7cae645cb1bd9e9bd619db` |
 | INTEGRATED_PRS | `#293,#291,#299,#311,#312,#314,#315,#317,#310,#318` |
 | merge-base(RC, #318) | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
 
@@ -25,7 +25,7 @@ Pre-merge identity gate: **PASS** (no drift on RC or #318 heads).
 
 ## Pre-merge overlap inventory
 
-Intersection RC313∩PR318 vs `origin/main` = **7 files**:
+Intersection RC313âˆ©PR318 vs `origin/main` = **7 files**:
 
 | FILE | RC313_SEMANTICS | PR318_SEMANTICS | EXPECTED_UNION | RISK | RESOLUTION |
 |---|---|---|---|---|---|
@@ -35,39 +35,39 @@ Intersection RC313∩PR318 vs `origin/main` = **7 files**:
 | `src/routes/student.index.tsx` | GA feature-gated entry | Always-on `/student/reports` | Both entries | low | auto-merge |
 | `src/routeTree.gen.ts` | GA + councils routes | Beneficiary report routes | All routes; ROUTE_LOSS=0 | high | auto-merge verified + SHA recompute |
 | `tests/reports/catalog.test.ts` | Exact LIVE=admin+STU+COUNCIL | Includes hubs; blocked VP/dean | Union LIVE assertions | medium | manual semantic union |
-| `tests/student-requests/tanstack-register-stable-augmentation-01.test.ts` | SHA `0eb14f7e…` | SHA `c8ed5cb0…` | Recompute final SHA | high | regenerate pin |
+| `tests/student-requests/tanstack-register-stable-augmentation-01.test.ts` | SHA `0eb14f7eâ€¦` | SHA `c8ed5cb0â€¦` | Recompute final SHA | high | regenerate pin |
 
 **TEXT_CONFLICTS:** 5 (matrix, AdminShell, entries, catalog.test, tanstack SHA)  
 **SEMANTIC_CONFLICTS:** 5 (same set; student.index / routeTree auto-merged cleanly)  
 **SEMANTIC_LOSS_COUNT:** `0`  
-**ROUTE_LOSS_COUNT:** `0` (RC 114 → merged 118; PR318 115 → merged 118; lostRc=[], lostPr=[])
+**ROUTE_LOSS_COUNT:** `0` (RC 114 â†’ merged 118; PR318 115 â†’ merged 118; lostRc=[], lostPr=[])
 
 ---
 
 ## Semantic reconciliation notes
 
-### A — AdminShell
+### A â€” AdminShell
 Kept RC313 navigation redesign (`ADMIN_NAV_GROUPS` / search / exclusive expand / RTL). Ported PR318 report destinations into `src/lib/admin-navigation-config.ts` under `comms_reports`:
 - `/admin/reports`
 - `/admin/department-reports`
 - `/admin/executive-reports`  
 Role gates already present in merged `src/lib/admin-nav.ts`.
 
-### B — Catalog entries
-Union = PR318 shared semantics/status/routes + 11 RC COUNCIL entries + 7 PR318 HUB entries → **74 total**.  
-Did **not** preserve stale “63” count.
+### B â€” Catalog entries
+Union = PR318 shared semantics/status/routes + 11 RC COUNCIL entries + 7 PR318 HUB entries â†’ **74 total**.  
+Did **not** preserve stale â€œ63â€‌ count.
 
-### C — routeTree.gen.ts
+### C â€” routeTree.gen.ts
 Preserved all RC + PR318 routes including:
 `/student/reports`, `/faculty-portal/reports`, `/admin/department-reports`, `/admin/executive-reports`, `/admin/reports`, GA, Councils, GP frozen set, PWA/mobile/B1 paths.
 
-### D — student.index.tsx
-Retains RC dashboard UX + GA gate + reports entry (`تقاريري` → `/student/reports`).
+### D â€” student.index.tsx
+Retains RC dashboard UX + GA gate + reports entry (`طھظ‚ط§ط±ظٹط±ظٹ` â†’ `/student/reports`).
 
-### E — Traceability matrix
+### E â€” Traceability matrix
 Rebuilt from code: `docs/PORTAL-REPORTS-TRACEABILITY-MATRIX-01.md` (74 rows, 1:1 with catalog).
 
-### F — TanStack semantic SHA
+### F â€” TanStack semantic SHA
 Recomputed from final tree (neither pre-merge pin reused):
 
 `ROUTE_SEMANTIC_SHA256=09be61de31425bb15294038bbea68a367f92af4f3b4d65f8ed3232781cc90a7c`
@@ -110,10 +110,10 @@ Updated in:
 ## Blockers after reconciliation
 
 Retained BLOCKED (honest; not auto-promoted):
-- `HUB-DEAN-COLLEGE` — no college_id isolation
-- `HUB-VP-STUDENT-AFFAIRS` / `HUB-VP-ACADEMIC-AFFAIRS` — explicit VP binding required
-- `HUB-UNIVERSITY-STRATEGIC` — explicit presidency binding required
-- `REQ-DOCUMENTS-ISSUED` — no official_documents unit FK
+- `HUB-DEAN-COLLEGE` â€” no college_id isolation
+- `HUB-VP-STUDENT-AFFAIRS` / `HUB-VP-ACADEMIC-AFFAIRS` â€” explicit VP binding required
+- `HUB-UNIVERSITY-STRATEGIC` â€” explicit presidency binding required
+- `REQ-DOCUMENTS-ISSUED` â€” no official_documents unit FK
 - GP / ALU / LEC / CLR reporting entries remain BLOCKED/NOT_ACTIVATED/SOURCE_READY per draft-SQL / G4 / assignment gaps
 
 No false LIVE promotions. RC313 GA/GP/Councils source presence did **not** auto-upgrade blocked report projections without full LIVE rule.
@@ -146,9 +146,9 @@ No false LIVE promotions. RC313 GA/GP/Councils source presence did **not** auto-
 | ADMIN_SECURITY_PRESERVED | YES |
 | STUDENT_REQUEST_SECURITY_PRESERVED | YES |
 | ENROLLMENT_CERTIFICATE_PRESERVED | YES (source suites; Windows Wrangler PDF timeout environmental) |
-| REPORTS_AUTHZ_PRESERVED (Hardening-03) | YES — scope-aware center, explicit VP/presidency bindings only, operational/dept isolation, auth≠DATA_INCOMPLETE |
+| REPORTS_AUTHZ_PRESERVED (Hardening-03) | YES â€” scope-aware center, explicit VP/presidency bindings only, operational/dept isolation, authâ‰ DATA_INCOMPLETE |
 
-Reports remain **read projections** — no workflow authority expansion.
+Reports remain **read projections** â€” no workflow authority expansion.
 
 ---
 
@@ -173,10 +173,10 @@ Reports remain **read projections** — no workflow authority expansion.
 | Duration | ~574s |
 
 Environmental first-run failures (not product regressions from #318):
-1. `tests/b1-definitive-operator-architecture-14/*` — `ERR_POSTGRES_CONNECTION_CLOSED` because disposable PG17 on `:54329` was not published/loaded during concurrent full suite.
-2. `tests/documents/enrollment-certificate-arabic-pdf-worker-runtime.test.ts` — Windows Wrangler Worker timeout 60s (same LONGRUN-05/18 classification).
+1. `tests/b1-definitive-operator-architecture-14/*` â€” `ERR_POSTGRES_CONNECTION_CLOSED` because disposable PG17 on `:54329` was not published/loaded during concurrent full suite.
+2. `tests/documents/enrollment-certificate-arabic-pdf-worker-runtime.test.ts` â€” Windows Wrangler Worker timeout 60s (same LONGRUN-05/18 classification).
 
-**Re-proof:** Fresh `postgres:17` on `54329` + canonical fixture + operator/observer/harness provision → `bun test tests/b1-definitive-operator-architecture-14` → **10 pass / 0 fail** (267/36/17 HOLD matrix intact).
+**Re-proof:** Fresh `postgres:17` on `54329` + canonical fixture + operator/observer/harness provision â†’ `bun test tests/b1-definitive-operator-architecture-14` â†’ **10 pass / 0 fail** (267/36/17 HOLD matrix intact).
 
 ### Tooling
 | Check | Result |
@@ -191,15 +191,15 @@ Environmental first-run failures (not product regressions from #318):
 
 ## CI / PR #313
 
-| Check | Result on `1f39b57a3c29bb9031b8ed36ffcc3940335cc236` |
+| Check | Result on `93a375b36f15d88f8a7cae645cb1bd9e9bd619db` |
 |---|---|
-| Web CI | **success** — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31338653775 |
-| Migration Review | **success** — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31338653777 |
+| Web CI | **success** â€” https://github.com/msorori-mh/saba-uni-portal/actions/runs/31338653775 |
+| Migration Review | **success** â€” https://github.com/msorori-mh/saba-uni-portal/actions/runs/31338653777 |
 | PR #313 Draft | **YES** (retained) |
 
 Integrated streams updated to include `#318`.
 
-Web CI jobs (all success): Bun tests (`tests/`), B1 Definitive Operator Architecture LONGRUN-14, Install·Lint·Typecheck·Build, and all listed PG17 verifiers (GA/GP/clearance/lecture/materials).
+Web CI jobs (all success): Bun tests (`tests/`), B1 Definitive Operator Architecture LONGRUN-14, Installآ·Lintآ·Typecheckآ·Build, and all listed PG17 verifiers (GA/GP/clearance/lecture/materials).
 
 ---
 
