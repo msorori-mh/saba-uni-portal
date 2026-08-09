@@ -1,14 +1,18 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 
 import { Input } from "@/components/ui/input";
 import {
-  canSeeReport,
+  endUserCatalogEntries,
   groupByBeneficiary,
   groupByStatus,
+  isReportInPreparation,
+  isReportOpenable,
   searchReports,
   REPORT_BENEFICIARIES,
   REPORT_STATUSES,
   type ReportEntry,
+  type ReportStatus,
 } from "@/lib/reports/catalog";
 
 import { ReportCard } from "./ReportCard";
@@ -25,6 +29,27 @@ interface ReportGroup {
   readonly key: string;
   readonly label: string;
   readonly entries: readonly ReportEntry[];
+}
+
+const FAVORITES_KEY = "portal.reports.favorites.v1";
+
+function loadFavorites(): Set<string> {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistFavorites(codes: Set<string>) {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...codes]));
+  } catch {
+    // ignore quota / private mode
+  }
 }
 
 function buildGroups(
@@ -50,43 +75,88 @@ function buildGroups(
 }
 
 /**
- * Reports-center shell: indexes the canonical catalog, groups it by status
- * or beneficiary, and offers search + status filtering.
+ * Central reports catalog shell — role/scope/beneficiary aware.
+ * Hides BLOCKED/NOT_ACTIVATED from end users. Preparation cards are
+ * non-openable ("قيد التجهيز"). Favorites are local-only.
  *
- * Presentational only (props-driven): no data fetching, no routes, no mock
- * data. Visibility is fail-closed — a viewer with no/unknown roles sees an
- * empty center even if handed the full catalog.
+ * Binding contract: pass `viewerScope` (preferred) or `viewerBindings`, or
+ * `prefiltered` entries from getVisibleCatalogForViewer. Never advertise
+ * LIVE cards from role alone when org identity/binding is missing.
  */
 export function ReportsCenter({
   entries,
   viewerRoles,
+  viewerScope = null,
+  viewerBindings = null,
+  prefiltered = false,
   title = "مركز التقارير",
-  subtitle = "الكتالوج المرجعي لتقارير البوابة — الرؤية fail-closed بحسب صلاحياتك.",
+  subtitle = "التقارير وفق الصلاحية والنطاق والمستفيد — الرؤية fail-closed.",
+  showPreparation = true,
+  defaultGrouping = "beneficiary",
 }: ReportsCenterProps) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [grouping, setGrouping] = useState<ReportsCenterGrouping>("status");
+  const [grouping, setGrouping] = useState<ReportsCenterGrouping>(defaultGrouping);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(() => new Set());
 
-  const visible = useMemo(
-    () => entries.filter((entry) => canSeeReport(entry, viewerRoles)),
-    [entries, viewerRoles],
-  );
+  useEffect(() => {
+    setFavorites(loadFavorites());
+  }, []);
+
+  const toggleFavorite = (code: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      persistFavorites(next);
+      return next;
+    });
+  };
+
+  const catalog = useMemo(() => {
+    const base = prefiltered
+      ? [...entries]
+      : endUserCatalogEntries(
+          entries,
+          viewerRoles,
+          viewerScope ?? viewerBindings ?? null,
+        );
+    return showPreparation
+      ? base
+      : base.filter((e) => !isReportInPreparation(e));
+  }, [
+    entries,
+    viewerRoles,
+    viewerScope,
+    viewerBindings,
+    prefiltered,
+    showPreparation,
+  ]);
 
   const filtered = useMemo(() => {
-    const searched = searchReports(visible, query);
-    if (statusFilter === "all") {
-      return searched;
+    let list = searchReports(catalog, query);
+    if (statusFilter !== "all") {
+      list = list.filter((entry) => entry.status === statusFilter);
     }
-    return searched.filter((entry) => entry.status === statusFilter);
-  }, [visible, query, statusFilter]);
+    if (favoritesOnly) {
+      list = list.filter((entry) => favorites.has(entry.report_code));
+    }
+    return list;
+  }, [catalog, query, statusFilter, favoritesOnly, favorites]);
 
   const groups = useMemo(() => buildGroups(filtered, grouping), [filtered, grouping]);
+
+  const openableCount = catalog.filter(isReportOpenable).length;
 
   return (
     <div dir="rtl" className="space-y-4">
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <p className="text-xs text-muted-foreground">
+          {`متاح للفتح: ${openableCount} — المعروض: ${filtered.length}`}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -103,8 +173,15 @@ export function ReportsCenter({
           className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
           aria-label="تصفية حسب الحالة"
         >
-          <option value="all">كل الحالات</option>
-          {REPORT_STATUSES.map((status) => (
+          <option value="all">كل الحالات الظاهرة</option>
+          {(
+            [
+              "LIVE",
+              "DATA_DEPENDENT",
+              "SOURCE_READY",
+              "UNDER_DEVELOPMENT",
+            ] as ReportStatus[]
+          ).map((status) => (
             <option key={status} value={status}>
               {STATUS_LABELS_AR[status]}
             </option>
@@ -112,22 +189,32 @@ export function ReportsCenter({
         </select>
         <select
           value={grouping}
-          onChange={(event: ChangeEventLike) => setGrouping(event.target.value as ReportsCenterGrouping)}
+          onChange={(event: ChangeEventLike) =>
+            setGrouping(event.target.value as ReportsCenterGrouping)
+          }
           className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
           aria-label="طريقة التجميع"
         >
-          <option value="status">تجميع حسب الحالة</option>
           <option value="beneficiary">تجميع حسب المستفيد</option>
+          <option value="status">تجميع حسب الحالة</option>
         </select>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={favoritesOnly}
+            onChange={(e) => setFavoritesOnly(e.target.checked)}
+          />
+          المفضلة فقط
+        </label>
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {"لا تقارير متاحة لصلاحياتك الحالية."}
+        <p className="text-sm text-muted-foreground" role="status">
+          لا تقارير متاحة لصلاحياتك الحالية.
         </p>
       ) : (
         groups.map((group) => (
-          <section key={group.key} className="space-y-2">
+          <section key={group.key} className="space-y-2" aria-label={group.label}>
             <h3 className="text-base font-semibold">
               {group.label}
               <span className="text-sm font-normal text-muted-foreground">
@@ -136,12 +223,35 @@ export function ReportsCenter({
             </h3>
             <div className="grid gap-3 md:grid-cols-2">
               {group.entries.map((entry) => (
-                <ReportCard key={entry.report_code} entry={entry} />
+                <ReportCard
+                  key={entry.report_code}
+                  entry={entry}
+                  favorite={favorites.has(entry.report_code)}
+                  onToggleFavorite={() => toggleFavorite(entry.report_code)}
+                />
               ))}
             </div>
           </section>
         ))
       )}
     </div>
+  );
+}
+
+/** Optional deep-link helper used by hubs. */
+export function ReportRouteLink({
+  to,
+  label,
+}: {
+  to: string;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="text-sm font-bold text-primary hover:text-gold underline-offset-4 hover:underline"
+    >
+      {label}
+    </Link>
   );
 }

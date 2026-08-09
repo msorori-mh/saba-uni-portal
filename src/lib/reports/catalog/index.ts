@@ -23,12 +23,28 @@ export {
 } from "./invariants";
 export {
   canSeeReport,
+  canSeeReportWithBindings,
+  canSeeReportForViewer,
   visibleReports,
+  visibleReportsWithBindings,
+  visibleReportsForViewer,
   groupByBeneficiary,
   groupByStatus,
   filterReports,
   searchReports,
   findByCode,
   countByStatus,
+  isReportOpenable,
+  isReportInPreparation,
+  isHiddenFromEndUserCatalog,
+  endUserCatalogEntries,
+  openableReports,
   type ReportFilter,
 } from "./visibility";
+export {
+  catalogViewerFromActorScope,
+  emptyCatalogViewer,
+  entryDependsOnGate,
+  actorSatisfiesReportScope,
+  type CatalogViewerFacts,
+} from "./viewer-scope";

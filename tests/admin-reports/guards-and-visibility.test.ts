@@ -196,17 +196,15 @@ describe("wrong-unit isolation + no cross-unit leakage", () => {
     expect(visible).toContain("ADM-STUDENT-REQUESTS");
   });
 
-  test("server applies department filters only from the client payload, never actor-derived", () => {
-    // University-wide role-gated model: a department_id filter is applied only
-    // when the caller supplies it; there is no hidden per-actor unit scoping
-    // and no ownership bypass in the reports server functions.
-    const departmentFilters = FUNCTIONS_SRC.match(/\.eq\("department_id", [^)]+\)/g) ?? [];
-    expect(departmentFilters.length).toBeGreaterThan(0);
-    for (const filter of departmentFilters) {
-      expect(filter).toContain("data.department_id");
-    }
-    expect(FUNCTIONS_SRC).not.toContain('.eq("department_id", context.');
-    expect(FUNCTIONS_SRC).not.toContain('.eq("department_id", actor');
+  test("server forces actor-derived department scope for department_head schedule reports", () => {
+    // P0 beneficiary closure: department heads cannot widen/cross department
+    // via client-supplied department_id. Scope is resolved from the actor.
+    expect(FUNCTIONS_SRC).toContain("applyScheduleDepartmentScope");
+    expect(FUNCTIONS_SRC).toContain("resolveReportActorScope");
+    expect(FUNCTIONS_SRC).toContain("enforceDepartmentFilter");
+    expect(FUNCTIONS_SRC).toContain("رئيس القسم بلا قسم مرتبط — يُرفض النطاق");
+    expect(FUNCTIONS_SRC).toContain("forcedDepartmentId");
+    expect(FUNCTIONS_SRC).toContain("department_id: enforced.departmentId");
   });
 });
 
@@ -225,12 +223,14 @@ describe("export permission", () => {
 });
 
 describe("general dashboard test (route + nav wiring)", () => {
-  test("the reports center nav item targets /admin/reports with REPORTS_ROLES parity", () => {
+  test("the reports center nav admits REPORTS_ROLES plus department_head for scoped schedule access", () => {
     expect(NAV_SRC).toContain('"/admin/reports"');
     const navMatch = NAV_SRC.match(/"\/admin\/reports":\s*\[([^\]]*)\]/);
     expect(navMatch).not.toBeNull();
     const navRoles = [...navMatch![1]!.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
-    expect(navRoles.toSorted()).toEqual([...REPORTS_ROLES].toSorted());
+    expect(navRoles.toSorted()).toEqual(
+      [...REPORTS_ROLES, "department_head"].toSorted(),
+    );
   });
 
   test("all six wired section components are rendered by the route", () => {

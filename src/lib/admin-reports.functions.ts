@@ -7,6 +7,12 @@ import {
   getDbCodesForRequestTypeFilter,
   getStudentRequestTypeDisplayName,
 } from "@/lib/student-requests/request-type-registry";
+import {
+  enforceDepartmentFilter,
+} from "@/lib/reports/scope";
+import {
+  resolveReportActorScope,
+} from "@/lib/reports/scope/resolve-scope.server";
 
 async function assertReportsAccess(userId: string) {
   await assertAnyRole(
@@ -1344,7 +1350,41 @@ const scheduleReportSchema = z.object({
 });
 
 async function assertScheduleReportsAccess(userId: string) {
-  await assertAnyRole(userId, SCHEDULE_REPORT_ROLES, "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ø¹Ø±Ø¶ ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ø¬Ø¯Ø§ÙˆÙ„ ÙˆØ§Ù„Ø¥Ø³Ù†Ø§Ø¯");
+  await assertAnyRole(userId, SCHEDULE_REPORT_ROLES, "ليس لديك صلاحية عرض تقارير الجداول والإسناد");
+}
+
+/**
+ * Actor-derived department enforcement for schedule reports.
+ * Department heads (without wider university roles) are forced to their own
+ * department — client-supplied wider/other department_id is DENIED.
+ */
+async function applyScheduleDepartmentScope(
+  userId: string,
+  data: z.infer<typeof scheduleReportSchema>,
+): Promise<z.infer<typeof scheduleReportSchema>> {
+  const scope = await resolveReportActorScope(userId);
+  const enforced = enforceDepartmentFilter({
+    scope,
+    requestedDepartmentId: data.department_id ?? null,
+  });
+  if (enforced.denied) {
+    throw new Error(enforced.reasonAr ?? "غير مصرح — نطاق القسم مرفوض");
+  }
+
+  const isDeptOnly =
+    scope.level === "department" &&
+    !scope.roles.some((r) =>
+      ["system_admin", "admin", "dean", "registrar"].includes(r),
+    );
+
+  if (isDeptOnly) {
+    if (!enforced.departmentId) {
+      throw new Error("رئيس القسم بلا قسم مرتبط — يُرفض النطاق");
+    }
+    return { ...data, department_id: enforced.departmentId };
+  }
+
+  return data;
 }
 
 function hasScheduleFilter(data: z.infer<typeof scheduleReportSchema>, extra = false) {
@@ -1470,6 +1510,16 @@ export const getScheduleReportLookupsForAdmin = createServerFn({ method: "POST" 
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const scope = await resolveReportActorScope(context.userId);
+    const isDeptOnly =
+      scope.level === "department" &&
+      !scope.roles.some((r) =>
+        ["system_admin", "admin", "dean", "registrar"].includes(r),
+      );
+    if (isDeptOnly && !scope.departmentId) {
+      throw new Error("رئيس القسم بلا قسم مرتبط — يُرفض النطاق");
+    }
+
     const [departments, programs, levels, years, semesters, faculty, rooms, sections] = await Promise.all([
       supabaseAdmin.from("departments").select("id, name_ar").order("name_ar"),
       supabaseAdmin.from("programs").select("id, name_ar, code, department_id").order("sort_order"),
@@ -1482,25 +1532,37 @@ export const getScheduleReportLookupsForAdmin = createServerFn({ method: "POST" 
     ]);
     const firstError = [departments, programs, levels, years, semesters, faculty, rooms, sections].find((res) => res.error)?.error;
     if (firstError) throw new Error(firstError.message);
+
+    let departmentRows = departments.data ?? [];
+    let programRows = programs.data ?? [];
+    let facultyRows = faculty.data ?? [];
+    if (isDeptOnly && scope.departmentId) {
+      departmentRows = departmentRows.filter((d: { id: string }) => d.id === scope.departmentId);
+      programRows = programRows.filter((p: { department_id: string | null }) => p.department_id === scope.departmentId);
+      facultyRows = facultyRows.filter((f: { department_id: string | null }) => f.department_id === scope.departmentId);
+    }
+
     return {
-      departments: departments.data ?? [],
-      programs: programs.data ?? [],
+      departments: departmentRows,
+      programs: programRows,
       levels: levels.data ?? [],
       years: years.data ?? [],
       semesters: semesters.data ?? [],
-      faculty: faculty.data ?? [],
+      faculty: facultyRows,
       rooms: rooms.data ?? [],
       sections: sections.data ?? [],
       days: ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"],
       scheduleTypes: ["lecture", "lab", "tutorial", "exam"],
+      forcedDepartmentId: isDeptOnly ? scope.departmentId : null,
     };
   });
 
 export const getCourseAssignmentsReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
@@ -1552,8 +1614,9 @@ export const getCourseAssignmentsReportForAdmin = createServerFn({ method: "POST
 export const getUnassignedCoursesReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
@@ -1603,8 +1666,9 @@ export const getUnassignedCoursesReportForAdmin = createServerFn({ method: "POST
 export const getStudyGroupsReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
@@ -1650,8 +1714,9 @@ export const getStudyGroupsReportForAdmin = createServerFn({ method: "POST" })
 export const getTimetableReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
@@ -1713,8 +1778,9 @@ function timeDiffHours(start?: string | null, end?: string | null) {
 export const getRoomUtilizationReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
@@ -1778,8 +1844,9 @@ export const getRoomUtilizationReportForAdmin = createServerFn({ method: "POST" 
 export const getFacultyLoadReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
@@ -1836,8 +1903,9 @@ export const getFacultyLoadReportForAdmin = createServerFn({ method: "POST" })
 export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawScheduleData, context }) => {
     await assertScheduleReportsAccess(context.userId);
+    const data = await applyScheduleDepartmentScope(context.userId, rawScheduleData);
     if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
