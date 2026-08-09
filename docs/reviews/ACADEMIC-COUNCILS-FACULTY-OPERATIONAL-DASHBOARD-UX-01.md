@@ -100,7 +100,7 @@ No direct table writes. No migrations. No RLS/RPC contract changes.
 `git diff --check` — PASS
 
 ## CI
-_(filled after PR checks)_
+SUCCESS — Web CI run `31330333481` on PR #314 (all jobs pass: Bun tests, Install/Lint/Typecheck/Build, PG17 verifiers).
 
 ## Visual check status
 `LIVE_AUTHENTICATED_VISUAL_CHECK=NOT_AVAILABLE` (no authenticated faculty session in this environment). Source/test responsive review performed.
@@ -114,4 +114,6 @@ _(filled after PR checks)_
 UI-only. `PRODUCTION_READS=0`, `PRODUCTION_WRITES=0`, `RPC_PRODUCTION_CALLS=0`, `MIGRATION_APPLIED=NO`, `DEPLOY=NO`, `MERGE=NO`.
 
 ## Decision
-PASS (pending CI confirmation after draft PR)
+**PASS**
+
+`PASS_ACADEMIC_COUNCILS_FACULTY_OPERATIONAL_DASHBOARD_UX_01`
