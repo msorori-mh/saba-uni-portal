@@ -19,8 +19,9 @@ on:
       - "tsconfig.*.json"
       - "eslint.config.js"
       - ".github/workflows/ci.yml"
+  # Open PR trigger (no main-only filter) preserves stacked councils/GA CI.
+  # workflow_dispatch preserves GA promotion manual verification.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -96,11 +97,14 @@ jobs:
 
       # Package 97 PG17 smoke requires the exact postgres:17 image on the runner
       # (fail-closed when missing). Pull + inspect before tests; do not use latest.
-      - name: Provision PostgreSQL 17 image
+      # Councils PR306 PostgREST HTTP auth matrix also needs postgrest/postgrest.
+      - name: Provision PostgreSQL 17 and PostgREST images
         run: |
           set -euo pipefail
           docker pull postgres:17
           docker image inspect postgres:17
+          docker pull postgrest/postgrest:v12.2.3
+          docker image inspect postgrest/postgrest:v12.2.3
 
       # Fail-closed: any failing test in any tests/ suite fails this job.
       # The discovery guard also fails the job if the suites ever go missing

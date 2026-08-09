@@ -47,6 +47,8 @@ import {
   getCouncilMeetingsForAdmin,
   scheduleCouncilMeeting,
   updateCouncilMeeting,
+  getCouncilTopicReviewQueueForAdmin,
+  reviewCouncilTopic,
   getAgendaItemsForMeeting,
   getAvailableTopicsForAgenda,
   addTopicToAgenda,
@@ -61,6 +63,7 @@ import {
   type AcademicLinkCandidate,
   type CouncilLinkMemberRole,
   type AdminCouncilMeetingItem,
+  type AdminTopicReviewQueueItem,
   type CouncilAgendaItem,
   type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
@@ -1016,6 +1019,279 @@ function CouncilMeetingsPanel({
 }
 
 // ============================================================================
+// TOPIC REVIEW QUEUE — chair/secretary actions via RPC (admin app_role alone denied)
+// ============================================================================
+
+const TOPIC_REVIEW_STATUS_TABS: { value: string; label: string }[] = [
+  { value: "all", label: "الكل" },
+  { value: "submitted", label: "مقدّم" },
+  { value: "under_review", label: "قيد المراجعة" },
+  { value: "needs_completion", label: "يحتاج استكمالاً" },
+  { value: "accepted_for_agenda", label: "مقبول للجدول" },
+  { value: "rejected", label: "مرفوض" },
+];
+
+function CouncilTopicReviewQueuePanel({
+  council,
+}: {
+  council: CouncilsOverviewItem;
+}) {
+  const qc = useQueryClient();
+  const fetchQueue = useServerFn(getCouncilTopicReviewQueueForAdmin);
+  const reviewTopic = useServerFn(reviewCouncilTopic);
+  const [activeStatus, setActiveStatus] = useState<string>("all");
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [busyByTopic, setBusyByTopic] = useState<Record<string, boolean>>({});
+
+  const {
+    data: queueData,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["admin", "academic-councils", "topic-review-queue", council.id],
+    queryFn: () => fetchQueue({ data: { councilId: council.id } }),
+    staleTime: 15_000,
+  });
+
+  const queue = queueData?.queue ?? [];
+  const actorRole = queueData?.actorRole ?? null;
+  const isChair = actorRole === "chair";
+  const isSecretary = actorRole === "secretary";
+  const canAct = isChair || isSecretary;
+
+  const filtered = useMemo(() => {
+    if (activeStatus === "all") return queue;
+    return queue.filter((t) => t.status === activeStatus);
+  }, [queue, activeStatus]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: queue.length };
+    for (const item of queue) {
+      map[item.status] = (map[item.status] ?? 0) + 1;
+    }
+    return map;
+  }, [queue]);
+
+  const handleReview = async (
+    topic: AdminTopicReviewQueueItem,
+    status: "under_review" | "needs_completion" | "accepted_for_agenda" | "rejected",
+  ) => {
+    if (!canAct) {
+      toast.error("لا تملك صلاحية مراجعة هذا الموضوع عبر عضوية المجلس.");
+      return;
+    }
+    if ((status === "accepted_for_agenda" || status === "rejected") && !isChair) {
+      toast.error("قرار القبول النهائي أو الرفض يعود لرئيس المجلس فقط.");
+      return;
+    }
+    setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: true }));
+    try {
+      await reviewTopic({
+        data: {
+          topicId: topic.topic_id,
+          status,
+          expectedStatus: topic.status as
+            | "submitted"
+            | "under_review"
+            | "needs_completion"
+            | "accepted_for_agenda"
+            | "rejected",
+          reviewNote: reviewNotes[topic.topic_id]?.trim() || undefined,
+        },
+      });
+      toast.success("تم تحديث حالة الموضوع");
+      setReviewNotes((prev) => ({ ...prev, [topic.topic_id]: "" }));
+      await qc.invalidateQueries({
+        queryKey: ["admin", "academic-councils", "topic-review-queue", council.id],
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "تعذّر حفظ حالة المراجعة.");
+    } finally {
+      setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: false }));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {TOPIC_REVIEW_STATUS_TABS.map((tab) => (
+          <Button
+            key={tab.value}
+            type="button"
+            size="sm"
+            variant={activeStatus === tab.value ? "default" : "outline"}
+            className="text-xs gap-1.5"
+            onClick={() => setActiveStatus(tab.value)}
+          >
+            {tab.label}
+            <span
+              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                activeStatus === tab.value
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {counts[tab.value] ?? 0}
+            </span>
+          </Button>
+        ))}
+      </div>
+
+      {!canAct ? (
+        <p className="text-[11px] text-muted-foreground">
+          عرض مؤسسي فقط. إجراءات المراجعة تتطلب عضوية رئيس أو أمين سر في هذا المجلس.
+        </p>
+      ) : null}
+
+      {isLoading ? (
+        <div className="p-6 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <div className="p-4 text-xs text-destructive">
+          تعذر تحميل قائمة مراجعة الموضوعات. قد تتطلب صلاحيات إضافية على هذا المجلس.
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState text="لا توجد موضوعات مطابقة للحالة المحددة في هذا المجلس." />
+      ) : (
+        <div className="grid gap-3">
+          {filtered.map((topic) => (
+            <TopicReviewQueueCard
+              key={topic.topic_id}
+              topic={topic}
+              canAct={canAct}
+              isChair={isChair}
+              isSecretary={isSecretary}
+              busy={Boolean(busyByTopic[topic.topic_id])}
+              reviewNote={reviewNotes[topic.topic_id] ?? ""}
+              onNoteChange={(value) =>
+                setReviewNotes((prev) => ({ ...prev, [topic.topic_id]: value }))
+              }
+              onReview={(status) => void handleReview(topic, status)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TopicReviewQueueCard({
+  topic,
+  canAct,
+  isChair,
+  isSecretary,
+  busy,
+  reviewNote,
+  onNoteChange,
+  onReview,
+}: {
+  topic: AdminTopicReviewQueueItem;
+  canAct: boolean;
+  isChair: boolean;
+  isSecretary: boolean;
+  busy: boolean;
+  reviewNote: string;
+  onNoteChange: (value: string) => void;
+  onReview: (
+    status: "under_review" | "needs_completion" | "accepted_for_agenda" | "rejected",
+  ) => void;
+}) {
+  const showActions =
+    canAct &&
+    (topic.status === "submitted" || topic.status === "under_review");
+
+  return (
+    <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-primary text-sm leading-relaxed">{topic.title}</h3>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            <span>المرسل: {topic.submitted_by}</span>
+            <span className="mx-2">·</span>
+            <span>تاريخ التقديم: {formatDateTime(topic.submitted_at)}</span>
+          </div>
+        </div>
+        <Badge variant="outline" className="text-[10px] shrink-0">
+          {topicStatusLabelAdmin(topic.status)}
+        </Badge>
+      </div>
+
+      {topic.review_note ? (
+        <div className="rounded-md bg-muted/30 p-2.5 text-xs text-muted-foreground leading-relaxed">
+          <span className="font-medium text-foreground">ملاحظة المراجعة:</span>{" "}
+          {topic.review_note}
+        </div>
+      ) : null}
+
+      {topic.meeting_id ? (
+        <div className="text-[11px] text-muted-foreground">
+          مرتبط باجتماع:{" "}
+          <span className="font-mono text-foreground">{topic.meeting_id}</span>
+        </div>
+      ) : null}
+
+      {showActions ? (
+        <div className="space-y-2 border-t border-border pt-3">
+          <Textarea
+            value={reviewNote}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder="ملاحظة المراجعة (مطلوبة عند طلب الاستكمال)"
+            className="min-h-[72px] text-xs"
+            disabled={busy}
+          />
+          <div className="flex flex-wrap gap-2">
+            {(isChair || isSecretary) && topic.status === "submitted" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onReview("under_review")}
+              >
+                بدء المراجعة
+              </Button>
+            ) : null}
+            {(isChair || isSecretary) && topic.status === "under_review" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onReview("needs_completion")}
+              >
+                طلب استكمال
+              </Button>
+            ) : null}
+            {isChair && topic.status === "under_review" ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => onReview("accepted_for_agenda")}
+                >
+                  قبول للجدول
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => onReview("rejected")}
+                >
+                  رفض
+                </Button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ============================================================================
 // AGENDA ADMIN
 // ============================================================================
 
@@ -1543,9 +1819,11 @@ function CouncilAgendaPanel({
 
 function topicStatusLabelAdmin(status: string): string {
   const labels: Record<string, string> = {
-    accepted_for_agenda: "مقبول للجدول",
     submitted: "مقدّم",
     under_review: "قيد المراجعة",
+    needs_completion: "يحتاج استكمالاً",
+    accepted_for_agenda: "مقبول للجدول",
+    rejected: "مرفوض",
   };
   return labels[status] ?? status;
 }
@@ -1843,16 +2121,22 @@ function AcademicCouncilsPage() {
         )}
       </SectionCard>
 
-      {/* Submit topic */}
+      {/* Topic review queue — read only */}
       <SectionCard
-        icon={FilePlus2}
-        title="رفع موضوع جديد"
-        subtitle="استقبال الموضوعات المقترحة للإدراج في جدول الأعمال."
+        icon={ScrollText}
+        title="مراجعة الموضوعات (قراءة فقط)"
+        subtitle="عرض حالة الموضوعات المقدمة للمجلس المحدد دون إمكانية تعديل الحالة."
       >
-        <EmptyState text="نموذج رفع الموضوع سيتاح بعد اعتماد مرحلة الكتابة." />
-        <div className="mt-4">
-          <LockedAction label="رفع موضوع جديد" />
-        </div>
+        {selectedCouncil ? (
+          <p className="mb-4 text-xs text-muted-foreground">
+            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
+          </p>
+        ) : null}
+        {!selectedCouncil ? (
+          <EmptyState text="اختر مجلساً من القائمة أعلاه لعرض موضوعاته المقدمة." />
+        ) : (
+          <CouncilTopicReviewQueuePanel council={selectedCouncil} />
+        )}
       </SectionCard>
 
       {/* Agenda */}
