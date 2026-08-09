@@ -15,7 +15,7 @@
 | REPORTS320_HEAD | `57010a34ee06863ac23558c3b71c79ef3743a9dd` |
 | PRE_REPORTS320_RC_HEAD_SHA | `afe5f55b545aceb9f761ee8a508818c19068db07` |
 | FINAL_RC_PRODUCT_SHA | `fe772f0faba165f885d0bc32f84944ada2b94681` |
-| FINAL_RC_HEAD_SHA | `633810b804fbe1808a1b0ec9560214fc90f28e57` |
+| FINAL_RC_HEAD_SHA | `3fa7a6d381e2e76afaf2e111367c3c4c362d2c3c` |
 | INTEGRATED_PRS | `#293,#291,#299,#311,#312,#314,#315,#317,#310,#318,#320` |
 | merge-base(RC, #320) | `afe5f55b545aceb9f761ee8a508818c19068db07` |
 
@@ -212,14 +212,16 @@ Environmental failure (not a #320 product regression):
 
 ## G11 / G13 — CI / PR #313
 
-| Check | Result |
+| Check | Result on tip `3fa7a6d381e2e76afaf2e111367c3c4c362d2c3c` |
 |---|---|
 | Integrated streams | `#293,#291,#299,#311,#312,#314,#315,#317,#310,#318,#320` |
 | PR #313 Draft | **YES** (retained) |
 | Push target | `rc/portal-final-v4-prebuild-non-b1-01` only |
 | New PR | **NO** |
-| Web CI on final HEAD | *(recorded after push — must be completed/success)* |
-| Migration Review on final HEAD | *(recorded after push — must be completed/success)* |
+| Web CI | **completed / success** — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31342941101 |
+| Migration Review | **completed / success** — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31342941122 |
+
+Web CI jobs (all success): Bun tests (`tests/`), B1 Definitive Operator Architecture LONGRUN-14, Install·Lint·Typecheck·Build, and all listed PG17 verifiers (GA/GP/clearance/lecture/materials).
 
 ---
 
@@ -243,4 +245,4 @@ Environmental failure (not a #320 product regression):
 
 **PASS_PORTAL_FINAL_RC313_REPORTS320_INTEGRATION_AND_FINAL_RC_CLOSURE_LONGRUN_07**
 
-Hard gates remaining after docs land: Web CI + Migration Review must show **completed / success** on the exact Draft tip SHA. Product merge is clean, UX/authz/B1/catalog/domain gates already green locally.
+Hard gates met: Web CI + Migration Review are **completed / success** on Draft tip `3fa7a6d381e2e76afaf2e111367c3c4c362d2c3c`. Product merge is clean; UX/authz/B1/catalog/domain gates green.
