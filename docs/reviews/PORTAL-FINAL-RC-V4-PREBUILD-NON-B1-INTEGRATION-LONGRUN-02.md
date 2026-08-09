@@ -20,7 +20,7 @@ already-green non-B1 Draft RC PR **#313**, preserving prior streams.
 ```
 OLD_RC_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411
 PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f
-NEW_RC_SHA=<post-commit tip>
+NEW_RC_SHA=c58e0c3a65731e81fd2c47ee02852a23c4cb5b06
 
 INTEGRATED_PRS=#293,#291,#299,#311,#312,#314
 
@@ -38,8 +38,8 @@ TSC=PASS
 BUILD=PASS
 DIFF_CHECK=PASS
 
-WEB_CI=<pending push>
-MIGRATION_REVIEW=<pending push>
+WEB_CI=PENDING_PUSH
+MIGRATION_REVIEW=PENDING_PUSH
 
 B1_FINAL_SHA=PENDING
 
@@ -146,7 +146,7 @@ Updated `docs/release/PORTAL-FINAL-RC-V4-INTEGRATION-MANIFEST.md`:
 |---|---|---|
 | `RC_IMPLEMENTATION_SHA` | `0fc1d7b9384be7d0b00fd8d2feb41a00d2a12938` | LONGRUN-01 integration tip before docs-only follow-up |
 | `RC_PREVIOUS_HEAD_SHA` | `e3db0cc330106518d5ab9ca6874d70d9e98b1411` | Draft PR #313 tip at LONGRUN-02 start |
-| `RC_CURRENT_HEAD_SHA` | `<post-commit tip>` | Tip after #314 merge + coherence + docs |
+| `RC_CURRENT_HEAD_SHA` | `c58e0c3a65731e81fd2c47ee02852a23c4cb5b06` | Semantic remediation tip (product code) |
 
 Do not describe multiple tips simply as `RC_SHA`.
 

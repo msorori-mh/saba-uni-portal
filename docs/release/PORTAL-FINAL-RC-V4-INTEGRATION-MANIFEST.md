@@ -31,7 +31,7 @@ Do **not** use a bare `RC_SHA` label when multiple tips exist across commits.
 RC_IMPLEMENTATION_SHA=0fc1d7b9384be7d0b00fd8d2feb41a00d2a12938
 RC_PREVIOUS_HEAD_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411
 RC_MECHANICAL_MERGE_SHA=954ba6655c3dd48c5e5a8baa6289a5037752e737
-RC_CURRENT_HEAD_SHA=<set at LONGRUN-03 commit tip>
+RC_CURRENT_HEAD_SHA=c58e0c3a65731e81fd2c47ee02852a23c4cb5b06
 ```
 
 Notes:
@@ -43,7 +43,8 @@ Notes:
   (includes LONGRUN-01 docs/manifest). Also the OLD_RC_SHA for LONGRUN-03.
 - `RC_MECHANICAL_MERGE_SHA` — LONGRUN-02 mechanical merge of #314 that took
   the #314 route orchestrator and dropped #311 consumers (Codex HOLD input).
-- `RC_CURRENT_HEAD_SHA` — tip after LONGRUN-03 semantic remediation.
+- `RC_CURRENT_HEAD_SHA` — semantic remediation tip (`c58e0c3a`; product code).
+  A later docs-only commit may advance the branch tip without renaming this.
 - `MAIN_BASE_SHA` is `origin/main` HEAD at LONGRUN-01 inventory start.
 - During LONGRUN-01, main advanced by two commits (Lovable security-scan
   migration `20260809183940_e3eff340-…`). That tip was absorbed so the RC
