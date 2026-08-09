@@ -77,5 +77,3 @@ BEGIN
   RETURN QUERY SELECT v_allowed, v_sqlstate, v_message, v_before, v_in, v_after;
 END;
 $$;
-
-GRANT EXECUTE ON FUNCTION public.b1_harness_run_negative_case(uuid,text,text,text,text,text) TO b1_matrix_operator;

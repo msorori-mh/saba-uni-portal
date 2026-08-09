@@ -6,20 +6,6 @@
 -- ============================================================================
 \set ON_ERROR_STOP on
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'b1_matrix_observer') THEN
-    CREATE ROLE b1_matrix_observer WITH
-      NOLOGIN
-      NOSUPERUSER
-      NOBYPASSRLS
-      NOCREATEDB
-      NOCREATEROLE
-      NOREPLICATION
-      NOINHERIT;
-  END IF;
-END $$;
-
 CREATE OR REPLACE FUNCTION public.b1_observer_auth_uid()
 RETURNS uuid
 LANGUAGE sql STABLE
@@ -460,49 +446,33 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.b1_observer_auth_uid() FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_auth_uid() TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_auth_role() FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_auth_role() TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_fixture_state() FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_fixture_state() TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_allowed_request_numbers() FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_allowed_request_numbers() TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_request_id_by_number(text) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_request_id_by_number(text) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_is_allowed_request(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_is_allowed_request(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_is_allowed_step(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_is_allowed_step(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_fingerprint() FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_fingerprint() TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_request_state(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_request_state(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_step_state(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_step_state(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_step_assignee_count(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_step_assignee_count(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_step_processing(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_step_processing(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_step_direct_assignee_user_id(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_step_direct_assignee_user_id(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_step_active_binding_count(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_step_active_binding_count(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_transfer_scope(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_transfer_scope(uuid) TO b1_matrix_observer, b1_matrix_operator;
 
 REVOKE ALL ON FUNCTION public.b1_observer_predecessors(uuid) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.b1_observer_predecessors(uuid) TO b1_matrix_observer, b1_matrix_operator;

@@ -28,7 +28,7 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "10cce96d7f343f603adeb3c5c165739bce27d0ec4312c7ba0876f3448dfd0c17";
+export const MATRIX_SHA256_LF = "b260caeaa6e4775a5f12e263729edeba90eb78b52a7a39b705b8d2c77fc72a8c";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
 /** REMEDIATION-15 G5: every case whose contract sits behind the active-step
  *  gate is now bound to a deterministic ACTIVE Fixture-13 runtime step, so the

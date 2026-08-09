@@ -55,7 +55,7 @@ BEGIN
     v_residue := v_residue + 1;
   END IF;
 
-  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid OR r.oid = m.member WHERE r.rolname = 'b1_matrix_operator') THEN
+  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles pr ON pr.oid = m.roleid OR pr.oid = m.member WHERE pr.rolname = 'b1_matrix_operator') THEN
     v_residue := v_residue + 1;
   END IF;
 
