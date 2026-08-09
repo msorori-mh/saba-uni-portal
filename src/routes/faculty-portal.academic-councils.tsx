@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,11 +9,19 @@ import {
   Loader2,
   Plus,
   ScrollText,
+  ShieldCheck,
   Users2,
 } from "lucide-react";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   CouncilsActionRequired,
   CouncilsOperationalSummaryStrip,
@@ -25,11 +33,14 @@ import {
   CouncilMeetingsWorkspace,
   NextMeetingPriorityCard,
   CouncilTopicsWorkspace,
+  CouncilTopicReviewQueue,
   CompactEmpty,
   ErrorBlock,
   LoadingBlock,
   SectionShell,
   formatDateTime,
+  MEMBER_ROLE_LABELS,
+  meetingStatusLabel,
 } from "@/components/portal/councils";
 import {
   buildOperationalSummary,
@@ -43,7 +54,16 @@ import {
   getMyAcademicCouncilMembershipsV2,
   getMyCouncilMeetingsV2,
   getMyCouncilTopics,
+  type MyCouncilMembershipV2,
 } from "@/lib/faculty-councils.functions";
+import type { CouncilLinkMemberRole } from "@/lib/admin-councils.functions";
+import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
+import { CouncilNotificationBell } from "@/components/councils/CouncilNotificationBell";
+import { CouncilChairDashboard } from "@/components/councils/CouncilChairDashboard";
+import { CouncilSecretaryDashboard } from "@/components/councils/CouncilSecretaryDashboard";
+import { CouncilMemberWorkspace } from "@/components/councils/CouncilMemberWorkspace";
+import { CouncilResponsibleActorView } from "@/components/councils/CouncilResponsibleActorView";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
   head: () => ({
@@ -54,6 +74,15 @@ export const Route = createFileRoute("/faculty-portal/academic-councils")({
   }),
   component: FacultyAcademicCouncilsPage,
 });
+
+const GOVERNANCE_MEETING_STATUSES = [
+  "agenda_ready",
+  "in_session",
+  "minutes_draft",
+  "minutes_review",
+  "minutes_locked",
+  "archived",
+] as const;
 
 function FacultyAcademicCouncilsPage() {
   const fetchMembershipsV2 = useServerFn(getMyAcademicCouncilMembershipsV2);
@@ -81,12 +110,24 @@ function FacultyAcademicCouncilsPage() {
     refetchOnWindowFocus: false,
   });
 
+  const userIdQuery = useQuery({
+    queryKey: ["auth", "session-user"],
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return data.session?.user.id ?? null;
+    },
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
+  });
+
   const currentMemberships = membershipsQuery.data?.currentMemberships ?? [];
   const previousMemberships = membershipsQuery.data?.previousMemberships ?? [];
   const upcomingMeetings = meetingsQuery.data?.upcomingMeetings ?? [];
   const previousMeetings = meetingsQuery.data?.previousMeetings ?? [];
   const mySubmittedTopics = topicsQuery.data?.mySubmittedTopics ?? [];
   const councilVisibleTopics = topicsQuery.data?.councilVisibleTopics ?? [];
+  const userId = userIdQuery.data ?? null;
 
   const submitEligibleMemberships = useMemo(
     () => filterSubmitEligible(currentMemberships),
@@ -108,6 +149,13 @@ function FacultyAcademicCouncilsPage() {
     () => new Set(agendaWriteMemberships.map((m) => m.council_id)),
     [agendaWriteMemberships],
   );
+  const roleByCouncilId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of currentMemberships) {
+      map.set(m.council_id, m.role);
+    }
+    return map;
+  }, [currentMemberships]);
   const viewerOnly = isViewerOnly(currentMemberships);
 
   const summary = useMemo(
@@ -151,6 +199,14 @@ function FacultyAcademicCouncilsPage() {
     return map;
   }, [upcomingMeetings]);
 
+  const governanceMeetings = useMemo(
+    () =>
+      [...upcomingMeetings, ...previousMeetings].filter((m) =>
+        (GOVERNANCE_MEETING_STATUSES as readonly string[]).includes(m.status),
+      ),
+    [upcomingMeetings, previousMeetings],
+  );
+
   const [workspaceTab, setWorkspaceTab] = useState("meetings");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -178,18 +234,26 @@ function FacultyAcademicCouncilsPage() {
       <main className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl space-y-4 sm:space-y-5">
         <header
           data-testid="councils-page-header"
-          className="flex items-start gap-3"
+          className="flex items-start justify-between gap-3"
         >
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-            <ScrollText className="h-5 w-5" aria-hidden />
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+              <ScrollText className="h-5 w-5" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-xl font-extrabold text-primary">
+                مجالسي الأكاديمية
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+                إدارة عضويتك واجتماعاتك وموضوعات المجالس الأكاديمية من مكان واحد.
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="font-display text-xl font-extrabold text-primary">
-              مجالسي الأكاديمية
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
-              إدارة عضويتك واجتماعاتك وموضوعات المجالس الأكاديمية من مكان واحد.
-            </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <CouncilNotificationBell />
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/faculty-portal/academic-councils/reports">التقارير</Link>
+            </Button>
           </div>
         </header>
 
@@ -243,6 +307,22 @@ function FacultyAcademicCouncilsPage() {
                 canManageAgenda={agendaWriteCouncilIds.has(nextMeeting.council_id)}
                 onManageAgenda={openAgenda}
                 onOpenMeeting={() => setWorkspaceTab("meetings")}
+              />
+            ) : null}
+
+            {currentMemberships.length > 0 ? (
+              <SectionShell icon={ShieldCheck} title="لوحة العمل والمتابعة">
+                <CouncilWorkspacesSection
+                  memberships={currentMemberships}
+                  userId={userId}
+                />
+              </SectionShell>
+            ) : null}
+
+            {agendaWriteMemberships.length > 0 ? (
+              <CouncilTopicReviewQueue
+                roleByCouncilId={roleByCouncilId}
+                onUpdated={() => void topicsQuery.refetch()}
               />
             ) : null}
 
@@ -336,6 +416,8 @@ function FacultyAcademicCouncilsPage() {
                   councilVisibleTopics={councilVisibleTopics}
                   isLoading={topicsQuery.isLoading}
                   isError={topicsQuery.isError}
+                  userId={userId}
+                  onUpdated={() => void topicsQuery.refetch()}
                 />
               </TabsContent>
 
@@ -360,6 +442,39 @@ function FacultyAcademicCouncilsPage() {
                 </SectionShell>
               </TabsContent>
             </Tabs>
+
+            {governanceMeetings.length > 0 && currentMemberships.length > 0 ? (
+              <SectionShell icon={ShieldCheck} title="الجلسة الحية والحوكمة">
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                  إدارة الجلسة والتصويت والمحضر والقرارات والأرشفة وفق دورك في المجلس.
+                  الصلاحيات النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+                </p>
+                <div className="space-y-6">
+                  {governanceMeetings.map((m) => {
+                    const role =
+                      m.user_membership_role ??
+                      roleByCouncilId.get(m.council_id) ??
+                      "viewer";
+                    return (
+                      <div key={`gov-${m.meeting_id}`} className="space-y-2">
+                        <div className="text-sm font-bold text-primary">
+                          {m.council_name} · الاجتماع رقم {m.meeting_number} ·{" "}
+                          {meetingStatusLabel(m.status)}
+                        </div>
+                        <CouncilSessionAndGovernanceWorkspace
+                          meetingId={m.meeting_id}
+                          councilId={m.council_id}
+                          meetingStatus={m.status}
+                          userRole={role}
+                          userId={userId ?? undefined}
+                          onStateChanged={() => void meetingsQuery.refetch()}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionShell>
+            ) : null}
 
             {chairMemberships.length > 0 ? (
               <ScheduleMeetingDialog
@@ -392,5 +507,71 @@ function FacultyAcademicCouncilsPage() {
         )}
       </main>
     </FacultyPortalShell>
+  );
+}
+
+function CouncilWorkspacesSection({
+  memberships,
+  userId,
+}: {
+  memberships: MyCouncilMembershipV2[];
+  userId: string | null;
+}) {
+  const [selectedId, setSelectedId] = useState(memberships[0]?.council_id ?? "");
+  const selected = memberships.find((m) => m.council_id === selectedId) ?? memberships[0];
+
+  if (!selected) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+        لا توجد عضويات متاحة.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <Select value={selectedId} onValueChange={setSelectedId} dir="rtl">
+          <SelectTrigger className="sm:max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            {memberships.map((m) => (
+              <SelectItem key={m.council_id} value={m.council_id}>
+                {m.council_name} ·{" "}
+                {MEMBER_ROLE_LABELS[m.role as CouncilLinkMemberRole] ?? m.role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          الصلاحيات النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+        </p>
+      </div>
+
+      {selected.role === "chair" ? (
+        <CouncilChairDashboard councilId={selected.council_id} councilName={selected.council_name} />
+      ) : selected.role === "secretary" ? (
+        <CouncilSecretaryDashboard
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+        />
+      ) : selected.role === "viewer" ? (
+        <CouncilMemberWorkspace
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+          readOnly
+        />
+      ) : (
+        <CouncilMemberWorkspace
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+        />
+      )}
+
+      {userId && selected.role !== "viewer" ? (
+        <CouncilResponsibleActorView userId={userId} />
+      ) : null}
+    </div>
   );
 }

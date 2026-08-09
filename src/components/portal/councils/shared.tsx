@@ -81,6 +81,15 @@ export const PARTIAL_UPLOAD_MESSAGE =
 export const ATTACHMENT_UPLOAD_DENIED_MESSAGE = "لا تملك صلاحية رفع مرفقات لهذا الموضوع.";
 export const ATTACHMENT_OPEN_ERROR_MESSAGE = "تعذر فتح المرفق حالياً.";
 
+export const TOPIC_REVIEW_DENIED_UI = "لا تملك صلاحية مراجعة هذا الموضوع.";
+export const TOPIC_REVIEW_FINAL_DENIED_UI =
+  "قرار القبول النهائي أو الرفض يعود لرئيس المجلس فقط.";
+export const TOPIC_REVIEW_STATUS_SKIP_UI =
+  "انتقال الحالة غير مسموح به في دورة حياة الموضوع.";
+export const TOPIC_REVIEW_FAILED_UI = "تعذّر حفظ حالة المراجعة.";
+export const TOPIC_EDIT_DENIED_UI = "لا يمكن تعديل هذا الموضوع.";
+export const TOPIC_EDIT_FAILED_UI = "تعذّر تعديل الموضوع.";
+
 export const ATTACHMENT_ACCEPT =
   ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -135,6 +144,53 @@ export function mapSubmitError(message: string): string {
   }
   if (message.trim().length > 0) return message;
   return SUBMIT_GENERIC_ERROR_MESSAGE;
+}
+
+export function mapReviewError(message: string): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_MESSAGE;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("لا تملك صلاحية") ||
+    lower.includes("مراجعة") ||
+    lower.includes("permission") ||
+    lower.includes("policy") ||
+    lower.includes("row-level security")
+  ) {
+    return TOPIC_REVIEW_DENIED_UI;
+  }
+  if (lower.includes("رئيس المجلس فقط") || lower.includes("final approval")) {
+    return TOPIC_REVIEW_FINAL_DENIED_UI;
+  }
+  if (lower.includes("دورة حياة") || lower.includes("lifecycle") || lower.includes("skip")) {
+    return TOPIC_REVIEW_STATUS_SKIP_UI;
+  }
+  if (isRawTechnicalMessage(message)) {
+    return TOPIC_REVIEW_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return TOPIC_REVIEW_FAILED_UI;
+}
+
+export function mapEditError(message: string): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_MESSAGE;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("لا يمكن تعديل") ||
+    lower.includes("صلاحية") ||
+    lower.includes("permission") ||
+    lower.includes("policy") ||
+    lower.includes("row-level security")
+  ) {
+    return TOPIC_EDIT_DENIED_UI;
+  }
+  if (lower.includes("jwt") || lower.includes("authapi") || lower.includes("refresh token")) {
+    return SESSION_EXPIRED_MESSAGE;
+  }
+  if (isRawTechnicalMessage(message)) {
+    return TOPIC_EDIT_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return TOPIC_EDIT_FAILED_UI;
 }
 
 export function mapAttachmentError(message: string): string {

@@ -3,6 +3,7 @@ export * from "./CouncilMeetingCard";
 export * from "./CouncilMembershipCard";
 export * from "./CouncilMeetingsWorkspace";
 export * from "./CouncilTopicCard";
+export * from "./CouncilTopicReviewQueue";
 export * from "./CouncilTopicsWorkspace";
 export * from "./CouncilsActionRequired";
 export * from "./CouncilsOperationalSummary";

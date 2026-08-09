@@ -1,13 +1,25 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Paperclip } from "lucide-react";
+import { Loader2, Paperclip, Pencil, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  editCouncilTopic,
   getCouncilTopicAttachmentSignedUrl,
   getCouncilTopicAttachments,
+  resubmitCouncilTopic,
   type CouncilTopicAttachmentItem,
   type MyCouncilTopicItem,
 } from "@/lib/faculty-councils.functions";
@@ -16,6 +28,7 @@ import {
   extractErrorMessage,
   formatDateTime,
   mapAttachmentError,
+  mapEditError,
   mimeLabel,
   topicStatusLabel,
 } from "./shared";
@@ -25,10 +38,77 @@ type CouncilTopicWithDecision = MyCouncilTopicItem & { decision?: string | null 
 export function CouncilTopicCard({
   topic,
   showDescription = false,
+  userId = null,
+  onUpdated,
 }: {
   topic: CouncilTopicWithDecision;
   showDescription?: boolean;
+  userId?: string | null;
+  onUpdated?: () => void;
 }) {
+  const doEdit = useServerFn(editCouncilTopic);
+  const doResubmit = useServerFn(resubmitCouncilTopic);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const [resubmitBusy, setResubmitBusy] = useState(false);
+
+  const canEdit =
+    userId != null &&
+    topic.submitted_by === userId &&
+    (topic.status === "draft" || topic.status === "needs_completion");
+
+  const canResubmit =
+    userId != null &&
+    topic.submitted_by === userId &&
+    topic.status === "needs_completion";
+
+  const openEdit = () => {
+    setEditTitle(topic.title);
+    setEditDescription(topic.description ?? "");
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    const title = editTitle.trim();
+    if (title.length < 5) {
+      toast.error("عنوان الموضوع يجب أن لا يقل عن 5 أحرف");
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await doEdit({
+        data: {
+          topic_id: topic.topic_id,
+          title,
+          description: editDescription.trim() || undefined,
+        },
+      });
+      toast.success("تم تعديل الموضوع بنجاح");
+      setEditOpen(false);
+      onUpdated?.();
+    } catch (err) {
+      toast.error(mapEditError(extractErrorMessage(err)));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const handleResubmit = async () => {
+    setResubmitBusy(true);
+    try {
+      await doResubmit({ data: { topic_id: topic.topic_id } });
+      toast.success("تم إعادة تقديم الموضوع");
+      onUpdated?.();
+    } catch (err) {
+      toast.error(mapEditError(extractErrorMessage(err)));
+    } finally {
+      setResubmitBusy(false);
+    }
+  };
+
   return (
     <li className="rounded-lg border border-border bg-background p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -36,9 +116,42 @@ export function CouncilTopicCard({
           <h3 className="text-sm font-bold text-primary">{topic.title}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{topic.council_name}</p>
         </div>
-        <Badge variant="secondary" className="shrink-0 text-[10px]">
-          {topicStatusLabel(topic.status)}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          {canEdit ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-[10px]"
+              data-testid="councils-topic-edit-button"
+              onClick={openEdit}
+            >
+              <Pencil className="h-3 w-3" />
+              تعديل
+            </Button>
+          ) : null}
+          {canResubmit ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="h-8 gap-1 text-[10px]"
+              data-testid="councils-topic-resubmit-button"
+              disabled={resubmitBusy}
+              onClick={() => void handleResubmit()}
+            >
+              {resubmitBusy ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3" />
+              )}
+              إعادة تقديم
+            </Button>
+          ) : null}
+          <Badge variant="secondary" className="shrink-0 text-[10px]">
+            {topicStatusLabel(topic.status)}
+          </Badge>
+        </div>
       </div>
       <dl className="mt-3 grid gap-2 text-xs">
         <div className="grid gap-2 sm:grid-cols-2">
@@ -85,6 +198,49 @@ export function CouncilTopicCard({
         ) : null}
         <TopicAttachmentsList topicId={topic.topic_id} />
       </dl>
+
+      <Dialog open={editOpen} onOpenChange={(open) => !open && !editBusy && setEditOpen(false)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل الموضوع</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleEdit(e)} className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">العنوان</label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                dir="rtl"
+                maxLength={500}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">الوصف</label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={4}
+                dir="rtl"
+                maxLength={8000}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={editBusy}
+                onClick={() => setEditOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={editBusy} className="gap-1.5">
+                {editBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                حفظ التعديلات
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </li>
   );
 }

@@ -9,11 +9,15 @@ export function CouncilTopicsWorkspace({
   councilVisibleTopics,
   isLoading,
   isError,
+  userId = null,
+  onUpdated,
 }: {
   mySubmittedTopics: MyCouncilTopicItem[];
   councilVisibleTopics: MyCouncilTopicItem[];
   isLoading: boolean;
   isError: boolean;
+  userId?: string | null;
+  onUpdated?: () => void;
 }) {
   return (
     <div data-testid="councils-topics-workspace" className="space-y-3">
@@ -41,7 +45,13 @@ export function CouncilTopicsWorkspace({
           ) : (
             <ul className="space-y-3">
               {mySubmittedTopics.map((t) => (
-                <CouncilTopicCard key={t.topic_id} topic={t} showDescription />
+                <CouncilTopicCard
+                  key={t.topic_id}
+                  topic={t}
+                  showDescription
+                  userId={userId}
+                  onUpdated={onUpdated}
+                />
               ))}
             </ul>
           )}

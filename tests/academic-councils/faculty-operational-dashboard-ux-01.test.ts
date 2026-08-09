@@ -293,10 +293,14 @@ describe("councils page IA — operational dashboard", () => {
     const submitFile = COUNCILS_UI_FILES.find((f) => f.endsWith("SubmitCouncilTopicDialog.tsx"))!;
     const src = readFileSync(submitFile, "utf-8");
     expect(src).toMatch(/submitCouncilTopic/);
+    expect(src).toMatch(/getOpenIntakeMeetingsForMember/);
+    expect(src).toMatch(/meeting_id:\s*meetingId/);
     expect(src).toMatch(/prepareCouncilTopicAttachmentUpload/);
     expect(src).toMatch(/validateUpload\(file, "council_topic_attachment"\)/);
     expect(src).toMatch(/MAX_TOPIC_ATTACHMENTS/);
     expect(src).toMatch(/لا يمكن رفع أكثر من 5 مرفقات/);
+    expect(src).toMatch(/submitTopic\(\{\s*data:\s*\{\s*meeting_id:/);
+    expect(src).not.toMatch(/submitTopic\(\{\s*data:\s*\{\s*council_id:/);
     expect(ROUTE_SRC).toMatch(/submitEligibleMemberships\.length > 0/);
     expect(ROUTE_SRC).toMatch(/viewerOnly/);
     expect(ROUTE_SRC).toMatch(/data-testid="councils-viewer-banner"/);
@@ -316,6 +320,11 @@ describe("councils page IA — operational dashboard", () => {
     expect(ALL_SRC).toMatch(/reorderAgendaItems/);
     expect(ALL_SRC).toMatch(/finalizeMeetingAgenda/);
     expect(ALL_SRC).toMatch(/submitCouncilTopic/);
+    expect(ALL_SRC).toMatch(/getOpenIntakeMeetingsForMember/);
+    expect(ALL_SRC).toMatch(/getCouncilTopicReviewQueue/);
+    expect(ALL_SRC).toMatch(/reviewCouncilTopic/);
+    expect(ALL_SRC).toMatch(/editCouncilTopic/);
+    expect(ALL_SRC).toMatch(/resubmitCouncilTopic/);
     expect(ALL_SRC).toMatch(/prepareCouncilTopicAttachmentUpload/);
     expect(ALL_SRC).toMatch(/getCouncilTopicAttachments/);
     expect(ALL_SRC).toMatch(/getCouncilTopicAttachmentSignedUrl/);
