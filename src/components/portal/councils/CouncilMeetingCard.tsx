@@ -1,0 +1,309 @@
+import type { FormEvent } from "react";
+import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { ListChecks, Loader2, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { updateCouncilMeeting } from "@/lib/admin-councils.functions";
+import type { CouncilMeetingV2Item } from "@/lib/faculty-councils.functions";
+import { MeetingAgendaExpandable } from "./MeetingAgendaExpandable";
+import {
+  extractErrorMessage,
+  formatDateTime,
+  mapMeetingUiError,
+  MEETING_SAVE_FAILED_UI,
+  MEETING_STATUS_OPTIONS,
+  meetingStatusLabel,
+  roleLabel,
+  toDatetimeLocalValue,
+  toIsoFromDatetimeLocal,
+} from "./shared";
+
+export type CouncilMeetingCardProps = {
+  meeting: CouncilMeetingV2Item;
+  variant?: "upcoming" | "previous";
+  canEdit: boolean;
+  canManageAgenda: boolean;
+  onManageAgenda: (meetingId: string) => void;
+  onUpdated: () => void;
+};
+
+export function CouncilMeetingCard({
+  meeting,
+  variant = "upcoming",
+  canEdit,
+  canManageAgenda,
+  onManageAgenda,
+  onUpdated,
+}: CouncilMeetingCardProps) {
+  const updateMeeting = useServerFn(updateCouncilMeeting);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editIntakeOpensAt, setEditIntakeOpensAt] = useState("");
+  const [editIntakeClosesAt, setEditIntakeClosesAt] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editStatus, setEditStatus] = useState("scheduled");
+  const [editBusy, setEditBusy] = useState(false);
+
+  const openEdit = () => {
+    setEditTitle(meeting.meeting_title);
+    setEditScheduledAt(toDatetimeLocalValue(meeting.scheduled_at));
+    setEditLocation(meeting.location ?? "");
+    setEditIntakeOpensAt(toDatetimeLocalValue(meeting.intake_opens_at));
+    setEditIntakeClosesAt(toDatetimeLocalValue(meeting.intake_closes_at));
+    setEditNotes(meeting.notes ?? "");
+    setEditStatus(meeting.status);
+    setEditOpen(true);
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    const scheduledIso = toIsoFromDatetimeLocal(editScheduledAt);
+    if (!scheduledIso || editTitle.trim().length < 3) {
+      toast.error(MEETING_SAVE_FAILED_UI);
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await updateMeeting({
+        data: {
+          meetingId: meeting.meeting_id,
+          title: editTitle.trim(),
+          scheduledAt: scheduledIso,
+          location: editLocation.trim() || null,
+          intakeOpensAt: editIntakeOpensAt.trim()
+            ? (toIsoFromDatetimeLocal(editIntakeOpensAt) ?? null)
+            : null,
+          intakeClosesAt: editIntakeClosesAt.trim()
+            ? (toIsoFromDatetimeLocal(editIntakeClosesAt) ?? null)
+            : null,
+          notes: editNotes.trim() || null,
+          status: editStatus as (typeof MEETING_STATUS_OPTIONS)[number],
+        },
+      });
+      toast.success("تم تحديث الاجتماع بنجاح");
+      setEditOpen(false);
+      onUpdated();
+    } catch (err) {
+      toast.error(mapMeetingUiError(extractErrorMessage(err), "update"));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const displayTitle = meeting.meeting_title?.trim() || meeting.council_name;
+  const agendaStatus = meeting.agenda_summary
+    ? "جدول الأعمال متوفر"
+    : meeting.status === "agenda_ready"
+      ? meetingStatusLabel(meeting.status)
+      : "لم يُعتمد بعد";
+
+  return (
+    <li
+      data-testid={`council-meeting-card-${meeting.meeting_id}`}
+      className="rounded-lg border border-border bg-background p-3"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-primary">{displayTitle}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">{meeting.council_name}</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Badge variant="outline" className="text-[10px]">
+            {meetingStatusLabel(meeting.status)}
+          </Badge>
+          {canEdit ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-[10px]"
+              onClick={openEdit}
+            >
+              <Pencil className="h-3 w-3" />
+              تعديل
+            </Button>
+          ) : null}
+          {canManageAgenda ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-[10px]"
+              onClick={() => onManageAgenda(meeting.meeting_id)}
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              جدول الأعمال
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground">رقم الاجتماع</dt>
+          <dd className="mt-0.5 font-medium text-foreground">{meeting.meeting_number}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">التاريخ والوقت</dt>
+          <dd className="mt-0.5 font-medium text-foreground">
+            {formatDateTime(meeting.scheduled_at)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">المكان</dt>
+          <dd className="mt-0.5 font-medium text-foreground">{meeting.location ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">حالة جدول الأعمال</dt>
+          <dd className="mt-0.5 font-medium text-foreground">{agendaStatus}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">فتح استقبال الموضوعات</dt>
+          <dd className="mt-0.5 font-medium text-foreground">
+            {meeting.intake_opens_at ? formatDateTime(meeting.intake_opens_at) : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">موعد إغلاق استقبال الموضوعات</dt>
+          <dd className="mt-0.5 font-medium text-foreground">
+            {meeting.intake_closes_at ? formatDateTime(meeting.intake_closes_at) : "—"}
+          </dd>
+        </div>
+        {meeting.user_membership_role ? (
+          <div>
+            <dt className="text-muted-foreground">دورك في المجلس</dt>
+            <dd className="mt-0.5 font-medium text-foreground">
+              {roleLabel(meeting.user_membership_role)}
+            </dd>
+          </div>
+        ) : null}
+        {meeting.notes ? (
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">ملاحظات</dt>
+            <dd className="mt-0.5 leading-relaxed text-foreground">{meeting.notes}</dd>
+          </div>
+        ) : null}
+        {meeting.agenda_summary ? (
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">ملخص الأجندة</dt>
+            <dd className="mt-0.5 leading-relaxed text-foreground">{meeting.agenda_summary}</dd>
+          </div>
+        ) : null}
+        {variant === "previous" && meeting.minutes_summary ? (
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">ملخص المحضر</dt>
+            <dd className="mt-0.5 leading-relaxed text-foreground">{meeting.minutes_summary}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      {!canManageAgenda ? (
+        <MeetingAgendaExpandable meetingId={meeting.meeting_id} />
+      ) : null}
+
+      <Dialog open={editOpen} onOpenChange={(next) => !next && !editBusy && setEditOpen(false)}>
+        <DialogContent dir="rtl" className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل الاجتماع</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleUpdate(e)} className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">العنوان</label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} dir="rtl" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">تاريخ ووقت الاجتماع</label>
+              <Input
+                type="datetime-local"
+                value={editScheduledAt}
+                onChange={(e) => setEditScheduledAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">المكان</label>
+              <Input
+                value={editLocation}
+                onChange={(e) => setEditLocation(e.target.value)}
+                dir="rtl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">فتح استقبال الموضوعات</label>
+              <Input
+                type="datetime-local"
+                value={editIntakeOpensAt}
+                onChange={(e) => setEditIntakeOpensAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">إغلاق استقبال الموضوعات</label>
+              <Input
+                type="datetime-local"
+                value={editIntakeClosesAt}
+                onChange={(e) => setEditIntakeClosesAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">الحالة</label>
+              <Select value={editStatus} onValueChange={setEditStatus} dir="rtl">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {MEETING_STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {meetingStatusLabel(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">ملاحظات</label>
+              <Textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={2}
+                dir="rtl"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-9"
+                disabled={editBusy}
+                onClick={() => setEditOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={editBusy} className="min-h-9 gap-1.5">
+                {editBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                حفظ التعديلات
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </li>
+  );
+}
