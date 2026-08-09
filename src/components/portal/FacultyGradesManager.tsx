@@ -120,15 +120,61 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
 
   const totalMax = components.reduce((s, c) => s + Number(c.max_score), 0);
   const sectionsOptions = sections;
+  const selected = sectionsOptions.find((s) => s.id === sectionId) ?? null;
 
   return (
-    <div className="rounded-lg border bg-card p-3 space-y-3">
-      <select className="w-full border rounded px-2 py-2 text-sm bg-background" value={sectionId} onChange={(e) => { setSectionId(e.target.value); setEdits({}); }}>
-        <option value="">اختر مجموعة دراسية لإدارة درجاتها</option>
-        {sectionsOptions.map((s) => (
-          <option key={s.id} value={s.id}>{s.course_code} — {s.course_name} • مجموعة دراسية {s.section_code}</option>
-        ))}
-      </select>
+    <div className="rounded-lg border bg-card p-3 space-y-3" data-testid="faculty-grades-manager">
+      {!sectionId ? (
+        sectionsOptions.length === 0 ? (
+          <div className="text-xs text-muted-foreground text-center py-3">
+            لا توجد مجموعات مسندة لإدارة درجاتها.
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2" data-testid="faculty-grades-section-cards">
+            {sectionsOptions.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setSectionId(s.id);
+                  setEdits({});
+                }}
+                className="rounded-lg border-2 border-gold/25 bg-background p-3 text-right hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[4.25rem]"
+              >
+                <div className="font-mono font-bold text-primary text-sm">{s.course_code}</div>
+                <div className="text-sm font-semibold mt-0.5 line-clamp-2 break-words">{s.course_name}</div>
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded">
+                    مجموعة {s.section_code}
+                  </span>
+                  <span className="text-[11px] font-bold text-primary-deep border border-gold/40 bg-gold/10 px-2 py-1 rounded-md">
+                    إدارة الدرجات
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-2.5 py-2">
+          <div className="min-w-0">
+            <div className="font-mono font-bold text-primary text-sm">{selected?.course_code}</div>
+            <div className="text-xs font-semibold truncate">
+              {selected?.course_name} · مجموعة {selected?.section_code}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSectionId("");
+              setEdits({});
+            }}
+            className="text-xs font-bold text-primary hover:text-gold min-h-10 px-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            تغيير المجموعة
+          </button>
+        </div>
+      )}
 
       {sectionId && (
         <>
