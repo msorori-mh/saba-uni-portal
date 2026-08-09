@@ -15,7 +15,7 @@
 | REPORTS318_HEAD | `6f9d2d83593a018c11af4eaee51bfbbe28d4e33a` |
 | PRE_REPORTS_RC_HEAD_SHA | `2a283003957b4ea490959a10594a7eaf6a3e115d` |
 | FINAL_RC_PRODUCT_SHA | `061b32a5028299ba7aa30c8aff5730e771825e2f` |
-| FINAL_RC_HEAD_SHA | `061b32a5028299ba7aa30c8aff5730e771825e2f` (pre tip-align; updated after CI) |
+| FINAL_RC_HEAD_SHA | `1f39b57a3c29bb9031b8ed36ffcc3940335cc236` |
 | INTEGRATED_PRS | `#293,#291,#299,#311,#312,#314,#315,#317,#310,#318` |
 | merge-base(RC, #318) | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
 
@@ -191,13 +191,15 @@ Environmental first-run failures (not product regressions from #318):
 
 ## CI / PR #313
 
-| Check | Expected on final tip |
+| Check | Result on `1f39b57a3c29bb9031b8ed36ffcc3940335cc236` |
 |---|---|
-| Web CI | monitored post-push — must be success on exact FINAL_RC_HEAD |
-| Migration Review | monitored post-push — must be success on exact FINAL_RC_HEAD |
+| Web CI | **success** — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31338653775 |
+| Migration Review | **success** — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31338653777 |
 | PR #313 Draft | **YES** (retained) |
 
 Integrated streams updated to include `#318`.
+
+Web CI jobs (all success): Bun tests (`tests/`), B1 Definitive Operator Architecture LONGRUN-14, Install·Lint·Typecheck·Build, and all listed PG17 verifiers (GA/GP/clearance/lecture/materials).
 
 ---
 
@@ -220,4 +222,4 @@ Integrated streams updated to include `#318`.
 
 **PASS_PORTAL_FINAL_RC313_REPORTS318_SEMANTIC_INTEGRATION_AND_FINAL_SOURCE_CLOSURE_LONGRUN_06**
 
-Conditions met pending green Web CI + Migration Review on the pushed tip (recorded after push watch).
+All gates met: #318 integrated, semantic/route loss 0, authz/domain preserved, Web CI + Migration Review success on tip `1f39b57a`, PR #313 remains Draft, zero production activity.
