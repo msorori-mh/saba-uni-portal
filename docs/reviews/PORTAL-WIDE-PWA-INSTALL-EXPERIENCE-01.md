@@ -7,7 +7,7 @@
 | Mission | PORTAL-WIDE-PWA-INSTALL-EXPERIENCE-01 |
 | Branch | `feat/portal-pwa-install-experience-01` |
 | BASE_SHA | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
-| IMPLEMENTATION_SHA | _(filled after commit)_ |
+| IMPLEMENTATION_SHA | `f2e712da60831eccce27894454c36888f768c397` |
 | Production writes | 0 |
 | Migration applied | NO |
 | Deploy | NO |
