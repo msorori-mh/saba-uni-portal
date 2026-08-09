@@ -13,13 +13,23 @@ import {
   getAlumniQualityReportsSummary,
   getAcademicAffairsReportsSummary,
 } from "@/lib/beneficiary-reports.functions";
-import { ScopedKpiGrid } from "@/components/reports/ScopedKpiGrid";
-import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
+import { ReportsOperationalWorkspace } from "@/components/reports/ReportsOperationalWorkspace";
 import {
   REPORT_CATALOG_ENTRIES,
   catalogViewerFromActorScope,
 } from "@/lib/reports/catalog";
 import type { ScopedMetric } from "@/lib/reports/scope";
+import type { MetricTile } from "@/components/reports/ScopedKpiGrid";
+import type { ReportAttentionItem } from "@/lib/reports/attention";
+import {
+  buildAcademicAffairsAttention,
+  buildAlumniQualityAttention,
+  buildDeanAttention,
+  buildOperationalUnitAttention,
+  buildStrategicAttention,
+  buildVpAcademicAttention,
+  buildVpStudentAttention,
+} from "@/lib/reports/attention";
 
 export const Route = createFileRoute("/admin/executive-reports")({
   head: () => ({
@@ -39,6 +49,50 @@ type ViewId =
   | "operational"
   | "academic_affairs"
   | "alumni";
+
+const VIEW_TITLES: Record<ViewId, string> = {
+  strategic: "المؤشرات والتقارير الاستراتيجية",
+  dean: "تقارير الكلية",
+  vp_student: "تقارير شؤون الطلاب",
+  vp_academic: "التقارير الأكاديمية",
+  operational: "تقارير الوحدة",
+  academic_affairs: "تقارير الشؤون الأكاديمية",
+  alumni: "تقارير الخريجين والجودة",
+};
+
+const KPI_LABELS_AR: Record<string, string> = {
+  students: "الطلاب",
+  activeStudents: "طلاب نشطون",
+  suspendedStudents: "طلاب موقفون",
+  studentsNoProgram: "بلا برنامج",
+  pendingRequests: "طلبات معلّقة",
+  issuedDocuments: "وثائق صادرة",
+  faculty: "أعضاء هيئة التدريس",
+  programs: "البرامج",
+  courses: "المقررات",
+  studyPlans: "الخطط الدراسية",
+  activeSections: "المجموعات الدراسية النشطة",
+  staff: "الموظفون",
+  documentsToday: "وثائق اليوم",
+  pendingStudentServices: "خدمات طلابية معلّقة",
+  pendingGraduationCandidates: "مرشحو تخرج معلّقون",
+  employmentAggregates: "تجميعات التوظيف",
+  surveyAggregates: "تجميعات الاستبيانات",
+  consentCompliance: "امتثال الموافقات",
+};
+
+function tilesFromKpis(
+  kpis: Record<string, ScopedMetric<number>> | undefined,
+  max = 6,
+): MetricTile[] {
+  if (!kpis) return [];
+  return Object.entries(kpis)
+    .slice(0, max)
+    .map(([key, metric]) => ({
+      label: KPI_LABELS_AR[key] ?? key,
+      metric,
+    }));
+}
 
 function ExecutiveReportsPage() {
   const { adminSession } = useRouteContext({ from: "/admin" });
@@ -82,7 +136,6 @@ function ExecutiveReportsPage() {
       {
         id: "strategic",
         label: "رئاسة الجامعة / استراتيجي",
-        // Explicit presidency binding only — never dean/registrar inference.
         allowed: Boolean(bindings?.universityPresidencyBound),
       },
       {
@@ -107,9 +160,13 @@ function ExecutiveReportsPage() {
         label: "الوحدات التشغيلية",
         allowed:
           roles.some((r) =>
-            ["admin", "system_admin", "registrar", "student_affairs", "finance_officer"].includes(
-              r,
-            ),
+            [
+              "admin",
+              "system_admin",
+              "registrar",
+              "student_affairs",
+              "finance_officer",
+            ].includes(r),
           ) && (bindings?.operationalUnitCodes?.length ?? 0) > 0,
       },
       {
@@ -132,7 +189,7 @@ function ExecutiveReportsPage() {
 
   const activeView = allowedViews.some((v) => v.id === view)
     ? view
-    : allowedViews[0]?.id ?? "operational";
+    : (allowedViews[0]?.id ?? "operational");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["executive-reports", activeView],
@@ -142,50 +199,156 @@ function ExecutiveReportsPage() {
     refetchOnWindowFocus: false,
   });
 
-  const tiles = useMemo(() => {
-    if (!data?.kpis) return [] as { label: string; metric: ScopedMetric<number> }[];
-    return Object.entries(data.kpis).map(([key, metric]) => ({
-      label: key,
-      metric: metric as ScopedMetric<number>,
-    }));
-  }, [data]);
+  const attentionItems = useMemo((): ReportAttentionItem[] => {
+    if (!data) return [];
+    switch (activeView) {
+      case "operational":
+        return buildOperationalUnitAttention({
+          overdue: data.processing?.overdue ?? null,
+        });
+      case "academic_affairs":
+        return buildAcademicAffairsAttention({
+          unassignedSections:
+            data.teachingLoad?.unassignedSections ??
+            data.unassignedSections ??
+            null,
+        });
+      case "alumni":
+        return buildAlumniQualityAttention({
+          pendingGraduationCandidates:
+            data.kpis?.pendingGraduationCandidates ?? null,
+          blockedFamilies: data.blockedFamilies ?? null,
+        });
+      case "dean":
+        return buildDeanAttention({
+          collegeScopeConfigured: Boolean(bindings?.collegeScopeConfigured),
+          kpis: data.kpis ?? null,
+        });
+      case "vp_student":
+        return buildVpStudentAttention({
+          vpStudentAffairsBound: Boolean(bindings?.vpStudentAffairsBound),
+          studentsNoProgram: data.kpis?.studentsNoProgram ?? null,
+        });
+      case "vp_academic":
+        return buildVpAcademicAttention({
+          vpAcademicAffairsBound: Boolean(bindings?.vpAcademicAffairsBound),
+          unassignedSections: data.teachingLoad?.unassignedSections ?? null,
+        });
+      case "strategic": {
+        const pending = data.kpis?.pendingStudentServices;
+        const aggregateRisks =
+          pending?.presence === "value" &&
+          typeof pending.value === "number" &&
+          pending.value > 0
+            ? [
+                {
+                  code: "pending_student_services",
+                  titleAr: "خدمات طلابية معلّقة (تجميعي)",
+                  count: pending.value,
+                  severity: "info" as const,
+                },
+              ]
+            : [];
+        return buildStrategicAttention({
+          universityPresidencyBound: Boolean(
+            bindings?.universityPresidencyBound,
+          ),
+          aggregateRisks,
+        });
+      }
+      default:
+        return [];
+    }
+  }, [activeView, data, bindings]);
+
+  const kpiTiles = useMemo((): MetricTile[] => {
+    if (!data) return [];
+    if (activeView === "dean" && !bindings?.collegeScopeConfigured) {
+      // Fail-closed: do not present college KPIs as valid without binding.
+      return [];
+    }
+    if (data.kpis) return tilesFromKpis(data.kpis, 6);
+    if (activeView === "operational" && data.processing) {
+      return [
+        { label: "إجمالي الطلبات", metric: data.processing.total },
+        { label: "قيد المعالجة", metric: data.processing.pending },
+        { label: "متأخرة", metric: data.processing.overdue },
+        {
+          label: "متوسط أيام الحل",
+          metric: data.processing.avgResolutionDays,
+        },
+      ];
+    }
+    if (activeView === "academic_affairs" && data.mode === "department") {
+      return [
+        { label: "طلاب القسم", metric: data.students },
+        { label: "أعضاء هيئة التدريس", metric: data.faculty },
+        { label: "البرامج", metric: data.programs },
+        { label: "المقررات", metric: data.courses },
+        {
+          label: "المجموعات الدراسية المسندة",
+          metric: data.teachingLoad.assignedSections,
+        },
+        {
+          label: "المجموعات الدراسية غير المسندة",
+          metric: data.teachingLoad.unassignedSections,
+        },
+      ].filter((t) => t.metric);
+    }
+    if (data.teachingLoad) {
+      return [
+        {
+          label: "المجموعات الدراسية المسندة",
+          metric: data.teachingLoad.assignedSections,
+        },
+        {
+          label: "المجموعات الدراسية غير المسندة",
+          metric: data.teachingLoad.unassignedSections,
+        },
+        {
+          label: "الساعات المعتمدة",
+          metric: data.teachingLoad.totalCreditHours,
+        },
+      ];
+    }
+    return [];
+  }, [activeView, data, bindings]);
+
+  const pageTitle = VIEW_TITLES[activeView] ?? "التقارير والمؤشرات الاستراتيجية";
 
   return (
-    <div dir="rtl" className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="h-7 w-7 text-gold" />
-        <div>
-          <h1 className="text-xl font-bold">التقارير والمؤشرات الاستراتيجية</h1>
-          <p className="text-sm text-muted-foreground">
-            مجمّعات حسب القطاع والربط التنظيمي — بلا سجلات شخصية افتراضياً.
-          </p>
-        </div>
-      </div>
-
+    <div dir="rtl" className="p-4 md:p-6">
       {allowedViews.length === 0 ? (
-        <p className="text-sm text-muted-foreground" role="status">
-          لا تتوفر مراكز تقارير مفعّلة لربطك التنظيمي الحالي (fail-closed).
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap gap-2">
-        {allowedViews.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => setView(v.id)}
-            className={`rounded-md border px-3 py-1.5 text-sm ${
-              activeView === v.id
-                ? "border-gold bg-gold/10 font-bold"
-                : "border-border"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="h-7 w-7 text-gold" />
+            <div>
+              <h1 className="text-xl font-bold">التقارير والمؤشرات الاستراتيجية</h1>
+              <p className="text-sm text-muted-foreground">
+                مجمّعات حسب القطاع والربط التنظيمي — بلا سجلات شخصية افتراضياً.
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground" role="status">
+            لا تتوفر مراكز تقارير مفعّلة لربطك التنظيمي الحالي (fail-closed).
+          </p>
+          <ReportsOperationalWorkspace
+            attentionItems={[]}
+            kpiTiles={[]}
+            catalog={{
+              entries: REPORT_CATALOG_ENTRIES,
+              viewerRoles: actorScope?.roles?.length
+                ? actorScope.roles
+                : roles,
+              viewerScope: actorScope
+                ? catalogViewerFromActorScope(actorScope)
+                : null,
+              title: "جميع التقارير",
+              defaultGrouping: "beneficiary",
+            }}
+          />
+        </div>
+      ) : isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -193,29 +356,58 @@ function ExecutiveReportsPage() {
         <p className="text-sm text-destructive" role="alert">
           {(error as Error).message || "تعذر تحميل المؤشرات"}
         </p>
-      ) : data ? (
-        <>
-          <p className="text-sm text-muted-foreground">{data.scopeLabelAr}</p>
-          {tiles.length > 0 ? <ScopedKpiGrid tiles={tiles} /> : null}
-          {data.privacy?.includesPii === false ? (
-            <p className="text-xs text-muted-foreground">
-              وضع الخصوصية: تصدير مجمّع فقط — لا PII افتراضياً.
-            </p>
-          ) : null}
-        </>
-      ) : null}
-
-      <ReportsCenter
-        entries={REPORT_CATALOG_ENTRIES}
-        viewerRoles={
-          actorScope?.roles?.length ? actorScope.roles : roles
-        }
-        viewerScope={
-          actorScope ? catalogViewerFromActorScope(actorScope) : null
-        }
-        title="كتالوج التقارير حسب المستفيد"
-        defaultGrouping="beneficiary"
-      />
+      ) : (
+        <ReportsOperationalWorkspace
+          attentionItems={attentionItems}
+          kpiTiles={kpiTiles}
+          header={
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-7 w-7 text-gold" />
+                <div>
+                  <h1 className="text-xl font-bold">{pageTitle}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    مجمّعات حسب القطاع والربط التنظيمي — بلا سجلات شخصية افتراضياً.
+                    {data?.scopeLabelAr ? ` — ${data.scopeLabelAr}` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2" role="tablist" aria-label="مراكز المستفيدين">
+                {allowedViews.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeView === v.id}
+                    onClick={() => setView(v.id)}
+                    className={`rounded-md border px-3 py-1.5 text-sm ${
+                      activeView === v.id
+                        ? "border-gold bg-gold/10 font-bold"
+                        : "border-border"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              {data?.privacy?.includesPii === false ? (
+                <p className="text-xs text-muted-foreground">
+                  وضع الخصوصية: تصدير مجمّع فقط — لا PII افتراضياً.
+                </p>
+              ) : null}
+            </div>
+          }
+          catalog={{
+            entries: REPORT_CATALOG_ENTRIES,
+            viewerRoles: actorScope?.roles?.length ? actorScope.roles : roles,
+            viewerScope: actorScope
+              ? catalogViewerFromActorScope(actorScope)
+              : null,
+            title: "جميع التقارير",
+            defaultGrouping: "beneficiary",
+          }}
+        />
+      )}
     </div>
   );
 }
