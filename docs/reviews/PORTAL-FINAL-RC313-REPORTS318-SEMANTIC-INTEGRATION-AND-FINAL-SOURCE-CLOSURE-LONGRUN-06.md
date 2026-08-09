@@ -14,8 +14,8 @@
 | STARTING_RC_HEAD | `2a283003957b4ea490959a10594a7eaf6a3e115d` |
 | REPORTS318_HEAD | `6f9d2d83593a018c11af4eaee51bfbbe28d4e33a` |
 | PRE_REPORTS_RC_HEAD_SHA | `2a283003957b4ea490959a10594a7eaf6a3e115d` |
-| FINAL_RC_PRODUCT_SHA | *(merge commit integrating #318 — see tip)* |
-| FINAL_RC_HEAD_SHA | *(tip after docs tip-align if any — see tip)* |
+| FINAL_RC_PRODUCT_SHA | `061b32a5028299ba7aa30c8aff5730e771825e2f` |
+| FINAL_RC_HEAD_SHA | `061b32a5028299ba7aa30c8aff5730e771825e2f` (pre tip-align; updated after CI) |
 | INTEGRATED_PRS | `#293,#291,#299,#311,#312,#314,#315,#317,#310,#318` |
 | merge-base(RC, #318) | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
 
