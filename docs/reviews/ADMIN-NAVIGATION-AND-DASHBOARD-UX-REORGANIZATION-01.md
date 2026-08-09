@@ -140,7 +140,7 @@ Mission coverage includes role filtering, search visibility, accordion, KPI/atte
 
 ## CI
 
-Pending after draft PR open — will remediate mission-related failures automatically.
+Draft PR #317. Initial Bun suite failed on 3 source assertions still pointing at inline AdminShell nav strings; remediations retargeted those tests to `admin-navigation-config.ts` / `applyAdminFinanceNavGate`. Re-check pending.
 
 ## Visual check status
 
