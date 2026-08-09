@@ -3,6 +3,8 @@
 **Decision:** `PASS_PORTAL_REPORTS_THREE_LEVEL_OPERATIONAL_UX_CLOSURE_01`  
 **Branch:** `feat/reports-three-level-operational-ux-01`  
 **Base:** `rc/portal-final-v4-prebuild-non-b1-01` (`afe5f55b545aceb9f761ee8a508818c19068db07`)  
+**FINAL_SHA:** `7dbfde5813d2e02c98de3cbabdb7915731ec323d`  
+**PR:** https://github.com/msorori-mh/saba-uni-portal/pull/320 (base RC — **not main**)  
 **Stacked against:** PR #313 RC branch — **not main**
 
 ## Architecture
