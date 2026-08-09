@@ -60,8 +60,8 @@ describe("LIVE rules hold", () => {
     }
   });
 
-  test("beneficiary hubs required by this package are LIVE", () => {
-    const requiredLive = [
+  test("beneficiary hubs required by this package are present with honest statuses", () => {
+    const required = [
       "STU-SELF-SERVICE-VIEWS",
       "HUB-FACULTY-REPORTS",
       "DEPT-ACADEMIC-LOAD",
@@ -75,12 +75,18 @@ describe("LIVE rules hold", () => {
       "REQ-PROCESSING-TIME",
       "REQ-DOCUMENTS-ISSUED",
     ];
-    const liveCodes = new Set(
-      REPORT_CATALOG_ENTRIES.filter((e) => e.status === "LIVE").map((e) => e.report_code),
-    );
-    for (const code of requiredLive) {
-      expect(liveCodes.has(code)).toBe(true);
+    const byCode = new Map(REPORT_CATALOG_ENTRIES.map((e) => [e.report_code, e]));
+    for (const code of required) {
+      expect(byCode.has(code)).toBe(true);
     }
+    // LIVE only when org binding exists; VP/dean/strategic/docs are BLOCKED.
+    expect(byCode.get("STU-SELF-SERVICE-VIEWS")!.status).toBe("LIVE");
+    expect(byCode.get("HUB-OPERATIONAL-UNITS")!.status).toBe("LIVE");
+    expect(byCode.get("HUB-VP-STUDENT-AFFAIRS")!.status).toBe("BLOCKED");
+    expect(byCode.get("HUB-VP-ACADEMIC-AFFAIRS")!.status).toBe("BLOCKED");
+    expect(byCode.get("HUB-UNIVERSITY-STRATEGIC")!.status).toBe("BLOCKED");
+    expect(byCode.get("HUB-DEAN-COLLEGE")!.status).toBe("BLOCKED");
+    expect(byCode.get("REQ-DOCUMENTS-ISSUED")!.status).toBe("BLOCKED");
   });
 });
 

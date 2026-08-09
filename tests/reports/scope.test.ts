@@ -16,6 +16,7 @@ import {
   metricValue,
   ROLE_TO_BENEFICIARIES,
 } from "../../src/lib/reports/scope";
+import { emptyOrgBindings } from "../../src/lib/reports/scope/org-identity";
 import { buildTeachingLoadKpis } from "../../src/lib/reports/teaching-load";
 import { buildProcessingTimeKpis } from "../../src/lib/reports/processing-time";
 import { buildMaterialsCoverageKpis } from "../../src/lib/reports/materials-coverage";
@@ -48,7 +49,7 @@ describe("beneficiariesForRoles (fail-closed + dual-role union)", () => {
     const staffDual = beneficiariesForRoles(["registrar", "student_affairs"]).toSorted();
     expect(staffDual).toContain("operational_units_staff");
     expect(staffDual).toContain("academic_affairs");
-    expect(staffDual).toContain("vp_student_affairs");
+    expect(staffDual).not.toContain("vp_student_affairs");
     expect(staffDual).not.toContain("university_presidency_council");
   });
 
@@ -72,7 +73,7 @@ describe("levelsGrantedByRoles + buildActorScope", () => {
   test("department_head is department-scoped; student is self", () => {
     expect(levelsGrantedByRoles(["department_head"])).toContain("department");
     expect(levelsGrantedByRoles(["student"])).toEqual(["self"]);
-    expect(levelsGrantedByRoles(["dean"])).toEqual(["college"]);
+    expect(levelsGrantedByRoles(["dean"])).toEqual([]);
     expect(levelsGrantedByRoles(["unknown"])).toEqual([]);
   });
 
@@ -84,6 +85,7 @@ describe("levelsGrantedByRoles + buildActorScope", () => {
       facultyProfileId: "f1",
       studentProfileId: null,
       operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
     });
     expect(scope.denied).toBe(true);
     expect(scope.denyReasonAr).toContain("بلا قسم");
@@ -97,6 +99,7 @@ describe("levelsGrantedByRoles + buildActorScope", () => {
       facultyProfileId: "f1",
       studentProfileId: null,
       operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
     });
     expect(scope.denied).toBe(false);
     expect(scope.level).toBe("department");
@@ -111,6 +114,7 @@ describe("levelsGrantedByRoles + buildActorScope", () => {
       facultyProfileId: null,
       studentProfileId: null,
       operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
     });
     expect(scope.denied).toBe(true);
     expect(scope.beneficiaries).toEqual([]);
@@ -125,6 +129,7 @@ describe("enforceDepartmentFilter (wrong-scope deny)", () => {
     facultyProfileId: "f1",
     studentProfileId: null,
     operationalUnitCode: null,
+  bindings: emptyOrgBindings(),
   });
 
   test("department_head cannot request another department", () => {
@@ -154,6 +159,11 @@ describe("enforceDepartmentFilter (wrong-scope deny)", () => {
       facultyProfileId: null,
       studentProfileId: null,
       operationalUnitCode: null,
+      bindings: emptyOrgBindings({
+        deanIdentityBound: true,
+        collegeScopeConfigured: true,
+        collegeId: "college-a",
+      }),
     });
     const result = enforceDepartmentFilter({
       scope: deanScope,

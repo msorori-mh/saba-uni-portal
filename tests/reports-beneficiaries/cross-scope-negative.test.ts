@@ -17,6 +17,7 @@ import {
   buildActorScope,
   enforceDepartmentFilter,
 } from "../../src/lib/reports/scope";
+import { emptyOrgBindings } from "../../src/lib/reports/scope/org-identity";
 
 const FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/beneficiary-reports.functions.ts", import.meta.url)),
@@ -100,6 +101,7 @@ describe("cross-scope negative — department widen attempts", () => {
       facultyProfileId: "f1",
       studentProfileId: null,
       operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
     });
     const enforced = enforceDepartmentFilter({
       scope,

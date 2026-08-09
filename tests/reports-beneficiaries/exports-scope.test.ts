@@ -86,25 +86,26 @@ describe("beneficiary server reports mark includesPii:false where applicable", (
     expect(FUNCTIONS_SRC).toContain('exportMode: "aggregate_only"');
   });
 
-  test("documents issued aggregate sets includesPii:false", () => {
+  test("documents issued aggregate is fail-closed without unit FK (no PII projection)", () => {
     expect(FUNCTIONS_SRC).toContain("getDocumentsIssuedReport");
     const docsBlock = FUNCTIONS_SRC.slice(
       FUNCTIONS_SRC.indexOf("getDocumentsIssuedReport"),
       FUNCTIONS_SRC.indexOf("denyIfWrongScope"),
     );
-    expect(docsBlock).toContain("includesPii: false");
-    expect(docsBlock).toContain('select("id, document_type, status, issued_at")');
+    expect(docsBlock).toContain("denyNotConfigured");
+    expect(docsBlock).toContain("official_documents");
     for (const token of ["email", "phone", "national_id", "full_name", "academic_number"]) {
       expect(docsBlock).not.toContain(token);
     }
   });
 
-  test("request processing-time report selects anonymized request fields only", () => {
+  test("request processing-time report is unit-scoped and anonymized", () => {
     const procBlock = FUNCTIONS_SRC.slice(
       FUNCTIONS_SRC.indexOf("getRequestProcessingTimeReport"),
       FUNCTIONS_SRC.indexOf("getDocumentsIssuedReport"),
     );
-    expect(procBlock).toContain('select("id, status, request_type, created_at, updated_at")');
+    expect(procBlock).toContain("loadUnitScopedRequestRows");
+    expect(procBlock).toContain("operationalUnitCodes");
     for (const token of ["email", "phone", "national_id", "full_name_ar", "academic_number"]) {
       expect(procBlock).not.toContain(token);
     }

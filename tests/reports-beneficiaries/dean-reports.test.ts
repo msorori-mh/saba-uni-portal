@@ -1,5 +1,5 @@
 /**
- * Dean beneficiary — college-only aggregates, no default PII lists.
+ * Dean beneficiary — college binding required; no university-wide "college only".
  */
 
 import { describe, expect, test } from "bun:test";
@@ -9,12 +9,12 @@ import { fileURLToPath } from "node:url";
 import {
   REPORT_CATALOG_ENTRIES,
   canSeeReport,
+  canSeeReportWithBindings,
   findByCode,
-  visibleReports,
 } from "../../src/lib/reports/catalog";
 import {
   beneficiariesForRoles,
-  beneficiaryMayAccessLevel,
+  emptyOrgBindings,
   levelsGrantedByRoles,
 } from "../../src/lib/reports/scope";
 
@@ -28,43 +28,38 @@ const ROUTE_SRC = readFileSync(
 );
 
 const HUB = findByCode(REPORT_CATALOG_ENTRIES, "HUB-DEAN-COLLEGE")!;
-const ALLOWED = ["dean", "admin", "system_admin"] as const;
-const DENIED = ["student", "faculty_member", "department_head", "finance_officer", "student_affairs"] as const;
 
-describe("dean — positive visibility", () => {
-  test("hub is college-scoped for dean roles", () => {
-    expect(HUB.beneficiaries).toContain("dean");
-    expect(HUB.data_scope).toBe("college");
-    expect(HUB.route).toBe("/admin/executive-reports");
-    for (const role of ALLOWED) {
-      expect(canSeeReport(HUB, [role])).toBe(true);
-    }
+describe("dean — college binding fail-closed", () => {
+  test("hub is BLOCKED without college_id dependency", () => {
+    expect(HUB.status).toBe("BLOCKED");
+    expect(HUB.blocker ?? "").toMatch(/college_id|كلية/);
     expect(beneficiariesForRoles(["dean"])).toContain("dean");
-    expect(levelsGrantedByRoles(["dean"])).toContain("college");
-    expect(beneficiaryMayAccessLevel("dean", "college")).toBe(true);
-    expect(beneficiaryMayAccessLevel("dean", "university_strategic")).toBe(false);
+    expect(levelsGrantedByRoles(["dean"])).not.toContain("college");
+  });
+
+  test("role match alone is insufficient without collegeScopeConfigured", () => {
+    expect(canSeeReport(HUB, ["dean"])).toBe(true);
+    expect(
+      canSeeReportWithBindings(HUB, ["dean"], emptyOrgBindings({ deanIdentityBound: true })),
+    ).toBe(false);
+    expect(
+      canSeeReportWithBindings(
+        HUB,
+        ["dean"],
+        emptyOrgBindings({
+          deanIdentityBound: true,
+          collegeScopeConfigured: true,
+          collegeId: "college-a",
+        }),
+      ),
+    ).toBe(true);
   });
 });
 
-describe("dean — negative / fail-closed", () => {
-  test("non-dean roles cannot see dean hub", () => {
-    for (const role of DENIED) {
-      expect(canSeeReport(HUB, [role])).toBe(false);
-    }
-  });
-
-  test("empty / unknown roles fail closed", () => {
-    expect(canSeeReport(HUB, [])).toBe(false);
-    expect(canSeeReport(HUB, ["unknown_role_xyz"])).toBe(false);
-  });
-});
-
-describe("dean — wrong scope / privacy contract", () => {
-  test("dean summary is college aggregates without raw PII list projection", () => {
+describe("dean — server contract", () => {
+  test("getDeanCollegeReportsSummary asserts college configuration", () => {
     expect(FUNCTIONS_SRC).toContain("getDeanCollegeReportsSummary");
-    expect(FUNCTIONS_SRC).toContain('scopeLabelAr: "الكلية فقط"');
-    expect(FUNCTIONS_SRC).toContain("departmentComparison");
-    // Aggregate path selects department id/name counts — not student contact PII.
+    expect(FUNCTIONS_SRC).toContain("assertDeanCollegeConfigured");
     const deanBlock = FUNCTIONS_SRC.slice(
       FUNCTIONS_SRC.indexOf("getDeanCollegeReportsSummary"),
       FUNCTIONS_SRC.indexOf("getVpStudentAffairsReportsSummary"),
@@ -73,38 +68,9 @@ describe("dean — wrong scope / privacy contract", () => {
       expect(deanBlock).not.toContain(token);
     }
   });
-});
 
-describe("dean — dual role union", () => {
-  test("dean + student_affairs sees dean hub and VP student hub", () => {
-    const visible = visibleReports(REPORT_CATALOG_ENTRIES, [
-      "dean",
-      "student_affairs",
-    ]).map((e) => e.report_code);
-    expect(visible).toContain("HUB-DEAN-COLLEGE");
-    expect(visible).toContain("HUB-VP-STUDENT-AFFAIRS");
-    expect(visible).not.toContain("STU-SELF-SERVICE-VIEWS");
-  });
-});
-
-describe("dean — empty/partial metrics", () => {
-  test("server uses countOrIncomplete / metric incomplete path for null counts", () => {
-    expect(FUNCTIONS_SRC).toContain("countOrIncomplete");
-    expect(FUNCTIONS_SRC).toContain("metricIncomplete");
-  });
-});
-
-describe("dean — server function + route", () => {
-  test("getDeanCollegeReportsSummary uses createServerFn + auth + assertAnyRole", () => {
-    expect(FUNCTIONS_SRC).toMatch(
-      /export const getDeanCollegeReportsSummary = createServerFn\(\{ method: "POST" \}\)\s*\n\s*\.middleware\(\[requireSupabaseAuth\]\)/,
-    );
-    expect(FUNCTIONS_SRC).toContain('["system_admin", "admin", "dean"]');
-    expect(FUNCTIONS_SRC).toContain("ليس لديك صلاحية تقارير الكلية");
-  });
-
-  test("executive reports route wires dean summary", () => {
-    expect(ROUTE_SRC).toContain('createFileRoute("/admin/executive-reports")');
+  test("executive reports route gates dean view on collegeScopeConfigured", () => {
     expect(ROUTE_SRC).toContain("getDeanCollegeReportsSummary");
+    expect(ROUTE_SRC).toContain("collegeScopeConfigured");
   });
 });

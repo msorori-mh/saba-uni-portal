@@ -23,7 +23,9 @@ export {
 } from "./invariants";
 export {
   canSeeReport,
+  canSeeReportWithBindings,
   visibleReports,
+  visibleReportsWithBindings,
   groupByBeneficiary,
   groupByStatus,
   filterReports,

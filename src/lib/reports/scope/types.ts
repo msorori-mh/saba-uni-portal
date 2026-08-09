@@ -67,6 +67,17 @@ export function metricNotConfigured(label_ar?: string): ScopedMetric<never> {
   return { presence: "not_configured", value: null, label_ar };
 }
 
+/** Explicit leadership / college / unit binding flags (fail-closed). */
+export interface ReportOrgBindingFlags {
+  readonly vpStudentAffairsBound: boolean;
+  readonly vpAcademicAffairsBound: boolean;
+  readonly universityPresidencyBound: boolean;
+  readonly deanIdentityBound: boolean;
+  readonly collegeId: string | null;
+  readonly collegeScopeConfigured: boolean;
+  readonly operationalUnitCodes: readonly string[];
+}
+
 /** Actor-resolved report scope — enforced server-side before any query. */
 export interface ReportActorScope {
   readonly userId: string;
@@ -79,8 +90,13 @@ export interface ReportActorScope {
   readonly facultyProfileId: string | null;
   /** Student profile when actor is student (self). */
   readonly studentProfileId: string | null;
-  /** Operational processing unit code when applicable. */
+  /**
+   * Primary operational processing unit code when applicable.
+   * Prefer `bindings.operationalUnitCodes` for full set.
+   */
   readonly operationalUnitCode: string | null;
+  /** Explicit org bindings — never inferred from ordinary staff roles. */
+  readonly bindings: ReportOrgBindingFlags;
   /** Human-readable Arabic scope label for UI. */
   readonly scopeLabelAr: string;
   /** True when scope could not be resolved safely → DENY. */

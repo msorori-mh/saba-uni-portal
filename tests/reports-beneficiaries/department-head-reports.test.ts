@@ -17,6 +17,7 @@ import {
   buildActorScope,
   enforceDepartmentFilter,
 } from "../../src/lib/reports/scope";
+import { emptyOrgBindings } from "../../src/lib/reports/scope/org-identity";
 import { buildTeachingLoadKpis } from "../../src/lib/reports/teaching-load";
 
 const FUNCTIONS_SRC = readFileSync(
@@ -69,6 +70,7 @@ describe("department head — wrong scope (cannot request other department)", ()
       facultyProfileId: "f1",
       studentProfileId: null,
       operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
     });
     const enforced = enforceDepartmentFilter({
       scope,

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { BarChart3, Loader2 } from "lucide-react";
 import {
+  getMyReportScope,
   getDeanCollegeReportsSummary,
   getUniversityStrategicReportsSummary,
   getVpAcademicAffairsReportsSummary,
@@ -39,8 +40,9 @@ type ViewId =
 function ExecutiveReportsPage() {
   const { adminSession } = useRouteContext({ from: "/admin" });
   const roles = adminSession?.roles ?? [];
-  const [view, setView] = useState<ViewId>("strategic");
+  const [view, setView] = useState<ViewId>("operational");
 
+  const scopeFn = useServerFn(getMyReportScope);
   const strategicFn = useServerFn(getUniversityStrategicReportsSummary);
   const deanFn = useServerFn(getDeanCollegeReportsSummary);
   const vpStudentFn = useServerFn(getVpStudentAffairsReportsSummary);
@@ -48,6 +50,15 @@ function ExecutiveReportsPage() {
   const operationalFn = useServerFn(getOperationalUnitReportsSummary);
   const academicFn = useServerFn(getAcademicAffairsReportsSummary);
   const alumniFn = useServerFn(getAlumniQualityReportsSummary);
+
+  const { data: actorScope } = useQuery({
+    queryKey: ["executive-reports-scope"],
+    queryFn: () => scopeFn(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const bindings = actorScope?.bindings;
 
   const fetchers: Record<ViewId, () => Promise<any>> = {
     strategic: () => strategicFn(),
@@ -60,45 +71,65 @@ function ExecutiveReportsPage() {
   };
 
   const allowedViews = useMemo(() => {
-    const all: { id: ViewId; label: string; roles: string[] }[] = [
+    const all: {
+      id: ViewId;
+      label: string;
+      allowed: boolean;
+    }[] = [
       {
         id: "strategic",
         label: "رئاسة الجامعة / استراتيجي",
-        roles: ["admin", "system_admin", "dean", "registrar"],
+        // Explicit presidency binding only — never dean/registrar inference.
+        allowed: Boolean(bindings?.universityPresidencyBound),
       },
-      { id: "dean", label: "عميد الكلية", roles: ["admin", "system_admin", "dean"] },
+      {
+        id: "dean",
+        label: "عميد الكلية",
+        allowed: Boolean(
+          bindings?.deanIdentityBound && bindings?.collegeScopeConfigured,
+        ),
+      },
       {
         id: "vp_student",
         label: "نائب شؤون الطلاب",
-        roles: ["admin", "system_admin", "student_affairs"],
+        allowed: Boolean(bindings?.vpStudentAffairsBound),
       },
       {
         id: "vp_academic",
         label: "نائب الشؤون الأكاديمية",
-        roles: ["admin", "system_admin", "dean", "registrar"],
+        allowed: Boolean(bindings?.vpAcademicAffairsBound),
       },
       {
         id: "operational",
         label: "الوحدات التشغيلية",
-        roles: ["admin", "system_admin", "registrar", "student_affairs", "finance_officer"],
+        allowed:
+          roles.some((r) =>
+            ["admin", "system_admin", "registrar", "student_affairs", "finance_officer"].includes(
+              r,
+            ),
+          ) && (bindings?.operationalUnitCodes?.length ?? 0) > 0,
       },
       {
         id: "academic_affairs",
         label: "الشؤون الأكاديمية",
-        roles: ["admin", "system_admin", "dean", "registrar"],
+        allowed: roles.some((r) =>
+          ["admin", "system_admin", "registrar", "department_head"].includes(r),
+        ),
       },
       {
         id: "alumni",
         label: "الخريجون والجودة",
-        roles: ["admin", "system_admin", "dean", "registrar"],
+        allowed: roles.some((r) =>
+          ["admin", "system_admin", "dean", "registrar"].includes(r),
+        ),
       },
     ];
-    return all.filter((v) => roles.some((r) => v.roles.includes(r)));
-  }, [roles]);
+    return all.filter((v) => v.allowed);
+  }, [roles, bindings]);
 
   const activeView = allowedViews.some((v) => v.id === view)
     ? view
-    : allowedViews[0]?.id ?? "strategic";
+    : allowedViews[0]?.id ?? "operational";
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["executive-reports", activeView],
@@ -123,10 +154,16 @@ function ExecutiveReportsPage() {
         <div>
           <h1 className="text-xl font-bold">التقارير والمؤشرات الاستراتيجية</h1>
           <p className="text-sm text-muted-foreground">
-            مجمّعات حسب القطاع — بلا سجلات شخصية افتراضياً.
+            مجمّعات حسب القطاع والربط التنظيمي — بلا سجلات شخصية افتراضياً.
           </p>
         </div>
       </div>
+
+      {allowedViews.length === 0 ? (
+        <p className="text-sm text-muted-foreground" role="status">
+          لا تتوفر مراكز تقارير مفعّلة لربطك التنظيمي الحالي (fail-closed).
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {allowedViews.map((v) => (

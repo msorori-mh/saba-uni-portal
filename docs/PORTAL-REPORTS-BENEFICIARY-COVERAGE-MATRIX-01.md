@@ -1,27 +1,39 @@
 # مصفوفة تغطية التقارير حسب المستفيد — PORTAL-REPORTS-BENEFICIARY-COVERAGE-MATRIX-01
 
-**المهمة:** PORTAL-REPORTS-BY-BENEFICIARY-FULL-CLOSURE-01
-**الفرع:** `feat/reports-by-beneficiary-full-closure-01`
-**BASE:** `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f`
-**المصدر:** CODE IS TRUTH — مشتق من `src/lib/reports/catalog/entries.ts` + قواعد النطاق في `src/lib/reports/scope/`.
+**المهمة:** PORTAL-REPORTS-BENEFICIARY-AUTHZ-SCOPE-HARDENING-02
+**الفرع:** `feat/reports-beneficiary-authz-scope-hardening-02`
+**BASE:** `0f1c51d55c9a510b411f4c1683f30d35c389b755`
+**المصدر:** CODE IS TRUTH — مشتق من `src/lib/reports/catalog/entries.ts` + قواعد النطاق في `src/lib/reports/scope/` + عقود الهوية في `org-identity.ts`.
 **المستفيدون القانونيون (10):** مطابقون لـ `REPORT_BENEFICIARIES` في `src/lib/reports/catalog/types.ts`.
+
+## ملخص الحالات الكلية (63)
+LIVE **15** · SOURCE_READY **5** · UNDER_DEVELOPMENT **6** · NOT_ACTIVATED **20** · BLOCKED **17** · DATA_DEPENDENT **0**
+
+## عقود الهوية الصريحة (HARDENING-02)
+| العقد | المصدر الموثوق | الحالة الحالية |
+|---|---|---|
+| VP Student Affairs | `position_assignments` → `university_vp_student_affairs` / `vice_president_student_affairs` | **غير مكوّن** — ممنوع الاستنتاج من `student_affairs` |
+| VP Academic Affairs | `position_assignments` → `university_vp_academic_affairs` / `vice_president_academic_affairs` | **غير مكوّن** — ممنوع الاستنتاج من `dean`/`registrar` |
+| رئاسة/مجلس الجامعة | `university_president` / `university_council` | **غير مكوّن** — ممنوع الاستنتاج من `EXEC_ROLES` |
+| عميد ↔ كلية | هوية: `app_role=dean` أو position `dean`؛ عزل: `college_id` | هوية متاحة / **عزل غير مكوّن** → HUB-DEAN BLOCKED |
+| وحدة تشغيلية | `staff_profiles.role_type→unitKey` و/أو `request_processing_assignments→units.code` | **مربوط عند التوفر** — بلا مصدر ⇒ DENY |
 
 ## ملخص التغطية حسب المستفيد
 
-| المستفيد | الرمز | عدد المدخلات | LIVE | SOURCE_READY | UNDER_DEVELOPMENT | NOT_ACTIVATED | BLOCKED | DATA_DEPENDENT |
-|---|---|---|---|---|---|---|---|---|
-| طالب | `student` | 4 | 1 | 1 | 0 | 1 | 1 | 0 |
-| عضو هيئة تدريس/مشرف | `faculty_supervisor` | 13 | 3 | 3 | 1 | 5 | 1 | 0 |
-| رئيس قسم/منسق | `dept_head_coordinator` | 29 | 4 | 4 | 2 | 10 | 9 | 0 |
-| الوحدات التشغيلية | `operational_units_staff` | 13 | 8 | 1 | 2 | 2 | 0 | 0 |
-| الشؤون الأكاديمية | `academic_affairs` | 14 | 3 | 2 | 0 | 3 | 6 | 0 |
-| الخريجون والجودة | `alumni_quality` | 10 | 1 | 0 | 1 | 5 | 3 | 0 |
-| عميد | `dean` | 48 | 12 | 5 | 5 | 16 | 10 | 0 |
-| نائب شؤون الطلاب | `vp_student_affairs` | 11 | 8 | 0 | 2 | 1 | 0 | 0 |
-| نائب الشؤون الأكاديمية | `vp_academic_affairs` | 40 | 7 | 5 | 1 | 16 | 11 | 0 |
-| رئاسة الجامعة/المجلس | `university_presidency_council` | 14 | 3 | 0 | 3 | 6 | 2 | 0 |
+| المستفيد | الرمز | ملاحظة hardening |
+|---|---|---|
+| طالب | `student` | LIVE ذاتي فقط — بدون تغيير عقد |
+| عضو هيئة تدريس/مشرف | `faculty_supervisor` | LIVE مسند — بدون تغيير عقد |
+| رئيس قسم/منسق | `dept_head_coordinator` | LIVE قسم + رفض قسم أجنبي |
+| الوحدات التشغيلية | `operational_units_staff` | LIVE مشروط بربط وحدة؛ REQ-DOCUMENTS-ISSUED BLOCKED |
+| الشؤون الأكاديمية | `academic_affairs` | facet عبر registrar/dean؛ مركز VP الأكاديمي BLOCKED |
+| الخريجون والجودة | `alumni_quality` | HUB-ALUMNI-QUALITY يبقى LIVE للمصادر المتاحة |
+| عميد | `dean` | HUB-DEAN-COLLEGE **BLOCKED** حتى college_id |
+| نائب شؤون الطلاب | `vp_student_affairs` | لا يُمنح من student_affairs؛ المركز **BLOCKED** |
+| نائب الشؤون الأكاديمية | `vp_academic_affairs` | لا يُمنح من dean/registrar؛ المركز **BLOCKED** |
+| رئاسة الجامعة/المجلس | `university_presidency_council` | لا يُمنح من EXEC_ROLES؛ المركز **BLOCKED** |
 
-> ملاحظة: مجموع أعمدة المستفيدين > 63 لأن المدخل الواحد قد يخدم أكثر من مستفيد.
+> ملاحظة: مجموع أعمدة المستفيدين > 63 لأن المدخل الواحد قد يخدم أكثر من مستفيد. التفاصيل الجدولية أدناه تحتفظ بصفوف الكتالوج؛ الحالات المحدَّثة للـ hubs في HARDENING-02 هي المصدر الحاكم.
 
 ---
 

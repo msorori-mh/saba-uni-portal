@@ -5,6 +5,9 @@
  * not exactly match at least one `required_role` token of the entry, does NOT
  * see the report. Authorization tokens that are pending/undecided (e.g.
  * `pending:*`, Arabic placeholders) match no real role by construction.
+ *
+ * HARDENING-02: optional org bindings further hide hubs that the server would
+ * DENY for missing VP / college / operational binding.
  */
 
 import type {
@@ -12,6 +15,14 @@ import type {
   ReportEntry,
   ReportStatus,
 } from "./types";
+import type { ExplicitOrgBindings } from "../scope/org-identity";
+import {
+  actorMayAccessDeanCollegeHub,
+  actorMayAccessOperationalHub,
+  actorMayAccessPresidencyHub,
+  actorMayAccessVpAcademicHub,
+  actorMayAccessVpStudentHub,
+} from "../scope/org-identity";
 
 /**
  * Fail-closed visibility check.
@@ -29,12 +40,60 @@ export function canSeeReport(
   return entry.required_role.some((required) => roles.has(required));
 }
 
+/**
+ * Role match + organizational binding gate.
+ * When `bindings` is omitted, only role matching applies (pure unit tests).
+ * Server catalog projection MUST pass bindings so cards never advertise DENY hubs.
+ */
+export function canSeeReportWithBindings(
+  entry: ReportEntry,
+  viewerRoles: readonly string[] | null | undefined,
+  bindings: ExplicitOrgBindings | null | undefined,
+): boolean {
+  if (!canSeeReport(entry, viewerRoles)) return false;
+  if (!bindings) return true;
+
+  const code = entry.report_code;
+  if (code === "HUB-VP-STUDENT-AFFAIRS") {
+    return actorMayAccessVpStudentHub(bindings);
+  }
+  if (code === "HUB-VP-ACADEMIC-AFFAIRS") {
+    return actorMayAccessVpAcademicHub(bindings);
+  }
+  if (code === "HUB-UNIVERSITY-STRATEGIC") {
+    return actorMayAccessPresidencyHub(bindings);
+  }
+  if (code === "HUB-DEAN-COLLEGE") {
+    return actorMayAccessDeanCollegeHub(bindings);
+  }
+  if (
+    code === "HUB-OPERATIONAL-UNITS" ||
+    code === "REQ-PROCESSING-TIME" ||
+    code === "REQ-OVERDUE-SLA" ||
+    code === "REQ-DOCUMENTS-ISSUED"
+  ) {
+    return actorMayAccessOperationalHub(bindings, viewerRoles ?? []);
+  }
+  return true;
+}
+
 /** Entries visible to a viewer with the given roles (fail-closed). */
 export function visibleReports(
   entries: readonly ReportEntry[],
   viewerRoles: readonly string[] | null | undefined,
 ): ReportEntry[] {
   return entries.filter((entry) => canSeeReport(entry, viewerRoles));
+}
+
+/** Role + binding aware visibility (server catalog). */
+export function visibleReportsWithBindings(
+  entries: readonly ReportEntry[],
+  viewerRoles: readonly string[] | null | undefined,
+  bindings: ExplicitOrgBindings | null | undefined,
+): ReportEntry[] {
+  return entries.filter((entry) =>
+    canSeeReportWithBindings(entry, viewerRoles, bindings),
+  );
 }
 
 /** Group entries by beneficiary (an entry may appear under several). */
@@ -180,16 +239,21 @@ export function isHiddenFromEndUserCatalog(entry: ReportEntry): boolean {
 export function endUserCatalogEntries(
   entries: readonly ReportEntry[],
   viewerRoles: readonly string[] | null | undefined,
+  bindings?: ExplicitOrgBindings | null,
 ): ReportEntry[] {
-  return visibleReports(entries, viewerRoles).filter(
-    (entry) => !isHiddenFromEndUserCatalog(entry),
-  );
+  const visible = bindings
+    ? visibleReportsWithBindings(entries, viewerRoles, bindings)
+    : visibleReports(entries, viewerRoles);
+  return visible.filter((entry) => !isHiddenFromEndUserCatalog(entry));
 }
 
 /** Filter visible openable reports only (for hubs that list actionable links). */
 export function openableReports(
   entries: readonly ReportEntry[],
   viewerRoles: readonly string[] | null | undefined,
+  bindings?: ExplicitOrgBindings | null,
 ): ReportEntry[] {
-  return endUserCatalogEntries(entries, viewerRoles).filter(isReportOpenable);
+  return endUserCatalogEntries(entries, viewerRoles, bindings).filter(
+    isReportOpenable,
+  );
 }

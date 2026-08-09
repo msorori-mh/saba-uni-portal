@@ -1,13 +1,19 @@
 /**
  * Pure scope decision helpers — no I/O.
  * Server resolvers load actor facts then call these.
+ *
+ * HARDENING-02: college / university VP / presidency / operational levels
+ * require explicit bindings — role alone is not enough.
  */
 
 import type { ReportBeneficiary } from "../catalog/types";
-import { beneficiariesForRoles } from "./beneficiary-roles";
+import { beneficiariesForRolesAndBindings } from "./beneficiary-roles";
+import type { ExplicitOrgBindings } from "./org-identity";
+import { emptyOrgBindings } from "./org-identity";
 import type {
   OrganizationalScopeLevel,
   ReportActorScope,
+  ReportOrgBindingFlags,
 } from "./types";
 
 export interface ActorScopeFacts {
@@ -16,7 +22,9 @@ export interface ActorScopeFacts {
   readonly departmentId: string | null;
   readonly facultyProfileId: string | null;
   readonly studentProfileId: string | null;
+  /** @deprecated Prefer bindings.operationalUnitCodes */
   readonly operationalUnitCode: string | null;
+  readonly bindings: ExplicitOrgBindings;
 }
 
 const LEVEL_PRIORITY: readonly OrganizationalScopeLevel[] = [
@@ -39,55 +47,81 @@ function pickWidestLevel(
   return null;
 }
 
+function toBindingFlags(b: ExplicitOrgBindings): ReportOrgBindingFlags {
+  return {
+    vpStudentAffairsBound: b.vpStudentAffairsBound,
+    vpAcademicAffairsBound: b.vpAcademicAffairsBound,
+    universityPresidencyBound: b.universityPresidencyBound,
+    deanIdentityBound: b.deanIdentityBound,
+    collegeId: b.collegeId,
+    collegeScopeConfigured: b.collegeScopeConfigured,
+    operationalUnitCodes: b.operationalUnitCodes,
+  };
+}
+
 /**
- * Derive the primary organizational level from roles.
- * Does NOT invent missing department/student ids — caller must supply facts.
+ * Derive organizational levels from roles + explicit bindings.
+ * VP / presidency levels require binding flags — never ordinary staff roles.
  */
 export function levelsGrantedByRoles(
   roles: readonly string[],
+  bindings: ExplicitOrgBindings = emptyOrgBindings(),
 ): OrganizationalScopeLevel[] {
   const levels = new Set<OrganizationalScopeLevel>();
-  for (const role of roles) {
-    switch (role) {
-      case "system_admin":
-      case "admin":
-        levels.add("university_strategic");
-        levels.add("university_academic");
-        levels.add("university_student_affairs");
-        levels.add("college");
-        levels.add("operational_unit");
-        break;
-      case "dean":
-        levels.add("college");
-        break;
-      case "registrar":
-        levels.add("university_academic");
-        levels.add("operational_unit");
-        break;
-      case "student_affairs":
-        levels.add("university_student_affairs");
-        levels.add("operational_unit");
-        break;
-      case "finance_officer":
-      case "hr_officer":
-        levels.add("operational_unit");
-        break;
-      case "department_head":
-        levels.add("department");
-        levels.add("assigned");
-        break;
-      case "faculty_member":
-        levels.add("assigned");
-        levels.add("self");
-        break;
-      case "student":
-      case "graduate":
-        levels.add("self");
-        break;
-      default:
-        break;
-    }
+  const roleSet = new Set(roles);
+
+  if (roleSet.has("system_admin") || roleSet.has("admin")) {
+    levels.add("college");
+    levels.add("operational_unit");
+    levels.add("university_academic");
+    // Strategic / VP university levels still require explicit bindings below.
   }
+
+  if (bindings.universityPresidencyBound) {
+    levels.add("university_strategic");
+  }
+  if (bindings.vpAcademicAffairsBound) {
+    levels.add("university_academic");
+  }
+  if (bindings.vpStudentAffairsBound) {
+    levels.add("university_student_affairs");
+  }
+
+  if (bindings.deanIdentityBound && bindings.collegeScopeConfigured) {
+    levels.add("college");
+  } else if (bindings.deanIdentityBound || roleSet.has("dean")) {
+    // Dean identity without college_id: do NOT grant college level for
+    // LIVE college-isolation claims. Academic affairs at department aggregate
+    // remains available via academic_affairs role path when configured.
+  }
+
+  if (roleSet.has("registrar")) {
+    levels.add("operational_unit");
+    // academic_affairs beneficiary remains; university_academic level only via VP binding
+  }
+  if (roleSet.has("student_affairs")) {
+    levels.add("operational_unit");
+  }
+  if (roleSet.has("finance_officer") || roleSet.has("hr_officer")) {
+    levels.add("operational_unit");
+  }
+  if (roleSet.has("department_head")) {
+    levels.add("department");
+    levels.add("assigned");
+  }
+  if (roleSet.has("faculty_member")) {
+    levels.add("assigned");
+    levels.add("self");
+  }
+  if (roleSet.has("student") || roleSet.has("graduate")) {
+    levels.add("self");
+  }
+
+  // Admin academic oversight (not VP): allow university_academic for admin family only
+  if (roleSet.has("system_admin") || roleSet.has("admin")) {
+    levels.add("university_academic");
+  }
+
   return [...levels];
 }
 
@@ -120,9 +154,13 @@ function scopeLabelAr(level: OrganizationalScopeLevel): string {
  */
 export function buildActorScope(facts: ActorScopeFacts): ReportActorScope {
   const roles = facts.roles;
-  const beneficiaries = beneficiariesForRoles(roles);
-  const levels = levelsGrantedByRoles(roles);
+  const bindings = facts.bindings ?? emptyOrgBindings();
+  const beneficiaries = beneficiariesForRolesAndBindings(roles, bindings);
+  const levels = levelsGrantedByRoles(roles, bindings);
   const level = pickWidestLevel(levels);
+  const flags = toBindingFlags(bindings);
+  const primaryUnit =
+    bindings.operationalUnitCodes[0] ?? facts.operationalUnitCode ?? null;
 
   if (!level || beneficiaries.length === 0) {
     return {
@@ -134,29 +172,27 @@ export function buildActorScope(facts: ActorScopeFacts): ReportActorScope {
       facultyProfileId: facts.facultyProfileId,
       studentProfileId: facts.studentProfileId,
       operationalUnitCode: null,
+      bindings: flags,
       scopeLabelAr: "مرفوض",
       denied: true,
       denyReasonAr: "لا دور تقارير معروف أو النطاق غير محدد",
     };
   }
 
-  // Self: must have student profile when student/graduate is the only grant.
   if (level === "self") {
     if (!facts.studentProfileId && !facts.facultyProfileId) {
       return deny(facts, beneficiaries, level, "تعذر تحديد هوية الذات للنطاق الذاتي");
     }
-    return allow(facts, beneficiaries, level);
+    return allow(facts, beneficiaries, level, flags, primaryUnit);
   }
 
-  // Assigned faculty: need faculty profile.
   if (level === "assigned") {
     if (!facts.facultyProfileId) {
       return deny(facts, beneficiaries, level, "لا يوجد ملف هيئة تدريس للنطاق المسند");
     }
-    return allow(facts, beneficiaries, level);
+    return allow(facts, beneficiaries, level, flags, primaryUnit);
   }
 
-  // Department: need department id (and typically faculty profile).
   if (level === "department") {
     if (!facts.departmentId) {
       return deny(
@@ -166,28 +202,82 @@ export function buildActorScope(facts: ActorScopeFacts): ReportActorScope {
         "رئيس القسم بلا قسم مرتبط — يُرفض النطاق",
       );
     }
-    return allow(facts, beneficiaries, level);
+    return allow(facts, beneficiaries, level, flags, primaryUnit);
   }
 
-  // College / university / operational: role alone is enough (aggregate).
-  return allow(facts, beneficiaries, level);
+  if (level === "college") {
+    if (!bindings.collegeScopeConfigured) {
+      return deny(
+        facts,
+        beneficiaries,
+        level,
+        "نطاق الكلية غير مكوّن — لا يوجد college_id موثوق",
+      );
+    }
+    return allow(facts, beneficiaries, level, flags, primaryUnit);
+  }
+
+  if (level === "operational_unit") {
+    if (bindings.operationalUnitCodes.length === 0) {
+      return deny(
+        facts,
+        beneficiaries,
+        level,
+        "ربط الوحدة التشغيلية مفقود — يُرفض النطاق الجامعي العام",
+      );
+    }
+    return allow(facts, beneficiaries, level, flags, primaryUnit);
+  }
+
+  if (level === "university_student_affairs" && !bindings.vpStudentAffairsBound) {
+    return deny(
+      facts,
+      beneficiaries,
+      level,
+      "لا يوجد ربط صريح لنائب رئيس الجامعة لشؤون الطلاب",
+    );
+  }
+  if (level === "university_academic" && !bindings.vpAcademicAffairsBound) {
+    // Admin family may hold university_academic without VP binding.
+    const isAdmin = roles.some((r) => r === "admin" || r === "system_admin");
+    if (!isAdmin) {
+      return deny(
+        facts,
+        beneficiaries,
+        level,
+        "لا يوجد ربط صريح لنائب رئيس الجامعة للشؤون الأكاديمية",
+      );
+    }
+  }
+  if (level === "university_strategic" && !bindings.universityPresidencyBound) {
+    return deny(
+      facts,
+      beneficiaries,
+      level,
+      "لا يوجد ربط صريح لرئاسة/مجلس الجامعة",
+    );
+  }
+
+  return allow(facts, beneficiaries, level, flags, primaryUnit);
 }
 
 function allow(
   facts: ActorScopeFacts,
   beneficiaries: readonly ReportBeneficiary[],
   level: OrganizationalScopeLevel,
+  bindings: ReportOrgBindingFlags,
+  operationalUnitCode: string | null,
 ): ReportActorScope {
   return {
     userId: facts.userId,
     roles: facts.roles,
     beneficiaries,
     level,
-    departmentId:
-      level === "department" || level === "assigned" ? facts.departmentId : facts.departmentId,
+    departmentId: facts.departmentId,
     facultyProfileId: facts.facultyProfileId,
     studentProfileId: facts.studentProfileId,
-    operationalUnitCode: facts.operationalUnitCode,
+    operationalUnitCode,
+    bindings,
     scopeLabelAr: scopeLabelAr(level),
     denied: false,
     denyReasonAr: null,
@@ -200,6 +290,7 @@ function deny(
   level: OrganizationalScopeLevel,
   reason: string,
 ): ReportActorScope {
+  const bindings = toBindingFlags(facts.bindings ?? emptyOrgBindings());
   return {
     userId: facts.userId,
     roles: facts.roles,
@@ -209,6 +300,7 @@ function deny(
     facultyProfileId: facts.facultyProfileId,
     studentProfileId: facts.studentProfileId,
     operationalUnitCode: null,
+    bindings,
     scopeLabelAr: "مرفوض",
     denied: true,
     denyReasonAr: reason,
@@ -223,7 +315,11 @@ function deny(
 export function enforceDepartmentFilter(args: {
   readonly scope: ReportActorScope;
   readonly requestedDepartmentId: string | null | undefined;
-}): { readonly departmentId: string | null; readonly denied: boolean; readonly reasonAr: string | null } {
+}): {
+  readonly departmentId: string | null;
+  readonly denied: boolean;
+  readonly reasonAr: string | null;
+} {
   const { scope, requestedDepartmentId } = args;
   if (scope.denied) {
     return { departmentId: null, denied: true, reasonAr: scope.denyReasonAr };
@@ -287,7 +383,8 @@ export function beneficiaryMayAccessLevel(
       return (
         level === "college" ||
         level === "university_academic" ||
-        level === "department"
+        level === "department" ||
+        level === "operational_unit"
       );
     case "alumni_quality":
       return (

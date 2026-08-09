@@ -140,11 +140,13 @@ describe("status rules (six-status invariants)", () => {
       "STU-SELF-SERVICE-VIEWS",
       "HUB-FACULTY-REPORTS",
       "DEPT-ACADEMIC-LOAD",
-      "HUB-DEAN-COLLEGE",
       "HUB-OPERATIONAL-UNITS",
     ]) {
       expect(live).toContain(code);
     }
+    // Dean/VP/strategic hubs are BLOCKED until explicit org bindings exist.
+    expect(live).not.toContain("HUB-DEAN-COLLEGE");
+    expect(live).not.toContain("HUB-VP-STUDENT-AFFAIRS");
   });
 
   test("SOURCE_READY entries never claim a route", () => {

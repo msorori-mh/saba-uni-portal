@@ -13,6 +13,7 @@ import {
   visibleReports,
 } from "../../src/lib/reports/catalog";
 import { beneficiariesForRoles, buildActorScope } from "../../src/lib/reports/scope";
+import { emptyOrgBindings } from "../../src/lib/reports/scope/org-identity";
 import { buildTeachingLoadKpis } from "../../src/lib/reports/teaching-load";
 import { buildMaterialsCoverageKpis } from "../../src/lib/reports/materials-coverage";
 
@@ -69,6 +70,7 @@ describe("faculty reports — wrong scope (assigned only)", () => {
       facultyProfileId: null,
       studentProfileId: null,
       operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
     });
     expect(scope.denied).toBe(true);
   });

@@ -3,8 +3,9 @@
  *
  * Scope is resolved actor-side and enforced before any aggregate query.
  * No mock production data. Missing sources return metric presence markers.
+ * Authorization/scope denials THROW — never coerced to DATA_INCOMPLETE.
  *
- * Task: PORTAL-REPORTS-BY-BENEFICIARY-FULL-CLOSURE-01
+ * Task: PORTAL-REPORTS-BENEFICIARY-AUTHZ-SCOPE-HARDENING-02
  */
 
 import { createServerFn } from "@tanstack/react-start";
@@ -12,7 +13,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import {
   assertAnyRole,
-  assertExecRole,
   hasAnyRole,
   REPORTS_ROLES,
   EXEC_ROLES,
@@ -24,14 +24,20 @@ import {
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
 import {
+  denyAuthz,
+  denyNotConfigured,
+  denyScope,
   enforceDepartmentFilter,
   metricIncomplete,
   metricNoAccess,
   metricNoData,
   metricValue,
+  rethrowIfAuthorizationDenial,
+  ORG_BINDING_DEPENDENCIES,
   type ReportActorScope,
   type ScopedMetric,
 } from "@/lib/reports/scope";
+import { loadProcessingRoleKeysForUnits } from "@/lib/reports/scope/org-identity.server";
 import { buildTeachingLoadKpis } from "@/lib/reports/teaching-load";
 import { buildProcessingTimeKpis } from "@/lib/reports/processing-time";
 import { buildMaterialsCoverageKpis } from "@/lib/reports/materials-coverage";
@@ -46,19 +52,6 @@ const DEPT_REPORT_ROLES = [
   "department_head",
 ] as const;
 
-const VP_STUDENT_ROLES = [
-  "system_admin",
-  "admin",
-  "student_affairs",
-] as const;
-
-const VP_ACADEMIC_ROLES = [
-  "system_admin",
-  "admin",
-  "dean",
-  "registrar",
-] as const;
-
 const OPERATIONAL_ROLES = [
   "system_admin",
   "admin",
@@ -68,6 +61,99 @@ const OPERATIONAL_ROLES = [
 ] as const;
 
 const ALUMNI_ROLES = ["system_admin", "admin", "dean", "registrar"] as const;
+
+function isPrivilegedOperator(roles: readonly string[]): boolean {
+  return roles.some((r) => r === "system_admin" || r === "admin");
+}
+
+/** Require explicit VP Student Affairs binding — never student_affairs role alone. */
+function assertVpStudentBinding(scope: ReportActorScope): void {
+  if (!scope.bindings.vpStudentAffairsBound) {
+    denyNotConfigured(
+      `مركز نائب شؤون الطلاب غير مكوّن — ${ORG_BINDING_DEPENDENCIES.vp_student_affairs}`,
+    );
+  }
+}
+
+/** Require explicit VP Academic Affairs binding — never dean/registrar alone. */
+function assertVpAcademicBinding(scope: ReportActorScope): void {
+  if (!scope.bindings.vpAcademicAffairsBound) {
+    denyNotConfigured(
+      `مركز نائب الشؤون الأكاديمية غير مكوّن — ${ORG_BINDING_DEPENDENCIES.vp_academic_affairs}`,
+    );
+  }
+}
+
+function assertPresidencyBinding(scope: ReportActorScope): void {
+  if (!scope.bindings.universityPresidencyBound) {
+    denyNotConfigured(
+      `مركز رئاسة/مجلس الجامعة غير مكوّن — ${ORG_BINDING_DEPENDENCIES.university_presidency_council}`,
+    );
+  }
+}
+
+function assertDeanCollegeConfigured(scope: ReportActorScope): void {
+  if (!scope.bindings.deanIdentityBound && !isPrivilegedOperator(scope.roles)) {
+    denyAuthz("ليس لديك صلاحية تقارير الكلية — هوية العميد غير مثبتة");
+  }
+  if (!scope.bindings.collegeScopeConfigured) {
+    denyNotConfigured(
+      `تقارير كلية العميد غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+    );
+  }
+}
+
+/**
+ * Resolve operational unit codes for query scoping.
+ * Ordinary ops staff: require binding. Admin: may pass explicit unit or DENY
+ * university-wide silent fallback for unit-labelled reports.
+ */
+function requireOperationalUnits(scope: ReportActorScope): string[] {
+  const units = [...scope.bindings.operationalUnitCodes];
+  if (units.length > 0) return units;
+  if (isPrivilegedOperator(scope.roles)) {
+    denyNotConfigured(
+      "يجب تحديد وحدة تشغيلية صريحة — لا توسيع تلقائي لنطاق جامعي لتقارير الوحدات",
+    );
+  }
+  denyNotConfigured(
+    `ربط الوحدة التشغيلية مفقود — ${ORG_BINDING_DEPENDENCIES.operational_unit}`,
+  );
+}
+
+async function loadUnitScopedRequestRows(unitCodes: readonly string[], limit = 1000) {
+  const roleKeys = await loadProcessingRoleKeysForUnits(unitCodes);
+  if (roleKeys.length === 0) {
+    denyNotConfigured(
+      `لا أدوار معالجة مكوّنة للوحدة [${unitCodes.join(", ")}] — يُرفض النطاق الجامعي`,
+    );
+  }
+
+  const { data: reqRows, error } = await supabaseAdmin
+    .from("student_requests")
+    .select("id, status, request_type, created_at, updated_at, current_role_key")
+    .in("current_role_key", roleKeys)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return reqRows ?? [];
+}
+
+function requestFactsFromRows(reqRows: readonly any[]) {
+  const now = Date.now();
+  return reqRows.map((r) => {
+    const created = Date.parse(r.created_at);
+    const ageDays = Number.isNaN(created)
+      ? null
+      : Math.floor((now - created) / (24 * 60 * 60 * 1000));
+    return {
+      requestType: r.request_type ?? "unknown",
+      status: r.status ?? "other",
+      ageDays,
+      resolutionDays: null as number | null,
+    };
+  });
+}
 
 async function tableCount(
   table: string,
@@ -99,10 +185,21 @@ export const getMyReportScope = createServerFn({ method: "POST" })
 export const getVisibleCatalogForViewer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const roles = await userRoles(context.userId);
-    const entries = endUserCatalogEntries(REPORT_CATALOG_ENTRIES, roles);
+    const scope = await resolveReportActorScope(context.userId);
+    const roles = scope.roles.length > 0 ? [...scope.roles] : await userRoles(context.userId);
+    const entries = endUserCatalogEntries(REPORT_CATALOG_ENTRIES, roles, {
+      positionCodes: [],
+      vpStudentAffairsBound: scope.bindings.vpStudentAffairsBound,
+      vpAcademicAffairsBound: scope.bindings.vpAcademicAffairsBound,
+      universityPresidencyBound: scope.bindings.universityPresidencyBound,
+      deanIdentityBound: scope.bindings.deanIdentityBound,
+      collegeId: scope.bindings.collegeId,
+      collegeScopeConfigured: scope.bindings.collegeScopeConfigured,
+      operationalUnitCodes: scope.bindings.operationalUnitCodes,
+    });
     return {
       roles,
+      bindings: scope.bindings,
       entries: entries.map((e) => ({
         report_code: e.report_code,
         name_ar: e.name_ar,
@@ -423,7 +520,7 @@ export const getDepartmentReportsSummary = createServerFn({ method: "POST" })
     };
   });
 
-/** Dean college dashboard — COLLEGE ONLY aggregates (no raw PII lists). */
+/** Dean college dashboard — COLLEGE ONLY; requires configured college binding. */
 export const getDeanCollegeReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -432,61 +529,29 @@ export const getDeanCollegeReportsSummary = createServerFn({ method: "POST" })
       ["system_admin", "admin", "dean"],
       "ليس لديك صلاحية تقارير الكلية",
     );
-
-    const [
-      students,
-      activeStudents,
-      faculty,
-      programs,
-      staff,
-      pendingRequests,
-      docsToday,
-      sections,
-    ] = await Promise.all([
-      tableCount("student_profiles"),
-      tableCount("student_profiles", (q) => q.eq("status", "active")),
-      tableCount("faculty_profiles", (q) => q.eq("status", "active")),
-      tableCount("programs"),
-      tableCount("staff_profiles"),
-      tableCount("student_requests", (q) =>
-        q.in("status", ["submitted", "pending", "in_progress", "under_review"]),
-      ),
-      tableCount("official_documents", (q) => {
-        const t = new Date();
-        t.setHours(0, 0, 0, 0);
-        return q.gte("issued_at", t.toISOString());
-      }),
-      tableCount("course_sections", (q) => q.eq("status", "active")),
-    ]);
-
-    // Department comparison (counts only — no PII)
-    const { data: depts } = await supabaseAdmin
-      .from("departments")
-      .select("id, name_ar")
-      .limit(100);
-    const deptCompare = [];
-    for (const d of depts ?? []) {
-      const n = await tableCount("student_profiles", (q) => q.eq("department_id", d.id));
-      deptCompare.push({
-        departmentId: d.id,
-        name_ar: d.name_ar,
-        students: n === null ? null : n,
-      });
-    }
-
+    const scope = await resolveReportActorScope(context.userId);
+    // Fail-closed: current schema has no college_id. Never run university-wide
+    // aggregates and label them "الكلية فقط".
+    assertDeanCollegeConfigured(scope);
+    // Unreachable until college binding exists — keeps return type stable.
     return {
-      scopeLabelAr: "الكلية فقط",
+      scopeLabelAr: `الكلية فقط (${scope.bindings.collegeId})`,
+      collegeId: scope.bindings.collegeId,
       kpis: {
-        students: countOrIncomplete(students),
-        activeStudents: countOrIncomplete(activeStudents),
-        faculty: countOrIncomplete(faculty),
-        programs: countOrIncomplete(programs),
-        staff: countOrIncomplete(staff),
-        pendingRequests: countOrIncomplete(pendingRequests),
-        documentsToday: countOrIncomplete(docsToday),
-        activeSections: countOrIncomplete(sections),
+        students: metricNoAccess("college binding pending"),
+        activeStudents: metricNoAccess("college binding pending"),
+        faculty: metricNoAccess("college binding pending"),
+        programs: metricNoAccess("college binding pending"),
+        staff: metricNoAccess("college binding pending"),
+        pendingRequests: metricNoAccess("college binding pending"),
+        documentsToday: metricNoAccess("college binding pending"),
+        activeSections: metricNoAccess("college binding pending"),
       },
-      departmentComparison: deptCompare,
+      departmentComparison: [] as {
+        departmentId: string;
+        name_ar: string;
+        students: number | null;
+      }[],
       links: [
         { to: "/admin/reports", label: "مركز تقارير الكلية" },
         { to: "/admin/executive-dashboard", label: "لوحة المؤشرات التنفيذية" },
@@ -495,15 +560,12 @@ export const getDeanCollegeReportsSummary = createServerFn({ method: "POST" })
     };
   });
 
-/** VP Student Affairs — university student-affairs domain aggregates. */
+/** VP Student Affairs — requires explicit university VP binding (not student_affairs). */
 export const getVpStudentAffairsReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(
-      context.userId,
-      VP_STUDENT_ROLES,
-      "ليس لديك صلاحية تقارير شؤون الطلاب",
-    );
+    const scope = await resolveReportActorScope(context.userId);
+    assertVpStudentBinding(scope);
 
     const [students, active, suspended, noProgram, pendingReq, issuedDocs] =
       await Promise.all([
@@ -519,26 +581,14 @@ export const getVpStudentAffairsReportsSummary = createServerFn({ method: "POST"
         ),
       ]);
 
-    // Processing time from recent requests (anonymized)
     const { data: reqRows } = await supabaseAdmin
       .from("student_requests")
       .select("id, status, request_type, created_at, updated_at")
       .order("created_at", { ascending: false })
       .limit(500);
-    const now = Date.now();
-    const facts = ((reqRows ?? []) as any[]).map((r) => {
-      const created = Date.parse(r.created_at);
-      const ageDays = Number.isNaN(created)
-        ? null
-        : Math.floor((now - created) / (24 * 60 * 60 * 1000));
-      return {
-        requestType: r.request_type ?? "unknown",
-        status: r.status ?? "other",
-        ageDays,
-        resolutionDays: null as number | null,
-      };
+    const processing = buildProcessingTimeKpis(requestFactsFromRows(reqRows ?? []), {
+      treatEmptyAsZero: true,
     });
-    const processing = buildProcessingTimeKpis(facts, { treatEmptyAsZero: true });
 
     return {
       scopeLabelAr: "نطاق جامعي — شؤون الطلاب فقط",
@@ -551,7 +601,6 @@ export const getVpStudentAffairsReportsSummary = createServerFn({ method: "POST"
         issuedDocuments: countOrIncomplete(issuedDocs),
       },
       processing,
-      // Explicitly no academic-only sensitive dumps
       excludedDomains: ["teaching_load_detail", "faculty_evaluations", "grade_rosters"],
       links: [
         { to: "/admin/reports?tab=requests", label: "تقرير الطلبات" },
@@ -561,15 +610,12 @@ export const getVpStudentAffairsReportsSummary = createServerFn({ method: "POST"
     };
   });
 
-/** VP Academic Affairs — university academic domain aggregates. */
+/** VP Academic Affairs — requires explicit university VP binding (not dean/registrar). */
 export const getVpAcademicAffairsReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(
-      context.userId,
-      VP_ACADEMIC_ROLES,
-      "ليس لديك صلاحية تقارير الشؤون الأكاديمية",
-    );
+    const scope = await resolveReportActorScope(context.userId);
+    assertVpAcademicBinding(scope);
 
     const [programs, plans, courses, sections, faculty] = await Promise.all([
       tableCount("programs"),
@@ -616,11 +662,12 @@ export const getVpAcademicAffairsReportsSummary = createServerFn({ method: "POST
     };
   });
 
-/** University presidency — strategic aggregates only, no PII by default. */
+/** University presidency — requires explicit presidency/council binding. */
 export const getUniversityStrategicReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertExecRole(context.userId);
+    const scope = await resolveReportActorScope(context.userId);
+    assertPresidencyBinding(scope);
 
     const [students, faculty, programs, courses, plans, pendingReq] = await Promise.all([
       tableCount("student_profiles"),
@@ -673,7 +720,7 @@ export const getUniversityStrategicReportsSummary = createServerFn({ method: "PO
     };
   });
 
-/** Operational units — requests/documents workload in unit domain. */
+/** Operational units — workload scoped to the actor's bound unit(s) only. */
 export const getOperationalUnitReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -682,25 +729,10 @@ export const getOperationalUnitReportsSummary = createServerFn({ method: "POST" 
       OPERATIONAL_ROLES,
       "ليس لديك صلاحية تقارير الوحدات التشغيلية",
     );
-
-    const { data: reqRows } = await supabaseAdmin
-      .from("student_requests")
-      .select("id, status, request_type, created_at, updated_at")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    const now = Date.now();
-    const facts = ((reqRows ?? []) as any[]).map((r) => {
-      const created = Date.parse(r.created_at);
-      const ageDays = Number.isNaN(created)
-        ? null
-        : Math.floor((now - created) / (24 * 60 * 60 * 1000));
-      return {
-        requestType: r.request_type ?? "unknown",
-        status: r.status ?? "other",
-        ageDays,
-        resolutionDays: null as number | null,
-      };
-    });
+    const scope = await resolveReportActorScope(context.userId);
+    const unitCodes = requireOperationalUnits(scope);
+    const reqRows = await loadUnitScopedRequestRows(unitCodes, 1000);
+    const facts = requestFactsFromRows(reqRows);
     const processing = buildProcessingTimeKpis(facts, { treatEmptyAsZero: true });
     const aggregate = buildRequestsAggregateReport({
       beneficiary: "operational_units_staff",
@@ -711,16 +743,16 @@ export const getOperationalUnitReportsSummary = createServerFn({ method: "POST" 
       })),
     });
 
-    const issuedDocs = await tableCount("official_documents", (q) =>
-      q.in("status", ["issued", "archived"]),
-    );
-
     return {
-      scopeLabelAr: "وحدة تشغيلية — اختصاص الطلبات/الوثائق",
+      scopeLabelAr: `وحدة تشغيلية — ${unitCodes.join(", ")}`,
+      operationalUnitCodes: unitCodes,
       processing,
       aggregateReportId: aggregate.reportId,
       aggregateKpis: aggregate.kpis,
-      issuedDocuments: countOrIncomplete(issuedDocs),
+      // Documents lack a reliable unit FK — do not invent university-wide counts.
+      issuedDocuments: metricNoAccess(
+        "تجميع الوثائق حسب الوحدة غير مكوّن — لا عمود وحدة على official_documents",
+      ),
       links: [
         { to: "/admin/reports?tab=requests", label: "طلبات الطلاب" },
         { to: "/admin/student-requests", label: "صندوق الطلبات" },
@@ -741,19 +773,42 @@ export const getAcademicAffairsReportsSummary = createServerFn({ method: "POST" 
 
     const scope = await resolveReportActorScope(context.userId);
     const isDeptOnly =
-      scope.level === "department" &&
+      scope.roles.includes("department_head") &&
       !scope.roles.some((r) =>
         ["system_admin", "admin", "dean", "registrar"].includes(r),
       );
 
     if (isDeptOnly) {
       assertScopeAllowed(scope);
-      const counts = await loadDepartmentScopedCounts(scope.departmentId!);
+      if (!scope.departmentId) denyScope("نطاق القسم مفقود");
+      const counts = await loadDepartmentScopedCounts(scope.departmentId);
       return {
         scopeLabelAr: "الشؤون الأكاديمية — نطاق القسم",
         mode: "department" as const,
         ...counts,
       };
+    }
+
+    // Dean without college binding must not receive university-wide academic dumps.
+    if (
+      scope.roles.includes("dean") &&
+      !isPrivilegedOperator(scope.roles) &&
+      !scope.bindings.collegeScopeConfigured &&
+      !scope.roles.includes("registrar")
+    ) {
+      denyNotConfigured(
+        `تقارير الشؤون الأكاديمية للكلية غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+      );
+    }
+
+    // Registrar: operational academic view is allowed at admin reports level;
+    // this hub stays aggregate for registrar/admin only (not VP).
+    if (
+      !isPrivilegedOperator(scope.roles) &&
+      !scope.roles.includes("registrar") &&
+      !scope.bindings.vpAcademicAffairsBound
+    ) {
+      denyAuthz("غير مصرح — الشؤون الأكاديمية تتطلب مسجّلاً أو ربط نائب أكاديمي صريح");
     }
 
     const [programs, plans, courses, sections, faculty] = await Promise.all([
@@ -783,7 +838,7 @@ export const getAcademicAffairsReportsSummary = createServerFn({ method: "POST" 
     });
 
     return {
-      scopeLabelAr: "الشؤون الأكاديمية — نطاق جامعي/كلية",
+      scopeLabelAr: "الشؤون الأكاديمية — نطاق تشغيلي للمسجّل/الإدارة",
       mode: "university" as const,
       kpis: {
         programs: countOrIncomplete(programs),
@@ -847,15 +902,17 @@ export const getMaterialsCoverageReport = createServerFn({ method: "POST" })
         .limit(2000);
 
       if (data.mode === "self") {
-        if (!scope.facultyProfileId) throw new Error("لا ملف هيئة تدريس");
+        if (!scope.facultyProfileId) denyAuthz("لا ملف هيئة تدريس");
         query = query.eq("faculty_profile_id", scope.facultyProfileId);
       } else if (data.mode === "department") {
         await assertAnyRole(context.userId, DEPT_REPORT_ROLES, "غير مصرح");
         assertScopeAllowed(scope);
-        if (!scope.departmentId && !scope.roles.some((r) => ["admin", "system_admin", "dean"].includes(r))) {
-          throw new Error("نطاق القسم مفقود");
+        if (
+          !scope.departmentId &&
+          !scope.roles.some((r) => ["admin", "system_admin", "dean"].includes(r))
+        ) {
+          denyScope("نطاق القسم مفقود");
         }
-        // Filter via faculty in department when dept-scoped
         if (scope.departmentId) {
           const { data: fac } = await supabaseAdmin
             .from("faculty_profiles")
@@ -876,6 +933,15 @@ export const getMaterialsCoverageReport = createServerFn({ method: "POST" })
           ["system_admin", "admin", "dean", "registrar"],
           "غير مصرح",
         );
+        if (
+          scope.roles.includes("dean") &&
+          !isPrivilegedOperator(scope.roles) &&
+          !scope.bindings.collegeScopeConfigured
+        ) {
+          denyNotConfigured(
+            `تغطية مواد الكلية غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+          );
+        }
       }
 
       const { data: mats, error } = await query;
@@ -901,6 +967,7 @@ export const getMaterialsCoverageReport = createServerFn({ method: "POST" })
               : "كلية",
       };
     } catch (e) {
+      rethrowIfAuthorizationDenial(e);
       return {
         kpis: {
           totalMaterials: metricIncomplete((e as Error).message),
@@ -914,7 +981,7 @@ export const getMaterialsCoverageReport = createServerFn({ method: "POST" })
     }
   });
 
-/** Request processing-time report for operational / VP student roles. */
+/** Request processing-time report — unit-scoped for operational staff. */
 export const getRequestProcessingTimeReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -923,35 +990,46 @@ export const getRequestProcessingTimeReport = createServerFn({ method: "POST" })
       [...OPERATIONAL_ROLES, "dean"] as const,
       "ليس لديك صلاحية تقرير زمن المعالجة",
     );
+    const scope = await resolveReportActorScope(context.userId);
 
-    const { data: reqRows, error } = await supabaseAdmin
-      .from("student_requests")
-      .select("id, status, request_type, created_at, updated_at")
-      .order("created_at", { ascending: false })
-      .limit(2000);
-    if (error) throw new Error(error.message);
+    if (scope.roles.includes("dean") && !isPrivilegedOperator(scope.roles)) {
+      if (!scope.bindings.collegeScopeConfigured) {
+        denyNotConfigured(
+          `تقرير زمن المعالجة للكلية غير مكوّن — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+        );
+      }
+    }
 
-    const now = Date.now();
-    const facts = ((reqRows ?? []) as any[]).map((r) => {
-      const created = Date.parse(r.created_at);
-      const ageDays = Number.isNaN(created)
-        ? null
-        : Math.floor((now - created) / (24 * 60 * 60 * 1000));
-      return {
-        requestType: r.request_type ?? "unknown",
-        status: r.status ?? "other",
-        ageDays,
-        resolutionDays: null as number | null,
-      };
-    });
+    const unitCodes = scope.bindings.operationalUnitCodes;
+    if (!isPrivilegedOperator(scope.roles) && unitCodes.length === 0) {
+      if (!scope.roles.includes("dean")) {
+        denyNotConfigured(
+          `ربط الوحدة التشغيلية مفقود — ${ORG_BINDING_DEPENDENCIES.operational_unit}`,
+        );
+      }
+    }
+
+    let reqRows: any[];
+    if (unitCodes.length > 0) {
+      reqRows = await loadUnitScopedRequestRows(unitCodes, 2000);
+    } else if (isPrivilegedOperator(scope.roles)) {
+      denyNotConfigured(
+        "تقارير زمن المعالجة للمشغّل تتطلب وحدة صريحة — لا نطاق جامعي صامت",
+      );
+    } else {
+      denyNotConfigured(ORG_BINDING_DEPENDENCIES.operational_unit);
+    }
 
     return {
-      scopeLabelAr: "اختصاص الطلبات — بدون توسيع نطاق خارج الصلاحية",
-      kpis: buildProcessingTimeKpis(facts, { treatEmptyAsZero: true }),
+      scopeLabelAr: `اختصاص الطلبات — وحدات: ${unitCodes.join(", ")}`,
+      operationalUnitCodes: unitCodes,
+      kpis: buildProcessingTimeKpis(requestFactsFromRows(reqRows), {
+        treatEmptyAsZero: true,
+      }),
     };
   });
 
-/** Documents issued report. */
+/** Documents issued report — fail-closed without unit/document binding. */
 export const getDocumentsIssuedReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -960,31 +1038,25 @@ export const getDocumentsIssuedReport = createServerFn({ method: "POST" })
       [...OPERATIONAL_ROLES, "dean"] as const,
       "ليس لديك صلاحية تقرير الوثائق الصادرة",
     );
+    const scope = await resolveReportActorScope(context.userId);
+    const unitCodes = scope.bindings.operationalUnitCodes;
 
-    const { data: docs, error } = await supabaseAdmin
-      .from("official_documents")
-      .select("id, document_type, status, issued_at")
-      .in("status", ["issued", "archived"])
-      .order("issued_at", { ascending: false })
-      .limit(2000);
-    if (error) throw new Error(error.message);
-
-    const byType = new Map<string, number>();
-    for (const d of docs ?? []) {
-      const key = (d as any).document_type ?? "unknown";
-      byType.set(key, (byType.get(key) ?? 0) + 1);
+    if (!isPrivilegedOperator(scope.roles) && unitCodes.length === 0) {
+      if (scope.roles.includes("dean") && !scope.bindings.collegeScopeConfigured) {
+        denyNotConfigured(
+          `تقرير الوثائق للكلية غير مكوّن — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+        );
+      }
+      denyNotConfigured(
+        `ربط الوحدة التشغيلية مفقود — ${ORG_BINDING_DEPENDENCIES.operational_unit}`,
+      );
     }
 
-    return {
-      scopeLabelAr: "الوثائق الصادرة — نطاق تشغيلي",
-      total: metricValue((docs ?? []).length),
-      byType: [...byType.entries()].map(([documentType, count]) => ({
-        documentType,
-        count,
-      })),
-      // No student PII in this aggregate view
-      includesPii: false,
-    };
+    // official_documents has no processing_unit_id — do not return university-wide
+    // counts under an operational-unit label.
+    denyNotConfigured(
+      "تجميع الوثائق حسب الوحدة غير مكوّن — لا عمود وحدة موثوق على official_documents",
+    );
   });
 
 /** Negative auth helper for tests / diagnostics — never grants access. */
@@ -1006,4 +1078,3 @@ void hasAnyRole;
 void REPORTS_ROLES;
 void EXEC_ROLES;
 void metricNoData;
-void metricNoAccess;

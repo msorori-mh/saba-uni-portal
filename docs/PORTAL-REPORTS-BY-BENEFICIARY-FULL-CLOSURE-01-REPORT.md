@@ -7,7 +7,8 @@
 | **BASE_SHA** | `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f` |
 | **FINAL_SHA** | `faa86fa38fb296a930c1cead36025af6baa186e1` (implementation; docs tip follows) |
 | **PR** | https://github.com/msorori-mh/saba-uni-portal/pull/318 |
-| **القرار** | `PASS_WITH_BLOCKED_DEPENDENCIES_PORTAL_REPORTS_BY_BENEFICIARY_01` |
+| **القرار الأصلي** | `PASS_WITH_BLOCKED_DEPENDENCIES_PORTAL_REPORTS_BY_BENEFICIARY_01` |
+| **تحديث HARDENING-02** | راجع `docs/PORTAL-REPORTS-BENEFICIARY-AUTHZ-SCOPE-HARDENING-02-REPORT.md` — أُعيد تقييم LIVE: **15** (كان 20). المراكز VP/رئاسة/عميد/وثائق وحدة أصبحت BLOCKED حتى يتوفر ربط تنظيمي صريح. |
 
 ---
 
