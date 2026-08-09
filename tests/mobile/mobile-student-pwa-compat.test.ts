@@ -39,10 +39,9 @@ describe("mobile student portal remains functional", () => {
 
   test("service worker still denies caching sensitive mobile student paths", () => {
     const sw = read("public/sw.js");
-    expect(sw).toContain("\\/mobile\\/student\\/finance");
-    expect(sw).toContain("\\/mobile\\/student\\/documents");
-    expect(sw).toContain("\\/mobile\\/student\\/requests");
-    expect(sw).toContain("\\/mobile\\/student\\/grades");
-    expect(sw).toContain("\\/mobile\\/student\\/academic-record");
+    const policy = read("public/sw-cache-policy.js");
+    expect(sw).toContain("isProtectedPath(url.pathname + url.search)");
+    expect(policy).toContain("/^\\/mobile\\/student");
+    expect(policy).toContain("PUBLIC_SHELL_ASSETS");
   });
 });

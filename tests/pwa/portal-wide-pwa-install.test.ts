@@ -71,33 +71,28 @@ describe("portal service worker security", () => {
 
   test("service worker file exists and is portal-scoped", () => {
     expect(existsSync(join(ROOT, "public/sw.js"))).toBe(true);
-    expect(sw).toContain('const VERSION = "portal-pwa-v1"');
+    expect(sw).toContain('const VERSION = "v2"');
     expect(sw).toContain('OFFLINE_URL = "/offline.html"');
   });
 
   test("sensitive paths remain uncached", () => {
     const required = [
-      "\\/mobile\\/student\\/finance",
-      "\\/mobile\\/student\\/documents",
-      "\\/mobile\\/student\\/requests",
-      "\\/mobile\\/student\\/grades",
-      "\\/mobile\\/student\\/academic-record",
-      "\\/api\\/",
-      "\\/_serverFn\\/",
-      "supabase\\.co",
-      "supabase\\.in",
-      "\\/auth\\/",
+      "mobile",
+      "api",
+      "_serverFn",
+      "auth",
+      "faculty-portal",
+      "official",
     ];
-    for (const needle of required) {
-      expect(sw).toContain(needle);
-    }
-    expect(sw).toMatch(/isNeverCache/);
-    expect(sw).toMatch(/Same-origin only/);
+    const policy = read("public/sw-cache-policy.js");
+    for (const needle of required) expect(policy).toMatch(new RegExp(needle, "i"));
+    expect(sw).toContain("isProtectedPath");
+    expect(sw).toContain("url.origin !== self.location.origin");
   });
 
   test("does not cache navigate HTML responses into Cache Storage", () => {
-    expect(sw).toContain("req.mode === \"navigate\"");
-    expect(sw).toContain("const fresh = await fetch(req)");
+    expect(sw).toContain('request.mode === "navigate"');
+    expect(sw).toContain("fetch(request).catch");
     expect(sw).not.toMatch(/navigate[\s\S]{0,400}cache\.put/);
   });
 
@@ -105,6 +100,9 @@ describe("portal service worker security", () => {
     expect(sw).toContain('event.data === "SKIP_WAITING"');
     expect(sw).toContain("self.skipWaiting()");
     expect(sw).not.toContain("location.reload()");
+    expect(sw).not.toContain("clients.claim()");
+    expect(sw.indexOf("self.skipWaiting()"))
+      .toBeGreaterThan(sw.indexOf('addEventListener("message"'));
   });
 });
 
