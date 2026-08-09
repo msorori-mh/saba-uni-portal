@@ -13,7 +13,7 @@ published as a DRAFT PR only. B1 `#310` remains an explicit PENDING insertion sl
 
 ```
 BASE_SHA=1b14201e5939cdbf17e7b5e5d79be7ad5b6b2149
-RC_SHA=<filled after docs commit; see tip of rc/portal-final-v4-prebuild-non-b1-01>
+RC_SHA=295702dba0b9768338d1c69dd1b38b05dc0305db
 INTEGRATED_PRS=#293,#291,#299,#311,#312 (+ origin/main tip 0ba4ee53)
 MIGRATION_COLLISIONS=NONE
 MERGE_CONFLICTS=2 mechanical (resolved); 0 semantic HOLDs
