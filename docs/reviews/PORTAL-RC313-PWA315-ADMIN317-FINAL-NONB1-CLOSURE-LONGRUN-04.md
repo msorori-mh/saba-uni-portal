@@ -26,7 +26,7 @@ OLD_RC_SHA=aff53654d23c5c2bb041e4770d8fe4cba6d8fb9c
 PR315_SHA=42a9586fe7b20ca883c2f45a6f683a1e2f2e909c
 PR317_SHA=636e26f1d221f784d18bae00c9a4e7254e1be819
 origin/main=0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f
-NEW_RC_SHA=5a000089633b0b66956e2de96dc68a30f4bcfc23
+NEW_RC_SHA=958faa30a0c07eb4b720d567cf07dc59ea2ffec7
 ```
 
 Pre-merge CI: #315 Web CI SUCCESS; #317 Web CI SUCCESS. Heads matched PASS reports
@@ -181,11 +181,22 @@ B1_FINAL_SHA=PENDING
 | `git diff --check` | PASS |
 | Route semantic hash | `0eb14f7ecafa41af96166f1f39d918bdff3feeef6a525b3c920ea937f22f6fef` unchanged |
 
+
+## CI results (tip `958faa30a0c07eb4b720d567cf07dc59ea2ffec7`)
+
+```
+WEB_CI=PASS
+MIGRATION_REVIEW=PASS
+PG17_CI=PASS
+```
+
+All Web CI jobs SUCCESS (Install/Lint/Typecheck/Build, Bun tests, PG17 verifiers).
+Migration Review SUCCESS.
 ## CI gate (Draft PR #313)
 
 ```
-WEB_CI=(awaiting after docs push)
-MIGRATION_REVIEW=(awaiting after docs push)
+WEB_CI=PASS
+MIGRATION_REVIEW=PASS
 ```
 
 ## Guardrails
