@@ -5,7 +5,7 @@ Transform Faculty Academic Councils page from a long vertical form stack into an
 
 ## SHAs
 - **BASE_SHA:** `0ba4ee53c012541fdd1f60977b3f9d54cb9a5e4f`
-- **IMPLEMENTATION_SHA:** _(filled after commit)_
+- **IMPLEMENTATION_SHA:** `db0965ffa90aa4a48ab593cfa166c021feb4a7ca`
 
 ## Files changed
 ### Added
