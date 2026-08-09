@@ -5,6 +5,8 @@
 - **المعرّف**: `PORTAL-FINAL-READONLY-PREFLIGHT-PACKAGE-01`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
 - **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
+- **تركيبة الإصدار المعتمدة المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
+- **حالة الـ SHA الإدارية**: `RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411` و `PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f` يُحلّان ديناميكياً عند الاعتماد النهائي
 - **حالة التنفيذ الإلزامية**: **DO NOT EXECUTE AGAINST PRODUCTION IN THIS MISSION** (مصممة للاستخدام المباشر قبل أي كتابة مستقبلية فقط).
 - **القيود الأحدية**:
   - `SELECT` وقراءات كتالوج الكائنات وحالات النظام فقط (`SELECT / CATALOG READS ONLY`).
@@ -70,10 +72,10 @@ LIMIT 10;
 
 ---
 
-### الفحص 4: مصفوفة تواجد أو غياب التغيرات المطلوبة للإنتاج (Release Migration Presence/Absence Matrix)
+### الفحص 4: مصفوفة تواجد أو غياب التغيرات المطلوبة للإصدار (Release Migration Presence/Absence Matrix)
 
 ```sql
--- Probe 04: Check exact absence or presence of specific key release migration versions
+-- Probe 04: Check exact absence or presence of authoritative release migration versions
 SELECT 
     v.migration_version,
     v.target_system,
@@ -83,14 +85,21 @@ SELECT
     END AS execution_status
 FROM (
     VALUES 
-        ('20260708120000', 'Councils C0 Attachments'),
-        ('20260709120000', 'Councils C1 Seed Data'),
-        ('20260710120000', 'Councils C2 Schedule Helpers'),
-        ('20260711000000', 'GA Foundation Email'),
-        ('20260713010000', 'GA Workflow Restrict Admin'),
-        ('20260723061809', 'GA Auth-04 Hardening'),
         ('20260808010000', 'GP Level-4 Eligibility Guard'),
-        ('20260802070000', 'B1 Terminal Visibility Baseline')
+        ('20260808120000', 'Councils C0 Write Surface Hardening'),
+        ('20260808121000', 'Councils C1 Meeting State Machine'),
+        ('20260808122000', 'Councils C2 Topic Intake & Review'),
+        ('20260808130000', 'Councils C3 Attendance & Quorum'),
+        ('20260808140000', 'Councils C4 Session Voting'),
+        ('20260808150000', 'Councils C5 Minutes Lifecycle'),
+        ('20260808160000', 'Councils C6 Decisions & Follow-up'),
+        ('20260808170000', 'Councils C7 Audit Archive'),
+        ('20260808171000', 'Councils C8 Security Closure'),
+        ('20260808180000', 'Councils C9 Notifications & Reporting'),
+        ('20260808210000', 'GA MVP Foundation'),
+        ('20260808210100', 'GA MVP Completion'),
+        ('20260808210200', 'GA Authorization-04'),
+        ('20260809183940', 'Main-Tip Catalog Reconciliation')
 ) AS v(migration_version, target_system)
 LEFT JOIN supabase_migrations.schema_migrations sm ON sm.version = v.migration_version
 ORDER BY v.migration_version;
@@ -137,7 +146,7 @@ SELECT
     (SELECT count(*) FROM information_schema.columns c WHERE c.table_name = t.table_name) AS column_count
 FROM information_schema.tables t
 WHERE table_schema = 'public'
-  AND table_name IN ('graduates', 'graduation_clearances', 'staff_profiles');
+  AND table_name IN ('graduate_profiles', 'graduate_clearance_requests', 'staff_profiles');
 ```
 
 ---
@@ -160,7 +169,11 @@ FROM (
         ('council_meetings'),
         ('council_topics'),
         ('council_topic_attachments'),
-        ('council_decisions')
+        ('council_meeting_attendance'),
+        ('council_topic_votes'),
+        ('council_meeting_minutes'),
+        ('council_decisions'),
+        ('council_audit_log')
 ) AS t(table_name);
 ```
 
@@ -246,7 +259,7 @@ SELECT
     table_name
 FROM information_schema.tables 
 WHERE table_schema = 'public' 
-  AND table_name LIKE '%version%' OR table_name LIKE '%build%';
+  AND (table_name LIKE '%version%' OR table_name LIKE '%build%');
 ```
 
 ---

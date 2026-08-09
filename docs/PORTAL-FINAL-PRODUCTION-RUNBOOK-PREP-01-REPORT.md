@@ -5,9 +5,11 @@
 - **المعرّف**: `PORTAL-FINAL-PRODUCTION-RUNBOOK-PREP-01-REPORT`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
 - **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
-- **الـ RC313 SHA الحالية**: `RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411`
+- **تركيبة الإصدار المعتمدة المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
+- **مرجع RC313 SHA**: `RC313_SHA=resolve dynamically at finalization` (تحديد ديناميكي عند الاعتماد النهائي — عدم التجميد على `e3db0cc330106518d5ab9ca6874d70d9e98b1411` القديم عند تقدم PR #313 لتضمين PR #314)
+- **مرجع PR314 SHA**: `PR314_SHA=resolve dynamically` (تيار إطلاق أخضر إضافي جاري دمجه بالتوازي في PR #313)
 - **الـ B1 SHA الحالية**: `B1_FINAL_SHA=PENDING` (لحين إغلاق `LONGRUN-18`)
-- **الـ FINAL RC SHA**: `FINAL_RC_SHA=PENDING`
+- **الـ FINAL RC SHA**: `FINAL_RC_SHA=PENDING` (تحديد ديناميكي عند الاعتماد النهائي)
 - **وضع التنفيذ الإنتاجي**: `PRODUCTION_EXECUTION=NOT_AUTHORIZED` (صفر تنفيذ إنتاجي، صفر تطبيق migrations، صفر تعديل بيانات إنتاجية، صفر نشر Publish/Deploy).
 - **التاريخ**: 2026-08-09
 
@@ -91,8 +93,17 @@
   - `bun test tests/student-requests` ⇒ **1066 Passed, 0 Failed (7933 assertions)**
   - `bunx tsc --noEmit` ⇒ **0 Errors**
   - `git diff --check` ⇒ **PASS (Clean formatting & whitespace)**
+- **تركيبة الإصدار المستهدفة**:
+  - `PR #293` (مشاريع التخرج Graduation Projects)
+  - `PR #291` (أساسات المجالس الأكاديمية ورؤساء الأقسام D01)
+  - `PR #299` (شؤون الخريجين Auth-04)
+  - `PR #311` (المجالس الأكاديمية C0-C9)
+  - `PR #312` (مطابقة التقارير وتحديث الكتالوج Canonical Catalog)
+  - `PR #314` (تيار إطلاق أخضر إضافي Green Release Stream)
+  - `B1 PR #310` (`B1_FINAL_SHA=PENDING` لحين إغلاق `LONGRUN-18`)
 - **متغيرات الإصدار الحالية**:
-  - `RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411`
+  - `RC313_SHA=resolve dynamically at finalization` (ديناميكي عند التثبيت النهائي — عدم التجميد على e3db0cc330106518d5ab9ca6874d70d9e98b1411 القديم)
+  - `PR314_SHA=resolve dynamically` (تحديد ديناميكي — تيار إطلاق أخضر إضافي مدمج بالتوازي في #313)
   - `B1_FINAL_SHA=PENDING`
   - `FINAL_RC_SHA=PENDING`
   - `PRODUCTION_EXECUTION=NOT_AUTHORIZED`

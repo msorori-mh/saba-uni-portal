@@ -5,7 +5,9 @@
 - **المعرّف**: `PORTAL-FINAL-OWNER-GATE-BOARD-01`
 - **الفرع المصشتق**: `docs/portal-final-production-runbook-prep-01`
 - **شجرة العمل**: `C:\projects\saba-production-runbook-prep`
-- **مرجع RC313**: PR `#313` (`e3db0cc330106518d5ab9ca6874d70d9e98b1411`)
+- **تركيبة الإصدار المستهدفة**: `#293` + `#291` + `#299` + `#311` + `#312` + `#314` + `B1 #310 PENDING`
+- **مرجع RC313**: PR `#313` — الـ SHA الحالي: `e3db0cc330106518d5ab9ca6874d70d9e98b1411` (`RC313_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411` - يُحل ديناميكياً عند تقدم PR #313 لتضمين PR #314)
+- **مرجع PR314**: PR `#314` — الـ SHA الحالي: `faaf96533a6a4b54aed3d453309cfb5779c79e6f` (`PR314_IN_RC=NO`, jari integration)
 - **مرجع B1**: PR `#310` (`B1_FINAL_SHA=PENDING`)
 - **السيادة السياسية**: لا يجوز استبدال التخويل الصريح لأي بوابة بموافقة سابقة أو موافقة شاملة. كل بوابة تتطلب قرار مالك مستقل وموثق.
 
@@ -18,16 +20,16 @@
 ### 1. بوابات الدمج والمصدر ومرشح الإصدار (Gates 01 - 03)
 
 #### GATE-01: Source Merges Gate (`GATE_OWNER_SOURCE_MERGES`)
-- **CURRENT_STATUS**: `OPEN_PREPARED` (المصدر جاهز على PR #313 بدون دمج بـ main)
-- **PREREQUISITE**: مرور كافة اختبارات CI على PR #313 (`bun test`, `tsc`, `build`, `diff --check`).
+- **CURRENT_STATUS**: `OPEN_PREPARED` (المصدر متوافق ومجهز لـ PR #313 بالتوازي مع إدراج PR #314)
+- **PREREQUISITE**: مرور كافة اختبارات CI على PR #313 و PR #314 (`bun test`, `tsc`, `build`, `diff --check`).
 - **ACTION**: مراجعة شجرة المصدر المستقلة وتأكيد خلوها من أي تعارضات دمج مع `main`.
 - **VERIFY**: `git merge-base main HEAD` يثبت عدم انحراف السلسلة.
 - **STOP_CONDITION**: ظهور أي فشل في CI أو التعارضات المصدرية.
 - **OWNER_DECISION_REQUIRED**: قرار مالك الكود المصشتق بالسماح بدمج المصدر (`OWNER_APPROVE_SOURCE_MERGE`).
 
 #### GATE-02: Final RC Acceptance Gate (`GATE_OWNER_FINAL_RC_ACCEPTANCE`)
-- **CURRENT_STATUS**: `PENDING_B1_SLOT` (RC313 مثبت كـ non-B1 RC، وفي انتظار تثبيت SHA البناء لـ B1 من PR #310)
-- **PREREQUISITE**: إغلاق `LONGRUN-18` وتحديث `B1_FINAL_SHA` إلى قيمة حقيقية معتمدة.
+- **CURRENT_STATUS**: `PENDING_B1_SLOT_AND_PR314_INTEGRATION` (RC313 يحل الـ SHA ديناميكياً عند الاعتماد النهائي لتضمين PR #314، وفي انتظار تثبيت SHA البناء لـ B1 من PR #310)
+- **PREREQUISITE**: إغلاق `LONGRUN-18` وتحديث `B1_FINAL_SHA` واجتياز الدمج التوازي لـ PR #314.
 - **ACTION**: توقيع وثيقة مرشح الإصدار النهائي الشامل (Final Integrated Release Candidate SHA).
 - **VERIFY**: المطابقة الرقمية بين الـ SHA الموثق في التقرير والـ HEAD لفرع الإطلاق.
 - **STOP_CONDITION**: بقاء `B1_FINAL_SHA=PENDING` أو وجود تعديلات غير موثقة على شجرة الإصدار.
@@ -48,10 +50,10 @@
 #### GATE-04: GP Migrations Apply Gate (`GATE_OWNER_GP_MIGRATIONS`)
 - **CURRENT_STATUS**: `HOLD_PENDING_PREVIOUS_GATES`
 - **PREREQUISITE**: نجاح GATE-01 إلى GATE-03 وتأكيد مطابقة كتالوج قاعدة البيانات.
-- **ACTION**: تطبيق migrations الخاصة بمشاريع التخرج واحدة تلو الأخرى (`max_migrations_per_apply_session=1`).
-- **VERIFY**: وجود الجداول والسياسات الخاصة بمشاريع التخرج في الكتالوج.
+- **ACTION**: تطبيق migration حارس مشاريع التخرج (`20260808010000_gp_student_level4_only_eligibility_guard_01.sql`).
+- **VERIFY**: وجود دالة `check_gp_student_level4_eligibility` في الكتالوج.
 - **STOP_CONDITION**: خطأ تطبيق RLS أو فشل الفحص البعدي.
-- **OWNER_DECISION_REQUIRED**: موافقة المالك على تطبيق migrations مشاريع التخرج (`OWNER_APPROVE_GP_MIGRATIONS`).
+- **OWNER_DECISION_REQUIRED**: موافقة المالك على تطبيق migration مشاريع التخرج (`OWNER_APPROVE_GP_MIGRATIONS`).
 
 #### GATE-05: GP TEST_ONLY Package Approval Gate (`GATE_OWNER_GP_TEST_ONLY_PKG`)
 - **CURRENT_STATUS**: `HOLD_NOT_EXECUTED`
@@ -76,23 +78,23 @@
 #### GATE-07: GA Foundation Migrations Gate (`GATE_OWNER_GA_FOUNDATION`)
 - **CURRENT_STATUS**: `HOLD_PENDING_PREVIOUS_GATES`
 - **PREREQUISITE**: نجاح GATE-03 وتأكيد سلامة جدول `staff_profiles` و `student_requests`.
-- **ACTION**: تطبيق migration الهيكلية الأساسية لـ GA (`20260711000000` و `20260711020000`).
-- **VERIFY**: وجود العمود `university_email` والجداول التأسيسية.
-- **STOP_CONDITION**: فشل إضافة العمود أو تعارض المفاتيح.
+- **ACTION**: تطبيق migration الهيكلية الأساسية لـ GA (`20260808210000_ga_mvp_foundation_01.sql`).
+- **VERIFY**: وجود جدول `graduate_profiles` والجداول التأسيسية.
+- **STOP_CONDITION**: فشل إنشاء الجداول أو تعارض المفاتيح.
 - **OWNER_DECISION_REQUIRED**: موافقة المالك على تطبيق أساسات شؤون الخريجين (`OWNER_APPROVE_GA_FOUNDATION`).
 
 #### GATE-08: GA Completion Migrations Gate (`GATE_OWNER_GA_COMPLETION`)
 - **CURRENT_STATUS**: `HOLD_PENDING_PREVIOUS_GATES`
 - **PREREQUISITE**: نجاح GATE-07.
-- **ACTION**: تطبيق migration تقييد تفعيل سير العمل للأدمن (`20260713010000`).
-- **VERIFY**: مطابقة سياسة RLS على `student_request_workflows`.
-- **STOP_CONDITION**: حظر الأدمن أو السماح لغير الأدمن بتفعيل سير العمل.
+- **ACTION**: تطبيق migration كمال مسارات وتصاريح شؤون الخريجين (`20260808210100_ga_mvp_completion_01.sql`).
+- **VERIFY**: مطابقة جدول `graduate_clearance_requests`.
+- **STOP_CONDITION**: فشل إنشاء سير العمل أو حظر الأدمن.
 - **OWNER_DECISION_REQUIRED**: موافقة المالك على اكتمال شؤون الخريجين (`OWNER_APPROVE_GA_COMPLETION`).
 
 #### GATE-09: GA Authorization-04 Gate (`GATE_OWNER_GA_AUTH04`)
 - **CURRENT_STATUS**: `HOLD_PENDING_PREVIOUS_GATES`
 - **PREREQUISITE**: نجاح GATE-08 واجتياز PR #299 المدمج.
-- **ACTION**: تطبيق حارس الصلاحيات والتفويض المباشر عبر RPC لشؤون الخريجين.
+- **ACTION**: تطبيق حارس الصلاحيات والتفويض المباشر عبر RPC لشؤون الخريجين (`20260808210200_ga_authorization_04.sql`).
 - **VERIFY**: نجاح مصفوفة ALLOW للمكلّف و DENY لكافة الأدوار الأخرى.
 - **STOP_CONDITION**: فشل اختبار DENY أو السماح بتجاوز الصلاحيات.
 - **OWNER_DECISION_REQUIRED**: موافقة المالك على تفويض Auth-04 لشؤون الخريجين (`OWNER_APPROVE_GA_AUTH04`).
@@ -119,7 +121,7 @@
 
 #### GATE-12: Councils C0-C9 Migrations Gate (C0 through C9 Individually) (`GATE_OWNER_COUNCILS_C0_C9_INDIVIDUAL`)
 - **CURRENT_STATUS**: `HOLD_PENDING_PREVIOUS_GATES`
-- **PREREQUISITE**: نجاح GATE-03 وتوفر التخويل لكل خطوة C0, C1, C2, C3, C4, C5, C6, C7, C8, C9 بشكل مفصل ومستقل.
+- **PREREQUISITE**: نجاح GATE-03 وتوفر التخويل لكل خطوة C0 (`20260808120000`), C1 (`20260808121000`), C2 (`20260808122000`), C3 (`20260808130000`), C4 (`20260808140000`), C5 (`20260808150000`), C6 (`20260808160000`), C7 (`20260808170000`), C8 (`20260808171000`), C9 (`20260808180000`) بشكل مفصل ومستقل.
 - **ACTION**: تطبيق ملفات SQL للمجالس العشرة واحداً تلو الآخر بالترتيب المعتمد.
 - **VERIFY**: إجراء استعلام catalog مخصص بعد كل migration يُثبت الكائن المنشأ قبل فتح الخطوة التالية.
 - **STOP_CONDITION**: أي فشل في أي من الخطوات C0-C9 يوقف تسلسل المجالس فوراً.
@@ -147,71 +149,70 @@
 
 #### GATE-15: B1 Fresh Production Baseline Gate (`GATE_OWNER_B1_FRESH_BASELINE`)
 - **CURRENT_STATUS**: `HOLD_PENDING_B1_SHA`
-- **PREREQUISITE**: نجاح GATE-14 وأخذ لقطة خط الأساس لقاعدة البيانات الإنتاجية.
-- **ACTION**: تأكيد خط الأساس النظيف وتثبيت الحالات السابقة للطلبات الخمس.
-- **VERIFY**: عدم وجود أي طلبات معلقة ببيانات غير صحيحة أو حالات غير معروفة.
-- **STOP_CONDITION**: اكتشاف طلبات تاريخية مجهولة الهيكل.
-- **OWNER_DECISION_REQUIRED**: اعتماد المالك لخط الأساس لـ B1 (`OWNER_APPROVE_B1_FRESH_BASELINE`).
+- **PREREQUISITE**: نجاح GATE-14 واجتياز الفحص المسبق الأساسي لـ B1.
+- **ACTION**: تثبيت قاعدة خط الأساس النظيفة للخدمات الخمس على الإنتاج.
+- **VERIFY**: خلو جدول `student_requests` من أي طلبات تجريبية غير رسمية.
+- **STOP_CONDITION**: اكتشاف طلبات غير رسمية أو خلل في الجداول.
+- **OWNER_DECISION_REQUIRED**: موافقة المالك على تثبيت خط الأساس النظيف لـ B1 (`OWNER_APPROVE_B1_FRESH_BASELINE`).
 
-#### GATE-16: B1 267 Matrix Execution Gate (`GATE_OWNER_B1_267_MATRIX_EXECUTION`)
+#### GATE-16: B1 Sequential Migrations Apply Gate (`GATE_OWNER_B1_SEQUENTIAL_APPLY`)
 - **CURRENT_STATUS**: `HOLD_PENDING_B1_SHA`
-- **PREREQUISITE**: نجاح GATE-15 وتطبيق التسلسل الكامل لـ B1 manifest (seq 01 إلى seq 19/20).
-- **ACTION**: تنفيذ مصفوفة التحقق الشاملة الـ 267 لاختبار شروط RLS و RPC والحدود لكل خدمة.
-- **VERIFY**: اجتياز 267 فحص بنجاح 100% ودون أي خرق أمني.
-- **STOP_CONDITION**: فشل فحص واحد من أصل 267 فحصاً.
-- **OWNER_DECISION_REQUIRED**: اعتماد المالك لتنفيذ مصفوفة الـ 267 (`OWNER_APPROVE_B1_267_MATRIX_EXECUTION`).
+- **PREREQUISITE**: نجاح GATE-15 وإغلاق `LONGRUN-18`.
+- **ACTION**: تطبيق migrations الخدمات الخمس بالتسلسل المعتمد في `B1-SEQUENTIAL-APPLY-MANIFEST.json`.
+- **VERIFY**: مطابقة الكائنات المتوقعة بعد كل تطبيق مفرد.
+- **STOP_CONDITION**: أي خطأ في التطبيق الفردي يوقف التسلسل.
+- **OWNER_DECISION_REQUIRED**: موافقة المالك على تنفيذ التسلسل الفردي لـ B1 (`OWNER_APPROVE_B1_SEQUENTIAL_APPLY`).
 
-#### GATE-17: B1 Cleanup Gate (`GATE_OWNER_B1_CLEANUP`)
-- **CURRENT_STATUS**: `HOLD_NOT_RUN`
-- **PREREQUISITE**: اجتياز مصفوفة 267 بنجاح.
-- **ACTION**: إزالة أي مخلفات سابقة أو بيانات مؤقتة ناتجة عن التحقق بدون مساس بالسجلات التاريخية.
-- **VERIFY**: الكتالوج نظيف تماماً وخالي من الجداول المؤقتة.
-- **STOP_CONDITION**: حذف أو تعديل أي سجل في السجلات المحمية.
-- **OWNER_DECISION_REQUIRED**: موافقة المالك على تنظيف البيئة التشغيلية (`OWNER_APPROVE_B1_CLEANUP`).
+#### GATE-17: B1 Visibility False Strict Baseline Gate (`GATE_OWNER_B1_VISIBILITY_FALSE`)
+- **CURRENT_STATUS**: `HOLD_NOT_VERIFIED`
+- **PREREQUISITE**: نجاح GATE-16 وتطبيق `20260802070000_b1_34_five_services_terminal_visibility_false.sql`.
+- **ACTION**: تأكيد الحظر الصارم للرؤية (`student_visible=false`) للخدمات الخمس قبل قرار الإطلاق.
+- **VERIFY**: `SELECT count(*) FROM student_request_types WHERE code IN (...) AND student_visible = false;` يعيد `5`.
+- **STOP_CONDITION**: خرق شرط `student_visible=false` قبل الموافقة الصريحة.
+- **OWNER_DECISION_REQUIRED**: اعتماد المالك للحظر الصارم للرؤية قبل التفعيل (`OWNER_APPROVE_B1_VISIBILITY_FALSE`).
 
-#### GATE-18: B1 Visibility Activation Gate (`GATE_OWNER_B1_VISIBILITY_ACTIVATION`)
-- **CURRENT_STATUS**: `HOLD_INACTIVE`
-- **PREREQUISITE**: نجاح GATE-14 حتى GATE-17.
-- **ACTION**: تحويل علم `student_visible=true` للخدمات الخمس واحدة تلو الأخرى بالترتيب المعتمد:
-  `enrollment_suspension` → `excused_absence` → `file_withdrawal` → `department_transfer` → `final_chance`.
-- **VERIFY**: الخدمة المستهدفة فقط `student_visible=true` والخدمات الأخرى لم تتأثر.
-- **STOP_CONDITION**: تفعيل خدمتين دفعة واحدة أو ظهور خدمة دون اكتمال بواباتها.
-- **OWNER_DECISION_REQUIRED**: موافقة المالك الفردية على تفعيل رؤية كل خدمة من الخدمات الخمس (`OWNER_APPROVE_B1_SERVICE_VISIBILITY_X`).
+#### GATE-18: B1 Positive Fixtures Execution Gate (`GATE_OWNER_B1_POSITIVE_FIXTURES`)
+- **CURRENT_STATUS**: `HOLD_NOT_EXECUTED`
+- **PREREQUISITE**: نجاح GATE-17.
+- **ACTION**: تنفيذ مصفوفة الاختبارات الإيجابية الـ 19/36 المعتمدة للخدمات الخمس.
+- **VERIFY**: نجاح كافة المعاملات واجتياز اختبارات Bun التعاقدية.
+- **STOP_CONDITION**: أي فشل في مصفوفة الاختبارات الإيجابية.
+- **OWNER_DECISION_REQUIRED**: موافقة المالك على نتائج المصفوفة الإيجابية لـ B1 (`OWNER_APPROVE_B1_POSITIVE_FIXTURES`).
 
 ---
 
-### 6. بوابات النشر والاختبار النهائي والاعتماد (Gates 19 - 22)
+### 6. بوابات الإطلاق والنشر والتحقق النهائي (Gates 19 - 22)
 
-#### GATE-19: Deployment Gate (`GATE_OWNER_DEPLOYMENT`)
-- **CURRENT_STATUS**: `HOLD_DEPLOYMENT_NOT_AUTHORIZED`
-- **PREREQUISITE**: نجاح بوابات قاعدة البيانات والترميز كاملة وتوقيع مرشح الإصدار النهائي.
-- **ACTION**: تنفيذ عملية نشر بناء الإصدار (Build Bundle Deployment) على خوادم الإنتاج.
-- **VERIFY**: اكتمال بناء الخادم واستجابة الأداة بـ HTTP 200 OK.
-- **STOP_CONDITION**: أي خطأ في بناء البرمجيات أو فشل التشغيل.
-- **OWNER_DECISION_REQUIRED**: قرار موافقة المالك الصريح على إجراء النشر (`OWNER_APPROVE_DEPLOYMENT`).
+#### GATE-19: Production Build & Deployment Gate (`GATE_OWNER_DEPLOYMENT`)
+- **CURRENT_STATUS**: `HOLD_NOT_AUTHORIZED`
+- **PREREQUISITE**: نجاح GATE-01 إلى GATE-18 بالكامل وتوقيع مرشح الإصدار النهائي.
+- **ACTION**: النشر الفعلي للأداة على بيئة الإنتاج المباشرة (`PRODUCTION_EXECUTION=AUTHORIZED`).
+- **VERIFY**: المطابقة التامة بين الـ Build SHA والـ Commit SHA المنشور.
+- **STOP_CONDITION**: أي انحراف في بصمة الكود المنشور أو فشل النشر.
+- **OWNER_DECISION_REQUIRED**: التخويل النهائي والصريح بالنشر الإنتاجي (`OWNER_APPROVE_DEPLOYMENT`).
 
-#### GATE-20: Publish Gate (`GATE_OWNER_PUBLISH`)
-- **CURRENT_STATUS**: `HOLD_PUBLISH_NOT_AUTHORIZED`
-- **PREREQUISITE**: نجاح GATE-19 وقراءة الـ `DEPLOYED_SHA` من البيئة الحية.
-- **ACTION**: الإعلان الرسمي ونشر الأداة للمستخدمين على النطاق الإنتاجي.
-- **VERIFY**: تطابق `DEPLOYED_SHA` المكتشف عبر القراءة الحية مع `RC313_SHA` (و SHA البناء النهائي الشامل).
-- **STOP_CONDITION**: عدم تطابق الـ SHA المنشور مع الـ SHA المعتمد.
-- **OWNER_DECISION_REQUIRED**: قرار موافقة المالك الصريح على النشر النهائي للمستخدمين (`OWNER_APPROVE_PUBLISH`).
+#### GATE-20: Feature Visibility Activation Gate (`GATE_OWNER_VISIBILITY_ACTIVATION`)
+- **CURRENT_STATUS**: `HOLD_NOT_ACTIVATED`
+- **PREREQUISITE**: نجاح GATE-19 واكتشاف النظام المنشور بنجاح.
+- **ACTION**: تعديل وسوم `student_visible=true` للخدمات الخمس والمجالس وشؤون الخريجين بقرارات مالك مفردة لكل خدمة.
+- **VERIFY**: ظهور الخدمات في واجهة الطالب والمسؤول بشكل تفاعلي.
+- **STOP_CONDITION**: ظهور خطأ في واجهة المستخدم أو انحراف في تفعيل الخدمة.
+- **OWNER_DECISION_REQUIRED**: قرارات موافقة فردية لتفعيل رؤية كل خدمة للطلاب (`OWNER_APPROVE_VISIBILITY_SERVICE_X`).
 
-#### GATE-21: Operational E2E Gate (`GATE_OWNER_OPERATIONAL_E2E`)
+#### GATE-21: End-to-End Post-Deploy Verification Gate (`GATE_OWNER_POST_DEPLOY_E2E`)
 - **CURRENT_STATUS**: `HOLD_NOT_EXECUTED`
-- **PREREQUISITE**: نجاح GATE-20 واكتمال النشر الحقيقي.
-- **ACTION**: تشغيل حزمة الاختبارات الدخانية والتأكيدية طرف-لطرف (Student + Faculty + Admin Smoke) على البيئة الحية باستخام حسابات اختبارية مخصصة.
-- **VERIFY**: اجتياز كافة المسارات وتأكيد عدم وجود خطأ 500 أو انحراف في الواجهة.
-- **STOP_CONDITION**: فشل أي اختبار دخاني حقيقي.
-- **OWNER_DECISION_REQUIRED**: موافقة المالك التشغيلي على نتائج اختبارات E2E الحية (`OWNER_APPROVE_OPERATIONAL_E2E`).
+- **PREREQUISITE**: نجاح GATE-20 وتفعيل رؤية الخدمات.
+- **ACTION**: تشغيل حزم الاختبارات الدخانية (Smoke Tests) واختبارات E2E التفاعلية على البيئة المباشرة.
+- **VERIFY**: اجتياز 100% من الاختبارات دون أي خطأ في السجلات.
+- **STOP_CONDITION**: أي فشل في اختبارات E2E المباشرة.
+- **OWNER_DECISION_REQUIRED**: موافقة المالك على اعتماد النتائج التشغيلية الشاملة (`OWNER_APPROVE_POST_DEPLOY_E2E`).
 
-#### GATE-22: Final Acceptance & Handover Gate (`GATE_OWNER_FINAL_ACCEPTANCE`)
-- **CURRENT_STATUS**: `HOLD_FINAL_ACCEPTANCE_PENDING`
-- **PREREQUISITE**: نجاح GATE-01 إلى GATE-21 كاملة بدون استثناء وتواجد حزمة الأدلة الشاملة.
-- **ACTION**: توقيع وثيقة التسليم التشغيلي والاعتماد النهائي للكلية وتداول النظام بصفة رسمية.
-- **VERIFY**: كافة البوابات الـ 21 بحالة `PASS` متبوعة بالأدلة المرفقة.
-- **STOP_CONDITION**: بقاء أي بوابة بحالة `HOLD` أو غياب وثيقة دليل واحدة.
-- **OWNER_DECISION_REQUIRED**: القرار الختامي للمالك باكتفاء واعتماد الإطلاق الإنتاجي كاملاً (`OWNER_APPROVE_FINAL_ACCEPTANCE`).
+#### GATE-22: Enrollment Certificate Regression Protection Gate (`GATE_OWNER_ENROLLMENT_CERT_PROTECTION`)
+- **CURRENT_STATUS**: `HOLD_VERIFICATION_REQUIRED`
+- **PREREQUISITE**: نجاح GATE-21.
+- **ACTION**: الفحص الحاسم لوثيقة شهادة القيد (`enrollment_certificate`) وتأكيد عدم مساسها أو انحرافها.
+- **VERIFY**: المطابقة الرقمية لمخرجات شهادة القيد وسجلات التوقيع مع الـ Immutable Baseline.
+- **STOP_CONDITION**: أي تغيير في سلوك أو بيانات أو صيغة شهادة القيد.
+- **OWNER_DECISION_REQUIRED**: الاعتماد الصارم النهائي لحماية شهادة القيد وإغلاق ملف الإطلاق (`OWNER_APPROVE_ENROLLMENT_CERT_PROTECTION`).
 
 ---
