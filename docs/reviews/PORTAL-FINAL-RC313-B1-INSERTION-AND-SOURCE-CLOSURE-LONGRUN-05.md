@@ -17,7 +17,7 @@ OLD_RC_HEAD_SHA=fc103581b71f26213e0b1dbab69166810047501f
 B1_IMPLEMENTATION_SHA=cd78a6b480e9059d9fb829fb6e64a8e5fd1d98a2
 B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12
 FINAL_RC_PRODUCT_SHA=393626a81ba5b6200b56326ffb72c7604b1cdf8d
-FINAL_RC_HEAD_SHA=94b49a6b154902786253ae0e272120da16441c76
+FINAL_RC_HEAD_SHA=e775b4dd00881d06d2881d480bdffbd7ff8368f1
 ```
 
 Do **not** use bare `RC_SHA`.
@@ -236,4 +236,4 @@ Product insertion already landed at `FINAL_RC_PRODUCT_SHA` (merge commit).
 
 `PASS_PORTAL_FINAL_RC313_B1_INSERTION_AND_SOURCE_CLOSURE_LONGRUN_05`
 
-(CI hard gates Web CI + Migration Review recorded after push; docs pin updates `FINAL_RC_HEAD_SHA`.)
+(Hard gates: Web CI + Migration Review must PASS on this tip. Docs pin FINAL_RC_HEAD_SHA to the tip identity commit parent when a follow-up pin lands; authoritative tip is git rev-parse HEAD on the Draft PR branch.)
