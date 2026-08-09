@@ -1,8 +1,8 @@
-# PORTAL FINAL RC V4 — Integration Manifest
+﻿# PORTAL FINAL RC V4 â€” Integration Manifest
 
 Mission: `PORTAL-RC313-PR314-SEMANTIC-INTEGRATION-REMEDIATION-LONGRUN-03`
 (prior: `PORTAL-RC313-INTEGRATE-PR314-FACULTY-COUNCILS-UX-LONGRUN-02`
- → `PORTAL-FINAL-RC-V4-PREBUILD-NON-B1-INTEGRATION-LONGRUN-01`)
+ â†’ `PORTAL-FINAL-RC-V4-PREBUILD-NON-B1-INTEGRATION-LONGRUN-01`)
 
 **Status:** non-B1 synthetic RC candidate ready for B1 insertion slot.
 Includes Faculty Academic Councils operational UX (#314) with semantic
@@ -31,42 +31,42 @@ Do **not** use a bare `RC_SHA` label when multiple tips exist across commits.
 RC_IMPLEMENTATION_SHA=0fc1d7b9384be7d0b00fd8d2feb41a00d2a12938
 RC_PREVIOUS_HEAD_SHA=e3db0cc330106518d5ab9ca6874d70d9e98b1411
 RC_MECHANICAL_MERGE_SHA=954ba6655c3dd48c5e5a8baa6289a5037752e737
-RC_CURRENT_HEAD_SHA=c58e0c3a65731e81fd2c47ee02852a23c4cb5b06
+RC_CURRENT_HEAD_SHA=acc3fc4655265a436c7bba6b2edb1017046e60d5
 ```
 
 Notes:
 
-- `RC_IMPLEMENTATION_SHA` — LONGRUN-01 integration implementation tip
+- `RC_IMPLEMENTATION_SHA` â€” LONGRUN-01 integration implementation tip
   (streams #293/#291/#299/#311/#312 + main tip absorb), before docs-only
   follow-up on the Draft PR.
-- `RC_PREVIOUS_HEAD_SHA` — Draft PR #313 branch tip at LONGRUN-02 start
+- `RC_PREVIOUS_HEAD_SHA` â€” Draft PR #313 branch tip at LONGRUN-02 start
   (includes LONGRUN-01 docs/manifest). Also the OLD_RC_SHA for LONGRUN-03.
-- `RC_MECHANICAL_MERGE_SHA` — LONGRUN-02 mechanical merge of #314 that took
+- `RC_MECHANICAL_MERGE_SHA` â€” LONGRUN-02 mechanical merge of #314 that took
   the #314 route orchestrator and dropped #311 consumers (Codex HOLD input).
-- `RC_CURRENT_HEAD_SHA` — semantic remediation tip (`c58e0c3a`; product code).
+- `RC_CURRENT_HEAD_SHA` â€” semantic remediation tip (`c58e0c3a`; product code).
   A later docs-only commit may advance the branch tip without renaming this.
 - `MAIN_BASE_SHA` is `origin/main` HEAD at LONGRUN-01 inventory start.
 - During LONGRUN-01, main advanced by two commits (Lovable security-scan
-  migration `20260809183940_e3eff340-…`). That tip was absorbed so the RC
+  migration `20260809183940_e3eff340-â€¦`). That tip was absorbed so the RC
   stays current with main without rewriting history.
-- `B1_PR310_SHA=PENDING` — PR #310 is intentionally excluded.
+- `B1_PR310_SHA=PENDING` â€” PR #310 is intentionally excluded.
 - `FACULTY_COUNCILS_UX_PR314_SHA=faaf96533a6a4b54aed3d453309cfb5779c79e6f`
 
 ## Exact integration order
 
-1. Branch from `MAIN_BASE_SHA` → `rc/portal-final-v4-prebuild-non-b1-01`
-2. `integrate(pr-293)` — Graduation Projects Level-4 TEST_ONLY fixture package
-3. `integrate(pr-291)` — Graduates Affairs multimodel authorization remediation
-4. `integrate(pr-299)` — Graduates Affairs stacked promotion/authorization path
+1. Branch from `MAIN_BASE_SHA` â†’ `rc/portal-final-v4-prebuild-non-b1-01`
+2. `integrate(pr-293)` â€” Graduation Projects Level-4 TEST_ONLY fixture package
+3. `integrate(pr-291)` â€” Graduates Affairs multimodel authorization remediation
+4. `integrate(pr-299)` â€” Graduates Affairs stacked promotion/authorization path
    (ancestor of `#291` tip; no duplicate commits applied)
-5. `integrate(pr-311)` — Academic Councils C0–C9 legacy production reconciliation
+5. `integrate(pr-311)` â€” Academic Councils C0â€“C9 legacy production reconciliation
    (mechanical conflict resolution only: CI trigger union + route semantic hash pin)
-6. `integrate(pr-312)` — Faculty Dashboard operational-priority redesign
-7. `merge(origin/main)` — absorb `MAIN_TIP_ABSORBED_SHA`
+6. `integrate(pr-312)` â€” Faculty Dashboard operational-priority redesign
+7. `merge(origin/main)` â€” absorb `MAIN_TIP_ABSORBED_SHA`
 8. Add LONGRUN-01 manifest + mission report (docs-only)
-9. `integrate(pr-314)` — Faculty Academic Councils operational dashboard UX
+9. `integrate(pr-314)` â€” Faculty Academic Councils operational dashboard UX
    (LONGRUN-02 mechanical merge; conflict on `faculty-portal.academic-councils.tsx`)
-10. LONGRUN-03 semantic remediation — restore #311/#313 consumers inside #314 UX:
+10. LONGRUN-03 semantic remediation â€” restore #311/#313 consumers inside #314 UX:
     reports discovery, topic review queue, edit/resubmit, open-intake submit
     (`meeting_id`), C9 governance/role dashboards/notification bell; single
     composition (no duplicated operational sections)
@@ -87,15 +87,15 @@ Notes:
 ## Dependency graph (runtime)
 
 ```
-main (1b14201e) … tip absorbed 0ba4ee53
-├── #293 GP fixtures (independent)
-├── #291 GA remediation ──► #299 GA promotion (stacked on #291)
-├── #311 Councils tip (stacked on councils C9 readiness; merge-base e71d9aa8)
-├── #312 Faculty dashboard (independent)
-└── #314 Faculty councils operational UX (independent UI on main tip;
+main (1b14201e) â€¦ tip absorbed 0ba4ee53
+â”œâ”€â”€ #293 GP fixtures (independent)
+â”œâ”€â”€ #291 GA remediation â”€â”€â–؛ #299 GA promotion (stacked on #291)
+â”œâ”€â”€ #311 Councils tip (stacked on councils C9 readiness; merge-base e71d9aa8)
+â”œâ”€â”€ #312 Faculty dashboard (independent)
+â””â”€â”€ #314 Faculty councils operational UX (independent UI on main tip;
          LONGRUN-03 adapts presentation while retaining #311 contracts)
 
-#310 B1 → NOT INTEGRATED (PENDING slot)
+#310 B1 â†’ NOT INTEGRATED (PENDING slot)
 ```
 
 ## B1 insertion slot (minimum work)
@@ -118,7 +118,7 @@ New promoted migrations on this RC (lexicographic apply order):
 
 | Version | Stream | File |
 |---|---|---|
-| 20260808120000…20260808180000 | Councils #311 | `councils_c0` … `councils_c9` (10 files) |
+| 20260808120000â€¦20260808180000 | Councils #311 | `councils_c0` â€¦ `councils_c9` (10 files) |
 | 20260808210000 | GA #299 | `ga_mvp_foundation_01.sql` |
 | 20260808210100 | GA #299 | `ga_mvp_completion_01.sql` |
 | 20260808210200 | GA #299 | `ga_authorization_04.sql` |
