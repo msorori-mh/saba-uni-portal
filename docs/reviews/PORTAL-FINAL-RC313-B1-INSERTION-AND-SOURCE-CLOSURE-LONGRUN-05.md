@@ -17,7 +17,7 @@ OLD_RC_HEAD_SHA=fc103581b71f26213e0b1dbab69166810047501f
 B1_IMPLEMENTATION_SHA=cd78a6b480e9059d9fb829fb6e64a8e5fd1d98a2
 B1_FINAL_HEAD_SHA=1bdd2fafd37515e18031ef79b4f62233ecb12e12
 FINAL_RC_PRODUCT_SHA=393626a81ba5b6200b56326ffb72c7604b1cdf8d
-FINAL_RC_HEAD_SHA=e775b4dd00881d06d2881d480bdffbd7ff8368f1
+FINAL_RC_HEAD_SHA=fce000cb7a3823d96c7bcefbbad80ea3331a1f79
 ```
 
 Do **not** use bare `RC_SHA`.
@@ -231,6 +231,19 @@ No production access. Draft PR #313 kept. No merge to main. No auto-merge.
 - `docs/reviews/PORTAL-FINAL-RC313-B1-INSERTION-AND-SOURCE-CLOSURE-LONGRUN-05.md`
 
 Product insertion already landed at `FINAL_RC_PRODUCT_SHA` (merge commit).
+
+
+## M — Hard GitHub gates (tip `fce000cb7a3823d96c7bcefbbad80ea3331a1f79`)
+
+```
+WEB_CI=PASS
+MIGRATION_REVIEW=PASS
+B1_DEFINITIVE_OPERATOR_JOB=PASS
+BUN_FULL_TEST_JOB=PASS
+PG17_VERIFIER_MATRIX=PASS
+```
+
+All required checks SUCCESS on Draft PR #313 tip `fce000cb7a3823d96c7bcefbbad80ea3331a1f79` (no task-scoped remediation required).
 
 ## Final token
 
