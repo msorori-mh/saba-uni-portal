@@ -1,5 +1,5 @@
 {
-  "manifest_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-07",
+  "manifest_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08",
   "note": "Authoritative, in-repository target attestation. NOTHING here may be supplied, overridden or relaxed from the CLI. The launcher and the preflight read these values only from this file.",
   "endpoint": {
     "project_ref": "wpmicqriltrowwonknox",
@@ -119,229 +119,378 @@
     }
   ],
   "function_graph": {
-    "note": "REMEDIATION-07 G8. Complete transitive closure discovered by a production READ-ONLY attestation (SELECT on pg_proc/pg_get_functiondef only) plus the Migration-29 trigger-function closure. definition_sha256 is SHA256 of pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed. No entry may be null.",
-    "attested_at_utc": "2026-08-01T21:51:30Z",
+    "note": "LONGRUN-08 G8. Complete transitive closure attested via Lovable Cloud READ-ONLY SELECT on pg_proc/pg_get_functiondef only. Includes payment helper current_user_has_b1_e2e_88_actor_binding. No entry may be null.",
+    "attested_at_utc": "2026-08-08T20:30:00Z",
     "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
     "reattestation": {
-      "mission_id": "PORTAL-B1-FUNCTION-GRAPH-ENTRYPOINT-READONLY-REATTESTATION-AND-SOURCE-REPIN-23",
-      "production_migration_head": "20260801021541",
-      "repinned_entries": 1,
-      "graph_verdict": "28_total/28_resolved/28_matching/0_mismatched"
+      "mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
+      "repinned_entries": 36,
+      "graph_verdict": "36_total/36_resolved/36_matching/0_mismatched",
+      "channel": "Lovable Cloud query_database SELECT-only",
+      "production_rpc_calls": 0,
+      "production_writes": 0
     },
-    "closure_size": 28,
+    "closure_size": 36,
     "functions": [
       {
         "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
-        "definition_sha256": "07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b",
-        "definition_sha256_superseded": "109033a026b765266eb33ae5bd993118c9c6a69a3250520304b0c6ab9fedf791",
-        "definition_source_migration": "20260730175527",
-        "source_production_hash_equal": true,
+        "entry_point": true,
+        "definition_sha256": "10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "entry_point": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.apply_b1_academic_effect_for_request(uuid)",
-        "definition_sha256": "f65778ae23d6b8114cb6a5be09b97773bd033151c1948d0bb3204abc7135a8ac",
+        "entry_point": false,
+        "definition_sha256": "78c7821ba68c686a5997dd5cb9bee89eb17f52ec8a5ad85d47b539c2dc385021",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.apply_b1_department_transfer_effect(uuid)",
-        "definition_sha256": "c7025773b88fce8ee6e7547cd8d3b06d378908a9bd054f8da7f8222f7ccfaaa5",
+        "entry_point": false,
+        "definition_sha256": "c191a03dee94e0bd40f42f1a4762fb65f28d847f820512607d1330491f4c434f",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.apply_b1_enrollment_suspension_effect(uuid)",
-        "definition_sha256": "ac25732184d6d4ce7c7804dbc3823b53b213b635b99512b8d4fb09887901c6b9",
+        "entry_point": false,
+        "definition_sha256": "dd70aadd24bdfdfb4736f458c667b334b9571ef2b116ccf35cfb09cb76c362bd",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.apply_b1_excused_absence_effect(uuid)",
-        "definition_sha256": "f280ca0c08530409ce949d9bfa33faeb1aac7f2eee8fcb7ce9ee6332e96e8826",
+        "entry_point": false,
+        "definition_sha256": "07fdd58843dd95535f1703c2f3a9df3408d089df1261e1dec0e00bdb774d997c",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.apply_b1_file_withdrawal_effect(uuid)",
-        "definition_sha256": "9e489e9668783f022b60e6c2410262e6d29bd20eea26a47f54964f8133fa8c9d",
+        "entry_point": false,
+        "definition_sha256": "2ebc422a333d72b397ec017d1b1bc4ba09a793f3f94196aae5fa5db8229b8668",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.apply_b1_final_chance_effect(uuid)",
-        "definition_sha256": "bd6b16adcfab57dc9be06cb8a0e29f9c3f36b3c5f3f36b38a6175035f9a5fe74",
+        "entry_point": false,
+        "definition_sha256": "98aa43b46ebe3dffc945c598c37d68f088807089a25e17f9c5658f999308a4f1",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.assert_b1_runtime_step_assignee_effective(uuid)",
-        "definition_sha256": "cd37c05339c5e7d4142e109ee1ab30352aeaf1bfa3ee49cc43ef5f8e6b30c90e",
+        "entry_point": false,
+        "definition_sha256": "924535219149f124b60f3e0f4ed2b6235d46f7508cca41c37d1065bb13099473",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "migration_29_trigger_closure": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
-        "signature": "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)",
-        "definition_sha256": "4ed1775bd7598a049ca3f9b5937f11b1ee4725899a81f8ac4a71df7af5634362",
+        "signature": "public.assert_b1_runtime_step_row_assignee_effective(student_request_workflow_steps)",
+        "entry_point": false,
+        "definition_sha256": "f5ec0a70f543c0e09d011eefa56920a4dfa513abe8df5e152d6ad1c0809c42be",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "migration_29_trigger_closure": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.b1_assignment_identity_lock_key()",
-        "definition_sha256": "69dbed6746cd420b0094eb783e37a8a0d674ce7f836aa93044856ccf0b1d43ec",
+        "entry_point": false,
+        "definition_sha256": "cc5902f756f69d817dbfa8736497d42c7df65872897f6ad99045658506664ee6",
         "security": "INVOKER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "migration_29_trigger_closure": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_correlations_aligned(uuid,uuid,uuid)",
+        "entry_point": false,
+        "definition_sha256": "b8370052b3724c623b85290c54c4abe5eefaf5bb64c74b3f0557b4004bdaca4c",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_is_five_service(text)",
+        "entry_point": false,
+        "definition_sha256": "c93de84a0012b527c56fecf1269524071f7bd65ccdffe858a2c3fa76fee6026b",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_marker()",
+        "entry_point": false,
+        "definition_sha256": "b3c9a6bfa1c9625da61c72e269fa1e70d66e4a4b6808716d8da3daa65c0e324b",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_parse_correlation(text)",
+        "entry_point": false,
+        "definition_sha256": "20820255b9aabd56d4969072a7c12a8a38a48bc263586b080dd9f27c916c806e",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_request_correlation(uuid)",
+        "entry_point": false,
+        "definition_sha256": "280fced47670b1962c5174aa396c03e639d54c0831e8b923831218030a3f5ed2",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_request_is_marked(uuid)",
+        "entry_point": false,
+        "definition_sha256": "bc4e928200b60e0c58a8abc7d2f43318a94cdd53a6157ce6f276ea6b711ee775",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.b1_lock_assignment_identity_boundary()",
-        "definition_sha256": "30ceca8e2a60845093cbaa06b4c011ac4920a80a1874e377f58173c4170b6e30",
+        "entry_point": false,
+        "definition_sha256": "fa3a5943001e102e4acb998d35a61ed21f50149dbdf2f18be017ee80e246b72c",
         "security": "INVOKER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "migration_29_trigger_closure": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.b1_lock_assignment_identity_stmt()",
-        "definition_sha256": "4e63de611e3c0a0ae07574c13be2c6722d697355b806ba4563c50ed513362e48",
+        "entry_point": false,
+        "definition_sha256": "ef7fab64a8f4987e5e5b0baf9d511e535d191d2e755ab7d792cca37a2a53dd5a",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "migration_29_trigger_closure": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.b1_map_ui_staff_action(text)",
-        "definition_sha256": "5361cc1543d2329aa3196dda96c6fb9fabf5db75a9b4acef05c257b581305d3f",
+        "entry_point": false,
+        "definition_sha256": "bec4c955630382d03af1d3f941b8e3d00edaf2caced3c1dd87b2f24636634f0e",
         "security": "INVOKER",
         "owner": "postgres",
-        "search_path": "search_path=public, pg_temp"
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.can_current_user_act_on_step(uuid,text)",
-        "definition_sha256": "8925ba22dc61080cbaf353354995cb40ce734bf3ff6a06203602e4f9a7e38fdf",
+        "entry_point": false,
+        "definition_sha256": "5d2b46d7f5bc7434dacc9a89377e839539223498edfa53afc5dda466be766e22",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.current_user_has_b1_e2e_88_actor_binding(uuid,uuid,text)",
+        "entry_point": false,
+        "definition_sha256": "4a43bd524d8bcdd9d724a3c2466e5fa5f2df2d1ada9cf601d7a2cd32e6685337",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.current_user_has_b1_e2e_88_department_binding(uuid,text)",
+        "entry_point": false,
+        "definition_sha256": "25e8246a87717622161c4e74e3f62cb592b0c703b739d9e30425f5f1d0cad6d2",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.current_user_has_exact_processing_binding(uuid,uuid)",
-        "definition_sha256": "d07510198cf7c89a8f574cc39687bcd82825dd16cdc45991d43a64ea929285e9",
+        "entry_point": false,
+        "definition_sha256": "d98443a83201e3dde7f6f7e21575db62d74c7fc4c80707dc51eafa11a691b444",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.current_user_matches_transfer_department_scope(uuid,text)",
-        "definition_sha256": "a606fb5042a91f125bb7d88a685d9faaecd7584d8858d00eea4f77ba237d51c7",
+        "entry_point": false,
+        "definition_sha256": "a307d0859bf34e1115624fae3aaa82ac11f931f11b65a3c2335958d9f17acbbd",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.guard_b1_runtime_step_activation()",
-        "definition_sha256": "cb798f54e981e552a78300cb27550357fb8e0b1668686742f9cc660fd9fac2a1",
+        "entry_point": false,
+        "definition_sha256": "2523ae05c2f5f6fb250741c78f3dc2facc2bdece0854f43662d7c843bcb5874e",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "migration_29_trigger_closure": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.has_any_role(uuid,text[])",
-        "definition_sha256": "2673511089eb62974801e0d1d35c1b8568f69071874c537353abd129236f785a",
+        "entry_point": false,
+        "definition_sha256": "e2e431b29d4ba7f3ffb79ca2bfc3cc6830b50e77fbd6ef54578a2fb475064f38",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "student_profiles_trigger_closure": true,
-        "repinned_from_production_read_only": "2026-07-29T22:45:00Z"
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.is_b1_stored_request_type(text)",
-        "definition_sha256": "5bc14b53c66c89fb74aaa631c106089dfaf11febb9533a042a8c0c136db6c55c",
+        "entry_point": false,
+        "definition_sha256": "34db4ca396780f9cd8bf28d5c7aa6c4e565835f8369f4212444afdfb4d586b73",
         "security": "INVOKER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.is_owner_of_request(uuid,uuid)",
-        "definition_sha256": "3af5fce62271fb2c998b8066d2185553d7f7bd5cae5fad704fde761ecb263234",
+        "entry_point": false,
+        "definition_sha256": "8067b65c9525b2b83bbcf163140c559bf28b2b69c14ca2a0dec06e2e770f57da",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.is_valid_actor_request_action(text)",
-        "definition_sha256": "1a261965401a0978ee6130a92d9170f99a10f17fff9dcae351bc67bd1f2f80b6",
+        "entry_point": false,
+        "definition_sha256": "65050f9d11e2ad2aa02835eec0be7d0221e71eb20035e2935c7b7bbf852b5c22",
         "security": "INVOKER",
         "owner": "postgres",
-        "search_path": "search_path=public, pg_temp"
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.is_valid_b1_runtime_step_contract(text,text,text,text,text)",
-        "definition_sha256": "3e02f7d89ae45fc2896908f2409f6a96008e8893ef6f0f4d77546a8497650720",
+        "entry_point": false,
+        "definition_sha256": "5a584c5915437b335c2e6787b5a19dfe3d013735365fb751086008eb67e18ee5",
         "security": "INVOKER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.protect_student_sensitive_fields()",
-        "definition_sha256": "0aa3efc8e2dce49b7f0aa92a591da44ed7e8aec8b27967f59ee922fa7ecc6583",
+        "entry_point": false,
+        "definition_sha256": "45d6df61ecdb0fce6bb6a759171400cfd60f32d1f07218556a342d7c6e713708",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "student_profiles_trigger_closure": true,
-        "repinned_from_production_read_only": "2026-07-29T22:45:00Z"
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.record_external_university_payment_confirmation(uuid,text)",
-        "definition_sha256": "bbd71af7c9e32588fea8038dd898330001f2b037985cbb82992b44a5df0f5875",
+        "entry_point": true,
+        "definition_sha256": "edbae98c6e95d8d4f14a5a9a675c8bbb3abb0235a2343c24202358161ee983ca",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "entry_point": true
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.update_updated_at_column()",
-        "definition_sha256": "4b210dde823c21c4e1aa07135b278271f7f527add2a6f1c015aed9595f58a565",
+        "entry_point": false,
+        "definition_sha256": "4f969bb9535c476c235c45b984a7030118dc8a0e520b233d066e91beb4cb2f07",
         "security": "INVOKER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "student_profiles_trigger_closure": true,
-        "repinned_from_production_read_only": "2026-07-29T22:45:00Z"
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.user_matches_workflow_runtime_step(uuid)",
-        "definition_sha256": "4f87c5547f2216e82ff2564ca59ca765ac091017264e3e710c27a97cfe5118b6",
+        "entry_point": false,
+        "definition_sha256": "2ecf741a3e8da340da2c55b95714b9518e5e4e0858119e60a46e742b34ebfced",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.workflow_action_result_matches(text,text)",
-        "definition_sha256": "ad701791847740302d60eabc84c533cb35dcb1f5f880b0643fdcc0b164d83e16",
+        "entry_point": false,
+        "definition_sha256": "866ed42a5f38cedb24008b8d7844dd144a948578c455be0fded031c9506af9f8",
         "security": "INVOKER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
         "signature": "public.workflow_runtime_predecessors_satisfied(uuid)",
-        "definition_sha256": "a47e0c17f91af232335eef086a3aaa5590865ee9506e85f039e4ed1bca1064b1",
+        "entry_point": false,
+        "definition_sha256": "701fb6499fb36616a49c0ae71f0c4640ed4d86745d2add016f216c61b3900356",
         "security": "DEFINER",
         "owner": "postgres",
-        "search_path": "search_path=public"
+        "search_path": "search_path=public",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       }
     ],
     "forbidden_definition_patterns": [
@@ -495,13 +644,13 @@
     "status": "PINNED",
     "execution_authorized": false,
     "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
-    "artifact_sha256": "758da22be7c6c46b45c5f2e5f613408b501db27bcbb84286ba909b894ad133a4",
-    "fingerprint": "4c95c6a344cee2f52ade4a5312bd8240",
-    "generated_by": "Lovable read-only channel, immediately before the operator run",
-    "valid_for_minutes": 120,
-    "reviewed_package_sha": "0bc2e27f8c3985b8a35c2f1a19ed39955cb5007e",
-    "migration_head": "20260801021541",
-    "expected_migration_head": "20260801021541",
+    "artifact_sha256": "4683b59140eab163af99b8f5943c6600d61c98b1cf995a2c1cc6bca09cba2957",
+    "fingerprint": "86ccc1bbf280f466b7e7c0a902b17d5d",
+    "generated_by": "LONGRUN-10 baseline contract V2; fingerprint 86ccc1bbf280f466b7e7c0a902b17d5d at tip 20260807023229",
+    "valid_for_minutes": 10080,
+    "reviewed_package_sha": "3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6",
+    "migration_head": "20260807023229",
+    "expected_migration_head": "20260807023229",
     "scope": [
       "SR-20260713-2DE64041",
       "SR-20260715-FEDCB3E1",
@@ -516,8 +665,8 @@
     "negative_cases_executed": 0,
     "contains_secrets": false,
     "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
-    "captured_at_utc": "2026-08-01T23:33:44Z",
-    "invalidation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-STALE-BASELINE-INVALIDATION-09",
+    "captured_at_utc": "2026-08-09T00:50:00Z",
+    "invalidation_mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
     "fail_closed_rules": [
       "status != PINNED",
       "baseline self-authorizes execution (execution_authorized != false in the baseline artifact or in this manifest): a read-only capture must never authorize execution",
@@ -547,7 +696,8 @@
         "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60"
       }
     ],
-    "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-POST-FIXTURE-AUTHORITATIVE-BASELINE-CAPTURE-22-RERUN-25"
+    "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08",
+    "note": "G11: PENDING until later explicit baseline stage. Function-graph RO attestation is separate and READY."
   },
   "execution_authorization": {
     "remediation_mission_id": "PORTAL-B1-PINNED-BASELINE-EXECUTION-AUTHORIZATION-FAIL-CLOSED-REMEDIATION-26",
@@ -581,7 +731,7 @@
   "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab",
   "matrix": {
     "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
-    "sha256_lf": "5c76faffd33ccd9ed57ffc7d5a93f3217feea48cf33170414a4f06b07c5c7e46",
+    "sha256_lf": "b260caeaa6e4775a5f12e263729edeba90eb78b52a7a39b705b8d2c77fc72a8c",
     "negative_total": 267,
     "decomposition": "240 core + 24 illegal-action + 3 transfer-scope = 267 defined; 267 executable; 0 blocked (the 22 previously blocked cases are rebound to deterministic ACTIVE TEST_ONLY fixture steps)",
     "executable_negative_total": 267,

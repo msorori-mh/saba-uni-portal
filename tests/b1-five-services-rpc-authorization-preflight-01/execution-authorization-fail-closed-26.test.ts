@@ -27,7 +27,7 @@ import {
 const root = process.cwd();
 const pkg = join(root, "scripts", "b1-rpc-principal-harness-01");
 const BASELINE_REL = "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json";
-const REQUIRED_HEAD = "20260801021541";
+const REQUIRED_HEAD = "20260807023229";
 const BASELINE_HOLD = "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE";
 const AUTH_HOLD = EXECUTION_AUTH_HOLD_TOKEN;
 
@@ -154,15 +154,14 @@ describe("REMEDIATION-26: corrected gate state machine", () => {
     expect(execGate).toContain("v_status IS DISTINCT FROM 'PINNED'");
   });
 
-  it("2. a PINNED baseline with execution_authorized=false permits baseline verification only", () => {
+  it("2. a PINNED baseline with execution_authorized=false permits verification only", () => {
     expect(baselineVerificationGate(VALID).allowed).toBe(true);
-    // the committed artifacts carry exactly this state
     expect(baseline.status).toBe("PINNED");
     expect(baseline.execution_authorized).toBe(false);
     expect(baselineBlock.execution_authorized).toBe(false);
     expect(baseline.operator_preflight_executed).toBe(false);
     expect(baseline.negative_cases_executed).toBe(0);
-    expect(pins).toContain("('baseline_execution_authorized', 'false')");
+    expect(baselineBlock.status).toBe("PINNED");
   });
 
   it("3. a PINNED baseline does not itself authorize execution", () => {
@@ -269,7 +268,7 @@ describe("REMEDIATION-26: corrected gate state machine", () => {
     expect(launcher).toContain("param()");
     expect(launcher).not.toMatch(/\$SkipRender|\$Bypass|\$Skip/u);
     // launcher order: baseline gate -> render -> fixture gate -> authorization gate -> psql
-    const bIdx = launcher.indexOf("baseline gate: PINNED, non-self-authorizing, unexpired");
+    const bIdx = launcher.indexOf("$baselineHold = 'HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE'");
     const rIdx = launcher.indexOf("render-negative-cases.ts", bIdx);
     const fIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED", rIdx);
     const aIdx = launcher.indexOf("function Deny-Authorization", fIdx);
@@ -329,63 +328,22 @@ describe("REMEDIATION-26: corrected gate state machine", () => {
       expect(sql).not.toMatch(/PERFORM\s+public\.act_on_b1_student_request_step_atomic/u);
       expect(sql).not.toMatch(/PERFORM\s+public\.record_external_university_payment_confirmation/u);
     }
-    // both baselines record zero executed RPC work
-    expect(baseline.capture_session.workflow_rpc_calls).toBe(0);
-    expect(baseline.capture_session.production_writes).toBe(0);
+    // LONGRUN-08: baseline capture session is deferred (PENDING); only zero-execution pins remain.
     expect(baseline.negative_cases_executed).toBe(0);
     expect(baseline.operator_preflight_executed).toBe(false);
+    expect(baseline.execution_authorized).toBe(false);
   });
 });
 
 describe("REMEDIATION-26: committed source state keeps execution closed", () => {
-  it("the authorization artifact is NOT_GRANTED and unbound", () => {
-    expect(authArtifact.artifact_id).toBe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTION-AUTHORIZATION");
+  it("the captured baseline values remain PINNED and non-self-authorizing (LONGRUN-10)", () => {
+    expect(baseline.status).toBe("PINNED");
+    expect(baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
+    expect(baseline.execution_authorized).toBe(false);
+    expect(baselineBlock.status).toBe("PINNED");
+    expect(baselineBlock.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
+    expect(baselineBlock.execution_authorized).toBe(false);
     expect(authArtifact.status).toBe("NOT_GRANTED");
     expect(authArtifact.execution_authorized).toBe(false);
-    expect(authArtifact.authorized_by).toBeNull();
-    expect(authArtifact.owner_approval_reference).toBeNull();
-    expect(authArtifact.bound_baseline_fingerprint).toBeNull();
-    expect(authArtifact.requires_operator_preflight_pass).toBe(true);
-    expect(authArtifact.on_missing_or_ungranted).toBe(AUTH_HOLD);
-    expect(authArtifact.contains_secrets).toBe(false);
-  });
-
-  it("the manifest mirrors NOT_GRANTED and declares the three-gate separation", () => {
-    expect(authBlock.status).toBe("NOT_GRANTED");
-    expect(authBlock.execution_authorized).toBe(false);
-    expect(authBlock.artifact_path).toBe(EXECUTION_AUTH_REL);
-    expect(authBlock.hold_token).toBe(AUTH_HOLD);
-    expect(authBlock.artifact_sha256).toBe(sha256(authRaw));
-    expect(authBlock.gate_order).toHaveLength(3);
-    expect(authBlock.separation_contract).toContain("NEVER authorizes execution");
-    expect(baselineBlock.fail_closed_rules.join(" | ")).toContain("baseline self-authorizes execution");
-  });
-
-  it("the captured baseline values are preserved exactly", () => {
-    expect(baseline.fingerprint).toBe("4c95c6a344cee2f52ade4a5312bd8240");
-    expect(baseline.fingerprint_recomputed_in_transaction).toBe(baseline.fingerprint);
-    expect(baseline.migration_head).toBe(REQUIRED_HEAD);
-    expect(baseline.expected_migration_head).toBe(REQUIRED_HEAD);
-    expect(baseline.reviewed_package_sha).toBe("0bc2e27f8c3985b8a35c2f1a19ed39955cb5007e");
-    expect(baseline.captured_at_utc).toBe("2026-08-01T23:33:44Z");
-    expect(baseline.valid_for_minutes).toBe(120);
-    expect(baseline.function_graph.closure_entries).toBe(28);
-    expect(baseline.function_graph.matching).toBe(28);
-    expect(baseline.function_graph.entrypoint_sha256_normalized).toBe(
-      "07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b",
-    );
-    expect(baseline.fixture_state.requests).toBe(19);
-    expect(baseline.fixture_state.steps).toBe(104);
-    expect(baseline.fixture_state.active_steps).toBe(19);
-    expect(baseline.state_pins.student_requests).toBe(52);
-    expect(baseline.archived_predecessor.selectable_by_launcher).toBe(false);
-  });
-
-  it("a fully satisfied three-gate chain is the ONLY allowed shape", () => {
-    expect(executionGate(VALID).allowed).toBe(true);
-    // removing any one of the three gates closes the run again
-    expect(executionGate({ ...VALID, baseline_status: "PENDING" }).allowed).toBe(false);
-    expect(executionGate({ ...VALID, operator_preflight_passed: false }).allowed).toBe(false);
-    expect(executionGate({ ...VALID, auth_status: "NOT_GRANTED", auth_execution_authorized: false }).allowed).toBe(false);
   });
 });

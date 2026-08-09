@@ -109,16 +109,96 @@ jobs:
       # Fail-closed: any failing test in any tests/ suite fails this job.
       # The discovery guard also fails the job if the suites ever go missing
       # (e.g. a path rename), so the job can never silently become a no-op.
+      # The LONGRUN-14 operator architecture tests run in their own PG17 job
+      # because they require a provisioned local fixture and role lifecycle.
       - name: Run all bun test suites (fail-closed)
         run: |
           set -euo pipefail
-          COUNT=$(find tests -name '*.test.ts' -o -name '*.test.tsx' | wc -l)
-          echo "Discovered $COUNT test files under tests/"
+          mapfile -t TEST_FILES < <(find tests -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'b1-definitive-operator-architecture-14' | sort)
+          COUNT=${#TEST_FILES[@]}
+          echo "Discovered $COUNT test files under tests/ (excluding LONGRUN-14 operator suite)"
           if [ "$COUNT" -eq 0 ]; then
             echo "::error::No test files found under tests/ — refusing to pass vacuously"
             exit 1
           fi
-          bun test tests/
+          bun test "${TEST_FILES[@]}"
+
+  # LONGRUN-14: definitive B1 operator architecture — real 267 RPC authorization
+  # execution against a disposable postgres:17 fixture. The fixture is built from
+  # a tracked schema snapshot + canonical-fixture source files; generated output
+  # is gitignored. Migrations are never rewritten.
+  b1-definitive-operator-architecture-14:
+    name: B1 Definitive Operator Architecture — LONGRUN-14
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Ensure psql client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+
+      - name: Build canonical B1 execution fixture
+        run: bun scripts/b1-definitive-operator-architecture-14/build-canonical-b1-fixture.ts
+
+      - name: Load fixture into PG17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -p 54329 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f scripts/b1-definitive-operator-architecture-14/generated/canonical-b1-fixture.sql
+
+      - name: Provision operator role and observer functions
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -p 54329 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f scripts/b1-definitive-operator-architecture-14/operator-role/01-preflight.sql
+          psql -h 127.0.0.1 -p 54329 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f scripts/b1-definitive-operator-architecture-14/operator-role/02-provision.sql
+          psql -h 127.0.0.1 -p 54329 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f scripts/b1-definitive-operator-architecture-14/observer/01-observer-functions.sql
+          psql -h 127.0.0.1 -p 54329 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f scripts/b1-definitive-operator-architecture-14/harness/00-harness-functions.sql
+          psql -h 127.0.0.1 -p 54329 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f scripts/b1-definitive-operator-architecture-14/operator-role/03-post-verifier.sql
+
+      - name: Run LONGRUN-14 267-case authorization harness
+        run: |
+          set -euo pipefail
+          bun test tests/b1-definitive-operator-architecture-14/architecture-14.test.ts
+
+      - name: Run LONGRUN-14 failure-injection matrix
+        run: |
+          set -euo pipefail
+          bun test tests/b1-definitive-operator-architecture-14/failure-injection-14.test.ts
 
   # Executes the review-chain PG verifiers shipped under tests/ against a
   # disposable postgres:17 service. Each matrix leg gets its OWN cluster:

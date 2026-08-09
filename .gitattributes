@@ -24,3 +24,15 @@ supabase/migrations/20260808210000_ga_mvp_foundation_01.sql text eol=lf
 supabase/migrations/20260808210100_ga_mvp_completion_01.sql text eol=lf
 supabase/migrations/20260808210200_ga_authorization_04.sql text eol=lf
 tests/graduates-affairs/** text eol=lf
+
+# PORTAL-B1 negative RPC matrix operator package (LONGRUN-08 G1): LF-normalized so
+# LF and CRLF checkouts render identical hashes.
+scripts/b1-rpc-principal-harness-01/*.ts text eol=lf
+scripts/b1-rpc-principal-harness-01/*.ps1 text eol=lf
+scripts/b1-rpc-principal-harness-01/*.sql text eol=lf
+scripts/b1-rpc-principal-harness-01/*.json text eol=lf
+scripts/b1-rpc-principal-harness-01/*.md text eol=lf
+scripts/b1-rpc-principal-harness-01/readonly-attestation/** text eol=lf
+scripts/b1-rpc-principal-harness-01/local-operator-simulation/** text eol=lf
+scripts/b1-rpc-principal-harness-01/baseline/** text eol=lf
+scripts/b1-rpc-principal-harness-01/authorization/** text eol=lf
