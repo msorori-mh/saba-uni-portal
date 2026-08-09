@@ -2,43 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  LayoutDashboard,
-  Newspaper,
-  Users,
-  BookOpen,
-  FlaskConical,
-  Calendar,
-  MessageSquare,
-  Settings,
-  LogOut,
-  Menu,
-  GraduationCap,
   ChevronLeft,
   ChevronDown,
-  CalendarRange,
-  ListTree,
-  CalendarDays,
-  ClipboardList,
-  ClipboardCheck,
-  FileText,
-  FileWarning,
-  ListChecks,
-  GraduationCap as GradCap,
-  UserCog,
-  Globe,
-  Wallet,
-  ShieldCheck,
-  ScrollText,
-  Lock,
-  Database,
-  FileBadge,
-  Upload,
-  BarChart3,
-  Activity,
-  TrendingUp,
-  AlertCircle,
-  Megaphone,
-  Rocket,
+  GraduationCap,
+  LogOut,
+  Menu,
+  Search,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,152 +16,18 @@ import { filterNavGroups } from "@/lib/admin-nav";
 import { portalFeatures } from "@/lib/portal-features";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { useAdminLogout } from "@/lib/use-admin-logout";
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  exact?: boolean;
-  badgeKey?: "new-messages";
-};
-
-type NavGroup = {
-  id: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  items: NavItem[];
-};
-
-const groups: NavGroup[] = [
-  {
-    id: "dashboard",
-    label: "لوحة التحكم",
-    icon: LayoutDashboard,
-    items: [{ to: "/admin", label: "الرئيسية", icon: LayoutDashboard, exact: true }],
-  },
-  {
-    id: "executive",
-    label: "القيادة التنفيذية",
-    icon: BarChart3,
-    items: [
-      { to: "/admin/executive-dashboard", label: "لوحة بيانات الإدارة العليا", icon: BarChart3 },
-    ],
-  },
-  {
-    id: "academic",
-    label: "الشؤون الأكاديمية",
-    icon: GradCap,
-    items: [
-      { to: "/admin/academic-operations", label: "مركز العمليات الأكاديمية", icon: Activity },
-      { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
-      { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
-      {
-        to: "/admin/course-offerings",
-        label: "إسناد المقررات والمجموعات الدراسية",
-        icon: CalendarDays,
-      },
-      { to: "/admin/enrollments", label: "تقسيم المجموعات", icon: ClipboardList },
-      { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
-      { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
-      { to: "/admin/imports", label: "الاستيراد الجماعي", icon: Upload },
-
-      { to: "/admin/student-progress", label: "تقدم الطلاب الأكاديمي", icon: TrendingUp },
-      { to: "/admin/at-risk-students", label: "الطلاب المتعثرون أكاديمياً", icon: AlertCircle },
-      { to: "/admin/academic-councils", label: "بوابة إدارة المجالس الأكاديمية", icon: ScrollText },
-      { to: "/admin/graduation-projects", label: "مشاريع التخرج (عرض فقط)", icon: GradCap },
-    ],
-  },
-  {
-    id: "students",
-    label: "شؤون الطلاب",
-    icon: FileWarning,
-    items: [
-      { to: "/admin/students", label: "إدارة الطلاب", icon: GraduationCap },
-      { to: "/admin/student-requests", label: "طلبات الطلاب", icon: FileWarning },
-      { to: "/admin/request-types", label: "أنواع الطلبات", icon: ListChecks },
-    ],
-  },
-  {
-    id: "hr",
-    label: "الموارد البشرية",
-    icon: UserCog,
-    items: [
-      { to: "/admin/faculty-management", label: "إدارة أعضاء هيئة التدريس", icon: Users },
-      { to: "/admin/staff-management", label: "إدارة الموظفين", icon: UserCog },
-      { to: "/admin/faculty", label: "صفحة هيئة التدريس بالموقع", icon: Globe },
-    ],
-  },
-  {
-    id: "finance",
-    label: "الشؤون المالية",
-    icon: Wallet,
-    items: [{ to: "/admin/finance", label: "الرسوم والمدفوعات", icon: Wallet }],
-  },
-  {
-    id: "documents",
-    label: "الوثائق الرسمية",
-    icon: FileBadge,
-    items: [{ to: "/admin/documents", label: "جميع الوثائق", icon: FileText }],
-  },
-  {
-    id: "communications",
-    label: "الاتصالات",
-    icon: Megaphone,
-    items: [
-      { to: "/admin/communications", label: "مركز الاتصالات", icon: Megaphone },
-      { to: "/messages", label: "صندوق الرسائل", icon: MessageSquare },
-    ],
-  },
-  {
-    id: "automation",
-    label: "الأتمتة",
-    icon: Activity,
-    items: [{ to: "/admin/automation", label: "مركز الأتمتة الأكاديمية", icon: Activity }],
-  },
-  {
-    id: "reports",
-    label: "التقارير والتحليلات",
-    icon: BarChart3,
-    items: [{ to: "/admin/reports", label: "التقارير", icon: BarChart3 }],
-  },
-  {
-    id: "site",
-    label: "إدارة الموقع",
-    icon: Globe,
-    items: [
-      { to: "/admin/news", label: "الأخبار", icon: Newspaper },
-      { to: "/admin/events", label: "الفعاليات", icon: Calendar },
-      { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
-      { to: "/admin/departments", label: "الأقسام والبرامج", icon: BookOpen },
-      { to: "/admin/contacts", label: "الرسائل", icon: MessageSquare, badgeKey: "new-messages" },
-      { to: "/admin/settings", label: "الإعدادات", icon: Settings },
-    ],
-  },
-  {
-    id: "system",
-    label: "النظام والرقابة",
-    icon: ShieldCheck,
-    items: [
-      { to: "/admin/audit-log", label: "سجل التدقيق", icon: ScrollText },
-      { to: "/admin/users", label: "المستخدمون والصلاحيات", icon: UserCog },
-      { to: "/admin/roles", label: "إدارة الأدوار", icon: ShieldCheck },
-      { to: "/admin/user-roles", label: "ربط الأدوار بالمستخدمين", icon: UserCog },
-      { to: "/admin/organizational-structure", label: "الهيكل التنظيمي", icon: ListTree },
-      { to: "/admin/processing-assignments", label: "ممثلو أدوار الطلبات", icon: UserCog },
-      { to: "/admin/security-status", label: "حالة التأمين", icon: Lock },
-      { to: "/admin/operations", label: "مركز العمليات", icon: Activity },
-      { to: "/admin/pilot-center", label: "إدارة التشغيل التجريبي", icon: Rocket },
-      { to: "/admin/backup-status", label: "النسخ الاحتياطي", icon: Database },
-      { to: "/admin/system-readiness", label: "جاهزية النظام", icon: ShieldCheck },
-    ],
-  },
-];
-
-function isItemActive(pathname: string, item: NavItem) {
-  return item.exact
-    ? pathname === item.to
-    : pathname === item.to || pathname.startsWith(item.to + "/");
-}
+import {
+  ADMIN_NAV_GROUPS,
+  ADMIN_NAV_SEARCH_PLACEHOLDER,
+  applyAdminFinanceNavGate,
+  findActiveAdminNavGroupId,
+  isAdminNavItemActive,
+  searchAdminNav,
+  searchMatchingGroupIds,
+  toggleExclusiveGroup,
+  type AdminNavGroup,
+  type AdminNavItem,
+} from "@/lib/admin-navigation-config";
 
 export function AdminShell({
   children,
@@ -204,33 +39,46 @@ export function AdminShell({
   userRoles: string[];
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const logout = useAdminLogout();
 
+  // Role filtering is authoritative — search runs only on visibleGroups afterward.
   const visibleGroups = useMemo(
     () =>
       filterNavGroups(
-        portalFeatures.adminFinance ? groups : groups.filter((g) => g.id !== "finance"),
+        applyAdminFinanceNavGate(ADMIN_NAV_GROUPS, portalFeatures.adminFinance),
         userRoles,
-      ),
+      ) as AdminNavGroup[],
     [userRoles],
   );
 
-  const activeGroupId = useMemo(() => {
-    const g = visibleGroups.find((g) => g.items.some((it) => isItemActive(pathname, it)));
-    return g?.id ?? "dashboard";
-  }, [pathname, visibleGroups]);
+  const activeGroupId = useMemo(
+    () => findActiveAdminNavGroupId(visibleGroups, pathname) ?? "dashboard",
+    [pathname, visibleGroups],
+  );
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
-    [activeGroupId]: true,
-  }));
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(activeGroupId);
 
-  // Keep the active group open whenever route changes.
+  // Keep the active group open whenever route changes; clearing search restores this.
   useEffect(() => {
-    setOpenGroups((prev) => ({ ...prev, [activeGroupId]: true }));
-  }, [activeGroupId]);
+    if (!searchQuery.trim()) {
+      setExpandedGroupId(activeGroupId);
+    }
+  }, [activeGroupId, searchQuery]);
+
+  const searching = searchQuery.trim().length > 0;
+  const searchHits = useMemo(
+    () => searchAdminNav(visibleGroups, searchQuery),
+    [visibleGroups, searchQuery],
+  );
+  const searchOpenGroupIds = useMemo(
+    () => (searching ? searchMatchingGroupIds(visibleGroups, searchQuery) : null),
+    [searching, visibleGroups, searchQuery],
+  );
 
   const { data: newMessagesCount = 0 } = useQuery({
     queryKey: ["sidebar-new-messages"],
@@ -253,11 +101,17 @@ export function AdminShell({
     if (mobileOpen) closeButtonRef.current?.focus();
   }, [mobileOpen]);
 
-  // Escape closes the mobile sidebar and returns focus to the menu button.
+  // Escape: clear search first when focused/searching; otherwise close mobile drawer.
   useEffect(() => {
     if (!mobileOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (searchQuery) {
+          e.stopPropagation();
+          setSearchQuery("");
+          searchInputRef.current?.focus();
+          return;
+        }
         e.stopPropagation();
         setMobileOpen(false);
         menuButtonRef.current?.focus();
@@ -265,16 +119,30 @@ export function AdminShell({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [mobileOpen]);
+  }, [mobileOpen, searchQuery]);
 
-  const toggleGroup = (id: string) => setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setSearchQuery("");
+    }
+  };
+
+  const isGroupOpen = (groupId: string) => {
+    if (searchOpenGroupIds) return searchOpenGroupIds.has(groupId);
+    return expandedGroupId === groupId;
+  };
+
+  const onToggleGroup = (groupId: string) => {
+    if (searching) return;
+    setExpandedGroupId((prev) => toggleExclusiveGroup(prev, groupId));
+  };
 
   // Breadcrumb derived from the nav config: «لوحة الإدارة / المجموعة / الصفحة».
-  // Null on the admin home itself (a single crumb adds nothing).
   const breadcrumb = useMemo(() => {
     for (const g of visibleGroups) {
       for (const it of g.items) {
-        if (isItemActive(pathname, it)) {
+        if (isAdminNavItemActive(pathname, it)) {
           if (it.to === "/admin") return null;
           return { group: g.label, page: it.label };
         }
@@ -283,51 +151,136 @@ export function AdminShell({
     return null;
   }, [pathname, visibleGroups]);
 
+  const renderItemLink = (item: AdminNavItem) => {
+    const Icon = item.icon;
+    const active = isAdminNavItemActive(pathname, item);
+    const showBadge = item.badgeKey === "new-messages" && newMessagesCount > 0;
+    return (
+      <Link
+        key={item.to}
+        to={item.to}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "group relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-semibold transition-all min-h-10",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+          active
+            ? "bg-white/[0.08] text-gold"
+            : "text-primary-foreground/70 hover:text-gold hover:bg-white/[0.04]",
+        )}
+      >
+        {active && (
+          <span
+            aria-hidden
+            className="absolute right-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient"
+          />
+        )}
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="flex-1 leading-snug break-words">{item.label}</span>
+        {showBadge && (
+          <span className="grid place-items-center min-w-[20px] h-5 px-1.5 rounded-full bg-gold-gradient text-primary-deep text-[11px] font-extrabold">
+            {newMessagesCount}
+          </span>
+        )}
+      </Link>
+    );
+  };
+
   return (
     <div dir="rtl" className="min-h-screen bg-surface flex">
       <aside
         id="admin-sidebar"
         className={cn(
-          "fixed lg:sticky top-0 right-0 z-40 h-screen w-72 shrink-0 flex flex-col text-primary-foreground transition-transform duration-300",
+          "fixed lg:sticky top-0 right-0 z-40 h-screen w-80 max-w-[94vw] shrink-0 flex flex-col text-primary-foreground transition-transform duration-300",
           "bg-primary-deep",
           mobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep">
+        <div className="px-4 py-4 border-b border-white/10 flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
             <GraduationCap className="h-5 w-5" aria-hidden />
           </div>
-          <div className="leading-tight">
-            <div className="font-display font-extrabold text-gold">لوحة الإدارة</div>
-            <div className="text-[11px] text-primary-foreground/60">كلية تكنولوجيا المعلومات</div>
+          <div className="leading-tight min-w-0 flex-1">
+            <div className="font-display font-extrabold text-gold text-base sm:text-lg">
+              لوحة الإدارة
+            </div>
+            <div className="text-xs text-primary-foreground/60">كلية تكنولوجيا المعلومات</div>
           </div>
           <button
             type="button"
             ref={closeButtonRef}
             onClick={() => setMobileOpen(false)}
             aria-label="إغلاق القائمة"
-            className="lg:hidden ms-auto rounded-md p-2 text-primary-foreground/80 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            className="lg:hidden ms-auto rounded-md p-2 min-h-11 min-w-11 text-primary-foreground/80 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
 
-        <nav aria-label="التنقل الرئيسي" className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <div className="px-3 pt-3 pb-2 border-b border-white/10">
+          <label className="sr-only" htmlFor="admin-nav-search">
+            {ADMIN_NAV_SEARCH_PLACEHOLDER}
+          </label>
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary-foreground/45"
+              aria-hidden
+            />
+            <input
+              id="admin-nav-search"
+              ref={searchInputRef}
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={onSearchKeyDown}
+              placeholder={ADMIN_NAV_SEARCH_PLACEHOLDER}
+              aria-label={ADMIN_NAV_SEARCH_PLACEHOLDER}
+              autoComplete="off"
+              className={cn(
+                "w-full min-h-11 rounded-md border border-white/15 bg-white/[0.06] pe-9 ps-9",
+                "text-sm text-primary-foreground placeholder:text-primary-foreground/45",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+              )}
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                aria-label="مسح البحث"
+                className="absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 min-h-9 min-w-9 text-primary-foreground/70 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+          {searching ? (
+            <p className="mt-1.5 text-xs text-primary-foreground/55" aria-live="polite">
+              {searchHits.length === 0
+                ? "لا توجد نتائج في الخدمات المتاحة لك"
+                : `${searchHits.length.toLocaleString("ar-EG")} نتيجة`}
+            </p>
+          ) : null}
+        </div>
+
+        <nav aria-label="التنقل الرئيسي" className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
           {visibleGroups.map((group) => {
             const GroupIcon = group.icon;
-            const isOpen = !!openGroups[group.id];
+            const isOpen = isGroupOpen(group.id);
             const isActiveGroup = activeGroupId === group.id;
+
             // Single-item dashboard group: render as a flat link
             if (group.items.length === 1 && group.id === "dashboard") {
               const item = group.items[0];
-              const active = isItemActive(pathname, item);
+              const active = isAdminNavItemActive(pathname, item);
               return (
                 <Link
                   key={group.id}
                   to={item.to}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-all",
+                    "group relative flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-bold transition-all min-h-10",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
                     active
                       ? "bg-white/[0.08] text-gold"
@@ -348,12 +301,12 @@ export function AdminShell({
             }
 
             return (
-              <div key={group.id} className="space-y-1">
+              <div key={group.id} className="space-y-0.5">
                 <button
                   type="button"
-                  onClick={() => toggleGroup(group.id)}
+                  onClick={() => onToggleGroup(group.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-bold transition-all",
+                    "w-full flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-bold transition-all min-h-10",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
                     isActiveGroup
                       ? "text-gold"
@@ -363,10 +316,10 @@ export function AdminShell({
                   aria-controls={`admin-nav-group-${group.id}`}
                 >
                   <GroupIcon className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="flex-1 text-right">{group.label}</span>
+                  <span className="flex-1 text-right leading-snug break-words">{group.label}</span>
                   <ChevronDown
                     className={cn(
-                      "h-4 w-4 transition-transform opacity-70",
+                      "h-4 w-4 transition-transform opacity-70 shrink-0",
                       isOpen ? "rotate-180" : "rotate-0",
                     )}
                     aria-hidden
@@ -375,41 +328,14 @@ export function AdminShell({
                 {isOpen && (
                   <div
                     id={`admin-nav-group-${group.id}`}
-                    className="ps-3 ms-1 border-s border-white/10 space-y-1"
+                    className="ps-3 ms-1 border-s border-white/10 space-y-0.5"
                   >
-                    {group.items.map((item) => {
-                      const Icon = item.icon;
-                      const active = isItemActive(pathname, item);
-                      const showBadge = item.badgeKey === "new-messages" && newMessagesCount > 0;
-                      return (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          aria-current={active ? "page" : undefined}
-                          className={cn(
-                            "group relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-semibold transition-all",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-                            active
-                              ? "bg-white/[0.08] text-gold"
-                              : "text-primary-foreground/70 hover:text-gold hover:bg-white/[0.04]",
-                          )}
-                        >
-                          {active && (
-                            <span
-                              aria-hidden
-                              className="absolute right-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient"
-                            />
-                          )}
-                          <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                          <span className="flex-1">{item.label}</span>
-                          {showBadge && (
-                            <span className="grid place-items-center min-w-[20px] h-5 px-1.5 rounded-full bg-gold-gradient text-primary-deep text-[10px] font-extrabold">
-                              {newMessagesCount}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
+                    {group.items
+                      .filter((item) => {
+                        if (!searching) return true;
+                        return searchHits.some((h) => h.item.to === item.to);
+                      })
+                      .map((item) => renderItemLink(item))}
                   </div>
                 )}
               </div>
@@ -417,10 +343,13 @@ export function AdminShell({
           })}
         </nav>
 
-        <div className="px-3 py-3 border-t border-white/10">
+        <div
+          data-testid="admin-sidebar-footer"
+          className="px-3 py-3 border-t border-white/10 shrink-0"
+        >
           <Link
             to="/"
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-primary-foreground/60 hover:text-gold hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-primary-foreground/60 hover:text-gold hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold min-h-10"
           >
             <GraduationCap className="h-3.5 w-3.5" aria-hidden /> عرض الموقع العام
           </Link>
@@ -440,7 +369,7 @@ export function AdminShell({
           <button
             type="button"
             ref={menuButtonRef}
-            className="lg:hidden rounded-md p-2 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="lg:hidden rounded-md p-2 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-11 min-w-11"
             onClick={() => setMobileOpen(true)}
             aria-label="فتح القائمة"
             aria-expanded={mobileOpen}
@@ -449,7 +378,7 @@ export function AdminShell({
             <Menu className="h-5 w-5" aria-hidden />
           </button>
 
-          <div className="flex-1 min-w-0 truncate font-display font-bold text-primary">
+          <div className="flex-1 min-w-0 truncate font-display font-bold text-primary text-sm sm:text-base">
             مرحباً بك في لوحة الإدارة
           </div>
 
@@ -471,7 +400,7 @@ export function AdminShell({
               type="button"
               onClick={() => void logout()}
               aria-label="تسجيل الخروج"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-10"
             >
               <LogOut className="h-3.5 w-3.5" aria-hidden /> خروج
             </button>
@@ -480,7 +409,7 @@ export function AdminShell({
 
         {breadcrumb && (
           <nav aria-label="مسار التنقل" className="border-b border-border bg-background">
-            <ol className="flex flex-wrap items-center gap-1 px-4 lg:px-8 py-2 text-xs">
+            <ol className="flex flex-wrap items-center gap-1 px-4 lg:px-8 py-2 text-[13px]">
               <li className="flex items-center gap-1">
                 <Link
                   to="/admin"

@@ -84,7 +84,10 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
   it("5 — admin finance nav and dashboard gated by adminFinance", () => {
     const shell = readFileSync(join(ROOT, "src/components/admin/AdminShell.tsx"), "utf8");
     expect(shell).toContain("portalFeatures.adminFinance");
-    expect(shell).toContain('g.id !== "finance"');
+    expect(shell).toContain("applyAdminFinanceNavGate");
+    const navConfig = readFileSync(join(ROOT, "src/lib/admin-navigation-config.ts"), "utf8");
+    expect(navConfig).toContain("applyAdminFinanceNavGate");
+    expect(navConfig).toContain('it.to !== "/admin/finance"');
     const dash = readFileSync(join(ROOT, "src/routes/admin/index.lazy.tsx"), "utf8");
     expect(dash).toContain("FINANCE_FROZEN_CARD_LABELS");
     expect(dash).toContain('sec.title !== "المالية"');

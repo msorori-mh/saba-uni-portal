@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ import {
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers, CalendarClock, DoorOpen,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
-  BarChart3, TrendingUp, Activity, HardDrive, Megaphone, MailOpen,
+  BarChart3, TrendingUp, Activity, HardDrive, Megaphone, MailOpen, CheckCircle2,
 } from "lucide-react";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 import { getAdminProgressKpisFast } from "@/lib/academic-status.functions";
@@ -25,6 +26,7 @@ import {
 } from "@/lib/admin-dashboard.functions";
 import { Rocket } from "lucide-react";
 import { portalFeatures } from "@/lib/portal-features";
+import { cn } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/admin/")({
   component: AdminDashboard,
@@ -56,6 +58,55 @@ const FINANCE_FROZEN_CARD_LABELS = new Set([
   "السندات المالية",
 ]);
 
+type MetricValue = number | null;
+
+function formatMetric(value: MetricValue): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return value.toLocaleString("ar-EG");
+}
+
+function CompactStatCard({
+  label,
+  value,
+  icon: Icon,
+  to,
+  search,
+  detail,
+}: {
+  label: string;
+  value: MetricValue;
+  icon: ComponentType<{ className?: string }>;
+  to?: string;
+  search?: Record<string, string>;
+  detail?: string;
+}) {
+  const inner = (
+    <>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-muted-foreground leading-snug">{label}</div>
+        <div className="mt-1 font-display text-[1.65rem] sm:text-[1.75rem] font-extrabold text-primary leading-none tabular-nums">
+          {formatMetric(value)}
+        </div>
+        {detail ? (
+          <div className="mt-1 text-xs text-muted-foreground leading-snug">{detail}</div>
+        ) : null}
+      </div>
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold-gradient text-primary">
+        <Icon className="h-4 w-4" aria-hidden />
+      </div>
+    </>
+  );
+  const cls =
+    "rounded-xl bg-card border border-border px-4 py-3 shadow-card flex items-center justify-between gap-3 min-h-[4.5rem]";
+  return to ? (
+    <Link to={to} search={search as any} className={cn(cls, "hover:border-gold transition-all")}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
 function AdminDashboard() {
   usePagePerf("/admin");
   const fetchActive = useServerFn(activeUserCounts);
@@ -70,7 +121,7 @@ function AdminDashboard() {
   const fetchRecentDocs = useServerFn(getRecentOfficialDocuments);
   const fetchPerfKpis = useServerFn(getDashboardPerfKpis);
   const fetchAcademicOps = useServerFn(getAcademicOpsKpis);
-  const { data: commStats } = useQuery({
+  const { data: commStats, isLoading: loadingComm } = useQuery({
     queryKey: ["admin-comm-stats"],
     queryFn: () => fetchCommStats(),
     staleTime: 60_000,
@@ -91,10 +142,10 @@ function AdminDashboard() {
     queryFn: () => fetchPilot(),
     staleTime: 60_000,
   });
-  const { data: progressKpis } = useQuery({
+  const { data: progressKpis, isLoading: loadingProgress } = useQuery({
     queryKey: ["admin-progress-kpis"],
     queryFn: () => fetchProgressKpis(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60_000,
   });
   const { data: active } = useQuery({
     queryKey: ["active-user-counts"],
@@ -108,7 +159,7 @@ function AdminDashboard() {
     queryKey: ["hardening-status"],
     queryFn: () => fetchHardening({ data: {} }),
   });
-  const { data: s } = useQuery({
+  const { data: s, isLoading: loadingCounts } = useQuery({
     queryKey: ["admin-dashboard-counts"],
     queryFn: () => fetchDashboardCounts({ data: {} }),
   });
@@ -123,7 +174,7 @@ function AdminDashboard() {
     queryFn: () => fetchRecentDocs({ data: {} }),
   });
 
-  const { data: kpis } = useQuery({
+  const { data: kpis, isLoading: loadingKpis } = useQuery({
     queryKey: ["admin-perf-kpis-rpc"],
     queryFn: () => fetchPerfKpis({ data: {} }),
     staleTime: 60_000,
@@ -134,6 +185,8 @@ function AdminDashboard() {
     queryFn: () => fetchAcademicOps({ data: {} }),
   });
 
+  // Keep zero defaults for secondary sections that already used this pattern,
+  // but top KPIs / attention use explicit loading → "—" distinction.
   const counts = s ?? {
     programs: 0, courses: 0, sections: 0, students: 0,
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
@@ -145,37 +198,79 @@ function AdminDashboard() {
     importsTotal: 0, importsToday: 0, importsCompleted: 0, importsFailed: 0, importsRate: 0,
   };
 
+  const kpiStudents: MetricValue = loadingCounts ? null : (s?.students ?? 0);
+  const kpiCourses: MetricValue = loadingCounts ? null : (s?.courses ?? 0);
+  const kpiSections: MetricValue = loadingCounts ? null : (s?.sections ?? 0);
+  const kpiOpenRequests: MetricValue = loadingKpis
+    ? null
+    : (kpis?.openRequests ?? null);
+
+  type AttentionItem = {
+    id: string;
+    title: string;
+    value: MetricValue;
+    to: string;
+    search?: Record<string, string>;
+    detail?: string;
+  };
+
+  const attentionItems: AttentionItem[] = [];
+  const openReqVal = kpiOpenRequests;
+  if (openReqVal !== null && openReqVal > 0) {
+    attentionItems.push({
+      id: "open-requests",
+      title: "طلبات مفتوحة",
+      value: openReqVal,
+      to: "/admin/student-requests",
+      detail: "تتطلب متابعة تشغيلية",
+    });
+  }
+  if (!loadingCounts && (s?.importsFailed ?? 0) > 0) {
+    attentionItems.push({
+      id: "failed-imports",
+      title: "استيرادات فاشلة",
+      value: s!.importsFailed,
+      to: "/admin/imports",
+      detail: "من بيانات الاستيراد الحالية",
+    });
+  }
+  if (!loadingProgress && (progressKpis?.atRisk ?? 0) > 0) {
+    attentionItems.push({
+      id: "at-risk",
+      title: "الطلاب المتعثرون أكاديمياً",
+      value: progressKpis!.atRisk,
+      to: "/admin/at-risk-students",
+      detail: "متابعة أكاديمية معلوماتية",
+    });
+  }
+  if (!loadingComm && (commStats?.unread_messages ?? 0) > 0) {
+    attentionItems.push({
+      id: "unread-messages",
+      title: "رسائل غير مقروءة",
+      value: commStats!.unread_messages,
+      to: "/messages",
+    });
+  }
+  if (!loadingCounts && (s?.newReq ?? 0) > 0 && (openReqVal === null || openReqVal === 0)) {
+    attentionItems.push({
+      id: "new-requests",
+      title: "طلبات جديدة",
+      value: s!.newReq,
+      to: "/admin/student-requests",
+    });
+  }
+
   const sections_: Array<{
     title: string;
-    cards: Array<{ label: string; value: number; icon: any; to?: string; search?: Record<string, string> }>;
+    cards: Array<{
+      label: string;
+      value: number;
+      icon: any;
+      to?: string;
+      search?: Record<string, string>;
+      detail?: string;
+    }>;
   }> = [
-    {
-      title: "مؤشرات الأداء",
-      cards: [
-        { label: "الطلاب", value: counts.students, icon: ClipboardList, to: "/admin/reports" },
-        { label: "نسبة النجاح %", value: kpis?.successRate ?? 0, icon: TrendingUp, to: "/admin/reports" },
-        { label: "الرسوم المستحقة", value: kpis?.outstanding ?? 0, icon: Wallet, to: "/admin/reports" },
-        { label: "طلبات مفتوحة", value: kpis?.openRequests ?? 0, icon: FileWarning, to: "/admin/reports", search: { tab: "requests" } },
-      ],
-    },
-    {
-      title: "صحة النظام",
-      cards: [
-        { label: "حالة العمليات", value: 1, icon: Activity, to: "/admin/operations" },
-        { label: "حالة النسخ الاحتياطي", value: 1, icon: Database, to: "/admin/backup-status" },
-        { label: "التنبيهات الحرجة", value: (counts.importsFailed ?? 0) + (counts.feesPending > 50 ? 1 : 0), icon: ShieldAlert, to: "/admin/operations" },
-        { label: "جاهزية الاسترجاع", value: 1, icon: HardDrive, to: "/admin/operations" },
-      ],
-    },
-    {
-      title: "إحصائيات أكاديمية",
-      cards: [
-        { label: "البرامج", value: counts.programs, icon: GraduationCap },
-        { label: "المقررات", value: counts.courses, icon: BookOpen },
-        { label: "المجموعات الدراسية", value: counts.sections, icon: CalendarDays },
-        { label: "الطلاب", value: counts.students, icon: ClipboardList },
-      ],
-    },
     {
       title: "العمليات الأكاديمية",
       cards: [
@@ -186,7 +281,7 @@ function AdminDashboard() {
       ],
     },
     {
-      title: "الجداول الدراسية",
+      title: "عمليات اليوم / الجداول",
       cards: [
         { label: "الجداول المنشورة", value: scheduleStats?.published ?? 0, icon: CalendarDays, to: "/admin/course-offerings?tab=schedule" },
         { label: "منشورة اليوم", value: scheduleStats?.publishedToday ?? 0, icon: CalendarClock, to: "/admin/course-offerings?tab=schedule" },
@@ -219,6 +314,23 @@ function AdminDashboard() {
         { label: "إعلانات نشطة", value: commStats?.active_announcements ?? 0, icon: Megaphone, to: "/admin/communications" },
         { label: "إعلانات غير مقروءة", value: commStats?.unread_announcements ?? 0, icon: Bell, to: "/admin/communications" },
         { label: "رسائل غير مقروءة", value: commStats?.unread_messages ?? 0, icon: MailOpen, to: "/messages" },
+      ],
+    },
+    {
+      title: "صحة النظام",
+      cards: [
+        { label: "حالة العمليات", value: 1, icon: Activity, to: "/admin/operations" },
+        { label: "حالة النسخ الاحتياطي", value: 1, icon: Database, to: "/admin/backup-status" },
+        { label: "التنبيهات الحرجة", value: (counts.importsFailed ?? 0) + (counts.feesPending > 50 ? 1 : 0), icon: ShieldAlert, to: "/admin/operations" },
+        { label: "جاهزية الاسترجاع", value: 1, icon: HardDrive, to: "/admin/operations" },
+      ],
+    },
+    {
+      title: "مؤشرات إضافية",
+      cards: [
+        { label: "نسبة النجاح %", value: kpis?.successRate ?? 0, icon: TrendingUp, to: "/admin/reports" },
+        { label: "الرسوم المستحقة", value: kpis?.outstanding ?? 0, icon: Wallet, to: "/admin/reports" },
+        { label: "البرامج", value: counts.programs, icon: GraduationCap },
       ],
     },
     {
@@ -309,71 +421,144 @@ function AdminDashboard() {
     { to: "/admin/contacts", label: "الرسائل", icon: MessageSquare },
   ];
 
+  const sectionOrderIndex = (title: string) => {
+    const order = [
+      "العمليات الأكاديمية",
+      "عمليات اليوم / الجداول",
+      "التقدم الأكاديمي",
+      "الموارد البشرية",
+      "الاتصالات",
+      "صحة النظام",
+    ];
+    const i = order.indexOf(title);
+    return i === -1 ? 100 + title.length : i;
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6" data-testid="admin-dashboard">
       <div>
-        <h1 className="font-display text-3xl font-extrabold text-primary">لوحة التحكم</h1>
+        <h1 className="font-display text-2xl sm:text-[1.75rem] lg:text-[1.85rem] font-extrabold text-primary">
+          لوحة التحكم
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          نظرة شاملة على حركة الكلية والخدمات الأكاديمية.
+          نظرة سريعة على الأولويات التشغيلية والخدمات الأكاديمية.
         </p>
       </div>
 
-      {/* Stats grouped sections */}
+      {/* A. نظرة سريعة / المؤشرات الرئيسية */}
+      <section aria-label="نظرة سريعة" className="space-y-3" data-testid="admin-dashboard-kpi-row">
+        <h2 className="font-display text-[17px] sm:text-lg font-bold text-primary">نظرة سريعة</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <CompactStatCard label="الطلاب" value={kpiStudents} icon={ClipboardList} to="/admin/students" />
+          <CompactStatCard label="المقررات" value={kpiCourses} icon={BookOpen} to="/admin/study-plans" />
+          <CompactStatCard
+            label="المجموعات الدراسية"
+            value={kpiSections}
+            icon={CalendarDays}
+            to="/admin/course-offerings"
+          />
+          <CompactStatCard
+            label="الطلبات المفتوحة"
+            value={kpiOpenRequests}
+            icon={FileWarning}
+            to="/admin/student-requests"
+          />
+        </div>
+      </section>
+
+      {/* B. يحتاج انتباهك */}
+      <section
+        aria-label="يحتاج انتباهك"
+        className="rounded-xl border border-border bg-card p-4 shadow-card"
+        data-testid="admin-dashboard-attention"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display text-[17px] sm:text-lg font-bold text-primary">يحتاج انتباهك</h2>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+              عناصر تشغيلية من البيانات الحالية فقط — دون تصنيف خطورة مُخترع.
+            </p>
+          </div>
+        </div>
+        {attentionItems.length === 0 ? (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+            لا توجد عناصر تتطلب انتباهًا فوريًا حاليًا.
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {attentionItems.map((item) => (
+              <Link
+                key={item.id}
+                to={item.to}
+                search={item.search as any}
+                className="rounded-lg border border-border bg-background px-3 py-2.5 hover:border-gold transition-colors min-h-11"
+              >
+                <div className="text-sm font-semibold text-muted-foreground">{item.title}</div>
+                <div className="mt-0.5 font-display text-2xl font-extrabold text-primary tabular-nums">
+                  {formatMetric(item.value)}
+                </div>
+                {item.detail ? (
+                  <div className="mt-0.5 text-xs text-muted-foreground">{item.detail}</div>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Operational → academic → resources → system health (deprioritized) → secondary */}
       {sections_
+        .slice()
+        .sort((a, b) => sectionOrderIndex(a.title) - sectionOrderIndex(b.title))
         .filter((sec) => portalFeatures.adminFinance || sec.title !== "المالية")
         .map((sec) => {
-        const visibleCards = sec.cards.filter(
-          (c) =>
-            !HIDDEN_ADMIN_DASHBOARD_CARD_LABELS.has(c.label) &&
-            (portalFeatures.adminFinance || !FINANCE_FROZEN_CARD_LABELS.has(c.label)),
-        );
-        if (visibleCards.length === 0) return null;
-        return (
-        <section key={sec.title} className="space-y-3">
-          <h2 className="font-display text-base font-bold text-primary">{sec.title}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {visibleCards.map((c) => {
-              const Icon = c.icon;
-              const inner = (
-                <>
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground">{c.label}</div>
-                    <div className="mt-2 font-display text-3xl font-extrabold text-primary">
-                      {c.value.toLocaleString("ar-EG")}
-                    </div>
-                  </div>
-                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </>
-              );
-              const cls = "rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between";
-              return c.to ? (
-                <Link key={c.label} to={c.to} search={c.search as any} className={cls + " hover:border-gold transition-all"}>
-                  {inner}
-                </Link>
-              ) : (
-                <div key={c.label} className={cls}>{inner}</div>
-              );
-            })}
-          </div>
-        </section>
-        );
-      })}
+          const visibleCards = sec.cards.filter(
+            (c) =>
+              !HIDDEN_ADMIN_DASHBOARD_CARD_LABELS.has(c.label) &&
+              (portalFeatures.adminFinance || !FINANCE_FROZEN_CARD_LABELS.has(c.label)),
+          );
+          if (visibleCards.length === 0) return null;
+          return (
+            <section
+              key={sec.title}
+              className="space-y-2.5"
+              data-section={sec.title}
+              data-testid={sec.title === "صحة النظام" ? "admin-dashboard-system-health" : undefined}
+            >
+              <h2 className="font-display text-[17px] sm:text-lg font-bold text-primary">{sec.title}</h2>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                {visibleCards.map((c) => (
+                  <CompactStatCard
+                    key={c.label}
+                    label={c.label}
+                    value={c.value}
+                    icon={c.icon}
+                    to={c.to}
+                    search={c.search}
+                    detail={c.detail}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
       {/* Recent Official Documents */}
-      <section className="space-y-3">
+      <section className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-base font-bold text-primary">آخر الوثائق الصادرة</h2>
-          <Link to="/admin/documents" className="text-xs font-bold text-primary hover:underline">عرض الكل</Link>
+          <h2 className="font-display text-[17px] sm:text-lg font-bold text-primary">آخر الوثائق الصادرة</h2>
+          <Link to="/admin/documents" className="text-[13px] font-bold text-primary hover:underline">
+            عرض الكل
+          </Link>
         </div>
         <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
-          {(!recentDocs || recentDocs.length === 0) ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">لا توجد وثائق صادرة بعد.</div>
+          {!recentDocs || recentDocs.length === 0 ? (
+            <div className="p-5 text-center text-sm text-muted-foreground">لا توجد وثائق صادرة بعد.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-secondary/50 text-xs">
+                <thead className="bg-secondary/50 text-[13px]">
                   <tr>
                     <th className="px-4 py-2 text-right font-bold">رقم الوثيقة</th>
                     <th className="px-4 py-2 text-right font-bold">الطالب</th>
@@ -388,7 +573,9 @@ function AdminDashboard() {
                       <td className="px-4 py-2">
                         {d.student_profiles?.full_name_ar ?? "—"}
                         {d.student_profiles?.academic_number ? (
-                          <span className="ms-2 text-xs text-muted-foreground">({d.student_profiles.academic_number})</span>
+                          <span className="ms-2 text-xs text-muted-foreground">
+                            ({d.student_profiles.academic_number})
+                          </span>
                         ) : null}
                       </td>
                       <td className="px-4 py-2 text-xs">{docTypeLabel(d.document_type)}</td>
@@ -405,22 +592,22 @@ function AdminDashboard() {
       </section>
 
       {/* Quick actions */}
-      <section className="space-y-3">
-        <h2 className="font-display text-base font-bold text-primary">إجراءات سريعة</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="space-y-2.5">
+        <h2 className="font-display text-[17px] sm:text-lg font-bold text-primary">إجراءات سريعة</h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {quickActions.map((a) => {
             const Icon = a.icon;
             return (
               <Link
                 key={a.label}
                 to={a.to}
-                className="flex items-center gap-3 rounded-xl bg-card border border-border p-4 hover:border-gold hover:shadow-card transition-all"
+                className="flex items-center gap-3 rounded-xl bg-card border border-border px-3 py-3 hover:border-gold hover:shadow-card transition-all min-h-11"
               >
-                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary">
-                  <Icon className="h-5 w-5" />
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-secondary text-primary">
+                  <Icon className="h-4 w-4" aria-hidden />
                 </div>
                 <div className="flex-1 text-sm font-bold text-primary">{a.label}</div>
-                <Plus className="h-4 w-4 text-muted-foreground" />
+                <Plus className="h-4 w-4 text-muted-foreground" aria-hidden />
               </Link>
             );
           })}
@@ -428,9 +615,9 @@ function AdminDashboard() {
       </section>
 
       {/* Production Readiness section */}
-      <section className="space-y-3">
-        <h2 className="font-display text-base font-bold text-primary">Production Readiness</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+      <section className="space-y-2.5">
+        <h2 className="font-display text-[17px] sm:text-lg font-bold text-primary">Production Readiness</h2>
+        <div className="grid gap-3 md:grid-cols-3">
           <ReadinessCard
             title="الحسابات الإدارية"
             icon={ShieldAlert}
@@ -462,7 +649,7 @@ function AdminDashboard() {
       </section>
 
       {/* System Readiness CTA */}
-      <section className="rounded-xl bg-card border border-border p-6 shadow-card">
+      <section className="rounded-xl bg-card border border-border p-5 shadow-card">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="font-display text-lg font-bold text-primary">جاهزية النظام للتشغيل</h2>
@@ -472,16 +659,15 @@ function AdminDashboard() {
           </div>
           <Link
             to="/admin/system-readiness"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90 min-h-11"
           >
-            <ShieldCheck className="h-4 w-4" /> فتح لوحة الجاهزية
+            <ShieldCheck className="h-4 w-4" aria-hidden /> فتح لوحة الجاهزية
           </Link>
         </div>
       </section>
 
       {/* Shortcut to record link */}
-      <section className="rounded-xl bg-card border border-border p-6 shadow-card">
-
+      <section className="rounded-xl bg-card border border-border p-5 shadow-card">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="font-display text-lg font-bold text-primary">السجلات الأكاديمية</h2>
@@ -491,9 +677,9 @@ function AdminDashboard() {
           </div>
           <Link
             to="/admin/transcripts"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90 min-h-11"
           >
-            <FileText className="h-4 w-4" /> فتح السجلات
+            <FileText className="h-4 w-4" aria-hidden /> فتح السجلات
           </Link>
         </div>
       </section>
@@ -528,14 +714,14 @@ function ReadinessCard({
     : status === "WARNING" ? "border-amber-200 bg-amber-50 text-amber-700"
     : "border-red-200 bg-red-50 text-red-700";
   return (
-    <Link to={to} className={`block rounded-xl border p-5 shadow-card hover:opacity-90 transition ${color}`}>
+    <Link to={to} className={`block rounded-xl border p-4 shadow-card hover:opacity-90 transition ${color}`}>
       <div className="flex items-center justify-between">
-        <Icon className="h-5 w-5" />
-        <span className="rounded-md border bg-white/60 px-2 py-0.5 text-[10px] font-extrabold">{status}</span>
+        <Icon className="h-5 w-5" aria-hidden />
+        <span className="rounded-md border bg-white/60 px-2 py-0.5 text-[11px] font-extrabold">{status}</span>
       </div>
-      <div className="mt-3 text-sm font-extrabold">{title}</div>
+      <div className="mt-2 text-sm font-extrabold">{title}</div>
       <div className="mt-1 text-xs font-bold">{primary}</div>
-      <div className="text-[11px] opacity-80">{secondary}</div>
+      <div className="text-xs opacity-80">{secondary}</div>
     </Link>
   );
 }

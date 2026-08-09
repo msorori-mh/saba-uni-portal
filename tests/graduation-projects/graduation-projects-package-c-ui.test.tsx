@@ -175,7 +175,8 @@ describe("Package C routed UI contracts", () => {
     expect(read("src/components/portal/FacultyPortalShell.tsx")).toContain(
       "/faculty-portal/graduation-projects",
     );
-    expect(read("src/components/admin/AdminShell.tsx")).toContain("/admin/graduation-projects");
+    expect(read("src/lib/admin-navigation-config.ts")).toContain("/admin/graduation-projects");
+    expect(read("src/components/admin/AdminShell.tsx")).toContain("ADMIN_NAV_GROUPS");
   });
   it("adapter is a thin Package B wrapper with no temp RPC names or public URLs", () => {
     const source = read("src/routes/-graduation-projects-adapter.ts");
