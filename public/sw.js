@@ -1,9 +1,10 @@
-/* Student Mobile PWA — minimal app-shell service worker.
+/* Portal-wide PWA — minimal app-shell service worker.
  * Scope: '/'. Only caches static app-shell assets.
- * Never caches API/auth/sensitive student data (finance, documents,
- * requests, grades, academic record, supabase auth/storage, etc.).
+ * Never caches API/auth/sensitive academic or administrative data
+ * (finance, documents, requests, grades, academic record, supabase
+ * auth/storage, server functions, etc.).
  */
-const VERSION = "student-mobile-pwa-v1";
+const VERSION = "portal-pwa-v1";
 const STATIC_CACHE = `static-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
@@ -23,6 +24,10 @@ const NEVER_CACHE_PATTERNS = [
   /\/mobile\/student\/grades/i,
   /\/mobile\/student\/academic-record/i,
   /\/mobile\/student\/schedule/i,
+  /\/student\/.*(?:finance|documents|requests|grades|academic-record)/i,
+  /\/faculty-portal\//i,
+  /\/staff\//i,
+  /\/admin\//i,
   /\/api\//i,
   /\/_serverFn\//i,
   /supabase\.co/i,
@@ -69,6 +74,7 @@ self.addEventListener("fetch", (event) => {
   if (isNeverCache(url.pathname + url.search)) return;
 
   // HTML navigations -> NetworkFirst, fallback to offline page.
+  // Do not put authenticated HTML responses into Cache Storage.
   if (req.mode === "navigate") {
     event.respondWith(
       (async () => {

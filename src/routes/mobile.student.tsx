@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Home, CalendarClock, ClipboardList, FileText, User, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
-import { registerStudentMobileSW } from "@/lib/pwa/register-student-sw";
+import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
@@ -17,8 +17,8 @@ export const Route = createFileRoute("/mobile/student")({
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "بوابة الطالب" },
-      { name: "application-name", content: "بوابة الطالب" },
+      { name: "apple-mobile-web-app-title", content: "بوابة الكلية" },
+      { name: "application-name", content: "بوابة الكلية" },
     ],
     links: [
       { rel: "manifest", href: "/manifest.webmanifest" },
@@ -63,7 +63,7 @@ function MobileStudentLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    registerStudentMobileSW();
+    registerPortalPWA();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
