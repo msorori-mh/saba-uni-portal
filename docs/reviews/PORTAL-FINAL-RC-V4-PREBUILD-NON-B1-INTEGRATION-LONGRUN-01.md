@@ -13,7 +13,8 @@ published as a DRAFT PR only. B1 `#310` remains an explicit PENDING insertion sl
 
 ```
 BASE_SHA=1b14201e5939cdbf17e7b5e5d79be7ad5b6b2149
-RC_SHA=782ca4f290b19d3490cda6b9248c3de37fa41139
+RC_SHA=0fc1d7b9384be7d0b00fd8d2feb41a00d2a12938
+
 INTEGRATED_PRS=#293,#291,#299,#311,#312 (+ origin/main tip 0ba4ee53)
 MIGRATION_COLLISIONS=NONE
 MERGE_CONFLICTS=2 mechanical (resolved); 0 semantic HOLDs
