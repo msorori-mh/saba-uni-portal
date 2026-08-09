@@ -130,15 +130,19 @@ Draft PR `#316` remains Draft. No merge to `main`.
 
 ## CI wait block
 
-Resolved on tip `01615703200d3d70c8b12195052d612186a37447` (Draft PR `#316`):
+Resolved hard gates:
+
+| Tip | Web CI | Migration Review |
+|---|---|---|
+| `01615703200d3d70c8b12195052d612186a37447` (exact-repin) | [PASS](https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337435126) | [PASS](https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337435129) |
+| `41ab1233079eafff5fb5fa5523404bd6d2f45dd7` (CI evidence docs) | [PASS](https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337823093) | [PASS](https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337823097) |
 
 ```
 WEB_CI=PASS
 MIGRATION_REVIEW=PASS
-WEB_CI_RUN=https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337435126
-MIGRATION_REVIEW_RUN=https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337435129
 CHECKS_PASS_COUNT=22
 PR316_IS_DRAFT=YES
+PR316_HEAD=41ab1233079eafff5fb5fa5523404bd6d2f45dd7
 MERGE=NO
 ```
 
