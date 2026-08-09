@@ -1,0 +1,41 @@
+{
+  "artifact_id": "OPERATOR_OBSERVATION_ALLOWLIST",
+  "note": "Authoritative machine-readable observation allowlist for b1_matrix_operator. b1_matrix_operator must have SELECT access strictly on these relations and NO OTHER relations in schema public or auth.",
+  "allowed_schemas": [
+    "public",
+    "supabase_migrations"
+  ],
+  "allowed_tables": [
+    "public.student_requests",
+    "public.student_request_workflow_steps",
+    "public.student_request_workflow_events",
+    "public.request_processing_assignments",
+    "public.student_request_attachment_uploads",
+    "public.student_request_attachments",
+    "public.student_request_fee_assessments",
+    "public.payment_receipts",
+    "public.official_documents",
+    "public.enrollment_certificate_document_details",
+    "public.transfer_request_details",
+    "public.enrollment_suspension_details",
+    "public.absence_excuse_details",
+    "public.extra_chance_details",
+    "public.file_withdrawal_details",
+    "public.student_excused_absences",
+    "public.student_extra_chances",
+    "public.student_academic_status",
+    "public.student_enrollments",
+    "public.student_profiles",
+    "public.notifications",
+    "public.audit_logs",
+    "public.request_types",
+    "supabase_migrations.schema_migrations"
+  ],
+  "forbidden_tables_sample": [
+    "public.students",
+    "public.staff_profiles",
+    "public.faculty_profiles",
+    "public.council_meetings",
+    "public.council_topics"
+  ]
+}
