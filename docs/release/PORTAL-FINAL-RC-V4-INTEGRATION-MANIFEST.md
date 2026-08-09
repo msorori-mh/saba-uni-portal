@@ -1,9 +1,9 @@
-# PORTAL FINAL RC V4 — Integration Manifest
+# PORTAL FINAL RC V4 â€” Integration Manifest
 
 Mission: `PORTAL-RC313-INTEGRATE-PWA315-ADMIN317-FINAL-NONB1-CLOSURE-LONGRUN-04`
 (prior: `PORTAL-RC313-PR314-SEMANTIC-INTEGRATION-REMEDIATION-LONGRUN-03`
- → `PORTAL-RC313-INTEGRATE-PR314-FACULTY-COUNCILS-UX-LONGRUN-02`
- → `PORTAL-FINAL-RC-V4-PREBUILD-NON-B1-INTEGRATION-LONGRUN-01`)
+ â†’ `PORTAL-RC313-INTEGRATE-PR314-FACULTY-COUNCILS-UX-LONGRUN-02`
+ â†’ `PORTAL-FINAL-RC-V4-PREBUILD-NON-B1-INTEGRATION-LONGRUN-01`)
 
 **Status:** FINAL NON-B1 candidate for Draft PR #313.
 Includes portal-wide PWA install (#315) and Admin navigation/dashboard UX (#317)
@@ -41,43 +41,43 @@ RC_MECHANICAL_MERGE_SHA=954ba6655c3dd48c5e5a8baa6289a5037752e737
 RC_LONGRUN03_DOCS_HEAD_SHA=aff53654d23c5c2bb041e4770d8fe4cba6d8fb9c
 RC_PWA315_MERGE_SHA=04ee5a2c
 RC_ADMIN317_MERGE_SHA=05ba4920
-RC_CURRENT_HEAD_SHA=<set after LONGRUN-04 docs commit>
+RC_CURRENT_HEAD_SHA=5a000089633b0b66956e2de96dc68a30f4bcfc23
 ```
 
 Notes:
 
-- `RC_PREVIOUS_HEAD_SHA` / `RC_LONGRUN03_DOCS_HEAD_SHA` — Draft PR #313 tip at
-  LONGRUN-04 start (`aff53654…`), OLD_RC_SHA for this mission.
-- `RC_PWA315_MERGE_SHA` — `--no-ff` merge of #315 into RC.
-- `RC_ADMIN317_MERGE_SHA` — `--no-ff` merge of #317 into RC (after #315).
-- `RC_CURRENT_HEAD_SHA` — tip after LONGRUN-04 manifest + mission report commit.
+- `RC_PREVIOUS_HEAD_SHA` / `RC_LONGRUN03_DOCS_HEAD_SHA` â€” Draft PR #313 tip at
+  LONGRUN-04 start (`aff53654â€¦`), OLD_RC_SHA for this mission.
+- `RC_PWA315_MERGE_SHA` â€” `--no-ff` merge of #315 into RC.
+- `RC_ADMIN317_MERGE_SHA` â€” `--no-ff` merge of #317 into RC (after #315).
+- `RC_CURRENT_HEAD_SHA` â€” tip after LONGRUN-04 manifest + mission report commit.
 - `MAIN_BASE_SHA` is `origin/main` HEAD at LONGRUN-01 inventory start.
-- `MAIN_TIP_ABSORBED_SHA=0ba4ee53…` remains current absorbed main tip.
-- `B1_PR310_SHA=PENDING` — PR #310 is intentionally excluded.
+- `MAIN_TIP_ABSORBED_SHA=0ba4ee53â€¦` remains current absorbed main tip.
+- `B1_PR310_SHA=PENDING` â€” PR #310 is intentionally excluded.
 - `PWA_PR315_SHA=42a9586fe7b20ca883c2f45a6f683a1e2f2e909c`
 - `ADMIN_UX_PR317_SHA=636e26f1d221f784d18bae00c9a4e7254e1be819`
 
 ## Exact integration order
 
-1. Branch from `MAIN_BASE_SHA` → `rc/portal-final-v4-prebuild-non-b1-01`
-2. `integrate(pr-293)` — Graduation Projects Level-4 TEST_ONLY fixture package
-3. `integrate(pr-291)` — Graduates Affairs multimodel authorization remediation
-4. `integrate(pr-299)` — Graduates Affairs stacked promotion/authorization path
+1. Branch from `MAIN_BASE_SHA` â†’ `rc/portal-final-v4-prebuild-non-b1-01`
+2. `integrate(pr-293)` â€” Graduation Projects Level-4 TEST_ONLY fixture package
+3. `integrate(pr-291)` â€” Graduates Affairs multimodel authorization remediation
+4. `integrate(pr-299)` â€” Graduates Affairs stacked promotion/authorization path
    (ancestor of `#291` tip; no duplicate commits applied)
-5. `integrate(pr-311)` — Academic Councils C0–C9 legacy production reconciliation
+5. `integrate(pr-311)` â€” Academic Councils C0â€“C9 legacy production reconciliation
    (mechanical conflict resolution only: CI trigger union + route semantic hash pin)
-6. `integrate(pr-312)` — Faculty Dashboard operational-priority redesign
-7. `merge(origin/main)` — absorb `MAIN_TIP_ABSORBED_SHA`
+6. `integrate(pr-312)` â€” Faculty Dashboard operational-priority redesign
+7. `merge(origin/main)` â€” absorb `MAIN_TIP_ABSORBED_SHA`
 8. Add LONGRUN-01 manifest + mission report (docs-only)
-9. `integrate(pr-314)` — Faculty Academic Councils operational dashboard UX
+9. `integrate(pr-314)` â€” Faculty Academic Councils operational dashboard UX
    (LONGRUN-02 mechanical merge; conflict on `faculty-portal.academic-councils.tsx`)
-10. LONGRUN-03 semantic remediation — restore #311/#313 consumers inside #314 UX:
+10. LONGRUN-03 semantic remediation â€” restore #311/#313 consumers inside #314 UX:
     reports discovery, topic review queue, edit/resubmit, open-intake submit
     (`meeting_id`), C9 governance/role dashboards/notification bell; single
     composition (no duplicated operational sections)
-11. `integrate(pr-315)` — Portal-wide PWA install experience (LONGRUN-04; `--no-ff`)
-12. `integrate(pr-317)` — Admin navigation IA + dashboard UX (LONGRUN-04; `--no-ff`)
-13. LONGRUN-04 docs — update this manifest + final non-B1 closure report
+11. `integrate(pr-315)` â€” Portal-wide PWA install experience (LONGRUN-04; `--no-ff`)
+12. `integrate(pr-317)` â€” Admin navigation IA + dashboard UX (LONGRUN-04; `--no-ff`)
+13. LONGRUN-04 docs â€” update this manifest + final non-B1 closure report
 
 ## Integrated PR list (current)
 
@@ -97,17 +97,17 @@ Notes:
 ## Dependency graph (runtime)
 
 ```
-main (1b14201e) … tip absorbed 0ba4ee53
-├── #293 GP fixtures (independent)
-├── #291 GA remediation ──► #299 GA promotion (stacked on #291)
-├── #311 Councils tip (stacked on councils C9 readiness; merge-base e71d9aa8)
-├── #312 Faculty dashboard (independent)
-├── #314 Faculty councils operational UX (independent UI on main tip;
-│        LONGRUN-03 adapts presentation while retaining #311 contracts)
-├── #315 Portal-wide PWA install (UI/SW; zero migrations)
-└── #317 Admin nav + dashboard UX (UI-only; zero migrations)
+main (1b14201e) â€¦ tip absorbed 0ba4ee53
+â”œâ”€â”€ #293 GP fixtures (independent)
+â”œâ”€â”€ #291 GA remediation â”€â”€â–؛ #299 GA promotion (stacked on #291)
+â”œâ”€â”€ #311 Councils tip (stacked on councils C9 readiness; merge-base e71d9aa8)
+â”œâ”€â”€ #312 Faculty dashboard (independent)
+â”œâ”€â”€ #314 Faculty councils operational UX (independent UI on main tip;
+â”‚        LONGRUN-03 adapts presentation while retaining #311 contracts)
+â”œâ”€â”€ #315 Portal-wide PWA install (UI/SW; zero migrations)
+â””â”€â”€ #317 Admin nav + dashboard UX (UI-only; zero migrations)
 
-#310 B1 → NOT INTEGRATED (PENDING slot)
+#310 B1 â†’ NOT INTEGRATED (PENDING slot)
 ```
 
 ## B1 insertion slot (minimum work)
@@ -130,7 +130,7 @@ New promoted migrations on this RC (lexicographic apply order):
 
 | Version | Stream | File |
 |---|---|---|
-| 20260808120000…20260808180000 | Councils #311 | `councils_c0` … `councils_c9` (10 files) |
+| 20260808120000â€¦20260808180000 | Councils #311 | `councils_c0` â€¦ `councils_c9` (10 files) |
 | 20260808210000 | GA #299 | `ga_mvp_foundation_01.sql` |
 | 20260808210100 | GA #299 | `ga_mvp_completion_01.sql` |
 | 20260808210200 | GA #299 | `ga_authorization_04.sql` |
