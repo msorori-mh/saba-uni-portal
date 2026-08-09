@@ -15,7 +15,7 @@
 | REPORTS320_HEAD | `57010a34ee06863ac23558c3b71c79ef3743a9dd` |
 | PRE_REPORTS320_RC_HEAD_SHA | `afe5f55b545aceb9f761ee8a508818c19068db07` |
 | FINAL_RC_PRODUCT_SHA | `fe772f0faba165f885d0bc32f84944ada2b94681` |
-| FINAL_RC_HEAD_SHA | *(docs tip — set after this report lands; authoritative = `git rev-parse HEAD` on Draft PR branch)* |
+| FINAL_RC_HEAD_SHA | `633810b804fbe1808a1b0ec9560214fc90f28e57` |
 | INTEGRATED_PRS | `#293,#291,#299,#311,#312,#314,#315,#317,#310,#318,#320` |
 | merge-base(RC, #320) | `afe5f55b545aceb9f761ee8a508818c19068db07` |
 
