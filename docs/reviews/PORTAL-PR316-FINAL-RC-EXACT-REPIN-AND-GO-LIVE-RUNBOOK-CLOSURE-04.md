@@ -130,11 +130,16 @@ Draft PR `#316` remains Draft. No merge to `main`.
 
 ## CI wait block
 
-Filled after push:
+Resolved on tip `01615703200d3d70c8b12195052d612186a37447` (Draft PR `#316`):
 
 ```
-WEB_CI=PENDING
-MIGRATION_REVIEW=PENDING
+WEB_CI=PASS
+MIGRATION_REVIEW=PASS
+WEB_CI_RUN=https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337435126
+MIGRATION_REVIEW_RUN=https://github.com/msorori-mh/saba-uni-portal/actions/runs/31337435129
+CHECKS_PASS_COUNT=22
+PR316_IS_DRAFT=YES
+MERGE=NO
 ```
 
 ---
