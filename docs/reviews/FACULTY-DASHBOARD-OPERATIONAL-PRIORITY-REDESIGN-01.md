@@ -148,8 +148,8 @@ None. Source-only UI reorder/consolidation. Draft PR only — **DO NOT MERGE** u
 ## Tokens
 
 ```text
-BASE_SHA=<see delivery block>
-NEW_SHA=<see delivery block>
+BASE_SHA=1b14201e5939cdbf17e7b5e5d79be7ad5b6b2149
+NEW_SHA=59a786ca76044255a1be6496680e0e13a6943f11
 BRANCH=feat/faculty-dashboard-operational-priority-01
 PASS_FACULTY_DASHBOARD_OPERATIONAL_PRIORITY_REDESIGN_01
 PRODUCTION_READS=0
