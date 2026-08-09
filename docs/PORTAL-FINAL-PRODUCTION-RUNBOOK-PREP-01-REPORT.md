@@ -94,12 +94,12 @@
   - `bunx tsc --noEmit` ⇒ **0 Errors**
   - `git diff --check` ⇒ **PASS (Clean formatting & whitespace)**
 - **تركيبة الإصدار المستهدفة**:
-  - `PR #293` (مشاريع التخرج Graduation Projects)
-  - `PR #291` (أساسات المجالس الأكاديمية ورؤساء الأقسام D01)
-  - `PR #299` (شؤون الخريجين Auth-04)
-  - `PR #311` (المجالس الأكاديمية C0-C9)
-  - `PR #312` (مطابقة التقارير وتحديث الكتالوج Canonical Catalog)
-  - `PR #314` (تيار إطلاق أخضر إضافي Green Release Stream)
+  - `PR #293` (مشاريع التخرج Graduation Projects Level-4 Fixture Package)
+  - `PR #291` (معالجة تفويض شؤون الخريجين متعدد النماذج GA Multimodel Authorization Remediation)
+  - `PR #299` (مسار ترقية وتفويض شؤون الخريجين GA Stacked Promotion)
+  - `PR #311` (أساسات المجالس الأكاديمية Academic Councils C0-C9 Foundation)
+  - `PR #312` (إعادة تصميم واجهة أعضاء الهيئة التدريسية حسب الأولوية التشغيلية Faculty Dashboard Redesign)
+  - `PR #314` (تيار إطلاق أخضر إضافي - `PR314_IN_RC=NO`)
   - `B1 PR #310` (`B1_FINAL_SHA=PENDING` لحين إغلاق `LONGRUN-18`)
 - **متغيرات الإصدار الحالية**:
   - `RC313_SHA=resolve dynamically at finalization` (ديناميكي عند التثبيت النهائي — عدم التجميد على e3db0cc330106518d5ab9ca6874d70d9e98b1411 القديم)

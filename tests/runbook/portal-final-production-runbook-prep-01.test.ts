@@ -201,6 +201,27 @@ describe("authoritative migration graph parity & truth tests", () => {
     }
     expect(GP_RELEASE_MIGRATIONS.length).toBe(1);
   });
+  test("no generic unenumerated C3-C9 placeholders are used in execution specs", () => {
+    const execSpecsSection = runbookContent.slice(runbookContent.indexOf("## 4. مواصفات التنفيذ التفصيلية"));
+    expect(execSpecsSection).not.toContain("C3-C9");
+    expect(execSpecsSection).not.toContain("C3..C9");
+  });
+
+  test("wrong GA filenames and old July GA versions do not appear in execution graph", () => {
+    const execSpecsSection = runbookContent.slice(runbookContent.indexOf("## 4. مواصفات التنفيذ التفصيلية"));
+    expect(execSpecsSection).not.toContain("20260711000000");
+    expect(execSpecsSection).not.toContain("20260713010000");
+    expect(execSpecsSection).not.toContain("20260723061809");
+    for (const gaFile of GA_MIGRATIONS) {
+      expect(execSpecsSection).toContain(gaFile);
+    }
+  });
+
+  test("wrong GP L4 filename does not appear in execution graph", () => {
+    const execSpecsSection = runbookContent.slice(runbookContent.indexOf("## 4. مواصفات التنفيذ التفصيلية"));
+    expect(execSpecsSection).not.toContain("20260727120000");
+    expect(execSpecsSection).toContain("20260808010000_gp_student_level4_only_eligibility_guard_01.sql");
+  });
 });
 
 describe("22 owner gates structure and invariants", () => {
@@ -245,3 +266,4 @@ describe("AGENTS.md and zero-production-execution stance", () => {
     expect(preflightContent).toContain("NO MIGRATION APPLY");
   });
 });
+
