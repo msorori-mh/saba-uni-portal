@@ -1,39 +1,40 @@
-/* Student Mobile PWA — minimal app-shell service worker.
- * Scope: '/'. Only caches static app-shell assets.
- * Never caches API/auth/sensitive student data (finance, documents,
- * requests, grades, academic record, supabase auth/storage, etc.).
- */
-const VERSION = "student-mobile-pwa-v1";
-const STATIC_CACHE = `static-${VERSION}`;
+/* Portal-wide PWA: closed positive static-shell allowlist; no runtime caching. */
+importScripts("/sw-cache-policy.js");
+
+const VERSION = "v2";
+const { OWNED_CACHE_PREFIX, PUBLIC_SHELL_ASSETS, canCacheRequest, canCacheResponse, isOwnedCacheName, isProtectedPath } =
+  self.portalPwaCachePolicy;
+const STATIC_CACHE = `${OWNED_CACHE_PREFIX}${VERSION}`;
 const OFFLINE_URL = "/offline.html";
+const PRECACHE_URLS = Object.freeze(Object.keys(PUBLIC_SHELL_ASSETS));
 
-const PRECACHE_URLS = [
-  OFFLINE_URL,
-  "/manifest.webmanifest",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/icon-maskable-512.png",
-];
-
-// Paths that must NEVER be cached (sensitive / dynamic / auth).
-const NEVER_CACHE_PATTERNS = [
-  /\/mobile\/student\/finance/i,
-  /\/mobile\/student\/documents/i,
-  /\/mobile\/student\/requests/i,
-  /\/mobile\/student\/grades/i,
-  /\/mobile\/student\/academic-record/i,
-  /\/mobile\/student\/schedule/i,
-  /\/api\//i,
-  /\/_serverFn\//i,
-  /supabase\.co/i,
-  /supabase\.in/i,
-  /\/auth\//i,
-];
+async function precachePublicShell() {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    await Promise.all(
+      PRECACHE_URLS.map(async (url) => {
+        const request = new Request(url, {
+          method: "GET",
+          credentials: "omit",
+          cache: "reload",
+        });
+        if (!canCacheRequest(request, self.location.origin)) throw new Error("Unsafe shell request");
+        const response = await fetch(request);
+        if (!canCacheResponse(request, response, self.location.origin)) {
+          throw new Error(`Unsafe shell response: ${url}`);
+        }
+        await cache.put(request, response.clone());
+      }),
+    );
+  } catch (error) {
+    await caches.delete(STATIC_CACHE);
+    throw error;
+  }
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
-  );
+  // Deliberately remain waiting. A visible client may explicitly send SKIP_WAITING.
+  event.waitUntil(precachePublicShell());
 });
 
 self.addEventListener("activate", (event) => {
@@ -41,66 +42,38 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const names = await caches.keys();
       await Promise.all(
-        names.filter((n) => n !== STATIC_CACHE).map((n) => caches.delete(n))
+        names
+          .filter((name) => isOwnedCacheName(name) && name !== STATIC_CACHE)
+          .map((name) => caches.delete(name)),
       );
-      await self.clients.claim();
-    })()
+      // Existing authenticated pages keep their current controller until their
+      // next normal navigation, preventing mixed-version takeover.
+    })(),
   );
 });
 
-function isNeverCache(url) {
-  return NEVER_CACHE_PATTERNS.some((re) => re.test(url));
-}
-
-function isStaticAsset(url) {
-  return /\.(?:css|js|mjs|woff2?|ttf|otf|png|jpg|jpeg|webp|svg|ico)$/i.test(url);
-}
-
 self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  if (req.method !== "GET") return;
+  const request = event.request;
+  if (request.method !== "GET") return;
 
-  const url = new URL(req.url);
-
-  // Same-origin only. Bypass everything cross-origin (incl. Supabase).
+  const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (isProtectedPath(url.pathname + url.search)) return;
 
-  // Sensitive / dynamic paths -> network only, no caching.
-  if (isNeverCache(url.pathname + url.search)) return;
-
-  // HTML navigations -> NetworkFirst, fallback to offline page.
-  if (req.mode === "navigate") {
+  // Navigations are network-only. On a network failure, only the harmless,
+  // precached offline shell may be returned; HTML responses are never cached.
+  if (request.mode === "navigate") {
     event.respondWith(
-      (async () => {
-        try {
-          const fresh = await fetch(req);
-          return fresh;
-        } catch {
-          const cache = await caches.open(STATIC_CACHE);
-          const offline = await cache.match(OFFLINE_URL);
-          return offline || new Response("Offline", { status: 503 });
-        }
-      })()
-    );
-    return;
-  }
-
-  // Static assets -> StaleWhileRevalidate (app shell).
-  if (isStaticAsset(url.pathname)) {
-    event.respondWith(
-      (async () => {
+      fetch(request).catch(async () => {
         const cache = await caches.open(STATIC_CACHE);
-        const cached = await cache.match(req);
-        const network = fetch(req)
-          .then((res) => {
-            if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
-            return res;
-          })
-          .catch(() => cached);
-        return cached || network;
-      })()
+        const offline = await cache.match(OFFLINE_URL);
+        return offline || new Response("Offline", { status: 503 });
+      }),
     );
   }
+
+  // Every non-navigation request is network-only. There is intentionally no
+  // extension-based or other runtime Cache Storage write path.
 });
 
 self.addEventListener("message", (event) => {
