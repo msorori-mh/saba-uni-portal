@@ -4,9 +4,14 @@
 **PR:** #311  
 **Branch:** `fix/councils-legacy-production-reconciliation-longrun-13`  
 **OLD_SHA:** `b5613e66ea2e04abc8653c650ead5c763f339b09`  
+**NEW_SHA:** `2541c2b4deaf561e2760dd448d60e46de056cec2`  
 **Decision:** `PASS_ACADEMIC_COUNCILS_PR311_PREFLIGHT_ANTI_FALSE_PASS_CLOSURE`
 
 Independent review LONGRUN-14 HIGH finding (ledger-only `FULL_NEW_CHAIN` false-pass) and fingerprint-override risk are closed in source. This report does not edit the independent Codex HOLD report.
+
+CI (same PR #311):
+- Web CI: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31288143261 — SUCCESS
+- Migration Review: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31288143254 — SUCCESS
 
 ---
 
