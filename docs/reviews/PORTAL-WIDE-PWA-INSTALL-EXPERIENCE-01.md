@@ -108,7 +108,7 @@ bun test tests/pwa tests/mobile
 | `bunx tsc --noEmit` | PASS |
 | `bun run build` | PASS |
 | `git diff --check` | PASS |
-| CI | pending until PR checks |
+| CI | SUCCESS (Web CI run on draft PR #315) |
 
 ## Files modified / added
 
