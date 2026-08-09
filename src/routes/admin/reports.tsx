@@ -30,12 +30,13 @@ import {
 } from "@/lib/admin-reports.functions";
 import { buildExtendedReportTypeOptions } from "@/lib/student-requests/request-type-registry";
 import { logReportEvent } from "@/lib/reports/report-audit.functions";
-import { ReportsCenter } from "@/components/reports-center/ReportsCenter";
+import { ReportsOperationalWorkspace } from "@/components/reports/ReportsOperationalWorkspace";
 import {
   REPORT_CATALOG_ENTRIES,
   catalogViewerFromActorScope,
 } from "@/lib/reports/catalog";
 import { getMyReportScope } from "@/lib/beneficiary-reports.functions";
+import { buildAdminAttention } from "@/lib/reports/attention";
 
 
 const VALID_TABS = ["catalog", "students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
@@ -305,7 +306,7 @@ function ReportsPage() {
   };
 
   const sections: Array<{ id: TabId; title: string; icon: any; active?: boolean }> = [
-    { id: "catalog", title: "كتالوج حسب المستفيد", icon: BarChart3, active: true },
+    { id: "catalog", title: "جميع التقارير", icon: BarChart3, active: true },
     { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
     { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
     { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
@@ -2347,16 +2348,22 @@ function CatalogReportsTab() {
     ? catalogViewerFromActorScope(actorScope)
     : null;
 
+  // Attention only when proven counts are supplied — no fabricated fillers.
+  const attentionItems = buildAdminAttention({});
+
   return (
-    <ReportsCenter
-      entries={REPORT_CATALOG_ENTRIES}
-      viewerRoles={
-        viewerScope?.roles?.length ? viewerScope.roles : roles
-      }
-      viewerScope={viewerScope}
-      title="كتالوج التقارير حسب المستفيد"
-      subtitle="الرؤية fail-closed — التقارير المحجوبة لا تُعرض كأنها متاحة."
-      defaultGrouping="beneficiary"
+    <ReportsOperationalWorkspace
+      attentionItems={attentionItems}
+      kpiTiles={[]}
+      catalog={{
+        entries: REPORT_CATALOG_ENTRIES,
+        viewerRoles: viewerScope?.roles?.length ? viewerScope.roles : roles,
+        viewerScope,
+        title: "جميع التقارير",
+        subtitle:
+          "الرؤية fail-closed — التقارير المحجوبة لا تُعرض كأنها متاحة. لا يتجاوز الكتالوج التفويض التنظيمي داخل التقارير.",
+        defaultGrouping: "beneficiary",
+      }}
     />
   );
 }

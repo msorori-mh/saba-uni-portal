@@ -382,7 +382,7 @@ export const getDepartmentReportsSummary = createServerFn({ method: "POST" })
         (counts.teachingLoad.unassignedSections.value ?? 0) > 0
           ? {
               code: "unassigned_sections",
-              label_ar: "مقررات/شعب غير مسندة تحتاج تدخلاً",
+              label_ar: "المجموعات الدراسية غير المسندة تحتاج تدخلاً",
               count: counts.teachingLoad.unassignedSections.value,
             }
           : null,

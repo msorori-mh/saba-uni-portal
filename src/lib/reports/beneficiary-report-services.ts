@@ -226,11 +226,23 @@ export async function runStudentSelfReportsSummary(args: {
     denyAuthz("غير مصرح — لا يمكن قراءة ملف طالب آخر");
   }
 
+  const returnedStatuses = new Set([
+    "returned",
+    "returned_for_completion",
+    "needs_correction",
+    "resubmission_required",
+  ]);
+  const returnedForCompletion = requests.filter((r) =>
+    returnedStatuses.has(r.status),
+  ).length;
+
   return {
     scopeLabelAr: "ذاتي فقط",
     profile,
     academicStatus,
     studentProfileId: studentId,
+    /** Proven action-required count — open requests alone are not attention. */
+    returnedForCompletion,
     kpis: {
       activeEnrollments: metricValue(
         enrollments.filter(
@@ -247,6 +259,9 @@ export async function runStudentSelfReportsSummary(args: {
             "in_progress",
             "under_review",
             "returned",
+            "returned_for_completion",
+            "needs_correction",
+            "resubmission_required",
           ].includes(r.status),
         ).length,
       ),
@@ -331,7 +346,7 @@ export async function runFacultySelfReportsSummary(args: {
   }
 
   return {
-    scopeLabelAr: "المقررات والمجموعات المسندة فقط",
+    scopeLabelAr: "المقررات والمجموعات الدراسية المسندة فقط",
     facultyProfileId: facultyId,
     teachingLoad,
     materials,

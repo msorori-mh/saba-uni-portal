@@ -85,7 +85,7 @@ describe("faculty reports — wrong scope (assigned only)", () => {
     expect(FUNCTIONS_SRC).toContain("getFacultySelfReportsSummary");
     expect(FUNCTIONS_SRC).toContain("runFacultySelfReportsSummary");
     expect(FUNCTIONS_SRC).toContain('.eq("faculty_profile_id", facultyId)');
-    expect(SERVICES_SRC).toContain("المقررات والمجموعات المسندة فقط");
+    expect(SERVICES_SRC).toContain("المقررات والمجموعات الدراسية المسندة فقط");
   });
 });
 
