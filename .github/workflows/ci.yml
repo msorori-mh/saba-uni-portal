@@ -109,13 +109,14 @@ jobs:
       - name: Run all bun test suites (fail-closed)
         run: |
           set -euo pipefail
-          COUNT=$(find tests -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'b1-definitive-operator-architecture-14' | wc -l)
+          mapfile -t TEST_FILES < <(find tests -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'b1-definitive-operator-architecture-14' | sort)
+          COUNT=${#TEST_FILES[@]}
           echo "Discovered $COUNT test files under tests/ (excluding LONGRUN-14 operator suite)"
           if [ "$COUNT" -eq 0 ]; then
             echo "::error::No test files found under tests/ — refusing to pass vacuously"
             exit 1
           fi
-          bun test tests/ --path-ignore-patterns="b1-definitive-operator-architecture-14/**"
+          bun test "${TEST_FILES[@]}"
 
   # LONGRUN-14: definitive B1 operator architecture — real 267 RPC authorization
   # execution against a disposable postgres:17 fixture. The fixture is built from
