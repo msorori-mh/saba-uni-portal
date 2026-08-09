@@ -267,12 +267,6 @@ BEGIN
       RAISE EXCEPTION 'HOLD: HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH legacy base tables missing: %', array_to_string(v_missing, ', ');
     END IF;
     v_final := 'PARTIAL_NEW_CHAIN_EXACT_PREFIX';
-    RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: %', v_final;
-    RAISE NOTICE 'PARTIAL_LAST_APPLIED: %', v_promoted[v_ledger_prefix];
-    RAISE NOTICE 'PARTIAL_NEXT_EXPECTED: %', v_promoted[v_ledger_prefix + 1];
-    RAISE NOTICE 'PARTIAL_NEW_CHAIN_EXACT_PREFIX';
-    PERFORM set_config('councils.preflight_terminal', 'PARTIAL_NEW_CHAIN_EXACT_PREFIX', false);
-    RETURN;
   ELSIF v_ledger_state = 'LEDGER_NONE' AND v_schema_state = 'SCHEMA_LEGACY_EXACT' THEN
     v_final := 'LEGACY_SUPPORTED_EXACT';
     RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: %', v_final;
@@ -284,6 +278,30 @@ BEGIN
     v_final := 'UNKNOWN_UNSAFE';
     RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: %', v_final;
     RAISE EXCEPTION 'HOLD: UNKNOWN_UNSAFE ledger=%, schema=%', v_ledger_state, v_schema_state;
+  END IF;
+
+  -- Phase D: production-only forbidden configuration guards must execute before
+  -- any successful terminal return (FULL_NEW_CHAIN_VERIFIED, LEGACY_SUPPORTED_EXACT,
+  -- or PARTIAL_NEW_CHAIN_EXACT_PREFIX). These override settings are only legal in
+  -- disposable local-test contexts where the migration ledger relation is absent.
+  IF v_production_ledger THEN
+    IF coalesce(current_setting('councils.fingerprint_expected', true), '') <> '' THEN
+      RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: HOLD_PRODUCTION_FINGERPRINT_OVERRIDE_FORBIDDEN';
+      RAISE EXCEPTION 'HOLD: HOLD_PRODUCTION_FINGERPRINT_OVERRIDE_FORBIDDEN';
+    END IF;
+    IF coalesce(current_setting('councils.local_test_fingerprint_mode', true), '') <> '' THEN
+      RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: HOLD_PRODUCTION_LOCAL_TEST_FINGERPRINT_MODE_FORBIDDEN';
+      RAISE EXCEPTION 'HOLD: HOLD_PRODUCTION_LOCAL_TEST_FINGERPRINT_MODE_FORBIDDEN';
+    END IF;
+  END IF;
+
+  IF v_final = 'PARTIAL_NEW_CHAIN_EXACT_PREFIX' THEN
+    RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: %', v_final;
+    RAISE NOTICE 'PARTIAL_LAST_APPLIED: %', v_promoted[v_ledger_prefix];
+    RAISE NOTICE 'PARTIAL_NEXT_EXPECTED: %', v_promoted[v_ledger_prefix + 1];
+    RAISE NOTICE 'PARTIAL_NEW_CHAIN_EXACT_PREFIX';
+    PERFORM set_config('councils.preflight_terminal', 'PARTIAL_NEW_CHAIN_EXACT_PREFIX', false);
+    RETURN;
   END IF;
 
   IF v_final = 'FULL_NEW_CHAIN_VERIFIED' THEN
@@ -475,13 +493,10 @@ BEGIN
     UNION ALL SELECT 'policy:'||p.schemaname||':'||p.tablename||':'||p.policyname||':'||p.cmd||':'||coalesce(p.qual::text,'NULL')||':'||coalesce(p.with_check::text,'NULL') FROM pg_policies p WHERE (p.schemaname='public' AND p.tablename LIKE 'academic_council%') OR (p.schemaname='storage' AND p.tablename='objects' AND p.policyname LIKE 'acta_%')
   ) q;
   RAISE NOTICE 'PREFLIGHT_SCHEMA_FINGERPRINT: %', v_actual;
-  v_setting := current_setting('councils.fingerprint_expected',true);
-  IF v_setting IS NOT NULL AND v_setting <> '' THEN
-    IF v_production_ledger THEN RAISE EXCEPTION 'HOLD: HOLD_PRODUCTION_FINGERPRINT_OVERRIDE_FORBIDDEN'; END IF;
+  -- Non-production deprecated override guard. Production override attempts are
+  -- structurally rejected in Phase D before any successful terminal return.
+  IF coalesce(current_setting('councils.fingerprint_expected', true), '') <> '' THEN
     RAISE EXCEPTION 'HOLD: deprecated councils.fingerprint_expected; use councils.local_test_fingerprint_mode=LOCAL_TEST_ONLY';
-  END IF;
-  IF v_production_ledger AND coalesce(current_setting('councils.local_test_fingerprint_mode',true),'') <> '' THEN
-    RAISE EXCEPTION 'HOLD: HOLD_PRODUCTION_LOCAL_TEST_FINGERPRINT_MODE_FORBIDDEN';
   END IF;
   v_expected := '3985ae87d59f5bb50b8088c8a620846fcb2203e9238d59d98db18e18210d44a9';
   IF NOT v_production_ledger AND v_actual IS DISTINCT FROM v_expected THEN

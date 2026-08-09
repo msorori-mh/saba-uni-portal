@@ -538,4 +538,112 @@ describe("PR311 preflight anti-false-pass classifier", () => {
     },
     900_000,
   );
+
+  it(
+    "PG17 production guard regressions: forbidden settings hold before any successful terminal",
+    async () => {
+      if (!dockerReady) throw new Error("docker is required");
+
+      const results = {
+        FULL_CHAIN_OVERRIDE_REJECTION: "FAIL",
+        FULL_CHAIN_LOCAL_TEST_MODE_REJECTION: "FAIL",
+        LEGACY_OVERRIDE_REJECTION: "FAIL",
+        LEGACY_LOCAL_TEST_MODE_REJECTION: "FAIL",
+        FULL_NEW_CHAIN_VERIFIED_NORMAL_PATH: "FAIL",
+        LEGACY_SUPPORTED_EXACT_NORMAL_PATH: "FAIL",
+        LOCAL_TEST_ONLY_DISPOSABLE_PATH: "FAIL",
+        LEDGER_ONLY_FALSE_PASS: "FAIL",
+      } as const;
+
+      // 8: ledger-only + empty schema => HOLD_FULL_LEDGER_SCHEMA_MISMATCH
+      await resetDb();
+      seedLedger(promoted);
+      const ledgerOnly = runPreflight();
+      expect(ledgerOnly.ok).toBe(false);
+      expect(ledgerOnly.out).toContain("HOLD_FULL_LEDGER_SCHEMA_MISMATCH");
+      results.LEDGER_ONLY_FALSE_PASS = "HOLD";
+
+      // 1: full C0-C9 + fingerprint_expected override => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(9);
+      seedLedger(promoted);
+      const fullOverride = runPreflight(
+        `SET councils.fingerprint_expected = '3985ae87d59f5bb50b8088c8a620846fcb2203e9238d59d98db18e18210d44a9';\n`,
+      );
+      expect(fullOverride.ok).toBe(false);
+      expect(fullOverride.out).toContain("HOLD_PRODUCTION_FINGERPRINT_OVERRIDE_FORBIDDEN");
+      results.FULL_CHAIN_OVERRIDE_REJECTION = "PASS";
+
+      // 2: full C0-C9 + LOCAL_TEST_ONLY => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(9);
+      seedLedger(promoted);
+      const fullLocalForbidden = runPreflight(
+        `SET councils.local_test_fingerprint_mode = 'LOCAL_TEST_ONLY';\n`,
+      );
+      expect(fullLocalForbidden.ok).toBe(false);
+      expect(fullLocalForbidden.out).toContain("HOLD_PRODUCTION_LOCAL_TEST_FINGERPRINT_MODE_FORBIDDEN");
+      results.FULL_CHAIN_LOCAL_TEST_MODE_REJECTION = "PASS";
+
+      // 5: full C0-C9 with no forbidden settings => FULL_NEW_CHAIN_VERIFIED
+      await resetDb();
+      applyLegacy();
+      applyThrough(9);
+      seedLedger(promoted);
+      const fullNormal = runPreflight();
+      if (!fullNormal.ok) throw new Error(`full normal path failed:\n${fullNormal.out}`);
+      expect(fullNormal.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: FULL_NEW_CHAIN_VERIFIED");
+      expect(fullNormal.out).toContain("NO_APPLY_REQUIRED");
+      results.FULL_NEW_CHAIN_VERIFIED_NORMAL_PATH = "PASS";
+
+      // 3: legacy exact + override => HOLD
+      await resetDb();
+      applyLegacy();
+      ensureLedgerTable();
+      const legacyOverride = runPreflight(
+        `SET councils.fingerprint_expected = '3985ae87d59f5bb50b8088c8a620846fcb2203e9238d59d98db18e18210d44a9';\n`,
+      );
+      expect(legacyOverride.ok).toBe(false);
+      expect(legacyOverride.out).toContain("HOLD_PRODUCTION_FINGERPRINT_OVERRIDE_FORBIDDEN");
+      results.LEGACY_OVERRIDE_REJECTION = "PASS";
+
+      // 4: legacy exact + LOCAL_TEST_ONLY => HOLD
+      await resetDb();
+      applyLegacy();
+      ensureLedgerTable();
+      const legacyLocalForbidden = runPreflight(
+        `SET councils.local_test_fingerprint_mode = 'LOCAL_TEST_ONLY';\n`,
+      );
+      expect(legacyLocalForbidden.ok).toBe(false);
+      expect(legacyLocalForbidden.out).toContain("HOLD_PRODUCTION_LOCAL_TEST_FINGERPRINT_MODE_FORBIDDEN");
+      results.LEGACY_LOCAL_TEST_MODE_REJECTION = "PASS";
+
+      // 6: exact legacy with no forbidden settings => READY_FOR_APPLY_C0
+      await resetDb();
+      applyLegacy();
+      const legacyNormal = runPreflightLocal();
+      if (!legacyNormal.ok) throw new Error(`legacy normal path failed:\n${legacyNormal.out}`);
+      expect(legacyNormal.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: LEGACY_SUPPORTED_EXACT");
+      expect(legacyNormal.out).toContain("READY_FOR_APPLY_C0");
+      results.LEGACY_SUPPORTED_EXACT_NORMAL_PATH = "PASS";
+
+      // 7: local disposable LOCAL_TEST_ONLY expected-digest path => valid
+      await resetDb();
+      applyLegacy();
+      const expected = discoverSchemaFingerprint();
+      const localTest = runPreflight(
+        `SET councils.local_test_fingerprint_mode = 'LOCAL_TEST_ONLY';\n` +
+          `SET councils.local_test_fingerprint_expected = '${expected}';\n`,
+      );
+      if (!localTest.ok) throw new Error(`LOCAL_TEST_ONLY disposable path failed:\n${localTest.out}`);
+      expect(localTest.out).toContain("PREFLIGHT_LOCAL_TEST_FINGERPRINT_MODE: LOCAL_TEST_ONLY");
+      expect(localTest.out).toContain("READY_FOR_APPLY_C0");
+      results.LOCAL_TEST_ONLY_DISPOSABLE_PATH = "PASS";
+
+      console.log(JSON.stringify({ PRODUCTION_GUARD_REGRESSIONS: results }));
+    },
+    600_000,
+  );
 });
