@@ -6,6 +6,7 @@
 | **الفرع** | `feat/reports-beneficiary-authz-scope-hardening-02` |
 | **PR** | [#319](https://github.com/msorori-mh/saba-uni-portal/pull/319) |
 | **starting SHA** | `9408a8d92b645f491c178d5b3c37744d5ea65e8f` |
+| **final SHA** | `5f98752b220f82d9f84c741aa4190fac47a460db` |
 | **القرار** | `PASS_PORTAL_REPORTS_BENEFICIARY_AUTHZ_SCOPE_HARDENING_03` |
 
 ## الملخص
