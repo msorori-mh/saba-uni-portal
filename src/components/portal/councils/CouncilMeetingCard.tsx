@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ListChecks, Loader2, Pencil } from "lucide-react";
+import { ListChecks, Loader2, Pencil, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateCouncilMeeting } from "@/lib/admin-councils.functions";
+import { transitionMyCouncilMeeting } from "@/lib/faculty-councils.functions";
 import type { CouncilMeetingV2Item } from "@/lib/faculty-councils.functions";
 import { MeetingAgendaExpandable } from "./MeetingAgendaExpandable";
 import {
@@ -35,6 +36,30 @@ import {
   toDatetimeLocalValue,
   toIsoFromDatetimeLocal,
 } from "./shared";
+
+/** Chair-driven forward lifecycle step offered per meeting status. */
+const NEXT_CHAIR_TRANSITION: Record<string, { to: string; label: string; success: string }> = {
+  scheduled: {
+    to: "intake_open",
+    label: "فتح استقبال الموضوعات",
+    success: "تم فتح استقبال الموضوعات لهذا الاجتماع.",
+  },
+  intake_open: {
+    to: "intake_closed",
+    label: "إغلاق استقبال الموضوعات",
+    success: "تم إغلاق استقبال الموضوعات.",
+  },
+  intake_closed: {
+    to: "agenda_ready",
+    label: "اعتماد جدول الأعمال",
+    success: "تم اعتماد جدول الأعمال.",
+  },
+  agenda_ready: {
+    to: "in_session",
+    label: "بدء الجلسة",
+    success: "تم بدء الجلسة.",
+  },
+};
 
 export type CouncilMeetingCardProps = {
   meeting: CouncilMeetingV2Item;
@@ -54,6 +79,8 @@ export function CouncilMeetingCard({
   onUpdated,
 }: CouncilMeetingCardProps) {
   const updateMeeting = useServerFn(updateCouncilMeeting);
+  const transitionMeeting = useServerFn(transitionMyCouncilMeeting);
+  const [transitionBusy, setTransitionBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editScheduledAt, setEditScheduledAt] = useState("");
