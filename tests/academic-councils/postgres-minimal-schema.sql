@@ -1,7 +1,13 @@
 -- Disposable PG17 stub schema for Academic Councils C0–C3 integrated harness.
 -- Synthetic identities only. No production connection.
+-- pgcrypto lives in schema extensions (Supabase production contract).
+-- Session search_path includes extensions (Supabase default); SECURITY DEFINER
+-- RPCs still pin their own search_path and must qualify extensions.digest.
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+alter database postgres set search_path to public, extensions, pg_temp;
+set search_path to public, extensions, pg_temp;
 create schema if not exists auth;
 create table if not exists auth.users(id uuid primary key);
 create or replace function auth.uid() returns uuid language sql stable as $$

@@ -32,7 +32,7 @@ BEGIN
     SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808122000_councils_c2_topic_intake_review_01') INTO v_c2;
     SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808130000_councils_c3_attendance_quorum_01') INTO v_c3;
     SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808140000_councils_c4_session_voting_01') INTO v_c4;
-    SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808150000_councils_c5_minutes_lifecycle_01') INTO v_c5;
+    SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260810180000_councils_c5_minutes_lifecycle_02') INTO v_c5;
     SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808160000_councils_c6_decisions_followup_01') INTO v_c6;
     SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808170000_councils_c7_audit_archive_01') INTO v_c7;
     SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE name = '20260808171000_councils_c0_c8_final_security_closure_01') INTO v_c8;

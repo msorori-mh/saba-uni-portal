@@ -71,7 +71,7 @@ const chain = [
   },
   {
     step: "C5",
-    migration: "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
+    migration: "supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql",
     verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql",
     pass: "COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS",
   },
@@ -135,9 +135,10 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
 
 function discoverSchemaFingerprint(): string {
   const r = psql(`
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE SCHEMA IF NOT EXISTS extensions;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
     SELECT encode(
-      digest(
+      extensions.digest(
         string_agg(line, E'\\n' ORDER BY line),
         'sha256'
       ),
@@ -361,7 +362,7 @@ describe("Academic Councils legacy production → C0-C9 reconciliation", () => {
           ('20260808122000', '20260808122000_councils_c2_topic_intake_review_01'),
           ('20260808130000', '20260808130000_councils_c3_attendance_quorum_01'),
           ('20260808140000', '20260808140000_councils_c4_session_voting_01'),
-          ('20260808150000', '20260808150000_councils_c5_minutes_lifecycle_01'),
+          ('20260810180000', '20260810180000_councils_c5_minutes_lifecycle_02'),
           ('20260808160000', '20260808160000_councils_c6_decisions_followup_01'),
           ('20260808170000', '20260808170000_councils_c7_audit_archive_01'),
           ('20260808171000', '20260808171000_councils_c0_c8_final_security_closure_01'),
