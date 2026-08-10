@@ -2,7 +2,9 @@
 
 **Mission:** `PORTAL-24H-GP-GA-OPERATIONAL-E2E-FULL-CLOSURE-01`  
 **Branch:** `test/24h-gp-ga-operational-closure-01`  
-**Base HEAD:** `a99f4543` (origin/main tip at mission start)  
+**PR:** https://github.com/msorori-mh/saba-uni-portal/pull/333  
+**Base HEAD at mission start:** `a99f4543`  
+**Final tip:** `38561d8e` (includes merge of current `origin/main`)  
 **Mode:** SOURCE-ONLY + disposable PostgreSQL 17 · no production writes · no migration apply · no deploy  
 **Decision:** `PASS_PORTAL_24H_GP_GA_OPERATIONAL_E2E_CLOSED`
 
