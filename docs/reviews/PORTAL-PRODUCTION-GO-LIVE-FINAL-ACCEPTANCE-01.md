@@ -186,3 +186,114 @@ GO_LIVE=DEPLOYED_PENDING_AUTHENTICATED_E2E
 
 FINAL TOKEN:
 `HOLD_PORTAL_PRODUCTION_GO_LIVE_FINAL_ACCEPTANCE_01_AUTHENTICATED_E2E_NOT_EXECUTED_AND_TEST_ONLY_SPECIALIST_PRINCIPAL_ABSENT`
+
+---
+
+# ADDENDUM — PHASE H0 → R (2026-08-10 17:45 UTC)
+
+## H0 — REPUBLISH FINAL MAIN — **PASS (with corrected source SHA)**
+
+Owner-supplied `FINAL_DEPLOY_SOURCE_SHA=5570753236e134c71dfc4351c9cdc42e9255a021`
+was **not** ahead of the previous deployment. Verified by object inspection:
+
+| Check | Result |
+|---|---|
+| `git cat-file -t 5570753…` | commit (PR #335 merge, 2026-08-10 19:34 +0300) |
+| `git merge-base --is-ancestor 5570753… HEAD` | **YES — ancestor** |
+| `5570753…9a5f81c9` relationship | PR #335 already contained in the prior deployment |
+| `git diff --stat 5570753…HEAD -- src/ vite.config.ts package.json public/ index.html` | **EMPTY — zero runtime delta** |
+| `5570753…HEAD` delta content | 37 files, docs/tests/scripts/migrat-packet text only |
+
+Per the mission rule "if main has advanced again, use the NEW exact main SHA
+only after classifying the delta", the delta was classified as **non-runtime**
+and the exact current main tip was published. Publishing `5570753…` was
+additionally impossible without a destructive checkout of the managed tree.
+
+| Gate | Result |
+|---|---|
+| `git status --porcelain` | clean |
+| typecheck (`tsgo --noEmit`) | **PASS** (exit 0) |
+| `bun run build` | **PASS** (exit 0, nitro worker generated) |
+| TanStack Register validation | **PASS** ("Register footer: present") |
+| Publish | executed |
+| `https://quboolye.com/version.json` | `{"sha":"176768f324b64a33120ed25397ce834d8a3b2547"}` on try 3 |
+| SHA equality | **PROVEN** vs FINAL_MAIN_SHA |
+
+FINAL_MAIN_SHA = `176768f324b64a33120ed25397ce834d8a3b2547`
+FINAL_DEPLOY_SOURCE_SHA = `176768f324b64a33120ed25397ce834d8a3b2547` (runtime-identical superset of 5570753…)
+DEPLOYED_SHA = `176768f324b64a33120ed25397ce834d8a3b2547`
+
+## PHASES I–P — **NOT_RUN — NO AUTHENTICATED PRINCIPAL AVAILABLE**
+
+Hard environmental blocker, measured (not assumed):
+
+| Probe | Result |
+|---|---|
+| `LOVABLE_BROWSER_AUTH_STATUS` | `signed_out` |
+| `LOVABLE_BROWSER_SUPABASE_SESSION_JSON` | absent |
+| `TEST_USER` / `TEST_PASS` | absent |
+| `psql select … from auth.users` | `ERROR: permission denied for schema auth` |
+
+Every Phase I–P acceptance line (`STUDENT_LOGIN=PASS`, `WRONG_ACTOR_RPC=DENY`,
+`NOTIFICATION=PASS`, identity-A→identity-B cache isolation, …) requires a live
+authenticated browser session as a specific TEST_ONLY principal. No such
+session can be established from this environment, and fabricating one would
+require inserting into `auth.users` — explicitly forbidden by the mission.
+
+Recorded honestly rather than claimed:
+
+- B1_E2E = **NOT_RUN_NO_AUTH_PRINCIPAL** (0/5 executed this mission)
+- ENROLLMENT_CERTIFICATE = NOT_RUN_NO_AUTH_PRINCIPAL
+- COUNCILS_E2E = NOT_RUN_NO_AUTH_PRINCIPAL
+- GP_E2E = NOT_RUN_NO_AUTH_PRINCIPAL
+- GA_E2E = NOT_RUN_NO_AUTH_PRINCIPAL (manager positive path needs manager login)
+- REPORTS / MESSAGES / DOCUMENTS / PWA_PRIVACY = NOT_RUN_NO_AUTH_PRINCIPAL
+
+Read-only production truth re-verified this turn (unauthenticated, psql):
+`request_types` → `enrollment_suspension`, `excused_absence`,
+`department_transfer`, `final_chance`, `file_withdrawal`,
+`enrollment_certificate` all `is_active = t`, `student_visible = t` (6/6).
+
+## PHASE Q — FINAL SECURITY SCAN — **EXECUTED**
+
+`security--run_security_scan` on the deployed state:
+
+| Counter | Value |
+|---|---|
+| CRITICAL_COUNT | **0** |
+| HIGH_COUNT | **0** |
+| warn | 7 (search_path lint, SECURITY DEFINER execute lints, fail-closed council write policies, site_settings group breadth, two folder-based storage ownership advisories) |
+
+Operational counters (WRONG_ROLE_COUNT, WRONG_SCOPE_COUNT, ADMIN_BYPASS,
+GA_BYPASS, COUNCILS_BYPASS, GP_LEVEL4_BYPASS, PRIVATE_CACHE_LEAK,
+DEAD_CRITICAL_CTA_COUNT) are **UNMEASURED** — they are outputs of Phases I–P.
+
+## PHASE R — FINAL ACCEPTANCE
+
+| Key | Value |
+|---|---|
+| FINAL_MAIN_SHA | `176768f324b64a33120ed25397ce834d8a3b2547` |
+| FINAL_DEPLOY_SOURCE_SHA | `176768f324b64a33120ed25397ce834d8a3b2547` |
+| DEPLOYED_SHA | `176768f324b64a33120ed25397ce834d8a3b2547` (SHA-equality proven) |
+| DEPLOYMENT_ID | not exposed by the publish channel |
+| DB_FULL_READY | YES (tip `20260810180000`) |
+| COUNCILS_C0_C9 | PASS (schema present/closed — prior evidence) |
+| GA1 / GA2 / GA3 / GA_AUTH04 | PASS (present + structurally verified — prior evidence) |
+| B1_E2E | **NOT_RUN_NO_AUTH_PRINCIPAL** |
+| ENROLLMENT_CERTIFICATE / COUNCILS_E2E / GP_E2E / GA_E2E | NOT_RUN_NO_AUTH_PRINCIPAL |
+| REPORTS / MESSAGES / DOCUMENTS / PWA_PRIVACY | NOT_RUN_NO_AUTH_PRINCIPAL |
+| GA_SPECIALIST_REAL_ACTOR | FAIL_CLOSED_UNSCOPED |
+| GA_SPECIALIST_POSITIVE_PROD | NOT_RUN_NO_SAFE_AUTH_PRINCIPAL |
+| UNEXPECTED_PRODUCTION_MUTATIONS | **0** (no migration, no DML this mission) |
+| UNPROVEN_MANDATORY_PRODUCTION_CLAIMS | **0** |
+| CRITICAL_COUNT / HIGH_COUNT | 0 / 0 |
+| GO_LIVE | **NOT APPROVED — build live and SHA-verified, authenticated E2E outstanding** |
+
+FINAL TOKEN:
+`HOLD_PORTAL_PRODUCTION_GO_LIVE_FINAL_ACCEPTANCE_01_AUTHENTICATED_E2E_BLOCKED_NO_AUTH_PRINCIPAL`
+
+Unblock path (owner action, one of):
+1. Sign in to the Lovable preview as the TEST_ONLY principal so a managed
+   session is injected next turn, or
+2. Supply TEST_ONLY credentials for the five-service student, the B1 step
+   actors, the councils actors, the GP Level-4 actor and the GA manager.
