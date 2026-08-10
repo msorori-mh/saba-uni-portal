@@ -82,8 +82,11 @@ export function StudentRequestFormDataView({
     }
   }
 
+  const HIDDEN_INTERNAL_KEYS = new Set(["_formCode", "_formVersion"]);
+
   const unknownEntries = Object.entries(formData).filter(([key, val]) => {
     if (knownFieldNames.has(key)) return false;
+    if (HIDDEN_INTERNAL_KEYS.has(key) || key.startsWith("_")) return false;
     if (val == null || val === "") return false;
     if (typeof val === "object" && Object.keys(val as object).length === 0) return false;
     return true;
