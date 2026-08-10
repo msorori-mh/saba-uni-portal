@@ -3,6 +3,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
+import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
 
 /**
  * Safe student-portal logout: sign out, clear React Query cache, clear
@@ -15,12 +16,13 @@ export function useStudentLogout() {
 
   return useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "global" });
     } catch {
       // Never block navigation on sign-out failure.
     } finally {
       queryClient.clear();
       clearReportsLocalPreferences();
+      clearSessionArtifacts();
       await router.invalidate();
       navigate({ to: "/portal-login", replace: true });
     }

@@ -3,6 +3,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
+import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
 
 /**
  * Centralized, safe logout for the staff portal.
@@ -19,12 +20,13 @@ export function useStaffLogout() {
 
   return useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "global" });
     } catch {
       // Swallow: the local session is discarded anyway.
     } finally {
       queryClient.clear();
       clearReportsLocalPreferences();
+      clearSessionArtifacts();
       await router.invalidate();
       navigate({ to: "/portal-login", replace: true });
     }
