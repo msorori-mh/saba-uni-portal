@@ -124,8 +124,8 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : query.isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          تعذر تحميل القرارات المكلفة.
+        <div className="rounded-md border border-muted/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+          {query.error instanceof Error ? query.error.message : "قائمة القرارات المكلفة غير متاحة حالياً."}
         </div>
       ) : decisions.length === 0 ? (
         <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
@@ -142,6 +142,9 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
                     <CardTitle className="text-sm flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       {d.title}
+                      {d.council_name ? (
+                        <span className="text-xs font-normal text-muted-foreground">({d.council_name})</span>
+                      ) : null}
                     </CardTitle>
                     <Badge variant={d.status === "completed" ? "secondary" : "outline"}>
                       {statusLabel(d.status)}

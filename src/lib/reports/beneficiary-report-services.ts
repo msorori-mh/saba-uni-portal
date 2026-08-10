@@ -15,6 +15,7 @@ import {
   metricValue,
   rethrowIfAuthorizationDenial,
   ORG_BINDING_DEPENDENCIES,
+  provenDepartmentIdsForCollege,
   type ReportActorScope,
   type ScopedMetric,
 } from "@/lib/reports/scope";
@@ -122,15 +123,24 @@ export function resolveMaterialsDepartmentId(args: {
   }
 
   if (isDeanOnly) {
-    // College binding unavailable ⇒ fail closed (cannot prove dept∈college).
-    if (!scope.bindings.collegeScopeConfigured) {
+    // College key alone is insufficient — must prove department ∈ bound college.
+    if (!scope.bindings.collegeScopeConfigured || !scope.bindings.collegeId) {
       denyNotConfigured(
         `تغطية مواد القسم للعميد غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+      );
+    }
+    const allowed = provenDepartmentIdsForCollege(scope.bindings.collegeId);
+    if (!allowed) {
+      denyNotConfigured(
+        `لا يوجد ربط كلية→أقسام موثوق لعزل نطاق العميد — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
       );
     }
     const deptId = requestedDepartmentId ?? scope.departmentId;
     if (!deptId) {
       denyScope("يجب تحديد قسم ضمن كلية العميد");
+    }
+    if (!allowed.includes(deptId)) {
+      denyScope("القسم خارج نطاق كلية العميد المعتمدة");
     }
     return deptId;
   }
@@ -379,18 +389,37 @@ export async function authorizeDepartmentReportScope(args: {
     return scope.departmentId;
   }
 
-  if (isPrivilegedOperator(scope.roles) || scope.roles.includes("dean")) {
-    if (scope.roles.includes("dean") && !isPrivilegedOperator(scope.roles)) {
-      if (!scope.bindings.collegeScopeConfigured) {
-        denyNotConfigured(
-          `تقارير قسم العميد غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
-        );
-      }
-    }
+  // Admin / system_admin: explicit department selection (existing contract).
+  if (isPrivilegedOperator(scope.roles)) {
     const deptId =
       enforced.departmentId ?? requestedDepartmentId ?? scope.departmentId;
     if (!deptId) {
       denyScope("يجب تحديد القسم — لا نطاق جامعي صامت");
+    }
+    return deptId;
+  }
+
+  // Dean: MUST prove requestedDepartmentId ∈ bound college. No trustworthy
+  // college→department containment exists in the current schema ⇒ fail closed.
+  // Never accept an arbitrary department_id from the client.
+  if (scope.roles.includes("dean")) {
+    if (!scope.bindings.collegeScopeConfigured || !scope.bindings.collegeId) {
+      denyNotConfigured(
+        `تقارير قسم العميد غير مكوّنة — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+      );
+    }
+    const allowed = provenDepartmentIdsForCollege(scope.bindings.collegeId);
+    if (!allowed) {
+      denyNotConfigured(
+        `لا يوجد ربط كلية→أقسام موثوق لعزل نطاق العميد — ${ORG_BINDING_DEPENDENCIES.dean_college}`,
+      );
+    }
+    const deptId = requestedDepartmentId ?? null;
+    if (!deptId) {
+      denyScope("يجب تحديد قسم ضمن كلية العميد — لا نطاق جامعي صامت");
+    }
+    if (!allowed.includes(deptId)) {
+      denyScope("القسم خارج نطاق كلية العميد المعتمدة");
     }
     return deptId;
   }

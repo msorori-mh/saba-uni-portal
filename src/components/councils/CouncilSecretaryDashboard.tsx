@@ -81,8 +81,8 @@ export function CouncilSecretaryDashboard({
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : query.isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          تعذر تحميل لوحة أمين السر. تأكد من صلاحياتك.
+        <div className="rounded-md border border-muted/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+          {query.error instanceof Error ? query.error.message : "لوحة متابعة أمين السر غير متاحة حالياً."}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

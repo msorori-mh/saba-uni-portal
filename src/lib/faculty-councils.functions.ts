@@ -246,8 +246,14 @@ function throwDbError(error: { code?: string; message: string }): never {
   throw new Error(error.message);
 }
 
-function isActiveMembership(row: { is_active: boolean; active_to: string | null }): boolean {
-  return row.is_active && row.active_to === null;
+export function isActiveMembership(
+  row: { is_active: boolean; active_to: string | null },
+  todayDate: string = new Date().toISOString().slice(0, 10),
+): boolean {
+  if (!row.is_active) return false;
+  if (row.active_to === null) return true;
+  const activeToDate = row.active_to.slice(0, 10);
+  return activeToDate >= todayDate;
 }
 
 function unwrapCouncil<T extends { name: string }>(
@@ -375,19 +381,38 @@ type MembershipRoleRow = {
   is_active: boolean;
 };
 
-function membershipRoleAt(
+const ROLE_RANK: Record<string, number> = {
+  chair: 5,
+  vice_chair: 4,
+  secretary: 3,
+  member: 2,
+  viewer: 1,
+};
+
+export function membershipRoleAt(
   memberships: MembershipRoleRow[],
   councilId: string,
   atIso: string,
 ): string | null {
   const atDate = atIso.slice(0, 10);
-  const match = memberships.find(
+  const activeMatches = memberships.filter(
     (m) =>
+      Boolean(m.is_active) &&
       m.council_id === councilId &&
       m.active_from <= atDate &&
       (m.active_to === null || m.active_to >= atDate),
   );
-  return match?.member_role ?? null;
+
+  if (activeMatches.length === 0) return null;
+
+  activeMatches.sort((a, b) => {
+    const rankA = ROLE_RANK[a.member_role] ?? 0;
+    const rankB = ROLE_RANK[b.member_role] ?? 0;
+    if (rankA !== rankB) return rankB - rankA;
+    return b.active_from.localeCompare(a.active_from);
+  });
+
+  return activeMatches[0]!.member_role;
 }
 
 async function assertActiveFacultyProfile(sb: FacultySupabase, userId: string) {
@@ -475,7 +500,7 @@ async function assertCanSubmitCouncilTopic(
         .eq("user_id", userId)
         .eq("council_id", councilId)
         .eq("is_active", true)
-        .is("active_to", null)
+        .order("active_from", { ascending: false })
         .maybeSingle();
 
       if (membership?.member_role === "viewer") {
@@ -492,7 +517,7 @@ async function assertCanSubmitCouncilTopic(
     .eq("user_id", userId)
     .eq("council_id", councilId)
     .eq("is_active", true)
-    .is("active_to", null)
+    .order("active_from", { ascending: false })
     .maybeSingle();
   if (membershipErr) throwDbError(membershipErr);
 
@@ -545,7 +570,7 @@ async function assertCanUploadCouncilTopicAttachment(
         .eq("user_id", userId)
         .eq("council_id", councilId)
         .eq("is_active", true)
-        .is("active_to", null)
+        .order("active_from", { ascending: false })
         .maybeSingle();
 
       if (membership?.member_role === "viewer") {
@@ -677,7 +702,7 @@ async function assertCanSubmitToMeetingIntake(
     .eq("user_id", userId)
     .eq("council_id", meeting.council_id)
     .eq("is_active", true)
-    .is("active_to", null)
+    .order("active_from", { ascending: false })
     .maybeSingle();
   if (membershipErr) throwDbError(membershipErr);
 
@@ -711,18 +736,27 @@ export const getMyAcademicCouncilMemberships = createServerFn({ method: "POST" }
     const sb = context.supabase;
     await assertActiveFacultyProfile(sb, context.userId);
 
+    const todayDate = new Date().toISOString().slice(0, 10);
     const { data: rows, error } = await sb
       .from("academic_council_members")
       .select(
-        "id, member_role, is_active, active_from, council:academic_councils(id, name, council_type, is_active)",
+        "id, member_role, is_active, active_from, active_to, council:academic_councils(id, name, council_type, is_active)",
       )
       .eq("user_id", context.userId)
       .eq("is_active", true)
-      .is("active_to", null)
       .order("active_from", { ascending: false });
     if (error) throw new Error("تعذّر تحميل عضويات المجالس");
 
     return (rows ?? [])
+      .filter((row) =>
+        isActiveMembership(
+          {
+            is_active: Boolean(row.is_active),
+            active_to: (row.active_to as string | null) ?? null,
+          },
+          todayDate,
+        ),
+      )
       .map((row) => {
         const council = unwrapCouncil(
           row.council as
@@ -776,11 +810,12 @@ export const getMyAcademicCouncilMembershipsV2 = createServerFn({ method: "POST"
       )
       .filter((r): r is MyCouncilMembershipV2 => r !== null);
 
+    const todayDate = new Date().toISOString().slice(0, 10);
     const currentMemberships = mapped.filter((m) =>
-      isActiveMembership({ is_active: m.is_active, active_to: m.active_to }),
+      isActiveMembership({ is_active: m.is_active, active_to: m.active_to }, todayDate),
     );
     const previousMemberships = mapped.filter(
-      (m) => !isActiveMembership({ is_active: m.is_active, active_to: m.active_to }),
+      (m) => !isActiveMembership({ is_active: m.is_active, active_to: m.active_to }, todayDate),
     );
 
     return { currentMemberships, previousMemberships };
