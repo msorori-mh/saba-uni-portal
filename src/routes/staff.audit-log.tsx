@@ -59,7 +59,7 @@ function formatDateTime(value: string | null): string {
 }
 
 function AuditLogPage() {
-  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
   const [search, setSearch] = useState("");
   const load = useServerFn(fetchRequestAuditLog);
 
