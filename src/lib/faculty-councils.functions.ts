@@ -1553,3 +1553,58 @@ export const getAgendaItemsForMeeting = createServerFn({ method: "POST" })
       items: (rows ?? []).map((row) => mapFacultyAgendaItemRow(row as Record<string, unknown>)),
     };
   });
+
+/**
+ * Chair-scoped meeting status transition for the faculty portal.
+ * Authorization is enforced by the `council_transition_meeting` RPC
+ * (exact council chair only); this wrapper adds no bypass.
+ */
+export const transitionMyCouncilMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        meetingId: z.string().uuid(),
+        expectedStatus: z.string().min(1),
+        toStatus: z.string().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: rpc, error } = await sb.rpc("council_transition_meeting" as never, {
+      p_meeting_id: data.meetingId,
+      p_expected_status: data.expectedStatus,
+      p_to_status: data.toStatus,
+      p_evidence: {},
+    } as never);
+
+    if (error) {
+      const msg = `${error.message ?? ""}`;
+      if (msg.includes("COUNCIL_TRANSITION_DENIED")) {
+        throw new Error("لا تملك صلاحية تغيير حالة هذا الاجتماع (رئيس المجلس فقط).");
+      }
+      if (msg.includes("COUNCIL_MEETING_STALE_STATE")) {
+        throw new Error("تغيّرت حالة الاجتماع، يرجى تحديث الصفحة ثم إعادة المحاولة.");
+      }
+      if (msg.includes("COUNCIL_TRANSITION_ILLEGAL")) {
+        throw new Error("الانتقال المطلوب غير مسموح من الحالة الحالية.");
+      }
+      if (msg.includes("COUNCIL_TRANSITION_PREREQ_UNMET")) {
+        throw new Error("متطلبات هذا الانتقال غير مكتملة بعد.");
+      }
+      if (msg.includes("COUNCIL_QUORUM_NOT_MET")) {
+        throw new Error("النصاب غير مكتمل لبدء الجلسة.");
+      }
+      throw new Error(RLS_DENIED_MESSAGE);
+    }
+
+    const payload = (rpc ?? {}) as Record<string, unknown>;
+    return {
+      ok: payload.ok === true,
+      meeting_id: String(payload.meeting_id ?? data.meetingId),
+      to_status: String(payload.to_status ?? data.toStatus),
+    };
+  });
