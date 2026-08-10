@@ -45,6 +45,20 @@ function normalizeShaCandidate(candidate: string | undefined): string | null {
   return BUILD_SHA_PATTERN.test(normalized) ? normalized : null;
 }
 
+function readStampedSha(): string | null {
+  // Committed release stamp: the ONLY fallback that survives a build sandbox
+  // without a .git directory (Lovable publish). Public data (a commit SHA).
+  try {
+    const raw = readFileSync(
+      new URL("./build-sha.generated.json", import.meta.url),
+      "utf-8",
+    );
+    return normalizeShaCandidate(JSON.parse(raw)?.sha);
+  } catch {
+    return null;
+  }
+}
+
 function resolveBuildSha(): string {
   const fromEnv =
     normalizeShaCandidate(process.env.VITE_BUILD_SHA) ??
@@ -58,12 +72,14 @@ function resolveBuildSha(): string {
     })
       .toString()
       .trim();
-    return normalizeShaCandidate(fromGit) ?? BUILD_SHA_SENTINEL;
+    return normalizeShaCandidate(fromGit) ?? readStampedSha() ?? BUILD_SHA_SENTINEL;
   } catch {
-    // No .git in the build sandbox (possibly the case on Lovable) - degrade.
-    return BUILD_SHA_SENTINEL;
+    // No .git in the build sandbox (the case on Lovable publish) - use the
+    // committed release stamp before degrading to the sentinel.
+    return readStampedSha() ?? BUILD_SHA_SENTINEL;
   }
 }
+
 
 const buildSha = resolveBuildSha();
 
