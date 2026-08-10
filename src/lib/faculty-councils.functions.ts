@@ -1675,7 +1675,39 @@ export const getCouncilAttendanceRoll = createServerFn({ method: "POST" })
         recorded_at: m.recorded_at,
         recorded_by: m.recorded_by,
       }));
+    } else {
+      // No roll yet: show the eligible membership snapshot so the secretary can
+      // record the first attendance states (the RPC creates the roll on save).
+      const { data: meetingRow } = await sb
+        .from("academic_council_meetings")
+        .select("council_id")
+        .eq("id", data.meetingId)
+        .maybeSingle();
+
+      if (meetingRow?.council_id) {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: eligibleRows } = await sb
+          .from("academic_council_members")
+          .select("id, user_id, member_role, active_to")
+          .eq("council_id", meetingRow.council_id)
+          .eq("is_active", true)
+          .in("member_role", ["chair", "vice_chair", "secretary", "member"])
+          .order("member_role", { ascending: false });
+
+        members = (eligibleRows ?? [])
+          .filter((m) => !m.active_to || (m.active_to as string) > today)
+          .map((m) => ({
+            attendance_id: "",
+            membership_id: m.id as string,
+            user_id: m.user_id as string,
+            member_role: m.member_role as string,
+            attendance_state: "absent",
+            recorded_at: null,
+            recorded_by: null,
+          }));
+      }
     }
+
 
     let latestEvaluation: CouncilAttendanceRollResult["latest_evaluation"] = null;
     const { data: evalRows, error: evalError } = await sb
@@ -1704,7 +1736,7 @@ export const getCouncilAttendanceRoll = createServerFn({ method: "POST" })
     return {
       roll_id: rollRows?.id ?? null,
       status: rollRows?.status ?? null,
-      eligible_member_count: rollRows?.eligible_member_count ?? 0,
+      eligible_member_count: rollRows?.eligible_member_count ?? members.length,
       finalized_at: rollRows?.finalized_at ?? null,
       finalized_by: rollRows?.finalized_by ?? null,
       members,

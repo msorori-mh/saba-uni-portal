@@ -305,7 +305,7 @@ export function CouncilMeetingCard({
 
   const attendanceLocked = attendanceRollStatus === "finalized";
   const canApprovePolicy = canEdit && !quorumPolicy;
-  const canRecord = canRecordAttendance && !attendanceLocked && attendanceRollId !== null;
+  const canRecord = canRecordAttendance && !attendanceLocked;
   const canEvaluate = (canEdit || canRecordAttendance) && attendanceRollId !== null && !attendanceLocked;
   const canFinalize = canEdit && attendanceRollId !== null && !attendanceLocked;
 
@@ -619,7 +619,7 @@ export function CouncilMeetingCard({
                 </div>
               )}
 
-              {attendanceRollId ? (
+              {attendanceMembers.length > 0 ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">سجل الحضور</h4>
@@ -715,7 +715,7 @@ export function CouncilMeetingCard({
                 </div>
               ) : (
                 <div className="rounded-md border border-border p-4 text-center text-sm text-muted-foreground">
-                  لا يوجد سجل حضور لهذا الاجتماع بعد. سيتم إنشاؤه عند تسجيل أول حالة.
+                  لا يوجد أعضاء مؤهلون للنصاب في هذا المجلس، لذا لا يمكن فتح سجل الحضور.
                 </div>
               )}
             </div>
