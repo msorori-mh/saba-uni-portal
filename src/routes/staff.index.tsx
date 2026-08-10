@@ -116,6 +116,21 @@ function StaffDashboard() {
               </Link>
             </div>
 
+            <div className="mt-4">
+              <Link
+                to="/staff/fixtures-diagnostics"
+                className="flex items-center gap-3 rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+              >
+                <ClipboardList className="h-5 w-5 text-gold shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-bold text-primary">تشخيص بيانات الاختبار</div>
+                  <div className="text-xs text-muted-foreground">
+                    حالة كل fixture وجداول التفاصيل المفقودة — لمسؤولي النظام.
+                  </div>
+                </div>
+              </Link>
+            </div>
+
 
             <div className="mt-6 space-y-3">
               <h2 className="font-display text-lg font-extrabold text-primary-deep flex items-center gap-2">
