@@ -8929,6 +8929,7 @@ export type Database = {
           p_correlation_id: string
           p_decision: string
           p_expected_version: number
+          p_notes?: string
           p_project_id: string
         }
         Returns: string

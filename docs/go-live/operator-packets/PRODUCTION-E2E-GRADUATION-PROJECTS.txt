@@ -1,91 +1,108 @@
 ===============================================================================
-PRODUCTION E2E OPERATOR PACKET: GRADUATION PROJECTS (GP)
-MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
-PACKET ID: PRODUCTION-E2E-GRADUATION-PROJECTS-01
-ENVIRONMENT: PRODUCTION (quboolye.com)
-AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+PRODUCTION E2E OPERATOR PACKET: GRADUATION PROJECTS (GP) — CANONICAL
+MISSION: PORTAL-GRADUATION-PROJECTS-FINAL-PRODUCT-AND-E2E-CLOSURE-01
+PACKET ID: PRODUCTION-E2E-GRADUATION-PROJECTS-CANONICAL-01
+ENVIRONMENT: PRODUCTION (authorized TEST_ONLY window only)
+AUTHORIZATION: SOURCE-ONLY preparation — NO migration apply / deploy / publish here
+AUTHORITY: docs/PORTAL-GRADUATION-PROJECTS-MVP-SCOPE-AND-CONTRACT-FREEZE-01.md
+SUPERSEDES: non-canonical names in prior PRODUCTION-E2E-GRADUATION-PROJECTS.txt drafts
 ===============================================================================
 
-1. PURPOSE & SCOPE
-------------------
-This packet defines the E2E verification cycle for the Graduation Projects (GP) module.
-It enforces strict Level-4 student eligibility guards, multi-stage project workflow execution
-(including proposal, supervision, defense, committee scoring, and revisions loop), and read-only
-administrative oversight without academic grade/evaluation bypass.
+0. HARD STOPS
+--------------
+- Do NOT reactivate closed/banned historical GP TEST_ONLY auth users.
+- Do NOT invent actors or create auth.users directly from this packet.
+- Do NOT apply migrations from this packet (Lovable is the only production writer).
+- If Actor Matrix row is BLOCKED_NO_SAFE_PRINCIPAL → STOP that journey.
+
+1. PRECONDITIONS
+----------------
+P1. SET U (A1/A2/A3 + storage INSERT fix) present in production ledger.
+P2. L4 eligibility guard migration applied (20260808010000_… or equivalent).
+P3. Identity options + revision notes migration applied (20260811010000_…) after P2.
+P4. Approved Actor Matrix principals proven (see docs/reviews/…FINAL…-01.md § Actor Matrix).
+P5. Private bucket `graduation-projects` remains non-public.
 
 2. ELIGIBILITY GUARD (LEVEL-4 ONLY)
------------------------------------
-Rule: Only active Level-4 students (`academic_level = 4`) holding required completed credit hours
-      may initiate or join graduation project teams.
-Verification:
-  - Call `check_gp_eligibility(student_id)` for Level 1, 2, 3 student -> Expect `ELIGIBILITY_FAILED` (403 Forbidden).
-  - Call `check_gp_eligibility(student_id)` for Level 4 student -> Expect `ELIGIBLE` (200 OK).
+----------------------------------
+Use student route guard + RPC denials (not invented check_gp_eligibility):
 
-3. 11-STEP EXECUTABLE LIFECYCLE SEQUENCE
-----------------------------------------
+Negative (expect DENY / zero mutation):
+  - Level 1 / 2 / 3 students: nav hidden, /student/graduation-projects redirects, mutating RPCs deny.
+  - Ambiguous current academic rows (top-rank tie): DENY.
+  - Duplicate current rows with identical currency: DENY.
+Positive:
+  - Unique current Level-4 student: ALLOW list/detail for assigned project only.
 
-STEP F.1: TEAM FORMATION & PROPOSAL SUBMISSION
-  Action: Level-4 Student Leader creates team (`create_gp_team`), adds Level-4 team members, submits proposal (`submit_gp_proposal`).
-  Assertion: Proposal status set to `pending_department_review`.
+Signed download:
+  - Authorization re-checked BEFORE any signed URL issuance or replay.
+  - Cross-project / cross-actor / unauthenticated replay MUST deny.
 
-STEP F.2: PROPOSAL DEPARTMENT REVIEW
-  Action: Department GP Coordinator reviews proposal via `review_gp_proposal`.
-  Assertion: Status updated to `proposal_approved`.
+3. FULL LIFECYCLE (FROZEN RPCs)
+------------------------------
+Actors: L4 leader, L4 member, department coordinator, supervisor, committee×2.
 
-STEP F.3: SUPERVISOR ASSIGNMENT & APPROVAL
-  Action: Department assigns faculty supervisor; supervisor calls `accept_gp_supervision`.
-  Assertion: Supervisor UUID bound to project record (`supervisor_id`).
+ 1) create_graduation_project_team
+ 2) add_graduation_project_team_member
+ 3) upsert_graduation_project_proposal + register/finalize proposal file
+ 4) submit_graduation_project_proposal
+ 5) review_graduation_project_proposal (return) → revision_required
+ 6) resubmit_graduation_project_proposal
+ 7) review_graduation_project_proposal (accept) → approved
+ 8) assign_graduation_project_supervisor
+ 9) respond_graduation_project_supervision (accept) → active
+10) submit_graduation_project_progress (+ optional p_file_id)
+11) review_graduation_project_progress
+12) submit_graduation_project_final
+13) review_graduation_project_final (ready)
+14) schedule_graduation_project_defense
+15) assign_graduation_project_committee_member (≥2)
+16) mark_graduation_project_defense_held → evaluating
+17) submit_graduation_project_evaluation × committee members
+18) conclude_graduation_project_result (passed | failed | revisions_required)
+19) archive_graduation_project — ONLY when final_decision in (passed, failed)
 
-STEP F.4: PROGRESS REPORT EVALUATION
-  Action: Team uploads progress reports (Report 1, Report 2); Supervisor evaluates via `evaluate_gp_progress`.
-  Assertion: Progress scores recorded in `gp_progress_evaluations`.
+4. REVISIONS LOOP (EXECUTABLE)
+------------------------------
+Authority: tests/graduation-projects/package-d-verifier.sql Branch B
+           + tests/graduation-projects/graduation-projects-revisions-loop-e2e.test.ts
 
-STEP F.5: FINAL PROJECT SUBMISSION
-  Action: Team uploads final thesis PDF, source code repo URL, presentation deck via `submit_gp_final_deliverables`.
-  Assertion: Deliverable status set to `submitted_for_defense`.
+  A) conclude_graduation_project_result(..., 'revisions_required', ..., notes)
+  B) archive_graduation_project DENY (project not archive-ready); project remains non-archived
+  C) submit_graduation_project_final (corrected)
+  D) review_graduation_project_final (ready)
+  E) conclude_graduation_project_result (passed|failed)
+  F) archive_graduation_project ALLOW
 
-STEP F.6: DEFENSE SCHEDULING
-  Action: GP Coordinator schedules defense session via `schedule_gp_defense`.
-  Assertion: Defense date, time, location, and room reserved in `gp_defenses`.
+5. ROLE AUTHORIZATION MATRIX (UI + direct RPC)
+----------------------------------------------
+Student: own team/project only.
+Supervisor: assigned projects only (accepted/pending as contract).
+Coordinator: academic department scope only; no college-wide bypass.
+Committee: assigned defense panel only; peer evaluations hidden.
+Dept Head / Dean / Admin: no general bypass unless contract grants explicit operation
+  (admin overview is read-only via list_administration_graduation_projects_overview).
 
-STEP F.7: DISCUSSION COMMITTEE FORMATION
-  Action: Coordinator assigns discussion committee (Examiner 1, Examiner 2, Supervisor) via `assign_gp_committee`.
-  Assertion: Committee members bound to defense session.
+Negative probes (expect DENY + zero mutation):
+  wrong project, wrong department, wrong supervisor, wrong panel,
+  cross-project identifiers, dual-role leakage, stale signed URL replay.
 
-STEP F.8: COMMITTEE EVALUATION & SCORING
-  Action: Each committee member submits rubric score sheet via `submit_gp_evaluation`.
-  Assertion: Individual scores recorded; total score calculated from weighted rubrics.
+Any High/Critical authorization bypass → STOP_AND_REPORT.
 
-STEP F.9: DECISION RENDERING
-  Action: System computes final result via `render_gp_defense_decision`.
-  Options: `approved` OR `revisions_required`.
+6. STORAGE
+----------
+upload intent → private object path → finalize → scan gate → signed download.
+Path isolation per project; no broad table/storage grants; unauthenticated DENY.
 
-STEP F.10: REVISIONS REQUIRED LOOP (CONDITIONAL EXECUTION)
-  Action: If status = `revisions_required`:
-    - Team uploads revised thesis & response document via `resubmit_gp_revisions`.
-    - Supervisor re-evaluates and confirms revisions via `approve_gp_revisions`.
-    - Final status transitions to `approved`.
-  Assertion: Revisions loop completes with timestamped audit log.
-
-STEP F.11: ARCHIVING & LIBRARY CATALOGING
-  Action: Project coordinator calls `archive_gp_project(project_id)`.
-  Assertion: Thesis and metadata cataloged in College GP Library Archive.
-
-4. ADMIN OVERSIGHT CONTROL (READ-ONLY)
---------------------------------------
-Role: `graduation_project_admin`
-Assertion:
-  - Admin role CAN view all project metrics, committee assignments, defense schedules, and grades.
-  - Admin role attempting to execute `submit_gp_evaluation`, `accept_gp_supervision`, or `render_gp_defense_decision`
-    MUST be REJECTED with error `42501 / READ_ONLY_ADMIN_OVERVIEW`.
-
-5. PASS CRITERIA
+7. PASS CRITERIA
 ----------------
-1. Level 1-3 students strictly blocked from GP creation.
-2. Complete 11-step lifecycle executes without error.
-3. Revisions loop successfully transitions project from `revisions_required` to `approved`.
-4. Admin access is strictly read-only; no evaluation bypass permitted.
+- L1/L2/L3/ambiguous/duplicate DENY; L4 ALLOW with nav/route/RPC parity.
+- Full lifecycle + revisions loop evidence captured.
+- Authorization matrix positives and negatives pass.
+- Storage isolation + authz-before-replay proven.
+- Zero bun failures for tests/graduation-projects + student-requests gate.
+- Actor Matrix has no invented identities.
 
 ===============================================================================
-END OF PACKET: PRODUCTION-E2E-GRADUATION-PROJECTS-01
+END OF PACKET: PRODUCTION-E2E-GRADUATION-PROJECTS-CANONICAL-01
 ===============================================================================

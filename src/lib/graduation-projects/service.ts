@@ -366,6 +366,7 @@ export class GraduationProjectsService {
     outcome: ResultOutcomeInput;
     expectedVersion: number;
     correlationId?: string;
+    notes?: string | null;
   }): Promise<string> {
     return this.withVersionGuard(input.projectId, async () => {
       const id = await this.client.concludeResult({

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { REVISIONS_LOOP_EXECUTABLE_STEPS } from './graduation-projects-revisions-loop-e2e.test';
 
 /**
  * PORTAL_GRADUATION_PROJECTS_MVP_PACKAGE_D_AUTHORIZATION_E2E_IMPLEMENTATION_01_CORRECTED
@@ -299,18 +300,9 @@ describe('Package D E2E Journey Specification Tests', () => {
   });
 
   it('specifies the revisions_required corrected-final loop branch', () => {
-    const revisionsLoopBranch = {
-      initialConclusion: 'revisions_required',
-      correctedFinalSubmissionBy: 'leader',
-      supervisorReview: 'ready',
-      reConclusionBy: 'coordinator',
-      finalDecision: 'passed',
-      archiveState: 'archived'
-    };
-
-    expect(revisionsLoopBranch.initialConclusion).toBe('revisions_required');
-    expect(revisionsLoopBranch.finalDecision).toBe('passed');
-    expect(revisionsLoopBranch.archiveState).toBe('archived');
+    expect(REVISIONS_LOOP_EXECUTABLE_STEPS[0].expectedFinalDecisionAfter).toBe('revisions_required');
+    expect(REVISIONS_LOOP_EXECUTABLE_STEPS[1].archiveAllowed).toBe(false);
+    expect(REVISIONS_LOOP_EXECUTABLE_STEPS.at(-1).rpc).toBe('archive_graduation_project');
   });
 
   it('specifies the failed terminal branch contract', () => {

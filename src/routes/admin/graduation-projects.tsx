@@ -2,27 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MvpProjectList } from "@/components/graduation-projects/MvpProjectList";
 import { MvpEmpty, MvpError, MvpLoading } from "@/components/graduation-projects/MvpStates";
+import { STATE_LABELS, type GraduationProjectState } from "@/components/graduation-projects/mvp-ui";
 import { useGraduationProjectAdministrationReport } from "../-graduation-projects-adapter";
-import { GraduationCap, Archive, CheckCircle2, Layers } from "lucide-react";
+import { GraduationCap, Archive, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/graduation-projects")({
   component: AdminGraduationProjects,
 });
 
+const CANONICAL_STATES = Object.keys(STATE_LABELS) as GraduationProjectState[];
+
 const STATE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "all", label: "جميع الحالات" },
-  { value: "draft", label: "مسودة" },
-  { value: "submitted", label: "مقدم" },
-  { value: "revision_required", label: "مطلوب تعديل" },
-  { value: "proposal_accepted", label: "مقترح معتمد" },
-  { value: "supervisor_assigned", label: "مسند لمشرف" },
-  { value: "in_progress", label: "قيد التنفيذ" },
-  { value: "final_submitted", label: "مستند نهائي" },
-  { value: "defense_scheduled", label: "جلسة مناقشة مجدولة" },
-  { value: "defense_held", label: "تمت المناقشة" },
-  { value: "evaluated", label: "مقيّم" },
-  { value: "concluded", label: "نتيجة نهائية" },
-  { value: "archived", label: "مؤرشف" },
+  ...CANONICAL_STATES.map((value) => ({ value, label: STATE_LABELS[value] })),
 ];
 
 function AdminGraduationProjects() {
@@ -36,6 +28,17 @@ function AdminGraduationProjects() {
     if (selectedState === "all") return projects;
     return projects.filter((p) => p.state === selectedState);
   }, [projects, selectedState]);
+
+  const completedCount = useMemo(
+    () =>
+      projects.filter(
+        (p) =>
+          p.state === "archived" ||
+          p.finalDecision === "passed" ||
+          p.finalDecision === "failed",
+      ).length,
+    [projects],
+  );
 
   return (
     <main dir="rtl" className="space-y-6">
@@ -96,9 +99,7 @@ function AdminGraduationProjects() {
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground font-semibold">المشاريع المكتملة</div>
-                  <div className="text-xl font-extrabold text-primary">
-                    {projects.filter((p) => p.state === "concluded" || p.state === "archived").length}
-                  </div>
+                  <div className="text-xl font-extrabold text-primary">{completedCount}</div>
                 </div>
               </div>
 
@@ -108,7 +109,9 @@ function AdminGraduationProjects() {
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground font-semibold">المؤرشفة</div>
-                  <div className="text-xl font-extrabold text-primary">{counts.archived ?? 0}</div>
+                  <div className="text-xl font-extrabold text-primary">
+                    {counts.archived ?? projects.filter((p) => p.state === "archived").length}
+                  </div>
                 </div>
               </div>
             </div>
