@@ -134,11 +134,19 @@
       "step": "C5",
       "sequence_order": 6,
       "canonical_id": "COUNCILS-C5-MINUTES-LIFECYCLE",
-      "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
-      "ledger_name": "20260808150000_councils_c5_minutes_lifecycle_01",
-      "timestamp": "20260808150000",
-      "sha256_lf": "85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25",
+      "path": "supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql",
+      "ledger_name": "20260810180000_councils_c5_minutes_lifecycle_02",
+      "timestamp": "20260810180000",
+      "sha256_lf": "0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8",
       "timestamp_unique": true,
+      "status_note": "CANONICAL_APPLY_CANDIDATE; supersedes 20260808150000_councils_c5_minutes_lifecycle_01 (SUPERSEDED_DO_NOT_APPLY, never applied)",
+      "superseded_v1": {
+        "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
+        "ledger_name": "20260808150000_councils_c5_minutes_lifecycle_01",
+        "timestamp": "20260808150000",
+        "sha256_lf": "85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25",
+        "status": "SUPERSEDED_DO_NOT_APPLY"
+      },
       "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql",
       "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",
       "status": "NOT_APPLIED"
@@ -198,7 +206,7 @@
     }
   ],
   "preflight": "docs/migration-drafts/COUNCILS-C0-C9-PRODUCTION-READONLY-PREFLIGHT-01.sql",
-  "preflight_sha256_lf": "1962b0971f1567afeb6ede06503d8ead3efc0c9d38acae6f193c7e41c4c6be33",
+  "preflight_sha256_lf": "88f4f36585205884c8d95f68b0d0bd4f77436d8b4deca6f1b98b742d7d8b817e",
   "apply_one_plan": "docs/production-preflight/COUNCILS-C0-C9-APPLY-ONE-OPERATOR-PLAN-01.md",
   "partial_states": "docs/migration-drafts/COUNCILS-C0-C9-PARTIAL-SAFE-HOLD-STATES-01.md",
   "rollback_by_forward": "docs/migration-drafts/COUNCILS-C0-C9-ROLLBACK-BY-FORWARD-01.sql",

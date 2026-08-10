@@ -29,7 +29,7 @@ const promoted = [
   "20260808122000_councils_c2_topic_intake_review_01",
   "20260808130000_councils_c3_attendance_quorum_01",
   "20260808140000_councils_c4_session_voting_01",
-  "20260808150000_councils_c5_minutes_lifecycle_01",
+  "20260810180000_councils_c5_minutes_lifecycle_02",
   "20260808160000_councils_c6_decisions_followup_01",
   "20260808170000_councils_c7_audit_archive_01",
   "20260808171000_councils_c0_c8_final_security_closure_01",
@@ -84,7 +84,7 @@ const chainMigrations = [
   "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql",
   "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql",
   "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql",
-  "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
+  "supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql",
   "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql",
   "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql",
   "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql",
@@ -128,9 +128,10 @@ function runPreflight(extraPrefix = ""): { ok: boolean; out: string } {
 
 function discoverSchemaFingerprint(): string {
   const r = psql(`
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE SCHEMA IF NOT EXISTS extensions;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
     SELECT encode(
-      digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'),
+      extensions.digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'),
       'hex'
     ) AS fp
     FROM (

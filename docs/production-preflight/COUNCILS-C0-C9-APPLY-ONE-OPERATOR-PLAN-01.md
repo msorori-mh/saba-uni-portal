@@ -168,10 +168,14 @@ Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTI
 
 | Field | Value |
 |---|---|
-| Migration | `supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql` |
-| FULL_SHA256_LF | `85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25` |
+| Migration (V1 — SUPERSEDED_DO_NOT_APPLY) | `supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql` |
+| V1 FULL_SHA256_LF (frozen) | `85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25` |
+| Migration (V2 — CANONICAL_APPLY_CANDIDATE) | `supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql` |
+| V2 FULL_SHA256_LF | `0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql` |
 | Pass marker | `COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS` |
+
+**Logical C5 apply path:** Revision 02 only. V1 remains in-repo as a frozen historical artifact (`SUPERSEDED_DO_NOT_APPLY`; never applied to production). Do not apply V1.
 
 ## Step C6
 

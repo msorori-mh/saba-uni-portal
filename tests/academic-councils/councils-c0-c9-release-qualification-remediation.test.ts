@@ -25,7 +25,7 @@ const chain = [
   { step: "C2", migration: "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C2.sql", pass: "COUNCILS_C2_PRODUCTION_POST_VERIFIER_PASS" },
   { step: "C3", migration: "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C3.sql", pass: "COUNCILS_C3_PRODUCTION_POST_VERIFIER_PASS" },
   { step: "C4", migration: "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C4.sql", pass: "COUNCILS_C4_PRODUCTION_POST_VERIFIER_PASS" },
-  { step: "C5", migration: "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql", pass: "COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS" },
+  { step: "C5", migration: "supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql", pass: "COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS" },
   { step: "C6", migration: "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C6.sql", pass: "COUNCILS_C6_PRODUCTION_POST_VERIFIER_PASS" },
   { step: "C7", migration: "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C7.sql", pass: "COUNCILS_C7_PRODUCTION_POST_VERIFIER_PASS" },
   { step: "C8", migration: "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C8.sql", pass: "COUNCILS_C8_PRODUCTION_POST_VERIFIER_PASS" },
@@ -74,8 +74,10 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
 
 function discoverSchemaFingerprint(): string {
   const r = psql(`
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    SELECT encode(digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
+    CREATE SCHEMA IF NOT EXISTS extensions;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+    SELECT encode(
+      extensions.digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
     FROM (
       SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute a ON a.attrelid = c.oid
