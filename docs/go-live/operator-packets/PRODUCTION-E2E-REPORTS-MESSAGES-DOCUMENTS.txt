@@ -1,0 +1,92 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: REPORTS, MESSAGES & DOCUMENTS
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet defines post-deployment E2E verification procedures for three critical sub-systems:
+Reports Center (with beneficiary-based authorization scoping), System Messaging Service,
+and Official Documents / Certificates (including the finance options suppression guard).
+
+2. PART 1: REPORTS CENTER E2E & BENEFICIARY SCOPING
+---------------------------------------------------
+
+TEST H1.1: DEPARTMENT HEAD REPORT SCOPING (OWN DEPARTMENT ONLY)
+  Action: Execute report query `get_department_summary_report(dept_id)` as Department Head of CS (Dept ID = 101).
+  Assertion: Report succeeds for Dept 101. Querying Dept 102 (IS) returns empty dataset or `403 FORBIDDEN`.
+
+TEST H1.2: DEAN FAIL-CLOSED DEPARTMENT DETAIL ACCESS
+  Action: Execute `get_college_summary_report()` as Dean.
+  Assertion: College overview succeeds across all departments. Detailed drill-down requires explicit department selection, failing closed if target department is invalid or unassigned.
+
+TEST H1.3: ADMIN EXPLICIT DEPARTMENT SELECTION
+  Action: Execute report query as Admin.
+  Assertion: Admin must explicitly specify `department_id` parameter to fetch department-level detail; unparameterized queries return aggregate summary only.
+
+TEST H1.4: REPORTS CENTER CATALOG & RENDERING
+  Action: Load `/reports` route for authorized user.
+  Assertion: Renders available report cards: Operational Requests, Academic Performance, Student Statistics, Timetable Load.
+
+TEST H1.5: STRATEGIC REPORTS PRIVILEGE GUARD
+  Action: Access `/reports/strategic` as regular staff vs Dean.
+  Assertion: Regular staff receives `403 / STRATEGIC_REPORTS_RESTRICTED`. Dean receives full strategic report dashboard.
+
+3. PART 2: MESSAGING SYSTEM E2E
+--------------------------------
+
+TEST H2.1: INBOX LISTING & UNREAD COUNTER
+  Action: Query `get_user_messages(user_id, folder='inbox')`.
+  Assertion: Returns inbox messages array; `unread_count` matches count of messages with `is_read = false`.
+
+TEST H2.2: SENT MESSAGES LISTING
+  Action: Query `get_user_messages(user_id, folder='sent')`.
+  Assertion: Returns messages sent by logged-in user with recipient names and timestamps.
+
+TEST H2.3: MARK AS READ & UNREAD BADGE UPDATE
+  Action: Call `mark_message_read(message_id)`.
+  Assertion: `is_read` updated to `true`; inbox unread badge decrements by 1.
+
+TEST H2.4: COMPOSE & SEND MESSAGE
+  Action: Call `send_portal_message(recipient_id, subject, body_text)`.
+  Assertion: Message created, inserted into recipient inbox, notification emitted.
+
+TEST H2.5: UI NAVIGATION BACK PRESERVATION
+  Action: In UI, click message detail -> Click Back button.
+  Assertion: Navigation returns to message list with scroll position and active folder filter preserved.
+
+TEST H2.6: ADMIN FALLBACK ROUTING
+  Action: Send message to unassigned or deactivated user role.
+  Assertion: System fallbacks to Admin fallback queue, preventing lost messages.
+
+4. PART 3: OFFICIAL DOCUMENTS & FINANCE OPTION GUARD
+----------------------------------------------------
+
+TEST H3.1: OFFICIAL CERTIFICATES ACCESS
+  Action: Access student document view `/student/documents`.
+  Assertion: Displays issued enrollment certificates and academic statements with valid download controls.
+
+TEST H3.2: FINANCE OPTIONS ABSENCE GUARD (adminFinance = false)
+  Action: Inspect UI & API response payload when `adminFinance = false` (default state).
+  Assertion:
+    - ALL financial payment links, payment confirmation buttons, and fee amount inputs ARE STRICTLY ABSENT.
+    - Zero fee requests bypass payment steps without creating fake financial transaction records.
+
+TEST H3.3: PUBLIC DOCUMENT VERIFICATION PAGE
+  Action: GET `https://quboolye.com/verify-document?hash=<VALID_QR_HASH>`.
+  Assertion: Verification page loads without authentication, displays valid document badge, masks private student PII.
+
+5. PASS CRITERIA
+----------------
+1. Department Head reports restricted strictly to own department data.
+2. Dean fail-closed reporting verified.
+3. Complete messaging lifecycle (inbox, sent, compose, mark read, fallback) passes.
+4. Finance options strictly absent when `adminFinance = false`.
+5. Public document verification page functions without auth or PII exposure.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS-01
+===============================================================================

@@ -1,0 +1,79 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: PWA INSTALLABILITY, CACHE & PRIVACY
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: PRODUCTION-E2E-PWA-PRIVACY-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet establishes post-deployment E2E audit procedures for Progressive Web App (PWA)
+installability, service worker caching policies, user privacy protection against data leaks,
+mobile UX responsiveness, and RTL layout compliance.
+
+2. 7 POST-DEPLOYMENT VERIFICATION AUDITS
+----------------------------------------
+
+AUDIT I.1: PWA INSTALLABILITY & MANIFEST VALIDATION
+  Action: Fetch `https://quboolye.com/manifest.json`.
+  Assertion:
+    - HTTP 200 OK.
+    - Valid JSON payload.
+    - Contains `name` ("البوابة الإلكترونية - كلية تكنولوجيا المعلومات"), `short_name`, `display` ("standalone").
+    - `start_url` set to `/login` or `/auth`.
+    - Icons present (192x192, 512x512).
+    - Service worker script `sw.js` registered and active.
+
+AUDIT I.2: PORTAL LOGIN START URL CHECK
+  Action: Open PWA installed app launcher.
+  Assertion: Application launches directly to portal login page (`/login`), enforcing authentication before accessing protected routes.
+
+AUDIT I.3: LOGOUT FLOW & SESSION PURGE
+  Action: Click Logout button in application header.
+  Assertion:
+    - Session tokens purged from localStorage and sessionStorage.
+    - Application state reset.
+    - User redirected to `/login`.
+    - Navigating back via browser history redirects to `/login`.
+
+AUDIT I.4: NO AUTHENTICATED HTML/API CACHING IN SERVICE WORKER
+  Action: Inspect Service Worker cache storage (`caches.keys()`) and HTTP response headers for `/api/*` and authenticated HTML routes.
+  Assertion:
+    - Headers contain `Cache-Control: no-store, no-cache, must-revalidate`.
+    - Service Worker cache MUST NOT store authenticated API JSON responses or HTML pages containing user PII.
+    - Cache storage contains ONLY static assets (JS bundles, CSS, public images, fonts).
+
+AUDIT I.5: DATA LEAK PREVENTION (STUDENT/FACULTY PII)
+  Action: Audit browser CacheStorage, IndexedDB, and unencrypted SW state after user logout.
+  Assertion:
+    - Zero student/faculty PII (national IDs, phone numbers, grades, request details) remains stored.
+    - SW fetch handler bypasses cache for all `/api/` and RPC requests.
+
+AUDIT I.6: MOBILE UX NAVIGATION & RESPONSIVENESS
+  Action: Load application on mobile viewports (375px, 390px, 412px width).
+  Assertion:
+    - Mobile bottom navigation bar / collapsible sidebar drawer functions smoothly.
+    - Touch targets meet minimum size (>= 48x48px).
+    - Horizontal scrollbars absent on primary layouts.
+
+AUDIT I.7: RTL LAYOUT COMPLIANCE
+  Action: Inspect document root `<html dir="rtl" lang="ar">` and visual component alignment.
+  Assertion:
+    - Text alignment set to right.
+    - Navigation icons and back buttons flip correctly for RTL reading flow.
+    - Flex/Grid layouts orient right-to-left.
+
+3. PASS CRITERIA
+----------------
+1. Web manifest valid and service worker registered.
+2. PWA launches to `/login`.
+3. Logout purges all session credentials and local state.
+4. SW cache contains strictly static assets; 0 authenticated HTML/API responses cached.
+5. Zero PII leak detected after logout.
+6. Mobile navigation responsive and touch targets >= 48px.
+7. RTL layout compliance 100% verified across all portals.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-PWA-PRIVACY-01
+===============================================================================

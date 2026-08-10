@@ -1,0 +1,90 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: DEPARTMENT TRANSFER SERVICE
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+SERVICE CODE: department_transfer (التحويل بين الأقسام)
+PACKET ID: PRODUCTION-E2E-DEPARTMENT-TRANSFER-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. SERVICE SPECIFICATION & SCOPE
+--------------------------------
+Service Name:      Department Transfer (التحويل بين الأقسام)
+Service Code:      department_transfer
+Processing Unit:   current_dept_head -> target_dept_head -> registrar -> dean
+FIXTURE REUSE:     Reuse approved TEST_ONLY fixture bindings from b1-five-services-fixture-contract-15
+
+2. 15-STEP EXECUTABLE E2E VERIFICATION CYCLE
+---------------------------------------------
+
+STEP C3.1: STUDENT VISIBILITY IN CATALOG
+  Action: Query `request_types` where `code = 'department_transfer'`.
+  Assertion: `student_visible = true` AND `is_active = true`.
+
+STEP C3.2: STUDENT DYNAMIC FORM RENDER
+  Action: Load request creation interface `/student/requests/new?type=department_transfer`.
+  Assertion: Form renders fields: `target_department_id` (lookup), `transfer_reason` (text), `transcript_attachment` (file upload).
+
+STEP C3.3: REFERENCE OPTIONS LOOKUP
+  Action: Query departments reference endpoint `get_academic_departments()`.
+  Assertion: Returns list of available college departments excluding current student department.
+
+STEP C3.4: DRAFT / AUTOSAVE LIFECYCLE
+  Action: Call `save_request_draft` RPC with form payload.
+  Assertion: Returns `draft_id`, status = `draft`, request payload preserved.
+
+STEP C3.5: ATTACHMENTS UPLOAD & SIGNED URL
+  Action: Request upload URL via `create_attachment_upload_url`.
+  Assertion: Returns Signed Upload URL targeting private bucket `request-attachments/department-transfer/`.
+  Verify: Upload transcript PDF -> Content-Type verified.
+
+STEP C3.6: ATOMIC SUBMISSION
+  Action: Call `submit_student_request(draft_id)`.
+  Assertion: Request status transitions from `draft` to `pending_processing`.
+
+STEP C3.7: CURRENT WORKFLOW STEP RESOLUTION
+  Action: Query `student_requests` for submitted request.
+  Assertion: `current_step = 1`, `processing_unit = 'current_dept_head'`.
+
+STEP C3.8: CORRECT PROCESSOR INBOX RESOLUTION
+  Action: Login as Current Department Head -> Query `/staff/inbox`.
+  Assertion: Request listed in Current Department Head inbox.
+
+STEP C3.9: NEGATIVE AUTHORIZATION TEST (WRONG ROLE REJECTION)
+  Action: Attempt `process_request_step` RPC as target department head or unauthorized staff.
+  Assertion: RPC REJECTS call with error `42501` / `FORBIDDEN`.
+
+STEP C3.10: POSITIVE AUTHORIZATION TEST (CORRECT ROLE STEP APPROVAL)
+  Action: Execute `process_request_step` RPC as assigned `current_dept_head`.
+  Assertion: Step 1 completes -> Request advances to Step 2 (`target_dept_head`).
+
+STEP C3.11: DECISION LOGIC (FINAL APPROVAL)
+  Action: Process remaining approval steps (Target Dept Head -> Registrar -> Dean).
+  Assertion: Request status becomes `approved`.
+
+STEP C3.12: ACADEMIC EFFECT EXECUTION
+  Action: Post-approval execution handler updates student department binding.
+  Assertion: `student_profiles.department_id` updated from current department to target department ID.
+
+STEP C3.13: STUDENT STATUS TRANSITION
+  Action: Query `student_profiles` for requesting student.
+  Assertion: Department ID reflects target department, academic status remains `active`.
+
+STEP C3.14: NOTIFICATION EMISSION
+  Action: Query `notifications` for student user ID.
+  Assertion: Notification inserted: "تمت الموافقة على طلب التحويل بين الأقسام".
+
+STEP C3.15: HISTORY & AUDIT TRAIL
+  Action: Query `request_history` for request ID.
+  Assertion: Full 4-step approval history recorded with timestamps and processor UUIDs.
+
+3. PASS CRITERIA
+----------------
+1. All 15 verification steps complete without errors.
+2. Wrong role access strictly rejected at every step.
+3. Student profile department ID updated post-approval.
+4. Complete audit trail recorded in request_history.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-DEPARTMENT-TRANSFER-01
+===============================================================================
