@@ -741,6 +741,37 @@ function B1Field({
     );
   }
 
+  if (field.referenceResolverKey === "current_student_enrollments" && (options?.length ?? 0) === 0) {
+    return (
+      <div
+        data-testid="b1-no-current-enrollments"
+        className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm sm:col-span-2"
+      >
+        <div className="font-bold text-amber-900">
+          لا توجد مقررات مسجَّلة لك في الفصل الدراسي الحالي
+        </div>
+        <p className="text-xs leading-relaxed text-amber-900/90">
+          طلب «غياب بعذر» يُقدَّم على مقرر محدد، ويعتمد على سجل تسجيلك الأكاديمي في الفصل الحالي.
+          سجلّك يُظهر حالياً صفر تسجيلات معتمدة، لذلك لا يمكن اختيار المقرر ولا استكمال الطلب. هذا
+          نقص في البيانات المسبقة وليس عطلاً في الخدمة.
+        </p>
+        <div className="text-xs font-bold text-amber-900">الإجراء المقترح:</div>
+        <ol className="list-decimal space-y-1 pe-4 text-xs leading-relaxed text-amber-900/90">
+          <li>تأكد من اكتمال تسجيلك للفصل الحالي في النظام الجامعي الرئيسي.</li>
+          <li>
+            إن كنت مسجلاً فعلياً، راجع قسم شؤون الطلاب أو مسؤول التسجيل في قسمك لاعتماد التسجيل في
+            البوابة.
+          </li>
+          <li>بعد ظهور المقررات في «مقرراتي»، عد إلى هذه الصفحة وأكمل الطلب.</li>
+        </ol>
+        <p className="text-[11px] text-amber-900/80">
+          إن كان الغياب يخص فصلاً سابقاً، قدّم الطلب عبر شؤون الطلاب مباشرة لأن البوابة تغطي الفصل
+          الحالي فقط.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <label className={field.type === "textarea" ? "space-y-1 sm:col-span-2" : "space-y-1"}>
       <span className="block text-sm font-bold text-primary">
