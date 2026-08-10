@@ -5,6 +5,12 @@
   "branch": "integration/go-live-final-source-closure-01",
   "FINAL_RC_SHA": "7dbc62302603f9c6e6beae4401ed721a199de106",
   "FINAL_MAIN_SHA": "fab94705443264ae5fe768c5091e25c7c729be1a",
+  "CURRENT_MAIN_SHA": "19f0cd97abae2d206e26a1b26d62653e624f9fd3",
+  "CURRENT_DEPLOY_SOURCE_SHA": "19f0cd97abae2d206e26a1b26d62653e624f9fd3",
+  "POST_MERGE_HOTFIXES": [
+    { "pr": 334, "sha": "837f6f6c32a34e4d46a7a1b70c5437b1a0e4eb5d", "kind": "docs-freeze" },
+    { "pr": 336, "sha": "19f0cd97abae2d206e26a1b26d62653e624f9fd3", "kind": "reports-ops-fallthrough-failclosed" }
+  ],
   "MAIN_BASE_SHA_AT_MERGE": "a99f4543c4c49e77588c0ff788fabd4356a4d3b5",
   "C5V2_SHA": "0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8",
   "C6_SHA": "1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43",
