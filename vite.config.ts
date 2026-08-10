@@ -51,10 +51,7 @@ function readStampedSha(): string | null {
   // Committed release stamp: the ONLY fallback that survives a build sandbox
   // without a .git directory (Lovable publish). Public data (a commit SHA).
   try {
-    const raw = readFileSync(
-      new URL("./build-sha.generated.json", import.meta.url),
-      "utf-8",
-    );
+    const raw = readFileSync("build-sha.generated.json", "utf-8");
     return normalizeShaCandidate((JSON.parse(raw) as { sha?: string })?.sha);
   } catch {
     return null;
