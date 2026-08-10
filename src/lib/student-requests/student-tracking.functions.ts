@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rpcGetMyStudentRequests } from "@/lib/student-request-rpc";
+import { isDownloadableOfficialDocumentStatus } from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 
 /**
  * Student-scoped tracking reads.
@@ -317,4 +318,59 @@ export const getMyStudentRequestsWithProgress = createServerFn({ method: "POST" 
         fee,
       };
     });
+  });
+
+// -------- Issued official documents (student-owned request) --------
+
+export type StudentRequestIssuedDocument = {
+  id: string;
+  documentType: string;
+  documentNumber: string;
+  status: string;
+  issuedAt: string | null;
+  isDownloadable: boolean;
+};
+
+/**
+ * Lists the official documents issued for a request the calling student
+ * owns. Only safe projection fields are returned — never pdf_url or the
+ * storage path. Downloading still goes through
+ * `getEnrollmentCertificateDocumentSignedUrl`, which re-checks ownership
+ * and the issued/archived status barrier.
+ */
+export const getStudentRequestIssuedDocuments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => requestIdSchema.parse(input))
+  .handler(async ({ data, context }): Promise<StudentRequestIssuedDocument[]> => {
+    await assertStudentOwnsRequest(context.userId, data.requestId);
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("official_documents")
+      .select("id, document_type, document_number, status, issued_at, pdf_url")
+      .eq("student_request_id", data.requestId)
+      .order("issued_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return (rows ?? [])
+      .map((row) => {
+        const r = row as {
+          id: string;
+          document_type: string | null;
+          document_number: string | null;
+          status: string | null;
+          issued_at: string | null;
+          pdf_url: string | null;
+        };
+        return {
+          id: r.id,
+          documentType: r.document_type ?? "",
+          documentNumber: r.document_number ?? "—",
+          status: r.status ?? "",
+          issuedAt: r.issued_at,
+          isDownloadable:
+            isDownloadableOfficialDocumentStatus(r.status) && Boolean(r.pdf_url),
+        };
+      })
+      .filter((doc) => doc.status !== "draft");
   });
