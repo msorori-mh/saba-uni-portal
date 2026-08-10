@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { GaEmpty, GaError, GaLoading } from "../../src/components/graduates-affairs/GaStates";
 import { GraduateFileCard } from "../../src/components/graduates-affairs/GraduateFileCard";
 import { GraduateCommunicationPanel } from "../../src/components/graduates-affairs/GraduateCommunicationPanel";
 import { GraduateSurveyCard } from "../../src/components/graduates-affairs/GraduateSurveyCard";
@@ -298,6 +299,55 @@ describe("survey card", () => {
       }),
     );
     expect(responded).toContain("تمت الإجابة على هذا الإصدار مسبقاً");
+  });
+});
+
+describe("loading / empty / error shells", () => {
+  test("loading shell is RTL status with Arabic label", () => {
+    const html = renderToStaticMarkup(createElement(GaLoading, {}));
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain("جارٍ تحميل شؤون الخريجين");
+    expect(UUID_PATTERN.test(html)).toBe(false);
+  });
+
+  test("empty shell is RTL status without identifiers", () => {
+    const html = renderToStaticMarkup(
+      createElement(GaEmpty, {
+        message: "لا توجد بيانات خريج معتمدة للعرض بعد.",
+      }),
+    );
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain("لا توجد بيانات خريج معتمدة للعرض بعد.");
+    expect(UUID_PATTERN.test(html)).toBe(false);
+  });
+
+  test("error shell is RTL alert with optional retry", () => {
+    const withoutRetry = renderToStaticMarkup(
+      createElement(GaError, { message: "تعذر تحميل السجل." }),
+    );
+    expect(withoutRetry).toContain('dir="rtl"');
+    expect(withoutRetry).toContain('role="alert"');
+    expect(withoutRetry).toContain("تعذر تحميل السجل.");
+    expect(withoutRetry).not.toContain("إعادة المحاولة");
+
+    const withRetry = renderToStaticMarkup(
+      createElement(GaError, {
+        message: "تعذر تحميل السجل.",
+        retry: () => undefined,
+      }),
+    );
+    expect(withRetry).toContain("إعادة المحاولة");
+  });
+
+  test("student and staff routes mount empty shells when flags are ON", () => {
+    const studentRoute = read("src/routes/student.graduates-affairs.index.tsx");
+    const staffRoute = read("src/routes/staff.graduates-affairs.tsx");
+    expect(studentRoute).toContain("GaEmpty");
+    expect(staffRoute).toContain("GaEmpty");
+    expect(studentRoute).toContain("لا توجد بيانات خريج معتمدة للعرض بعد");
+    expect(staffRoute).toContain("لا توجد سجلات تشغيلية ضمن نطاق التعيين الحالي");
   });
 });
 

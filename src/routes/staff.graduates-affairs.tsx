@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Briefcase } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
+import { GaEmpty } from "@/components/graduates-affairs/GaStates";
 import { supabase } from "@/integrations/supabase/client";
 import {
   portalFeatures,
@@ -52,17 +53,20 @@ function StaffGraduatesAffairsPage() {
             homeLabel="العودة لبوابة الموظف"
           />
         ) : (
-          <div
-            className="space-y-3 rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground"
-            role="status"
-          >
-            <p>
-              العلم التشغيلي مفعّل. التفويض الساري يتطلب وحدة{" "}
-              <span className="font-mono">{GRADUATE_AFFAIRS_UNIT_CODE}</span> مع دور{" "}
-              <span className="font-mono">{GRADUATE_AFFAIRS_MANAGER_ROLE}</span> أو{" "}
-              <span className="font-mono">{GRADUATE_AFFAIRS_SPECIALIST_ROLE}</span>{" "}
-              ونطاق صريح أو تعيين حالة مباشر. أدوار app_role العامة لا تمنح صلاحية.
-            </p>
+          <div className="space-y-4">
+            <div
+              className="space-y-3 rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground"
+              role="status"
+            >
+              <p>
+                العلم التشغيلي مفعّل. التفويض الساري يتطلب وحدة{" "}
+                <span className="font-mono">{GRADUATE_AFFAIRS_UNIT_CODE}</span> مع دور{" "}
+                <span className="font-mono">{GRADUATE_AFFAIRS_MANAGER_ROLE}</span> أو{" "}
+                <span className="font-mono">{GRADUATE_AFFAIRS_SPECIALIST_ROLE}</span>{" "}
+                ونطاق صريح أو تعيين حالة مباشر. أدوار app_role العامة لا تمنح صلاحية.
+              </p>
+            </div>
+            <GaEmpty message="لا توجد سجلات تشغيلية ضمن نطاق التعيين الحالي. المدير/الأخصائي يعملان عبر AUTH-04 فقط." />
           </div>
         )}
       </main>
