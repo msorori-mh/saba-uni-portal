@@ -4,7 +4,7 @@
 **Branch:** `feat/ga-final-closure-20260811`  
 **Target:** `main` (Draft PR, do not merge)  
 **BASE_SHA:** `d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc`  
-**FINAL_SHA:** `816265b17672de11e2af206e9e620d96e8551f44`
+**FINAL_SHA:** `c80b2288d8ccdd52a7fbe9a08a50f33ba108194d`
 
 ---
 
@@ -283,7 +283,7 @@ Draft PR opened:
 
 ```
 BASE_SHA=d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc
-FINAL_SHA=816265b17672de11e2af206e9e620d96e8551f44
+FINAL_SHA=c80b2288d8ccdd52a7fbe9a08a50f33ba108194d
 GAPS_FOUND=10
 GAPS_FIXED=8
 OFFICIAL_GRADUATION_GATE=PASS
