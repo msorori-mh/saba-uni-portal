@@ -66,6 +66,7 @@ export function CouncilMeetingsWorkspace({
                   variant="upcoming"
                   canEdit={chairCouncilIds.has(m.council_id)}
                   canManageAgenda={agendaWriteCouncilIds.has(m.council_id)}
+                  canRecordAttendance={secretaryCouncilIds.has(m.council_id)}
                   onManageAgenda={onManageAgenda}
                   onUpdated={onUpdated}
                 />
