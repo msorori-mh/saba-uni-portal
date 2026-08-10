@@ -8,6 +8,7 @@ import {
   listStudentRequestOfficialDocuments,
 } from "@/lib/student-requests/staff-inbox.functions";
 import { getEnrollmentCertificateDocumentSignedUrl } from "@/lib/student-requests/enrollment-certificate-pdf-storage-saga.functions";
+import { getB1DetailsReadinessFn } from "@/lib/student-requests/b1-details-readiness.functions";
 
 /**
  * Reusable panel for workflow steps whose config.action_type = 'archive'.
