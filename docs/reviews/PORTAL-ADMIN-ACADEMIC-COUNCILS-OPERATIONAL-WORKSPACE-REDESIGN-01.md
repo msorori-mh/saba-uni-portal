@@ -5,8 +5,10 @@ Transform the admin academic councils page from a long document-like layout into
 
 ## SHAs
 - **BASE_SHA:** `b02241c5ccf92f8057213232092cde81a0231b48`
+- **FINAL_SHA:** `5a3de6013b53e229a197ec27f1daba4861e0c494`
 - **BRANCH:** `feat/admin-councils-operational-workspace-01`
 - **WORKTREE:** `C:/projects/saba-admin-councils-operational-ui-01`
+- **PR_URL:** https://github.com/msorori-mh/saba-uni-portal/pull/323 (Draft)
 
 ## Files changed
 ### Added
