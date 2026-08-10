@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { reviewCouncilTopic } from "@/lib/admin-councils.functions";
+import { isAllowedTopicTransition } from "@/lib/council-topic-lifecycle";
 import {
   getCouncilTopicReviewQueue,
   type CouncilTopicReviewQueueItem,
@@ -28,7 +29,7 @@ const REVIEW_QUEUE_STATUS_TABS = [
   { value: "submitted", label: "مقدّم" },
   { value: "under_review", label: "قيد المراجعة" },
   { value: "needs_completion", label: "مطلوب استكمال" },
-  { value: "accepted_for_agenda", label: "مقبول للجدول" },
+  { value: "accepted_for_agenda", label: "الموضوعات المقبولة" },
   { value: "rejected", label: "مرفوض" },
 ] as const;
 
