@@ -1,6 +1,7 @@
 -- ACADEMIC-COUNCILS-C0-C9-PRODUCTION-READINESS-PACKAGE-LONGRUN-09
 -- Production READ-ONLY structural post-verifier for C5.
--- Run after: 20260808150000_councils_c5_minutes_lifecycle_01.sql
+-- Run after: 20260810180000_councils_c5_minutes_lifecycle_02.sql (CANONICAL_APPLY_CANDIDATE)
+-- V1 20260808150000_councils_c5_minutes_lifecycle_01.sql is SUPERSEDED_DO_NOT_APPLY.
 -- No DML, no writes, no DROP. Fail-closed.
 
 \set ON_ERROR_STOP on
@@ -25,6 +26,7 @@ DECLARE
   v_fname text;
   v_prosecdef boolean;
   v_proconfig text[];
+  v_lock_def text;
 BEGIN
   SELECT array_agg(t ORDER BY t) INTO v_missing
   FROM unnest(v_expected_types) t
@@ -78,6 +80,18 @@ BEGIN
       RAISE EXCEPTION 'HOLD: % does not set search_path=public, pg_temp', v_fname;
     END IF;
   END LOOP;
+
+  SELECT pg_get_functiondef(p.oid) INTO v_lock_def
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname = 'approve_and_lock_council_minutes'
+  ORDER BY p.oid
+  LIMIT 1;
+
+  IF v_lock_def IS NULL OR position('extensions.digest(' in v_lock_def) = 0 THEN
+    RAISE EXCEPTION 'HOLD: approve_and_lock_council_minutes must fully qualify extensions.digest';
+  END IF;
 
   SELECT array_agg(pol ORDER BY pol) INTO v_missing
   FROM unnest(v_expected_policies) pol
