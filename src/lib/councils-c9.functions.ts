@@ -1,7 +1,7 @@
 // C9 server functions: notifications, reports, dashboards, responsible actor workspace.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/lib/councils/request-auth.server";
 
 const councilIdSchema = z.string().uuid("معرّف المجلس غير صالح");
 
