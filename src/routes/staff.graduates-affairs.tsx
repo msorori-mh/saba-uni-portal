@@ -1,10 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Briefcase } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
 import { GraduatesAffairsStaffWorkspace } from "@/components/portal/GraduatesAffairsStaffWorkspace";
-import { supabase } from "@/integrations/supabase/client";
+import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures, STAFF_GRADUATES_AFFAIRS_FROZEN_MSG } from "@/lib/portal-features";
+
 
 export const Route = createFileRoute("/staff/graduates-affairs")({
   component: StaffGraduatesAffairsPage,
