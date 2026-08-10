@@ -10,6 +10,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
+import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
 import {
   isWorkflowRpcUnavailable,
   rpcGetMyRequestActorInbox,
