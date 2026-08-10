@@ -201,7 +201,7 @@ CI status recorded after push (Web CI / Migration Review if triggered).
 
 ```
 BASE_SHA=b02241c5ccf92f8057213232092cde81a0231b48
-FINAL_SHA=3c43e69ffb0290465c934ea9eabfe094a5dfa1f8
+FINAL_SHA=a829d93f7c5b37ebf6f167d7e5c0a9841df6f288
 BRANCH=fix/c5-digest-extension-qualification-01
 PR_URL=https://github.com/msorori-mh/saba-uni-portal/pull/322
 
@@ -231,8 +231,8 @@ COUNCILS_SUITE=PASS
 TSC=PASS
 DIFF_CHECK=PASS
 
-WEB_CI=PENDING_AFTER_PUSH
-MIGRATION_REVIEW=PENDING_AFTER_PUSH
+WEB_CI=PASS (Install · Lint · Typecheck · Build; Bun tests)
+MIGRATION_REVIEW=PASS
 
 PRODUCTION_READS=0
 PRODUCTION_WRITES=0
