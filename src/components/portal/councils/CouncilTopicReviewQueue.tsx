@@ -224,12 +224,14 @@ export function CouncilTopicReviewQueue({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {(isChair || isSecretary) && topic.status !== "under_review" ? (
+                      {(isChair || isSecretary) &&
+                      isAllowedTopicTransition(topic.status, "under_review") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-under-review-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "under_review")}
                         >
@@ -237,12 +239,14 @@ export function CouncilTopicReviewQueue({
                           تحت المراجعة
                         </Button>
                       ) : null}
-                      {(isChair || isSecretary) && topic.status !== "needs_completion" ? (
+                      {(isChair || isSecretary) &&
+                      isAllowedTopicTransition(topic.status, "needs_completion") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-needs-completion-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "needs_completion")}
                         >
@@ -250,12 +254,13 @@ export function CouncilTopicReviewQueue({
                           طلب استكمال
                         </Button>
                       ) : null}
-                      {isChair && topic.status !== "accepted_for_agenda" ? (
+                      {isChair && isAllowedTopicTransition(topic.status, "accepted_for_agenda") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="default"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-accept-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "accepted_for_agenda")}
                         >
@@ -263,12 +268,13 @@ export function CouncilTopicReviewQueue({
                           قبول للجدول
                         </Button>
                       ) : null}
-                      {isChair && topic.status !== "rejected" ? (
+                      {isChair && isAllowedTopicTransition(topic.status, "rejected") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="destructive"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-reject-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "rejected")}
                         >
@@ -277,6 +283,7 @@ export function CouncilTopicReviewQueue({
                         </Button>
                       ) : null}
                     </div>
+
                   </li>
                 );
               })}
