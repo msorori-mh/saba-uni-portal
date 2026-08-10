@@ -47,6 +47,7 @@ import {
   deriveActionRequiredItems,
   filterAgendaWriteMemberships,
   filterChairMemberships,
+  filterSecretaryMemberships,
   filterSubmitEligible,
   isViewerOnly,
 } from "@/lib/faculty-portal/councils-operational";
