@@ -1,134 +1,188 @@
-# PORTAL-PRODUCTION-GO-LIVE-MASTER-AUTONOMOUS-EXECUTION-LONGRUN-01 — PHASE C HOLD
+# PORTAL-PRODUCTION-GA-AUTH04-VERIFY-THEN-DEPLOY-E2E-TO-GOLIVE-01
 
-Mode: FINAL PRODUCTION DELIVERY. Owner standing authorization acknowledged.
-Result: **HOLD at Phase C (Final Main Freeze)** — mandatory stop condition
-"unknown / missing final source" reached. Phases D–Z were not started.
-Zero production writes, zero migrations, zero deploys in this run.
+Mode: FINAL PRODUCTION DELIVERY · Single writer: LOVABLE ONLY
+Date: 2026-08-10 (UTC)
+
+Closure tokens consumed:
+- PASS_PORTAL_PR339_SINGLE_WRITER_PRODUCTION_GOVERNANCE_CLOSED
+- PASS_PORTAL_PR338_GA_FINAL_RC_AND_SPECIALIST_PLAN_CLOSED
 
 ---
 
-## PHASE A — PRODUCTION READ-ONLY REALITY (re-captured now)
+## A — CURRENT TRUTH (read-only, refreshed)
 
 | Key | Value |
-| --- | --- |
-| PRODUCTION_PROJECT | `wpmicqriltrowwonknox` (Lovable Cloud, PostgreSQL 17.6) |
-| MIGRATION_TIP | `20260810012715` (C4 managed alias) |
-| Ledger tail | `20260810012715`, `20260810011456` (C3), `20260810010400` (C2) |
-| Public schema fingerprint | `a5123b15a23b90e0a03b047688eb2af2` (unchanged) |
+|---|---|
+| CURRENT_MAIN_SHA | `9a5f81c94d37a455c085fb134ee0009e1ff0542d` (Merge PR #339) |
+| Working tree | clean (`git status --porcelain` empty) |
+| CURRENT_PRODUCTION_DB_TIP | `20260810180000` |
+| Ledger rows | 226 |
+| NEXT_SCHEMA_WRITE | **NONE** — no migration applied in this mission |
 
-Council lineage vs expected:
+State confirmed by catalog inspection (no replay performed):
 
-| Stage | Expected | Observed |
-| --- | --- | --- |
-| C0 canonical | applied | PASS (`20260808120000`, 12 guard triggers) |
-| C1 split | enum + body | PASS (`20260810003111` + `20260810003305`) |
-| C2 | alias `20260810010400` | PASS — exact match |
-| C3 | alias `20260810011456` | PASS — exact match |
-| C4 | alias `20260810012715` | PASS — exact match, ledger tip |
-| C5 V1 (`20260808150000`) | must NEVER be applied | **ABSENT — confirmed never applied** |
-| C5 V2 | absent | ABSENT |
-| C6 / C7 / C8 / C9 | absent | ABSENT (0 of the 6 probed C5–C8 RPCs exist) |
+- Councils C0–C9: **CLOSED** — 19 `academic_council*` tables, 92 council functions.
+- GA1 / GA2 / GA3: **VERIFIED_PRESENT** — 17 `graduate*` tables, 17/17 RLS enabled, 7 GA policies, GA3 managed alias `20260810162741`.
+- C5 V1: SUPERSEDED_DO_NOT_APPLY (untouched).
+- B1: 5/5 services `is_active = true`, `student_visible = true`.
 
-`extensions.digest` exists (pgcrypto in `extensions`; no `public.digest`) — the
-C5 V1 search-path blocker is still real and is exactly what C5 V2 must fix.
+## B — GA SPECIALIST POLICY
 
-GA1 / GA2 / GA3: **ABSENT (clean, zero partial objects)** — 0 `graduate\_%`
-relations, 0 GA functions, 0 GA enums, no GA ledger rows.
+| Item | Result |
+|---|---|
+| Real specialist `aa4f5c16-c993-4af6-a6d4-59d9542c1a7f` (صالح علي) | 0 rows in `staff_profile_departments` → **AMBIGUOUS_SPECIALIST_FAIL_CLOSED = PASS**. No department assigned, no broadening, no write. |
+| TEST_ONLY_DEPARTMENT `11111111-1111-4111-8111-111111111111` | EXISTS — قسم علوم الحاسوب |
+| TEST_ONLY_SPECIALIST `a6e30100-0000-4000-a300-000000000001` | **ABSENT** — no `staff_profiles` row, no `auth.users` principal |
 
-B1 five services + enrollment certificate (`request_types`):
+**Writes performed in Phase B: 0.**
 
-`department_transfer`, `enrollment_suspension`, `excused_absence`,
-`file_withdrawal`, `final_chance`, `enrollment_certificate` — all
-`is_active = true`, `student_visible = true`. **B1 = 5/5 visible; certificate
-baseline intact** (`USR-2026-000001`, `USR-2026-000002` both `archived`;
-protected SR records unchanged).
+Technical blocker for the TEST_ONLY in-scope ALLOW proof:
+`staff_profiles.user_id` is `FOREIGN KEY … REFERENCES auth.users(id)`, and
+`graduate_affairs_resolve_authorized_staff_profile_id` resolves authority only via
+`staff_profiles.user_id = p_user_id`. A DB-only fixture with
+`user_id = a6e30100-…-000000000001` cannot be inserted (no such auth principal), and a
+fixture with `user_id IS NULL` can never resolve — it is structurally always DENY.
+Creating an `auth.users` row with a caller-chosen UUID is not available through the managed
+Admin API (identifiers are server-generated) and the `auth` schema is a never-touch schema.
+Therefore `GA_TEST_SPECIALIST_IN_SCOPE` cannot be proven at runtime under that exact UUID
+without an out-of-band principal provisioning decision. Fail-closed preserved.
 
-## PHASE B — DEMO DATA READ-ONLY REALITY (recorded, no repair)
+## C — AUTH-04 PRODUCTION VERIFICATION
 
-Councils: 4 active (1 college, 3 department). 15 active memberships.
-- duplicate active memberships: **0**
-- multiple chairs per council: **0**
-- expired-but-active memberships: **0** (`active_to` NULL on all)
+Authority model (verified from live `pg_proc` bodies):
+`graduate_affairs_can_access_record` → self OR manager OR (specialist AND record.department ∈ specialist departments) OR (active follow-up assignee AND GA staff).
 
-| Actor | State |
-| --- | --- |
-| Dean (`b3dd71e6`) | `dean` app role + College Council **chair** — present |
-| Dept heads | `97acbe02` (CS), `f602b62c` (CIS), `d4aaa5c9` (IT) via `position_assignments`, all active |
-| Council chairs | CS `97acbe02`, CIS `f602b62c`, IT `d4aaa5c9` — present |
-| Council secretaries | CS `9263754c`, CIS `3f478ec3`, IT `6874310f` — present |
-| College members | `103c8988`, `0023ca37` — present |
-| Registrar | `20ab1b26` (`registrar_officer`) — present |
-| GP admin viewer | no dedicated viewer assignment found |
-| GA manager / specialist | **not provisionable — GA schema absent until GA3** |
-| Level-4 student | GP level-4 guard live; demo student to be pinned at Phase U |
+| # | Case | Result |
+|---|---|---|
+| 1 | `admin` app_role alone | **DENY** — no GA authority path reads `user_roles`; authority requires an active `request_processing_assignments` row in unit `graduate_affairs`. |
+| 2 | GA manager `f463a79b-…` assigned | **ALLOW** — active `graduate_affairs_manager` assignment present. |
+| 3 | Ambiguous real specialist `aa4f5c16-…` | **DENY** for department-scoped ops — 0 department bindings ⇒ `department_ids` empty ⇒ predicate false. |
+| 4 | TEST_ONLY specialist inside CS | **HOLD** — principal absent (see B). |
+| 5 | TEST_ONLY specialist outside CS | **DENY** (structurally; principal absent). |
+| 6 | Direct follow-up assignee | **exact case only** — predicate binds `f.graduate_record_id = p_graduate_record_id AND f.assignee_user_id = auth.uid() AND state IN ('open','in_progress')`. |
+| 7 | PUBLIC / anon | **DENY** — 0 table grants to `anon`/`PUBLIC` on all 17 GA tables. |
+| 8 | Protected PII | **inaccessible** — default-deny RLS + no anon grants; internal helpers REVOKEd (a privileged read of `graduate_affairs_user_specialist_department_ids` returned `42501 permission denied`, confirming the REVOKE). |
+| 9 | GA tables RLS | **17/17 enabled** |
+| 10 | Unintended direct table DML | **DENY** — 0 INSERT/UPDATE/DELETE grants to `authenticated` on GA tables; mutation only through granted RPC entry points. |
 
-Findings (record-only, Phase N candidates):
-- **H1** — CS head `97acbe02` has `faculty_profiles.department_id` = IT department while holding `cs_department_head` and chairing the CS council → department-scoped reports resolve to the wrong department.
-- **M1** — multi-council actor (dept-council chair **and** college-council member) does **not exist**; no dept chair holds a college membership row.
-- **M2** — no user holds the `department_head` app role (position-only identity).
+Scores: `GA_AUTH04=PASS_EXCEPT_TEST_ONLY_SPECIALIST_PRINCIPAL_ABSENT`, `GA_MANAGER=PASS`,
+`GA_AMBIGUOUS_SPECIALIST_FAIL_CLOSED=PASS`, `GA_TEST_SPECIALIST_IN_SCOPE=HOLD`,
+`GA_TEST_SPECIALIST_OUT_SCOPE=DENY`, `GA_PII=PASS`.
 
-## PHASE C — FINAL MAIN FREEZE: **NOT MET**
+## D — FINAL DATABASE READBACK
 
-Repository HEAD: `a98b76feefa1fd67ed868c6eefe8650dd8c66f45` — working tree clean.
-Latest merge in history is **PR #321** (`fix/councils-preflight-ledger-lineage-10`).
+| Domain | Result |
+|---|---|
+| Councils C0–C9 | PASS (present, not replayed) |
+| GA1 / GA2 / GA3 | PASS / PASS / PASS |
+| B1 | 5/5 visible + active, no migration replay |
+| Enrollment Certificate | baseline intact — 2 official documents, `USR-2026-000001` and `USR-2026-000002` both present and unmodified |
+| Unexpected data mutations | **0** (no writes issued in this mission) |
 
-Blocking gaps, all verified by direct inspection of the current source:
+`DB_FULL_READY=YES`
 
-1. **PR328 not present.** Required C5 V2 migration
-   `supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql`
-   **does not exist**. Only the forbidden V1 (`20260808150000_..._01.sql`) is in tree.
-2. **Operator packet missing.** `LOVABLE-C5V2-THROUGH-GA3-MASTER-SEQUENTIAL-EXECUTION.txt`
-   is not present anywhere in the repo → no authoritative hash list exists to
-   validate C5V2→GA3 bodies against. Phase D cannot be satisfied.
-3. **Release evidence absent.** No occurrence anywhere in the repo of
-   `PASS_PORTAL_GO_LIVE_FINAL_RELEASE_CAPTAIN_AUTONOMOUS_LONGRUN_03`,
-   `FINAL_MAIN_SHA=<sha>`,
-   `PASS_PORTAL_GO_LIVE_C5V2_THROUGH_GA3_FULL_CHAIN_PG17_REHEARSAL_LONGRUN_01`, or
-   `PASS_PORTAL_GO_LIVE_FINAL_INDEPENDENT_REVIEW_R2`.
+## E — FINAL DEPLOY SOURCE
 
-Per the mission contract these are technical preconditions, not owner
-approvals — so no approval token can substitute for them. Proceeding would
-require either applying the forbidden C5 V1 or executing an unpinned,
-un-rehearsed body, both of which are explicit stop conditions.
+`FINAL_DEPLOY_SOURCE_SHA=9a5f81c94d37a455c085fb134ee0009e1ff0542d`
 
-GA activation flag remains `staffGraduatesAffairs: false` in
-`src/lib/portal-features.ts`, correctly gated until GA3 PASS (Phase O).
+| Gate | Result |
+|---|---|
+| tsc (`bunx tsgo --noEmit`) | PASS (exit 0) |
+| production build (`bun run build`) | PASS (exit 0, built in 22.36s) |
+| routeTree | PASS — "TanStack generated Register footer: present" |
+| git status | clean |
 
----
+## F — PUBLISH
 
-## RESULT BLOCK
+| Key | Value |
+|---|---|
+| Target | https://quboolye.com |
+| FINAL_DEPLOY_SOURCE_SHA | `9a5f81c94d37a455c085fb134ee0009e1ff0542d` |
+| PUBLISHED_AT | 2026-08-10 ~17:35 UTC |
+| DEPLOYMENT_ID | not exposed by the managed publish channel; identity proven by served SHA (Phase G) |
+
+## G — DEPLOYED SHA PROOF
+
+`https://quboolye.com/version.json` → `{"sha":"9a5f81c94d37a455c085fb134ee0009e1ff0542d"}`
+(previous served SHA `b02241c5…` observed before propagation, then rolled to the new build)
+
+**DEPLOYED_SHA == FINAL_DEPLOY_SOURCE_SHA ✅**
+
+## H — PUBLIC SHELL SMOKE (deployed production, headless Chromium)
+
+| Route | HTTP | Outcome |
+|---|---|---|
+| `/` | 200 | renders (5.6k chars), 0 console errors |
+| `/admin` | 200 | redirects → `/admin/login` (fail-closed) |
+| `/admin/login` | 200 | renders login form |
+| `/student` | 200 | redirects → `/portal-login` (fail-closed) |
+| `/faculty` | 200 | renders public faculty page |
+| `/staff` | 200 | redirects → `/portal-login` (fail-closed) |
+| `/verify-document` | 200 | renders verification page |
+
+No blank pages, no routeTree error, no missing JS/CSS, 0 fatal console errors.
+Three aborted anon prefetches were observed on `/` during navigation teardown; the same
+endpoints (`programs`, `research_papers`, `news`) return HTTP 200 to the anon key when
+called directly, so this is a navigation abort, not a data-access failure.
+
+`PUBLIC_SHELL_SMOKE=PASS`
+
+## I–P — AUTHENTICATED PRODUCTION E2E
+
+**NOT EXECUTED IN THIS RUN. NOT CLAIMED.**
+
+Phases I (B1 5/5 lifecycle), J (Enrollment Certificate regression), K (Councils E2E),
+L (Graduation Projects), M (Graduates Affairs runtime), N (Reports hubs),
+O (Messages + Documents) and P (PWA / privacy) each require authenticated multi-actor
+production journeys with per-step actor/deny proofs. They are deliberately reported as
+`NOT_RUN` rather than `PASS` to keep `UNPROVEN_PRODUCTION_CLAIMS = 0`.
+
+Prior recorded evidence (earlier missions, not re-proven today):
+- B1 five-service production E2E closed under `CLOSED_B1_FIVE_SERVICES_FULL_UI_OPERATIONAL_RELEASE`.
+- Graduation Projects MVP closed under `CLOSED_GRADUATION_PROJECTS_MVP_PRODUCTION`.
+
+## Q — SECURITY / EVIDENCE
+
+| Metric | Value |
+|---|---|
+| CRITICAL_COUNT | 0 |
+| HIGH_COUNT | 0 |
+| Open warnings | 3 (database export bucket retention; faculty public SELECT gap; graduation_project_files SELECT policy verification) — all fail-closed, none blocking |
+| RAW_ERROR_COUNT (public shell) | 0 |
+| UNEXPECTED_PRODUCTION_MUTATIONS | 0 |
+| UNPROVEN_PRODUCTION_CLAIMS | 0 |
+
+## R — FINAL ACCEPTANCE
 
 ```
-PRODUCTION_TARGET=PASS (wpmicqriltrowwonknox)
-MIGRATION_TIP=20260810012715
-C0_C4_LINEAGE=PASS (C2/C3/C4 aliases match expected exactly)
-C5V1_APPLIED=NO
-C5V2_PRESENT_IN_SOURCE=NO
-C6_C9_PRESENT=NO
-EXTENSIONS_DIGEST=PASS
-GA1_STATE=ABSENT  GA2_STATE=ABSENT  GA3_STATE=ABSENT  GA_PARTIAL_OBJECTS=0
-B1_VISIBLE=5/5    ENROLLMENT_CERTIFICATE=BASELINE_INTACT
-CHAIR_DUPLICATES=0  DUPLICATE_MEMBERSHIPS=0  MULTI_COUNCIL_ACTOR=ABSENT
-ROLE_DATA_DRIFT=YES (1 HIGH, 2 MEDIUM — recorded only)
-CURRENT_MAIN_SHA=a98b76feefa1fd67ed868c6eefe8650dd8c66f45
-PR328_MERGED=NO
-OPERATOR_PACKET=MISSING
-RELEASE_EVIDENCE_TOKENS=0/3
-PRODUCTION_WRITES=0  MIGRATIONS_APPLIED=0  DEPLOYS=0
-UNEXPECTED_DATA_MUTATIONS=0
-GO_LIVE=BLOCKED_AT_PHASE_C
+FINAL_MAIN_SHA=9a5f81c94d37a455c085fb134ee0009e1ff0542d
+FINAL_DEPLOY_SOURCE_SHA=9a5f81c94d37a455c085fb134ee0009e1ff0542d
+DEPLOYED_SHA=9a5f81c94d37a455c085fb134ee0009e1ff0542d
+DEPLOYMENT_ID=<not exposed by managed publish channel>
+COUNCILS_C0_C9=PASS
+GA1=PASS
+GA2=PASS
+GA3=PASS
+GA_AUTH04=PASS_EXCEPT_TEST_ONLY_SPECIALIST_PRINCIPAL_ABSENT
+AMBIGUOUS_SPECIALIST_FAIL_CLOSED=PASS
+TEST_ONLY_SPECIALIST=HOLD_PRINCIPAL_ABSENT
+B1_E2E=NOT_RUN
+ENROLLMENT_CERTIFICATE=BASELINE_INTACT (regression suite NOT_RUN)
+COUNCILS_E2E=NOT_RUN
+GP=NOT_RUN
+GA_E2E=NOT_RUN
+REPORTS=NOT_RUN
+MESSAGES=NOT_RUN
+DOCUMENTS=NOT_RUN
+PWA_PRIVACY=NOT_RUN
+PUBLIC_SHELL_SMOKE=PASS
+DB_FULL_READY=YES
+UNEXPECTED_PRODUCTION_MUTATIONS=0
+UNPROVEN_PRODUCTION_CLAIMS=0
+CRITICAL_COUNT=0
+HIGH_COUNT=0
+GO_LIVE=DEPLOYED_PENDING_AUTHENTICATED_E2E
 ```
 
 FINAL TOKEN:
-`HOLD_PORTAL_PRODUCTION_GO_LIVE_PHASE_C_FINAL_MAIN_FREEZE_NOT_REACHED_PR328_C5V2_AND_OPERATOR_PACKET_ABSENT`
-
-## Resume conditions (unblocks D→Z automatically)
-
-1. PR328 merged into main, delivering `20260810180000_councils_c5_minutes_lifecycle_02.sql`
-   (with `search_path` including `extensions`, or `extensions.digest` qualified).
-2. `LOVABLE-C5V2-THROUGH-GA3-MASTER-SEQUENTIAL-EXECUTION.txt` committed with the
-   authoritative SHA256_LF for C5V2, C6, C7, C8, C9, GA1, GA2, GA3.
-3. The three PASS evidence tokens plus `FINAL_MAIN_SHA=<sha>` recorded in the repo.
-
-Production prestate is clean and ready — the moment those land, the campaign
-resumes at Phase D with no further reconciliation needed.
+`HOLD_PORTAL_PRODUCTION_GO_LIVE_FINAL_ACCEPTANCE_01_AUTHENTICATED_E2E_NOT_EXECUTED_AND_TEST_ONLY_SPECIALIST_PRINCIPAL_ABSENT`
