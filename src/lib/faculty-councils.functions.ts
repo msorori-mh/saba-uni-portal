@@ -215,6 +215,44 @@ export type CouncilTopicAttachmentSignedUrlResult = {
   mimeType: string;
 };
 
+export type CouncilAttendanceRollMember = {
+  attendance_id: string;
+  membership_id: string;
+  user_id: string;
+  member_role: string;
+  attendance_state: string;
+  recorded_at: string | null;
+  recorded_by: string | null;
+};
+
+export type CouncilAttendanceRollResult = {
+  roll_id: string | null;
+  status: string | null;
+  eligible_member_count: number;
+  finalized_at: string | null;
+  finalized_by: string | null;
+  members: CouncilAttendanceRollMember[];
+  latest_evaluation: {
+    evaluation_id: string;
+    eligible_member_count: number;
+    present_member_count: number;
+    required_member_count: number;
+    quorum_met: boolean;
+    evaluated_at: string;
+    policy_version: number;
+    is_final: boolean;
+  } | null;
+};
+
+export type CouncilQuorumPolicyResult = {
+  policy_id: string;
+  policy_version: number;
+  threshold_kind: string;
+  absolute_count: number | null;
+  ratio_numerator: number | null;
+  ratio_denominator: number | null;
+};
+
 // ============================================================================
 // SHARED HELPERS
 // ============================================================================
