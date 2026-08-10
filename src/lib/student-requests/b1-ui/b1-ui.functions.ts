@@ -11,6 +11,9 @@ import { rpcGetAvailableRequestTypes } from "@/lib/student-request-rpc";
 import { extractB1SecureAttachmentIds } from "@/lib/student-requests/student-request-submit-contract";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
+import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
+import { B1_PANEL_ACTION_LABELS_AR } from "@/lib/student-requests/b1-staff-action-routing";
+
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
   SECURE_ATTACHMENT_MAX_BYTES,
