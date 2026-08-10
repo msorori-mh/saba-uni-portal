@@ -4,7 +4,7 @@
 **Branch:** `feat/ga-final-closure-20260811`  
 **Target:** `main` (Draft PR, do not merge)  
 **BASE_SHA:** `d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc`  
-**FINAL_SHA:** `COMMIT_SHA_PLACEHOLDER`
+**FINAL_SHA:** `dc965c49`
 
 ---
 
@@ -380,7 +380,7 @@ No new HIGH-severity IDOR or audience inconsistency was found.
 
 ```
 BASE_SHA=d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc
-FINAL_SHA=COMMIT_SHA_PLACEHOLDER
+FINAL_SHA=dc965c49
 H02=CLOSED
 M04=CLOSED
 M05=CLOSED
