@@ -3,7 +3,10 @@ import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
 const root = process.cwd();
-const SHA = "0e2d25c9a2d7923ce74cfae079b99691d61eb1b6";
+/** Current B1 D02 final-closure tip (traceability only — never deployed proof). */
+const CURRENT_SHA = "38578b6533f20407c02ed775b5af18d11fcb85eb";
+/** Prior fresh-baseline pin — superseded / historical only. */
+const PRIOR_FRESH_SHA = "0e2d25c9a2d7923ce74cfae079b99691d61eb1b6";
 const STALE_A = "427b7eb4";
 const STALE_B = "8f229d09";
 
@@ -19,6 +22,10 @@ const d02 = readFileSync(
   join(root, "docs", "B1-D02-READONLY-PRODUCTION-PREFLIGHT-PACKAGE-01.md"),
   "utf8",
 );
+const d02v2 = readFileSync(
+  join(root, "docs", "B1-D02-READONLY-PRODUCTION-PREFLIGHT-PACKAGE-02.md"),
+  "utf8",
+);
 const preflight = readFileSync(
   join(root, "docs", "B1-PREFLIGHT-FRESH-BASELINE-01.md"),
   "utf8",
@@ -30,7 +37,7 @@ const preflight02 = readFileSync(
 
 describe("PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01", () => {
   test("pins fresh SOURCE_SHA and does not claim production deploy", () => {
-    expect(freshRc).toContain(SHA);
+    expect(freshRc).toContain(CURRENT_SHA);
     expect(freshRc).toContain("expected_release_sha");
     expect(freshRc).toContain("SOURCE_ONLY — NOT PUBLISHED");
     expect(freshRc).toMatch(/DEPLOYED_SHA[\s\S]*UNKNOWN/);
@@ -38,7 +45,7 @@ describe("PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01", () => {
     expect(freshRc).not.toMatch(/Production published:\s*YES/i);
 
     expect(preflight).toContain(`expected_release_sha`);
-    expect(preflight).toContain(SHA);
+    expect(preflight).toContain(CURRENT_SHA);
     expect(preflight).toContain("NOT_RUN");
     expect(preflight).toContain(STALE_A);
     expect(preflight).toMatch(/not.*valid fresh release|no longer a valid|ملغي|cancelled|supersedes/i);
@@ -49,11 +56,12 @@ describe("PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01", () => {
     expect(report).toContain("PRODUCTION_DB_STATE");
     expect(report).toContain("MIGRATION_READINESS");
     expect(report).toContain("USER_APPROVAL_REQUIRED");
-    expect(report).toContain(SHA);
+    // Historical refresh report may still mention the prior pin; live pack uses CURRENT_SHA.
+    expect(report).toContain(PRIOR_FRESH_SHA);
   });
 
   test("refreshed D-02 package covers required RO probes and forbids live account import", () => {
-    expect(d02).toContain(SHA);
+    expect(d02).toContain(CURRENT_SHA);
     expect(d02).toContain("schema_migrations");
     expect(d02).toContain("log_audit");
     expect(d02).toContain("DEPARTMENT-CHAIRS");
@@ -72,13 +80,20 @@ describe("PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01", () => {
     expect(d02).toContain("ambiguous");
     expect(d02).toContain("partial");
     expect(d02).toContain("D02_NOT_EXECUTED");
+    // Semantic chair sensor — no substring pattern matching.
+    expect(d02).toContain("department_head");
+    expect(d02).not.toMatch(/r\.code\s+ilike\s+'%chair%'/i);
+    expect(d02v2).toContain("department_head");
+    expect(d02v2).toContain("no ilike '%chair%'");
+    expect(d02v2).toContain("TEST_ONLY");
+    expect(d02v2).toContain(CURRENT_SHA);
     // Must not still claim old pin as the package reference tip.
     expect(d02).not.toMatch(/المرجع:\s*`origin\/main@8f229d09`/);
   });
 
   test("historical preflight-02 is marked superseded as current baseline", () => {
     expect(preflight02).toContain("SUPERSEDED AS CURRENT BASELINE");
-    expect(preflight02).toContain(SHA);
+    expect(preflight02).toContain(PRIOR_FRESH_SHA);
   });
 
   test("student_accounts importer source exists for SOURCE_SHA tree", () => {
@@ -104,13 +119,15 @@ describe("PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01", () => {
     // Fresh pack must mention stale SHAs as cancelled, not as expected_release_sha.
     expect(freshRc).toContain(STALE_A);
     expect(freshRc).toContain(STALE_B);
+    expect(freshRc).toContain(PRIOR_FRESH_SHA);
     expect(freshRc).toMatch(/Supersedes as \*current\* RC pin/);
     const expectedLine = freshRc
       .split("\n")
       .find((l) => l.includes("expected_release_sha"));
     expect(expectedLine).toBeTruthy();
-    expect(expectedLine).toContain(SHA);
+    expect(expectedLine).toContain(CURRENT_SHA);
     expect(expectedLine).not.toContain(STALE_A);
     expect(expectedLine).not.toContain(STALE_B);
+    expect(expectedLine).not.toContain(PRIOR_FRESH_SHA.slice(0, 8));
   });
 });

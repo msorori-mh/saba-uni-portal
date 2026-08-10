@@ -1,0 +1,38 @@
+MISSION=LOVABLE_C5V2_THROUGH_GA3_MASTER_SEQUENTIAL_EXECUTION
+AUTHORIZATION=Standing owner authorization. Execute automatically without owner-token pauses.
+SAFETY=One logical migration per transaction; zero blind batches; NEVER run supabase db push; never repair the ledger automatically.
+
+Canonical source identities:
+C5V2|PR326 62c6bb374b15503dfa93c5d8066e4b61837169aa|20260810180000_councils_c5_minutes_lifecycle_02.sql|0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8
+C6|20260808160000_councils_c6_decisions_followup_01.sql|1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43
+C7|20260808170000_councils_c7_audit_archive_01.sql|3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f6a
+C8|20260808171000_councils_c0_c8_final_security_closure_01.sql|6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3
+C9|20260808180000_councils_c9_notifications_reporting_01.sql|c15f3378d12de10a0ef04d93ce033adca06f70fd7d9d53b764a21e828c329d4e
+GA1|20260808210000_ga_mvp_foundation_01.sql|3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43
+GA2|20260808210100_ga_mvp_completion_01.sql|3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa
+GA3|20260808210200_ga_authorization_04.sql|212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
+
+Known predecessor lineage is semantic, not literal-ledger equality:
+C0 canonical=20260808120000
+C1 SPLIT_COMPLETE=20260810003111+20260810003305
+C2 LOVABLE_MANAGED_ALIAS=20260810010400
+C3 LOVABLE_MANAGED_ALIAS=20260810011456
+C4 LOVABLE_MANAGED_ALIAS=20260810012715
+C5-C9 not applied at last proven lineage. V1 20260808150000 is SUPERSEDED_DO_NOT_APPLY.
+
+For STEP in [C5V2,C6,C7,C8,C9,GA1,GA2,GA3], in exactly that order:
+1. Load the matching `docs/go-live/operator-packets/<STEP>-LOVABLE-APPLY-ONE.txt` and follow every preflight rule.
+2. Recompute LF-normalized full-file SHA-256 and compare with the canonical identity above. STOP on source-body mismatch.
+3. Read migration ledger and catalog. Accept documented managed aliases; require previous step's recorded mapping and verifier. STOP on partial apply or unknown prestate.
+4. Capture whole-database business-data fingerprints plus explicit B1 and enrollment_certificate regression fingerprints.
+5. Apply exactly STEP's one semantic body in exactly one transaction. If Lovable owns the wrapper, remove only the source's outer BEGIN/COMMIT. Never combine steps.
+6. Record returned managed version -> logical source -> SHA256_LF -> applied PASS. Do not rewrite/repair ledger history.
+7. Immediately run STEP post-verifier, ACL/RLS checks, authorization negatives/positives, business-data comparison, B1 regression, and enrollment_certificate regression.
+8. Continue automatically to the next step only if every check is PASS.
+
+After C9 require: admin alone cannot mutate councils; chair own council only; secretary defined operations only; member-only actions; responsible actor exact assignment; department and college isolation; multi-council roles retained separately.
+After GA3 require: admin app_role alone DENY; manager assigned manager scope; specialist assigned department scope; direct case assignee exact case; outside scope DENY.
+
+STOP ONLY FOR=partial apply|unknown prestate|unexpected data mutation|authorization regression|post-verifier failure|source-body mismatch
+ON_STOP=Rollback the current transaction when open; preserve evidence; perform no later step and no automatic ledger repair.
+ON_ALL_PASS=Emit PASS_LOVABLE_C5V2_THROUGH_GA3_MASTER_SEQUENTIAL_EXECUTION and the completed mapping table.

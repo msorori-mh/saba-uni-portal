@@ -6,7 +6,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const councilIdSchema = z.string().uuid("معرّف المجلس غير صالح");
 
 function mapCouncilError(error: { code?: string; message: string }): string {
-  const msg = error.message.toLowerCase();
+  const msg = (error.message || "").toLowerCase();
+  if (error.code === "42883" || msg.includes("does not exist")) {
+    return "لوحة متابعة المجلس غير مكوّنة حالياً في النظام.";
+  }
   if (
     error.code === "42501" ||
     msg.includes("council_access_denied") ||
@@ -16,7 +19,7 @@ function mapCouncilError(error: { code?: string; message: string }): string {
     msg.includes("policy") ||
     msg.includes("row-level security")
   ) {
-    return "لا تملك صلاحية الوصول إلى هذا المحتوى. الصلاحيات النهائية يحددها الخادم.";
+    return "عفواً، لا تملك الصلاحية الكافية للوصول إلى هذا المحتوى وفق دورك المعتمد في المجلس.";
   }
   if (msg.includes("jwt") || msg.includes("auth") || msg.includes("session")) {
     return "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";

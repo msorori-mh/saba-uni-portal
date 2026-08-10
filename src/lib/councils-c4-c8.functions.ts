@@ -131,19 +131,41 @@ export const issueCouncilDecisionFn = createServerFn({ method: "POST" })
   .validator(
     (d: {
       meeting_id: string;
-      agenda_item_id?: string;
+      agenda_item_id: string;
       title: string;
       body: string;
       responsible_user_id?: string;
       responsible_unit?: string;
       due_date?: string;
-    }) => d
+    }) => {
+      if (!d.meeting_id?.trim()) {
+        throw new Error("COUNCIL_MEETING_ID_REQUIRED");
+      }
+      if (!d.agenda_item_id?.trim()) {
+        throw new Error("اختر بند جدول الأعمال المرتبط بالقرار.");
+      }
+      if (!d.title?.trim()) {
+        throw new Error("COUNCIL_DECISION_TITLE_REQUIRED");
+      }
+      if (!d.body?.trim()) {
+        throw new Error("COUNCIL_DECISION_BODY_REQUIRED");
+      }
+      return {
+        meeting_id: d.meeting_id.trim(),
+        agenda_item_id: d.agenda_item_id.trim(),
+        title: d.title.trim(),
+        body: d.body.trim(),
+        responsible_user_id: d.responsible_user_id,
+        responsible_unit: d.responsible_unit,
+        due_date: d.due_date,
+      };
+    },
   )
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
     const { data: res, error } = await supabase.rpc("issue_council_decision", {
       p_meeting_id: data.meeting_id,
-      p_agenda_item_id: data.agenda_item_id ?? null,
+      p_agenda_item_id: data.agenda_item_id,
       p_title: data.title,
       p_body: data.body,
       p_responsible_user_id: data.responsible_user_id ?? null,

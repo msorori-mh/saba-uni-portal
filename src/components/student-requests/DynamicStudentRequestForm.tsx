@@ -391,7 +391,7 @@ function FormField({
         />
         {file && (
           <p className="text-[10px] text-muted-foreground">
-            الملف المختار: {file.name} (الرفع الفعلي لاحقاً)
+            الملف المختار: {file.name}
           </p>
         )}
         {field.helperTextAr && (

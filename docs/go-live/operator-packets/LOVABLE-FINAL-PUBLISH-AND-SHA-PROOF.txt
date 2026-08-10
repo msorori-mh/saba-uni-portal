@@ -1,0 +1,119 @@
+===============================================================================
+LOVABLE FINAL PUBLISH & DEPLOYED SHA PROOF OPERATOR PACKET
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: LOVABLE-FINAL-PUBLISH-AND-SHA-PROOF-01
+ENVIRONMENT: PRODUCTION (https://quboolye.com / Lovable Nitro Cloudflare)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This operator packet defines the exact, deterministic post-GA3 publish and deployed
+SHA proof procedure for the IT College Portal. It establishes proof mechanisms
+to guarantee that the code running in production matches the exact frozen git SHA,
+rejecting stale builds, wrong environments, or unauthorized artifacts before any
+E2E testing or production traffic is served.
+
+2. DEPLOYMENT ARCHITECTURE & PATH
+----------------------------------
+Deployment Path:
+  [Frozen Git Source Commit (HEAD)]
+    ──> [Lovable Triggered Publish / Build Agent]
+    ──> [Generated Nitro / Cloudflare Artifact]
+    ──> [Production Domain: https://quboolye.com]
+
+Proof Mechanisms Embedded in Application Source:
+  - JSON Endpoint:  GET /version.json
+                    Header: Cache-Control: no-store
+                    Body:   {"sha": "<40_HEX_SHA>", "timestamp": "<ISO>", "env": "production"}
+  - HTML Meta Tag:  <meta name="build-sha" content="<40_HEX_SHA>"> in <head>
+                    Rendered via src/routes/__root.tsx on every SSR request.
+
+3. EXECUTION STEPS & VERIFICATION COMMANDS
+------------------------------------------
+
+STEP A.1: SOURCE SHA FREEZE & PRE-PUBLISH AUDIT
+  Command:
+    git rev-parse HEAD
+  Expected Output:
+    <40-character commit hash, e.g., 9a4e3... > -> Record as $SOURCE_SHA
+  Cleanliness Check:
+    git status --porcelain
+  Requirement:
+    Output MUST be completely empty. Uncommitted changes block publish.
+
+STEP A.2: LOVABLE PUBLISH TRIGGER
+  Action:
+    Trigger Lovable Publish pipeline for frozen branch commit ($SOURCE_SHA).
+    Wait for Nitro/Cloudflare artifact build and edge deployment completion.
+
+STEP A.3: DEPLOYED SHA PROOF VERIFICATION
+  Probe 1 (version.json):
+    curl -s -i https://quboolye.com/version.json
+  Verification 1:
+    - HTTP Status code: 200 OK
+    - Header: Cache-Control: no-store
+    - JSON payload "sha" field matches $SOURCE_SHA exactly.
+
+  Probe 2 (HTML Meta Tag):
+    curl -s https://quboolye.com/ | grep -o 'name="build-sha" content="[^"]*"'
+  Verification 2:
+    - Extracted content attribute matches $SOURCE_SHA exactly.
+
+  Probe 3 (DOM Selector Verification):
+    In browser console at https://quboolye.com:
+      document.querySelector('meta[name="build-sha"]')?.content
+    Expected Output:
+      Equals $SOURCE_SHA exactly.
+
+STEP A.4: STALE BUILD & WRONG ENVIRONMENT REJECTION (FAIL-CLOSED GUARDS)
+  Guard 1 (SHA Match Assertion):
+    IF $DEPLOYED_SHA != $SOURCE_SHA OR $DEPLOYED_SHA == "unknown":
+      ABORT IMMEDIATELY with error: "STALE_BUILD_OR_UNVERIFIABLE_SHA_DETECTED".
+      Do NOT proceed to E2E testing or role verification.
+
+  Guard 2 (Production Hostname Assertion):
+    Verify request origin host is strictly "quboolye.com".
+    IF host contains "preview", "sandbox", "staging", or "localhost":
+      ABORT IMMEDIATELY with error: "WRONG_ENVIRONMENT_ORIGIN".
+
+  Guard 3 (Production Database URL Assertion):
+    Verify VITE_SUPABASE_URL targets production Supabase instance (*.supabase.co).
+    IF non-production Supabase URL detected:
+      ABORT IMMEDIATELY with error: "WRONG_SUPABASE_TARGET".
+
+  Guard 4 (Mock / Feature Flag Guard):
+    Verify VITE_USE_MOCK_DATA is false or undefined.
+
+STEP A.5: PORTAL ACCESSIBILITY & SHELL VERIFICATION (5 SHELLS/PORTALS)
+  Shell 1: Portal Login Surface (/login or /auth)
+    - GET https://quboolye.com/login
+    - Verify 200 OK, login form rendered, RTL layout active, Supabase Auth initialized.
+
+  Shell 2: Admin Operational Shell (/admin)
+    - GET https://quboolye.com/admin
+    - Verify 200 OK, Admin sidebar & dashboard header rendered, RBAC route guard active.
+
+  Shell 3: Student Portal Shell (/student)
+    - GET https://quboolye.com/student
+    - Verify 200 OK, Student dashboard, request metrics cards rendered, RTL navigation active.
+
+  Shell 4: Faculty Portal Shell (/faculty)
+    - GET https://quboolye.com/faculty
+    - Verify 200 OK, Faculty workspace, course catalog, council quick actions rendered.
+
+  Shell 5: Staff Portal Shell / Inbox (/staff)
+    - GET https://quboolye.com/staff
+    - Verify 200 OK, Processing unit inbox rendered, role-scoped request queues active.
+
+4. PASS CRITERIA
+----------------
+1. SOURCE_SHA extracted and git workspace clean.
+2. Lovable Nitro/Cloudflare build completed without errors.
+3. Both GET /version.json and meta[name="build-sha"] return matching $SOURCE_SHA.
+4. All 4 fail-closed rejection guards pass cleanly (no stale build, no wrong env).
+5. All 5 portal shells respond with 200 OK and valid UI structure.
+
+===============================================================================
+END OF PACKET: LOVABLE-FINAL-PUBLISH-AND-SHA-PROOF-01
+===============================================================================

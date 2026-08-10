@@ -1,0 +1,68 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: GRADUATE AFFAIRS (GA)
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: PRODUCTION-E2E-GRADUATE-AFFAIRS-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+PREREQUISITE: GA3 Migration Applied + feature_graduates_affairs = true
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet defines the post-GA3 executable E2E verification cycle for the Graduate
+Affairs (GA) module. It validates case allocation by GA Managers, clearance processing by
+GA Specialists, scoped record searching, file compilation, official graduation decision state
+transitions, and strict denial of out-of-scope student record queries.
+
+2. PREREQUISITE FEATURE ACTIVATION
+----------------------------------
+Check: Query feature flag config or `app_settings` where `key = 'feature_graduates_affairs'`.
+Assertion: Value MUST equal `true`. If false, feature is dormant; tests must assert fail-closed guard.
+
+3. 7-STEP EXECUTABLE LIFECYCLE SEQUENCE
+---------------------------------------
+
+STEP G.1: GA MANAGER DASHBOARD & CASE ALLOCATION
+  Action: Login as GA Manager (`graduates_affairs_manager`) -> Query `/staff/graduate-affairs`.
+  Assertion: Dashboard renders pending graduate list; Manager calls `allocate_graduate_case(student_id, specialist_id)`.
+  Verify: Case assigned to designated GA Specialist.
+
+STEP G.2: GA SPECIALIST INBOX & FILE PROCESSING
+  Action: Login as assigned GA Specialist (`graduates_affairs_specialist`) -> Query assigned inbox.
+  Assertion: Allocated student record displayed; Specialist updates clearance checklist (Library clearance, Financial clearance, Department clearance).
+
+STEP G.3: SCOPED RECORD SEARCH
+  Action: Specialist executes `search_graduate_records(query_string, department_id)`.
+  Assertion: Returns matching graduate profiles strictly within specialist's assigned department scope.
+
+STEP G.4: GRADUATE FILE COMPILATION
+  Action: Specialist calls `compile_graduate_file(student_id, transcript_ref, certificate_status)`.
+  Assertion: Graduate file record updated to `compiled`, all required clearance documents verified attached.
+
+STEP G.5: FOLLOW-UP TASK TRACKING
+  Action: Specialist creates follow-up item via `create_ga_followup_item(student_id, note, due_date)`.
+  Assertion: Follow-up item recorded in `ga_followup_items`; status set to `pending`.
+
+STEP G.6: OFFICIAL DECISION STATE TRANSITION
+  Action: GA Manager reviews compiled file and executes `approve_graduation_file(student_id)`.
+  Assertion: Student status updated to `graduated`; official graduation decision state set to `certified`.
+
+STEP G.7: OUTSIDE-SCOPE DENIAL TEST (STRICT SCOPE GUARD)
+  Action: GA Specialist assigned to "Computer Science" attempts to query or modify a graduate file belonging to "Information Systems".
+  Assertion: API / RLS REJECTS request with error `403 / OUTSIDE_SCOPE_ACCESS_DENIED`.
+
+4. ADMIN BYPASS CONTROL
+-----------------------
+Role: `admin`
+Assertion: Admin role attempting to execute `approve_graduation_file` or bypassing specialist clearance checklist MUST be REJECTED with error `42501 / UNSCOPED_ADMIN_BYPASS_PROHIBITED`.
+
+5. PASS CRITERIA
+----------------
+1. Feature flag pre-check verified active.
+2. Complete 7-step GA lifecycle executes without error.
+3. Out-of-scope department record access strictly denied.
+4. Admin academic bypass attempts strictly blocked.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-GRADUATE-AFFAIRS-01
+===============================================================================

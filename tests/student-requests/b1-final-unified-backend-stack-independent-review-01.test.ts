@@ -86,7 +86,7 @@ describe("PR227 final unified backend stack independent review", () => {
       expect(read(entry.post_verifier)).toContain("POST");
       expect(
         manifest.migrations.find(({ sequence_order }) => sequence_order === entry.order),
-      ).toMatchObject({ filename: entry.draft, sha256: entry.draft_sha_lf });
+      ).toMatchObject({ filename: entry.draft, sha256: entry.migration_sha_lf });
     }
   });
 

@@ -1,0 +1,93 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: ENROLLMENT SUSPENSION SERVICE
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+SERVICE CODE: enrollment_suspension (تأجيل الدراسة)
+PACKET ID: PRODUCTION-E2E-ENROLLMENT-SUSPENSION-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. SERVICE SPECIFICATION & SCOPE
+--------------------------------
+Service Name:      Enrollment Suspension (تأجيل الدراسة)
+Service Code:      enrollment_suspension
+Processing Unit:   department_head -> registrar -> dean
+FIXTURE REUSE:     Reuse approved TEST_ONLY fixture bindings from b1-five-services-fixture-contract-15
+
+2. 15-STEP EXECUTABLE E2E VERIFICATION CYCLE
+---------------------------------------------
+
+STEP C1.1: STUDENT VISIBILITY IN CATALOG
+  Action: Query `request_types` where `code = 'enrollment_suspension'`.
+  Assertion: `student_visible = true` AND `is_active = true`.
+
+STEP C1.2: STUDENT DYNAMIC FORM RENDER
+  Action: Load request creation interface `/student/requests/new?type=enrollment_suspension`.
+  Assertion: Form renders fields: `suspension_reason` (text/select), `target_term_id` (lookup), `supporting_documents` (file upload).
+
+STEP C1.3: REFERENCE OPTIONS LOOKUP
+  Action: Query academic terms reference endpoint `get_academic_terms()`.
+  Assertion: Returns active upcoming term options.
+
+STEP C1.4: DRAFT / AUTOSAVE LIFECYCLE
+  Action: Call `save_request_draft` RPC with form payload.
+  Assertion: Returns `draft_id`, status = `draft`, request payload preserved.
+  Re-fetch: Call `get_request_draft` -> payload matches.
+
+STEP C1.5: ATTACHMENTS UPLOAD & SIGNED URL
+  Action: Request upload URL via `create_attachment_upload_url`.
+  Assertion: Returns Signed Upload URL targeting private bucket `request-attachments/enrollment-suspension/`.
+  Verify: Upload test PDF -> Content-Type = `application/pdf`, size <= 5MB.
+
+STEP C1.6: ATOMIC SUBMISSION
+  Action: Call `submit_student_request(draft_id)`.
+  Assertion: Request status transitions from `draft` to `pending_processing`.
+  Record: Request ID created (e.g., REQ-SUSP-2026-001).
+
+STEP C1.7: CURRENT WORKFLOW STEP RESOLUTION
+  Action: Query `student_requests` where `id = REQ-SUSP-2026-001`.
+  Assertion: `current_step = 1`, `processing_unit = 'department_head'`, `assigned_role = 'department_head'`.
+
+STEP C1.8: CORRECT PROCESSOR INBOX RESOLUTION
+  Action: Login as assigned Department Head -> Query `/staff/inbox`.
+  Assertion: Request REQ-SUSP-2026-001 is listed in Department Head processing inbox.
+
+STEP C1.9: NEGATIVE AUTHORIZATION TEST (WRONG ROLE REJECTION)
+  Action: Attempt `process_request_step` RPC as `student` or `unauthorized_staff`.
+  Assertion: RPC REJECTS call with error `42501` / `FORBIDDEN` / `UNAUTHORIZED_PROCESSOR`.
+
+STEP C1.10: POSITIVE AUTHORIZATION TEST (CORRECT ROLE STEP APPROVAL)
+  Action: Execute `process_request_step` RPC as assigned `department_head`.
+  Assertion: Step 1 completes successfully -> Request advances to Step 2 (`registrar`).
+
+STEP C1.11: DECISION LOGIC (FINAL APPROVAL)
+  Action: Process subsequent steps (Registrar -> Dean final approval).
+  Assertion: Request final status becomes `approved`.
+
+STEP C1.12: ACADEMIC EFFECT EXECUTION
+  Action: Trigger academic effect post-approval handler.
+  Assertion: Student enrollment status for targeted term updated to `suspended`.
+
+STEP C1.13: STUDENT STATUS TRANSITION
+  Action: Query `student_profiles` for requesting student.
+  Assertion: `academic_status` reflects active suspension state for target semester.
+
+STEP C1.14: NOTIFICATION EMISSION
+  Action: Query `notifications` for student user ID.
+  Assertion: Notification row inserted: "تمت الموافقة على طلب تأجيل الدراسة".
+
+STEP C1.15: HISTORY & AUDIT TRAIL
+  Action: Query `request_history` for request ID.
+  Assertion: Contains chronological entries for submission, step 1 (dept head), step 2 (registrar), step 3 (dean approval), with timestamps and actor UUIDs.
+
+3. PASS CRITERIA
+----------------
+1. All 15 verification steps complete without errors.
+2. Wrong role access is strictly rejected.
+3. Correct assigned roles process steps successfully.
+4. Academic effect (suspension status update) applied cleanly.
+5. Complete audit trail recorded in request_history.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-ENROLLMENT-SUSPENSION-01
+===============================================================================

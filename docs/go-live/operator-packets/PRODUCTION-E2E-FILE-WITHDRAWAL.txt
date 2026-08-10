@@ -1,0 +1,90 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: FILE WITHDRAWAL SERVICE
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+SERVICE CODE: file_withdrawal (سحب الملف)
+PACKET ID: PRODUCTION-E2E-FILE-WITHDRAWAL-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. SERVICE SPECIFICATION & SCOPE
+--------------------------------
+Service Name:      File Withdrawal (سحب الملف)
+Service Code:      file_withdrawal
+Processing Unit:   department_head -> library_clearance -> finance_clearance -> registrar -> dean
+FIXTURE REUSE:     Reuse approved TEST_ONLY fixture bindings from b1-five-services-fixture-contract-15
+
+2. 15-STEP EXECUTABLE E2E VERIFICATION CYCLE
+---------------------------------------------
+
+STEP C5.1: STUDENT VISIBILITY IN CATALOG
+  Action: Query `request_types` where `code = 'file_withdrawal'`.
+  Assertion: `student_visible = true` AND `is_active = true`.
+
+STEP C5.2: STUDENT DYNAMIC FORM RENDER
+  Action: Load request creation interface `/student/requests/new?type=file_withdrawal`.
+  Assertion: Form renders fields: `withdrawal_reason` (text), `clearance_declarations` (checkboxes), `identity_doc` (file upload).
+
+STEP C5.3: REFERENCE OPTIONS LOOKUP
+  Action: Query clearance dependencies endpoint `get_clearance_requirements()`.
+  Assertion: Returns required clearance items (Library, Finance, Dept).
+
+STEP C5.4: DRAFT / AUTOSAVE LIFECYCLE
+  Action: Call `save_request_draft` RPC with form payload.
+  Assertion: Returns `draft_id`, status = `draft`, request payload preserved.
+
+STEP C5.5: ATTACHMENTS UPLOAD & SIGNED URL
+  Action: Request upload URL via `create_attachment_upload_url`.
+  Assertion: Returns Signed Upload URL targeting private bucket `request-attachments/file-withdrawal/`.
+  Verify: Upload ID document -> Content-Type verified.
+
+STEP C5.6: ATOMIC SUBMISSION
+  Action: Call `submit_student_request(draft_id)`.
+  Assertion: Request status transitions from `draft` to `pending_processing`.
+
+STEP C5.7: CURRENT WORKFLOW STEP RESOLUTION
+  Action: Query `student_requests` for submitted request.
+  Assertion: `current_step = 1`, `processing_unit = 'department_head'`.
+
+STEP C5.8: CORRECT PROCESSOR INBOX RESOLUTION
+  Action: Login as Department Head -> Query `/staff/inbox`.
+  Assertion: Request listed in Department Head inbox.
+
+STEP C5.9: NEGATIVE AUTHORIZATION TEST (WRONG ROLE REJECTION)
+  Action: Attempt `process_request_step` RPC as unassigned staff role.
+  Assertion: RPC REJECTS call with error `42501` / `FORBIDDEN`.
+
+STEP C5.10: POSITIVE AUTHORIZATION TEST (CORRECT ROLE STEP APPROVAL)
+  Action: Execute `process_request_step` RPC as assigned `department_head`.
+  Assertion: Step 1 completes -> Advances to Step 2 (Library Clearance).
+
+STEP C5.11: DECISION LOGIC (FINAL APPROVAL)
+  Action: Complete sequential clearance workflow (Dept Head -> Library -> Finance -> Registrar -> Dean).
+  Assertion: Request final status becomes `approved`.
+
+STEP C5.12: ACADEMIC EFFECT EXECUTION
+  Action: Post-approval execution handler updates student record.
+  Assertion: `student_profiles.academic_status` updated to `withdrawn_file`.
+
+STEP C5.13: STUDENT STATUS TRANSITION
+  Action: Query `student_profiles` for requesting student.
+  Assertion: `academic_status` = `withdrawn_file`, portal active request creation blocked.
+
+STEP C5.14: NOTIFICATION EMISSION
+  Action: Query `notifications` for student user ID.
+  Assertion: Notification inserted: "تمت الموافقة على طلب سحب الملف وإصدار إخلاء الطرف".
+
+STEP C5.15: HISTORY & AUDIT TRAIL
+  Action: Query `request_history` for request ID.
+  Assertion: Complete multi-clearance step history recorded with timestamps and processor UUIDs.
+
+3. PASS CRITERIA
+----------------
+1. All 15 verification steps complete without errors.
+2. Wrong role access strictly rejected at all 5 clearance steps.
+3. Student status set to `withdrawn_file`.
+4. Complete audit trail recorded in request_history.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-FILE-WITHDRAWAL-01
+===============================================================================

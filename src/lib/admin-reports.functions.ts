@@ -10,16 +10,91 @@ import {
 import {
   enforceDepartmentFilter,
 } from "@/lib/reports/scope";
+import { provenDepartmentIdsForCollege } from "@/lib/reports/scope/org-identity";
 import {
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
+
+/** University-wide unscoped aggregate dumps — admin family only (no silent dean/dept widen). */
+const UNIVERSITY_WIDE_AGGREGATE_ROLES = ["system_admin", "admin"] as const;
 
 async function assertReportsAccess(userId: string) {
   await assertAnyRole(
     userId,
     REPORTS_ROLES,
-    "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±",
+    "ليس لديك صلاحية عرض التقارير",
   );
+}
+
+async function assertUniversityWideAggregateAccess(userId: string) {
+  await assertAnyRole(
+    userId,
+    UNIVERSITY_WIDE_AGGREGATE_ROLES,
+    "التقارير المجمّعة على مستوى الجامعة متاحة للإدارة فقط — لا نطاق جامعي صامت للأدوار المحدودة",
+  );
+}
+
+/**
+ * Fail-closed department containment for /admin/reports data handlers.
+ * Department heads are forced to their bound department. Deans require a proven
+ * college→department map (currently unavailable ⇒ DENY). Admin/registrar keep
+ * existing university operational access.
+ */
+async function applyAdminReportsDepartmentContainment(
+  userId: string,
+  requestedDepartmentId: string | null | undefined,
+): Promise<string | null> {
+  const scope = await resolveReportActorScope(userId);
+  if (scope.denied) {
+    throw new Error(scope.denyReasonAr ?? "نطاق التقارير مرفوض");
+  }
+
+  const isPrivileged = scope.roles.some((r) => r === "system_admin" || r === "admin");
+  const isRegistrar = scope.roles.includes("registrar");
+  const isDeptOnly =
+    scope.level === "department" &&
+    !scope.roles.some((r) =>
+      ["system_admin", "admin", "dean", "registrar"].includes(r),
+    );
+
+  if (isPrivileged || isRegistrar) {
+    return requestedDepartmentId ?? null;
+  }
+
+  if (isDeptOnly) {
+    const enforced = enforceDepartmentFilter({
+      scope,
+      requestedDepartmentId: requestedDepartmentId ?? null,
+    });
+    if (enforced.denied || !enforced.departmentId) {
+      throw new Error(enforced.reasonAr ?? "رئيس القسم بلا قسم مرتبط — يُرفض النطاق");
+    }
+    return enforced.departmentId;
+  }
+
+  if (scope.roles.includes("dean")) {
+    if (!scope.bindings.collegeScopeConfigured || !scope.bindings.collegeId) {
+      throw new Error(
+        "تقارير العميد غير مكوّنة — لا يوجد college_id موثوق لعزل نطاق الكلية",
+      );
+    }
+    const allowed = provenDepartmentIdsForCollege(scope.bindings.collegeId);
+    if (!allowed) {
+      throw new Error(
+        "لا يوجد ربط كلية→أقسام موثوق لعزل نطاق العميد — يُرفض النطاق الجامعي الصامت",
+      );
+    }
+    const deptId = requestedDepartmentId ?? null;
+    if (!deptId) {
+      throw new Error("يجب تحديد قسم ضمن كلية العميد — لا نطاق جامعي صامت");
+    }
+    if (!allowed.includes(deptId)) {
+      throw new Error("القسم خارج نطاق كلية العميد المعتمدة");
+    }
+    return deptId;
+  }
+
+  return requestedDepartmentId ?? null;
 }
 
 async function fetchAll<T = Record<string, unknown>>(
@@ -408,7 +483,8 @@ function reportsHandler<T>(fn: () => Promise<T>) {
   return createServerFn({ method: "POST" })
     .middleware([requireSupabaseAuth])
     .handler(async ({ context }) => {
-      await assertReportsAccess(context.userId);
+      // Unscoped university-wide dumps: admin family only (Independent R2 HIGH closure).
+      await assertUniversityWideAggregateAccess(context.userId);
       return fn();
     });
 }
@@ -432,7 +508,11 @@ export const getReportsRequests = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => requestsReportSchema.parse(input ?? {}))
   .handler(async ({ data, context }) => {
     await assertReportsAccess(context.userId);
-    return fetchRequestsReport(data ?? {});
+    const departmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      data?.department_id ?? null,
+    );
+    return fetchRequestsReport({ ...(data ?? {}), department_id: departmentId });
   });
 export const getReportsFinancial = reportsHandler(fetchFinancialReport);
 
@@ -452,8 +532,13 @@ const studentsReportSchema = z.object({
 export const getStudentsReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => studentsReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawData, context }) => {
     await assertStudentRead(context.userId);
+    const enforcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      rawData.department_id ?? null,
+    );
+    const data = { ...rawData, department_id: enforcedDepartmentId };
 
     const hasFilter = Boolean(
       data.study_system !== "all"
@@ -480,7 +565,7 @@ export const getStudentsReportForAdmin = createServerFn({ method: "POST" })
           withAccount: 0,
           withoutAccount: 0,
         },
-        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±.",
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير.",
       };
     }
 
@@ -815,8 +900,13 @@ const studentAccountsReportSchema = z.object({
 export const getStudentAccountsReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => studentAccountsReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawData, context }) => {
     await assertStudentRead(context.userId);
+    const enforcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      rawData.department_id ?? null,
+    );
+    const data = { ...rawData, department_id: enforcedDepartmentId };
 
     const hasFilter = Boolean(
       data.department_id
@@ -1011,6 +1101,14 @@ export const getAcademicReportLookupsForAdmin = createServerFn({ method: "POST" 
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertReportsAccess(context.userId);
+    // Fail closed for dean until college→department containment exists.
+    await applyAdminReportsDepartmentContainment(context.userId, null);
+    const scope = await resolveReportActorScope(context.userId);
+    const isDeptOnly =
+      scope.level === "department" &&
+      !scope.roles.some((r) =>
+        ["system_admin", "admin", "dean", "registrar"].includes(r),
+      );
     const [departments, programs, levels, plans] = await Promise.all([
       supabaseAdmin.from("departments").select("id, name_ar").order("sort_order"),
       supabaseAdmin.from("programs").select("id, code, name_ar, department_id").order("sort_order"),
@@ -1019,14 +1117,20 @@ export const getAcademicReportLookupsForAdmin = createServerFn({ method: "POST" 
     ]);
     const firstError = [departments, programs, levels, plans].find((res) => res.error)?.error;
     if (firstError) throw new Error(firstError.message);
+    let departmentRows = departments.data ?? [];
+    let programRows = programs.data ?? [];
+    if (isDeptOnly && scope.departmentId) {
+      departmentRows = departmentRows.filter((d: { id: string }) => d.id === scope.departmentId);
+      programRows = programRows.filter((p: { department_id: string | null }) => p.department_id === scope.departmentId);
+    }
     return {
-      departments: departments.data ?? [],
-      programs: programs.data ?? [],
+      departments: departmentRows,
+      programs: programRows,
       levels: levels.data ?? [],
       studyPlans: plans.data ?? [],
       semesters: [
-        { code: "first", name: "Ø§Ù„ÙØµÙ„ Ø§Ù„Ø£ÙˆÙ„" },
-        { code: "second", name: "Ø§Ù„ÙØµÙ„ Ø§Ù„Ø«Ø§Ù†ÙŠ" },
+        { code: "first", name: "الفصل الأول" },
+        { code: "second", name: "الفصل الثاني" },
       ],
     };
   });
@@ -1038,12 +1142,17 @@ function hasAcademicFilter(data: z.infer<typeof academicPageSchema>) {
 export const getAcademicProgramsReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => academicPageSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawData, context }) => {
     await assertReportsAccess(context.userId);
+    const enforcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      rawData.department_id ?? null,
+    );
+    const data = { ...rawData, department_id: enforcedDepartmentId };
     if (!hasAcademicFilter(data)) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { total: 0, active: 0, inactive: 0, withoutPlans: 0, withStudents: 0 },
-        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
     }
 
     let query = supabaseAdmin
@@ -1100,12 +1209,17 @@ export const getAcademicProgramsReportForAdmin = createServerFn({ method: "POST"
 export const getStudyPlansReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => academicPageSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawData, context }) => {
     await assertReportsAccess(context.userId);
+    const enforcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      rawData.department_id ?? null,
+    );
+    const data = { ...rawData, department_id: enforcedDepartmentId };
     if (!hasAcademicFilter(data)) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { total: 0, active: 0, withoutCourses: 0, avgCourses: 0, totalHours: 0 },
-        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
     }
 
     let programIds: string[] | null = null;
@@ -1171,13 +1285,18 @@ export const getStudyPlansReportForAdmin = createServerFn({ method: "POST" })
 export const getCoursesReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => coursesReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawData, context }) => {
     await assertReportsAccess(context.userId);
+    const enforcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      rawData.department_id ?? null,
+    );
+    const data = { ...rawData, department_id: enforcedDepartmentId };
     const hasFilter = Boolean(data.department_id || data.program_id || data.level_id || data.semester_code !== "all" || data.status || data.search);
     if (!hasFilter) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { total: 0, missingCode: 0, withoutPlan: 0, withoutLevel: 0, withoutSemester: 0, complete: 0, incomplete: 0 },
-        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
     }
     let scopedCourseIds: string[] | null = null;
     if (data.program_id || data.level_id || data.semester_code !== "all") {
@@ -1254,13 +1373,18 @@ export const getCoursesReportForAdmin = createServerFn({ method: "POST" })
 export const getStudyPlanCoverageReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => coverageReportSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data: rawData, context }) => {
     await assertReportsAccess(context.userId);
+    const enforcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      rawData.department_id ?? null,
+    );
+    const data = { ...rawData, department_id: enforcedDepartmentId };
     const hasFilter = Boolean(data.department_id || data.program_id || data.study_plan_id || data.level_id || data.semester_code !== "all");
     if (!hasFilter) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { plans: 0, filledSlots: 0, emptySlots: 0, courses: 0, hours: 0 },
-        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
     }
     let programIds: string[] | null = null;
     if (data.department_id) {
@@ -1357,34 +1481,17 @@ async function assertScheduleReportsAccess(userId: string) {
  * Actor-derived department enforcement for schedule reports.
  * Department heads (without wider university roles) are forced to their own
  * department — client-supplied wider/other department_id is DENIED.
+ * Deans require proven college→department containment (fail closed today).
  */
 async function applyScheduleDepartmentScope(
   userId: string,
   data: z.infer<typeof scheduleReportSchema>,
 ): Promise<z.infer<typeof scheduleReportSchema>> {
-  const scope = await resolveReportActorScope(userId);
-  const enforced = enforceDepartmentFilter({
-    scope,
-    requestedDepartmentId: data.department_id ?? null,
-  });
-  if (enforced.denied) {
-    throw new Error(enforced.reasonAr ?? "غير مصرح — نطاق القسم مرفوض");
-  }
-
-  const isDeptOnly =
-    scope.level === "department" &&
-    !scope.roles.some((r) =>
-      ["system_admin", "admin", "dean", "registrar"].includes(r),
-    );
-
-  if (isDeptOnly) {
-    if (!enforced.departmentId) {
-      throw new Error("رئيس القسم بلا قسم مرتبط — يُرفض النطاق");
-    }
-    return { ...data, department_id: enforced.departmentId };
-  }
-
-  return data;
+  const departmentId = await applyAdminReportsDepartmentContainment(
+    userId,
+    data.department_id ?? null,
+  );
+  return { ...data, department_id: departmentId };
 }
 
 function hasScheduleFilter(data: z.infer<typeof scheduleReportSchema>, extra = false) {
@@ -1510,6 +1617,11 @@ export const getScheduleReportLookupsForAdmin = createServerFn({ method: "POST" 
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertScheduleReportsAccess(context.userId);
+    // Fail closed for dean without proven college→department containment.
+    const forcedDepartmentId = await applyAdminReportsDepartmentContainment(
+      context.userId,
+      null,
+    );
     const scope = await resolveReportActorScope(context.userId);
     const isDeptOnly =
       scope.level === "department" &&
@@ -1536,10 +1648,11 @@ export const getScheduleReportLookupsForAdmin = createServerFn({ method: "POST" 
     let departmentRows = departments.data ?? [];
     let programRows = programs.data ?? [];
     let facultyRows = faculty.data ?? [];
-    if (isDeptOnly && scope.departmentId) {
-      departmentRows = departmentRows.filter((d: { id: string }) => d.id === scope.departmentId);
-      programRows = programRows.filter((p: { department_id: string | null }) => p.department_id === scope.departmentId);
-      facultyRows = facultyRows.filter((f: { department_id: string | null }) => f.department_id === scope.departmentId);
+    const scopedDeptId = forcedDepartmentId ?? (isDeptOnly ? scope.departmentId : null);
+    if (scopedDeptId) {
+      departmentRows = departmentRows.filter((d: { id: string }) => d.id === scopedDeptId);
+      programRows = programRows.filter((p: { department_id: string | null }) => p.department_id === scopedDeptId);
+      facultyRows = facultyRows.filter((f: { department_id: string | null }) => f.department_id === scopedDeptId);
     }
 
     return {
@@ -1553,7 +1666,7 @@ export const getScheduleReportLookupsForAdmin = createServerFn({ method: "POST" 
       sections: sections.data ?? [],
       days: ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"],
       scheduleTypes: ["lecture", "lab", "tutorial", "exam"],
-      forcedDepartmentId: isDeptOnly ? scope.departmentId : null,
+      forcedDepartmentId: scopedDeptId,
     };
   });
 

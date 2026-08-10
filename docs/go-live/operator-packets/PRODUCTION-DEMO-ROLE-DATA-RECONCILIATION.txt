@@ -1,0 +1,169 @@
+===============================================================================
+PRODUCTION DEMO ROLE DATA RECONCILIATION & INTEGRITY PROBES PACKET
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: PRODUCTION-DEMO-ROLE-DATA-RECONCILIATION-01
+ENVIRONMENT: PRODUCTION (READ-ONLY PROBES DEFAULT)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet provides read-only SQL and RPC reconciliation probes to verify the data
+integrity of all 12 demo-critical identities before executive university demo.
+It specifically validates multi-council role bindings (such as Department Head holding
+Department Council Chair AND College Council Member simultaneously) and enforces
+strict fingerprinting rules for any necessary write remediations.
+
+NO SECRETS ARE HARDCODED IN THIS PACKET. All queries execute using authenticated
+operator sessions or environment configuration ($SUPABASE_URL, $SERVICE_ROLE_KEY).
+
+2. DEMO-CRITICAL IDENTITIES & PERSONA ROSTER (12 PERSONAS)
+----------------------------------------------------------
+  1. Dean (dean): College-wide executive, fail-closed department detail view.
+  2. Department Head (department_head): Head of academic department, processing unit head.
+  3. College Council Chair (college_council_chair): Chair of College Academic Council.
+  4. Department Council Chair (department_council_chair): Chair of Department Academic Council.
+  5. College Council Member (college_council_member): Voting member of College Council.
+  6. Council Secretary (council_secretary): Council secretary (agenda, minutes, drafting).
+  7. GP Admin Viewer (graduation_project_admin): Read-only oversight for graduation projects.
+  8. GA Manager (graduates_affairs_manager): Graduate Affairs manager (case allocation, approval).
+  9. GA Specialist (graduates_affairs_specialist): Graduate Affairs specialist (file clearance).
+ 10. Registrar (registrar): Processing unit for registration & academic status.
+ 11. Student (student): Regular active student for student services portal.
+ 12. Level-4 Student (student_level_4): Senior student eligible for Graduation Projects (GP).
+
+3. CRITICAL MULTI-COUNCIL DUAL ROLE CASE
+----------------------------------------
+Persona: Department Head (Dual-Council Member)
+  - Department Council Binding:  council_type = 'department', role = 'chair', is_active = true
+  - College Council Binding:     council_type = 'college',    role = 'member', is_active = true
+Requirement:
+  Both active role rows MUST coexist for the same user ID without key collisions,
+  ambiguous role resolutions, or unauthorized permission leaks.
+
+4. READ-ONLY DATA INTEGRITY PROBES
+-----------------------------------
+
+PROBE B.1: ACTIVE MEMBERSHIP COUNT & EXISTENCE
+  SQL Query:
+    SELECT u.id, u.email, u.full_name, COUNT(m.id) AS active_memberships
+    FROM profiles u
+    JOIN academic_council_members m ON m.user_id = u.id
+    WHERE m.is_active = true
+    GROUP BY u.id, u.email, u.full_name
+    HAVING COUNT(m.id) >= 1;
+  Assertion:
+    All 12 demo personas have valid active user profiles and expected active membership counts.
+
+PROBE B.2: ACTIVE_TO VALIDITY & EXPIRY CHECK
+  SQL Query:
+    SELECT id, user_id, council_id, role, active_from, active_to
+    FROM academic_council_members
+    WHERE is_active = true
+      AND active_to IS NOT NULL
+      AND active_to < CURRENT_DATE;
+  Assertion:
+    Result set MUST be EMPTY (0 rows). No active membership row may have an expired active_to date.
+
+PROBE B.3: OVERLAPPING DUPLICATE ROLE ROWS PROBE
+  SQL Query:
+    SELECT user_id, council_id, role, COUNT(*)
+    FROM academic_council_members
+    WHERE is_active = true
+    GROUP BY user_id, council_id, role
+    HAVING COUNT(*) > 1;
+  Assertion:
+    Result set MUST be EMPTY (0 rows). A user cannot have multiple active rows with the exact same role in the same council.
+
+PROBE B.4: INACTIVE STALE ROWS ISOLATION PROBE
+  SQL Query:
+    SELECT m.id, m.user_id, m.role, m.is_active
+    FROM academic_council_members m
+    WHERE m.is_active = false;
+  Assertion:
+    Inactive rows exist strictly as historical audit records and are NOT returned by active council RPCs or RLS views.
+
+PROBE B.5: CHAIR UNIQUENESS PROBE (EXACTLY 1 CHAIR PER COUNCIL)
+  SQL Query:
+    SELECT council_id, COUNT(*) AS chair_count
+    FROM academic_council_members
+    WHERE role = 'chair' AND is_active = true
+    GROUP BY council_id;
+  Assertion:
+    Every active department council and college council MUST have `chair_count = 1`.
+    `chair_count = 0` or `chair_count > 1` triggers immediate HOLD.
+
+PROBE B.6: DEPARTMENT LINK INTEGRITY PROBE
+  SQL Query:
+    SELECT m.id, m.user_id, c.department_id, u.department_id AS user_dept_id
+    FROM academic_council_members m
+    JOIN academic_councils c ON c.id = m.council_id
+    JOIN profiles u ON u.id = m.user_id
+    WHERE c.council_type = 'department'
+      AND m.is_active = true
+      AND c.department_id IS DISTINCT FROM u.department_id;
+  Assertion:
+    Result set MUST be EMPTY (0 rows). Department council members must belong to that specific department.
+
+PROBE B.7: COLLEGE MEMBERSHIP ROLE INTEGRITY PROBE
+  SQL Query:
+    SELECT m.id, m.user_id, m.role, c.college_id
+    FROM academic_council_members m
+    JOIN academic_councils c ON c.id = m.council_id
+    WHERE c.council_type = 'college'
+      AND m.is_active = true;
+  Assertion:
+    College Council memberships correctly bind to the college ID, with Department Head mapped as role 'member' and Dean/Council Chair as role 'chair'.
+
+PROBE B.8: DUAL-COUNCIL RECONCILIATION PROBE (DEPT HEAD)
+  SQL Query:
+    SELECT u.full_name,
+           dept_m.role AS dept_council_role,
+           dept_c.council_type AS dept_council_type,
+           coll_m.role AS college_council_role,
+           coll_c.council_type AS college_council_type
+    FROM profiles u
+    JOIN academic_council_members dept_m ON dept_m.user_id = u.id AND dept_m.is_active = true
+    JOIN academic_councils dept_c ON dept_c.id = dept_m.council_id AND dept_c.council_type = 'department'
+    JOIN academic_council_members coll_m ON coll_m.user_id = u.id AND coll_m.is_active = true
+    JOIN academic_councils coll_c ON coll_c.id = coll_m.council_id AND coll_c.council_type = 'college'
+    WHERE dept_m.role = 'chair' AND coll_m.role = 'member';
+  Assertion:
+    At least 1 active Department Head successfully resolves both dual roles.
+
+5. PRODUCTION WRITE REMEDIATION PROTOCOL (STRICT GOVERNANCE)
+------------------------------------------------------------
+If any probe above identifies stale, duplicate, or misconfigured rows requiring database remediation:
+
+1. Fingerprint Before Change:
+   Execute fingerprint query over target table/rows and compute SHA-256 digest:
+   `SELECT md5(string_agg(id::text || ':' || role || ':' || is_active::text, ',' ORDER BY id)) FROM academic_council_members WHERE ...;`
+
+2. Minimum Targeted Mutation:
+   Construct single, non-destructive, surgical SQL statement targeting explicit primary keys only:
+   `UPDATE academic_council_members SET is_active = false, active_to = CURRENT_DATE WHERE id = '<EXACT_UUID>';`
+
+3. Fingerprint After Change:
+   Re-execute fingerprint query and verify digest update.
+
+4. Execution Audit Logging:
+   Record in audit log:
+     - Timestamp (UTC)
+     - Operator ID / Session ID
+     - Reason / Ticket Reference
+     - Exact SQL statement executed
+     - Rows affected count
+     - Fingerprint Before & Fingerprint After digests
+
+6. PASS CRITERIA
+----------------
+1. All 12 demo personas verified active and mapped to correct roles.
+2. Dual-council binding for Department Head verified (Dept Chair + College Member).
+3. Chair uniqueness verified (exactly 1 chair per active council).
+4. No expired active_to dates in active memberships.
+5. No duplicate overlapping active membership rows.
+6. Department and College scope links strictly matched.
+
+===============================================================================
+END OF PACKET: PRODUCTION-DEMO-ROLE-DATA-RECONCILIATION-01
+===============================================================================

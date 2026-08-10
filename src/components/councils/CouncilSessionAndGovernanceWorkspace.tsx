@@ -175,6 +175,10 @@ export function CouncilSessionAndGovernanceWorkspace({
   }
 
   async function handleIssueDecision() {
+    if (!selectedAgendaItemId.trim()) {
+      toast.error("اختر بند جدول الأعمال المرتبط بالقرار.");
+      return;
+    }
     if (!decisionTitle.trim() || !decisionBody.trim()) {
       toast.error("يرجى إدخال عنوان القرار ونصه");
       return;
@@ -184,7 +188,7 @@ export function CouncilSessionAndGovernanceWorkspace({
       await issueCouncilDecisionFn({
         data: {
           meeting_id: meetingId,
-          agenda_item_id: selectedAgendaItemId || undefined,
+          agenda_item_id: selectedAgendaItemId,
           title: decisionTitle,
           body: decisionBody,
           responsible_unit: decisionUnit || undefined,
@@ -195,6 +199,9 @@ export function CouncilSessionAndGovernanceWorkspace({
       setShowIssueDecisionDialog(false);
       setDecisionTitle("");
       setDecisionBody("");
+      setSelectedAgendaItemId("");
+      setDecisionUnit("");
+      setDecisionDueDate("");
       qc.invalidateQueries();
     } catch (err: any) {
       toast.error(err.message || "تعذر إصدار القرار");
@@ -240,6 +247,8 @@ export function CouncilSessionAndGovernanceWorkspace({
 
   const minutesData = minutesQuery.data;
   const isMinutesLocked = minutesData?.is_locked || meetingStatus === "minutes_locked" || meetingStatus === "archived";
+  // C8 backend contract: issue_council_decision requires minutes_locked + resolved agenda item.
+  const canIssueDecision = canWriteAgenda && meetingStatus === "minutes_locked";
 
   const followupOptions = (() => {
     const status = selectedDecisionForFollowup?.status as string | undefined;
@@ -266,8 +275,17 @@ export function CouncilSessionAndGovernanceWorkspace({
   const agendaQuery = useQuery({
     queryKey: ["council-session-agenda", meetingId],
     queryFn: () => fetchAgenda({ data: { meetingId } }),
-    enabled: Boolean(meetingId) && (meetingStatus === "in_session" || meetingStatus === "agenda_ready"),
+    // Keep agenda readable at minutes_locked so C8 decision issuance can bind a resolved item.
+    enabled:
+      Boolean(meetingId) &&
+      (meetingStatus === "in_session" ||
+        meetingStatus === "agenda_ready" ||
+        meetingStatus === "minutes_locked"),
   });
+
+  const resolvedAgendaItems = (agendaQuery.data?.items ?? []).filter(
+    (item) => item.session_status === "resolved",
+  );
 
   const ROLE_LABELS: Record<string, string> = {
     chair: "رئيس المجلس",
@@ -357,9 +375,12 @@ export function CouncilSessionAndGovernanceWorkspace({
             </Button>
           )}
 
-          {canWriteAgenda && (meetingStatus === "minutes_draft" || meetingStatus === "minutes_review" || meetingStatus === "in_session") && (
+          {canIssueDecision && (
             <Button
-              onClick={() => setShowIssueDecisionDialog(true)}
+              onClick={() => {
+                setSelectedAgendaItemId("");
+                setShowIssueDecisionDialog(true);
+              }}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
             >
               <Sparkles className="w-4 h-4 ml-2" />
@@ -628,13 +649,48 @@ export function CouncilSessionAndGovernanceWorkspace({
         </div>
       </div>
 
-      {/* Dialog: Issue Decision */}
-      <Dialog open={showIssueDecisionDialog} onOpenChange={setShowIssueDecisionDialog}>
+      {/* Dialog: Issue Decision — C8 requires resolved agenda_item_id after minutes_locked */}
+      <Dialog
+        open={showIssueDecisionDialog}
+        onOpenChange={(open) => {
+          setShowIssueDecisionDialog(open);
+          if (!open) setSelectedAgendaItemId("");
+        }}
+      >
         <DialogContent className="dir-rtl text-right sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>إصدار قرار مجلس جديد</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2 text-right">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
+                بند جدول الأعمال المرتبط *
+              </label>
+              <Select
+                value={selectedAgendaItemId || undefined}
+                onValueChange={setSelectedAgendaItemId}
+                dir="rtl"
+              >
+                <SelectTrigger aria-label="بند جدول الأعمال المرتبط بالقرار">
+                  <SelectValue placeholder="اختر بنداً محسوماً من جدول الأعمال" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {resolvedAgendaItems.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.order_index}. {item.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {agendaQuery.isLoading ? (
+                <p className="text-xs text-slate-500 mt-1">جاري تحميل البنود المحسومة...</p>
+              ) : resolvedAgendaItems.length === 0 ? (
+                <p className="text-xs text-amber-700 mt-1">
+                  لا توجد بنود محسومة (resolved) لهذا الاجتماع. لا يمكن إصدار قرار دون بند مرتبط.
+                </p>
+              ) : null}
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
                 عنوان القرار *
@@ -689,7 +745,12 @@ export function CouncilSessionAndGovernanceWorkspace({
           <DialogFooter className="gap-2 sm:justify-start">
             <Button
               onClick={handleIssueDecision}
-              disabled={loadingAction === "issue_decision"}
+              disabled={
+                loadingAction === "issue_decision" ||
+                !selectedAgendaItemId.trim() ||
+                !decisionTitle.trim() ||
+                !decisionBody.trim()
+              }
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {loadingAction === "issue_decision" ? (

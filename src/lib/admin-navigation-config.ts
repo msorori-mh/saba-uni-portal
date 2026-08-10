@@ -320,6 +320,7 @@ export function applyAdminFinanceNavGate(
   return groups
     .map((g) => ({
       ...g,
+      label: g.id === "finance_documents" ? "الوثائق الرسمية" : g.label,
       items: g.items.filter((it) => it.to !== "/admin/finance"),
     }))
     .filter((g) => g.items.length > 0);

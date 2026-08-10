@@ -1,0 +1,119 @@
+===============================================================================
+POST-DEPLOY PRODUCTION E2E MASTER RUNNER PLAN
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+RUNNER PLAN ID: POST-DEPLOY-PRODUCTION-E2E-MASTER-01
+MODE: CONTINUOUS OVERNIGHT AUTOMATED EXECUTION (NO HUMAN INTERVENTION PAUSES)
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION
+===============================================================================
+
+1. EXECUTIVE RUNNER DIRECTIVE
+-----------------------------
+This master runner plan defines the single, continuous execution pipeline to be launched
+immediately following the production publish of GA3 code. It executes all 13 operator packets
+sequentially without human intervention or confirmation delays.
+
+EXECUTION DISCIPLINE:
+  - Continue automatically to the next section when a section passes cleanly.
+  - STOP ONLY if an actual code regression, security violation (RLS leak/authorization bypass),
+    or data integrity blocker is encountered.
+
+2. 13-PACKET SEQUENTIAL RUNWAY
+------------------------------
+
+SECTION 1: DEPLOYMENT PUBLISH & SHA PROOF
+  Target Packet: docs/go-live/operator-packets/LOVABLE-FINAL-PUBLISH-AND-SHA-PROOF.txt
+  Actions:
+    - Capture frozen SOURCE_SHA from git HEAD.
+    - Trigger Lovable Publish.
+    - Probe GET /version.json and meta[name="build-sha"].
+    - Verify DEPLOYED_SHA == SOURCE_SHA.
+    - Audit origin host (quboolye.com) and Supabase production target.
+    - Verify accessibility of 5 portal shells (/login, /admin, /student, /faculty, /staff).
+  On Pass: Continue automatically to Section 2.
+  On Failure: HALT (STALE_BUILD_OR_ENV_MISMATCH).
+
+SECTION 2: DEMO ROLE DATA RECONCILIATION
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-DEMO-ROLE-DATA-RECONCILIATION.txt
+  Actions:
+    - Execute read-only SQL probes over 12 demo personas.
+    - Validate Department Head dual council binding (Dept Chair + College Member).
+    - Assert chair uniqueness (exactly 1 chair per active council).
+    - Assert zero expired active_to dates or overlapping active role rows.
+    - Enforce write remediation protocol if data fix is required.
+  On Pass: Continue automatically to Section 3.
+  On Failure: HALT (DATA_RECONCILIATION_BLOCKER).
+
+SECTION 3: B1 SERVICE 1 — ENROLLMENT SUSPENSION E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-ENROLLMENT-SUSPENSION.txt
+  Actions: Run 15-step cycle (visibility, form, draft, attachments, submit, workflow, negative/positive role tests, decision, academic effect, status update, audit trail).
+  On Pass: Continue automatically to Section 4.
+
+SECTION 4: B1 SERVICE 2 — EXCUSED ABSENCE E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-EXCUSED-ABSENCE.txt
+  Actions: Run 15-step cycle for excused absence (course selection, medical upload, dept head approval, course excuse record).
+  On Pass: Continue automatically to Section 5.
+
+SECTION 5: B1 SERVICE 3 — DEPARTMENT TRANSFER E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-DEPARTMENT-TRANSFER.txt
+  Actions: Run 15-step cycle for department transfer (current dept head -> target dept head -> registrar -> dean approval, student profile dept update).
+  On Pass: Continue automatically to Section 6.
+
+SECTION 6: B1 SERVICE 4 — FINAL CHANCE E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-FINAL-CHANCE.txt
+  Actions: Run 15-step cycle for final chance exam (probation course lookup, college council recommendation, exam clearance ledger update).
+  On Pass: Continue automatically to Section 7.
+
+SECTION 7: B1 SERVICE 5 — FILE WITHDRAWAL E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-FILE-WITHDRAWAL.txt
+  Actions: Run 15-step cycle for file withdrawal (5-unit clearance workflow, student status set to withdrawn_file).
+  On Pass: Continue automatically to Section 8.
+
+SECTION 8: ENROLLMENT CERTIFICATE REGRESSION
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-ENROLLMENT-CERTIFICATE.txt
+  Actions: Run 7-step document lifecycle (submit, workflow, document issuance, signed URL download, public QR verification, archival, cancelled download restriction).
+  On Pass: Continue automatically to Section 9.
+
+SECTION 9: ACADEMIC COUNCILS FULL E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-COUNCILS.txt
+  Actions: Run 17-step council lifecycle (membership, schedule, topic intake, agenda, attendance, quorum check, session, voting, draft minutes, locking, decisions, assignments, archiving, reports). Enforce NO ADMIN BYPASS.
+  On Pass: Continue automatically to Section 10.
+
+SECTION 10: GRADUATION PROJECTS (GP) E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-GRADUATION-PROJECTS.txt
+  Actions: Verify Level-4 eligibility guard (block Level 1-3). Run 11-step project lifecycle (team, proposal, supervisor, progress, defense, committee scoring, decision, revisions loop, archive). Enforce read-only admin oversight.
+  On Pass: Continue automatically to Section 11.
+
+SECTION 11: GRADUATE AFFAIRS (GA) E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-GRADUATE-AFFAIRS.txt
+  Actions: Verify feature flag activation (feature_graduates_affairs = true). Run 7-step GA lifecycle (manager allocation, specialist clearance, scoped search, graduate file, followup, official decision, out-of-scope denial). Enforce NO ADMIN BYPASS.
+  On Pass: Continue automatically to Section 12.
+
+SECTION 12: REPORTS, MESSAGES & DOCUMENTS E2E
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS.txt
+  Actions: Verify Dept Head report scoping, Dean fail-closed reporting, Admin explicit filters, Messaging lifecycle, Official documents, and Finance options suppression when adminFinance = false.
+  On Pass: Continue automatically to Section 13.
+
+SECTION 13: PWA INSTALLABILITY & PRIVACY AUDIT
+  Target Packet: docs/go-live/operator-packets/PRODUCTION-E2E-PWA-PRIVACY.txt
+  Actions: Audit PWA manifest, sw.js registration, portal login start URL, logout token purge, zero authenticated API/HTML SW caching, mobile responsiveness, and RTL compliance.
+  On Pass: Complete Master Runner Plan -> Output Final PASS Token.
+
+3. STOP / HALT CONDITIONS (BLOCKER DEFINITIONS)
+-----------------------------------------------
+The runner plan will immediately HALT and alert operator ONLY under these conditions:
+  1. DEPLOYED_SHA != SOURCE_SHA (stale build deployed).
+  2. RLS Security Violation (unauthenticated or wrong role query succeeds in fetching restricted data).
+  3. Admin Academic Bypass (admin role succeeds in casting council vote or altering grades).
+  4. Data Integrity Corruption (chair uniqueness violated or broken multi-council role mappings).
+  5. Cancelled Document Download Leak (cancelled certificate permits Signed URL download).
+  6. Finance Leak (finance/payment elements displayed while adminFinance = false).
+
+4. MASTER COMPLETION SIGNAL
+---------------------------
+When all 13 sections report PASS:
+  Emit token: PASS_PORTAL_GO_LIVE_DEPLOY_PRODUCTION_E2E_AND_DATA_RECONCILIATION_LONGRUN_01
+
+===============================================================================
+END OF RUNNER PLAN: POST-DEPLOY-PRODUCTION-E2E-MASTER-01
+===============================================================================

@@ -1,0 +1,111 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: ACADEMIC COUNCILS FULL LIFECYCLE
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: PRODUCTION-E2E-COUNCILS-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet defines the complete, real 17-step operational lifecycle for Academic Councils
+(Department Councils & College Council). It enforces strict role-based access control,
+prohibiting any administrative academic bypass and requiring genuine council member/secretary
+actions throughout meeting creation, voting, minutes signing, and decision extraction.
+
+2. REAL OPERATIONAL ROLE ROSTER
+-------------------------------
+  - Department Council Chair:   department_council_chair
+  - Department Council Member:  department_council_member
+  - College Council Chair:      college_council_chair (Dean)
+  - College Council Member:     college_council_member (Dept Heads & Appointed Professors)
+  - Council Secretary:          council_secretary
+
+STRICT GOVERNANCE RULE:
+  System Admin (admin) role possesses NO ACADEMIC BYPASS privileges. Admin attempting to
+  submit votes, approve topics, or lock minutes without holding explicit council role MUST be
+  rejected by RLS and RPC security checks.
+
+3. 17-STEP EXECUTABLE LIFECYCLE SEQUENCE
+----------------------------------------
+
+STEP E.1: MEMBERSHIP SETUP & VERIFICATION
+  Action: Query `academic_council_members` for active council IDs.
+  Assertion: Department Council has 1 active Chair + N active Members. College Council has 1 Chair + N Members.
+
+STEP E.2: MEETING SCHEDULE CREATION
+  Action: Call `create_council_meeting` RPC as Council Chair/Secretary.
+  Assertion: Meeting created with status `scheduled`, unique meeting_number (e.g. DC-2026-05), scheduled date/time.
+
+STEP E.3: TOPIC INTAKE / SUBMISSION
+  Action: Faculty member executes `submit_council_topic` with title, description, attachments.
+  Assertion: Topic created with status `submitted`, assigned topic code.
+
+STEP E.4: TOPIC REVIEW & SCREENING
+  Action: Council Secretary / Dept Head reviews submitted topic via `review_council_topic`.
+  Assertion: Topic status transitions to `approved_for_agenda`.
+
+STEP E.5: AGENDA COMPILATION & PUBLISHING
+  Action: Secretary calls `compile_meeting_agenda` -> Adds topics, sets item order -> Calls `publish_meeting_agenda`.
+  Assertion: Meeting agenda status becomes `published`. Members receive agenda notification.
+
+STEP E.6: ATTENDANCE LOGGING
+  Action: Secretary records attendance via `log_meeting_attendance(meeting_id, member_list)`.
+  Assertion: Member presence recorded: `present`, `absent`, or `excused`.
+
+STEP E.7: QUORUM VERIFICATION
+  Action: Execute `verify_meeting_quorum(meeting_id)`.
+  Assertion: Quorum check evaluates `present_count / total_active_members >= quorum_threshold (0.50)`. Evaluates TRUE.
+
+STEP E.8: SESSION EXECUTION (IN-SESSION TRANSITION)
+  Action: Chair calls `start_council_meeting(meeting_id)`.
+  Assertion: Meeting status transitions from `scheduled` to `in_session`.
+
+STEP E.9: VOTING ON TOPICS
+  Action: Each active present council member calls `cast_council_vote(topic_id, vote_choice)`.
+  Choice: `approved`, `rejected`, or `abstained`.
+  Assertion: Votes recorded. Admin role casting vote is REJECTED with error `NOT_A_COUNCIL_MEMBER`.
+
+STEP E.10: DRAFT MINUTES GENERATION
+  Action: Secretary calls `draft_meeting_minutes(meeting_id, discussions_summary)`.
+  Assertion: Minutes record created with status `draft`.
+
+STEP E.11: MINUTES REVIEW
+  Action: Council members review draft minutes, submit feedback via `review_meeting_minutes`.
+  Assertion: Review notes stored in `minutes_reviews`.
+
+STEP E.12: MINUTES LOCK & SIGNATURE
+  Action: Council Chair calls `lock_and_sign_minutes(meeting_id, signature_hash)`.
+  Assertion: Minutes status becomes `locked`. Content becomes IMMUTABLE. Post-lock modifications REJECTED.
+
+STEP E.13: DECISION EXTRACTION
+  Action: System executes `extract_council_decisions(meeting_id)`.
+  Assertion: Official council decisions created with unique decision numbers (e.g. DEC-DC-2026-089).
+
+STEP E.14: ACTION ASSIGNMENT
+  Action: Chair/Secretary calls `assign_decision_action(decision_id, assignee_id, deadline)`.
+  Assertion: Action items assigned to department heads / staff with target deadlines.
+
+STEP E.15: FOLLOW-UP TRACKING
+  Action: Assignee updates status via `update_action_status(action_id, 'in_progress' | 'completed')`.
+  Assertion: Progress tracked in decision follow-up ledger.
+
+STEP E.16: ARCHIVING
+  Action: Secretary calls `archive_council_meeting(meeting_id)`.
+  Assertion: Meeting status becomes `archived`. Read-only access preserved.
+
+STEP E.17: NOTIFICATION & REPORT GENERATION
+  Action: System generates council summary report & notifies beneficiaries.
+  Assertion: Report generated in Reports Center; notifications sent to department head and dean.
+
+4. PASS CRITERIA
+----------------
+1. All 17 sequence steps execute cleanly without errors.
+2. Quorum check enforced accurately before session start.
+3. Voting restricted strictly to authenticated present council members.
+4. Admin academic bypass attempts (vote/sign/lock) strictly rejected with 42501 / Access Denied.
+5. Minutes locking enforces strict immutability.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-COUNCILS-01
+===============================================================================

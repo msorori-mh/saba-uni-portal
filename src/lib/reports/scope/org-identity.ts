@@ -197,6 +197,24 @@ export function actorMayAccessDeanCollegeHub(bindings: ExplicitOrgBindings): boo
   return bindings.deanIdentityBound && bindings.collegeScopeConfigured;
 }
 
+/**
+ * Authoritative college → department IDs for dean department-report containment.
+ *
+ * Returns null when containment cannot be proven. Callers MUST fail closed —
+ * never treat a bare collegeId (or dean identity) as permission to accept an
+ * arbitrary department_id.
+ *
+ * Current schema: no college_id / college→departments FK. Mapping is unavailable.
+ */
+export function provenDepartmentIdsForCollege(
+  collegeId: string | null | undefined,
+): readonly string[] | null {
+  if (!collegeId || collegeId.length === 0) return null;
+  // No trustworthy server-side college→department containment relationship.
+  void collegeId;
+  return null;
+}
+
 export function actorMayAccessOperationalHub(
   bindings: ExplicitOrgBindings,
   _roles: readonly string[],
