@@ -42,16 +42,12 @@ export const Route = createFileRoute("/staff/")({
 });
 
 function StaffDashboard() {
-  const navigate = useNavigate();
+  const handleLogout = useStaffLogout();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["staff", "me"],
     queryFn: fetchMyStaffProfile,
   });
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
 
   return (
     <PortalShell title="بوابة الموظف" onLogout={handleLogout}>
