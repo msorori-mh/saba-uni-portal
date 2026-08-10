@@ -19,12 +19,8 @@ export const Route = createFileRoute("/staff/graduates-affairs")({
  * AUTH-04-backed props — no mock production data.
  */
 function StaffGraduatesAffairsPage() {
-  const navigate = useNavigate();
+  const handleLogout = useStaffLogout();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
 
   return (
     <PortalShell title="بوابة الموظف" onLogout={handleLogout}>
