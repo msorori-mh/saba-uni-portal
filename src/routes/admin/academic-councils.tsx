@@ -1,19 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ScrollText, Users2, CalendarClock, FilePlus2, ListChecks, FileText,
-  ClipboardCheck, Archive, Bell, Info, Lock, LayoutDashboard, BarChart3,
-  AlertTriangle, ArrowRight, Loader2, UserPlus, UserMinus, Search, Pencil,
-  ChevronUp, ChevronDown, CheckCircle2, Plus,
+  ClipboardCheck, Archive, BarChart3,
+  AlertTriangle, Loader2, UserPlus, UserMinus, Search, Pencil,
+  ChevronUp, ChevronDown, CheckCircle2, Plus, ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { CouncilReportsView } from "@/components/councils/CouncilReportsView";
 import {
   getCouncilsSummary,
   getCouncilMemberships,
@@ -67,11 +69,15 @@ import {
   type CouncilAgendaItem,
   type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
+import {
+  countMinutesReview,
+  deriveAdminActionRequiredItems,
+} from "@/lib/admin-portal/councils-operational";
 
 export const Route = createFileRoute("/admin/academic-councils")({
   head: () => ({
     meta: [
-      { title: "بوابة إدارة المجالس الأكاديمية" },
+      { title: "إدارة المجالس الأكاديمية" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -81,57 +87,6 @@ export const Route = createFileRoute("/admin/academic-councils")({
 // ============================================================================
 // SHARED UI PIECES
 // ============================================================================
-
-function SectionCard({
-  icon: Icon,
-  title,
-  subtitle,
-  children,
-  id,
-  sectionRef,
-}: {
-  icon: typeof ScrollText;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  id?: string;
-  sectionRef?: React.RefObject<HTMLElement | null>;
-}) {
-  return (
-    <section
-      id={id}
-      ref={sectionRef}
-      className="rounded-xl border border-border bg-card shadow-card"
-    >
-      <header className="flex items-start gap-3 border-b border-border/60 p-4">
-        <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary shrink-0">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="font-bold text-primary">{title}</h2>
-          {subtitle ? (
-            <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">{subtitle}</p>
-          ) : null}
-        </div>
-      </header>
-      <div className="p-4">{children}</div>
-    </section>
-  );
-}
-
-function LockedAction({ label, hint }: { label: string; hint?: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="secondary" disabled className="gap-1.5">
-        <Lock className="h-3.5 w-3.5" />
-        {label}
-      </Button>
-      <span className="text-[11px] text-muted-foreground">
-        {hint ?? "سيتاح بعد اكتمال اعتماد صلاحيات الكتابة على بوابة المجالس."}
-      </span>
-    </div>
-  );
-}
 
 function EmptyState({ text }: { text: string }) {
   return (
@@ -179,11 +134,13 @@ const MEETING_STATUS_LABELS: Record<string, string> = {
   agenda_ready: "جدول الأعمال جاهز",
   in_session: "جلسة قيد الانعقاد",
   minutes_draft: "مسودة محضر",
+  minutes_review: "محضر بانتظار الاعتماد",
   minutes_locked: "محضر مقفل",
   archived: "مؤرشف",
   cancelled: "ملغى",
 };
 
+/** Manual edit dropdown — does not broaden into full lifecycle RPC states. */
 const MEETING_STATUS_OPTIONS = [
   "scheduled",
   "intake_open",
@@ -814,6 +771,9 @@ function CouncilMeetingsPanel({
           <CalendarClock className="h-5 w-5" />
           جدولة اجتماع — {council.name}
         </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          تتوفر الإجراءات وفق عضويتك وصلاحيتك داخل المجلس. جدولة الاجتماع تتطلب عضوية رئيس المجلس.
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-xs font-medium">عنوان الاجتماع</label>
@@ -1138,10 +1098,14 @@ function CouncilTopicReviewQueuePanel({
       </div>
 
       {!canAct ? (
-        <p className="text-[11px] text-muted-foreground">
-          عرض مؤسسي فقط. إجراءات المراجعة تتطلب عضوية رئيس أو أمين سر في هذا المجلس.
+        <p className="text-[11px] text-muted-foreground" data-testid="admin-topics-role-gate">
+          تتوفر الإجراءات وفق عضويتك وصلاحيتك داخل المجلس. إجراءات المراجعة تتطلب عضوية رئيس أو أمين سر في هذا المجلس.
         </p>
-      ) : null}
+      ) : (
+        <p className="text-[11px] text-muted-foreground" data-testid="admin-topics-role-aware">
+          تتوفر الإجراءات وفق عضويتك وصلاحيتك داخل المجلس.
+        </p>
+      )}
 
       {isLoading ? (
         <div className="p-6 grid place-items-center">
@@ -1828,56 +1792,293 @@ function topicStatusLabelAdmin(status: string): string {
   return labels[status] ?? status;
 }
 
-function CouncilPickerRow({
+function councilTypeLabel(type: string): string {
+  if (type === "college") return "كلية";
+  if (type === "department") return "قسم";
+  return type;
+}
+
+function CompactCouncilCard({
   council,
   selected,
   onSelect,
-  onManageMembership,
 }: {
   council: CouncilsOverviewItem;
   selected: boolean;
   onSelect: () => void;
-  onManageMembership: () => void;
 }) {
   return (
-    <li
-      className={`rounded-lg border p-3 transition-colors ${
-        selected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-          : "border-border bg-background"
-      }`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onSelect}
-          className="flex-1 min-w-0 text-right hover:opacity-90 transition-opacity"
-        >
-          <div className="font-bold text-primary text-sm">{council.name}</div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
-            الأعضاء: {council.members_count} · الاجتماع القادم: {formatDateTime(council.next_meeting_at)}
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        data-testid={`admin-council-card-${council.id}`}
+        className={`w-full rounded-lg border p-2.5 text-right transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          selected
+            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+            : "border-border bg-background hover:bg-muted/40"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="font-bold text-primary text-sm truncate">{council.name}</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {councilTypeLabel(council.council_type)} · الأعضاء: {council.members_count}
+              {council.next_meeting_at
+                ? ` · القادم: ${formatDateTime(council.next_meeting_at)}`
+                : ""}
+            </div>
           </div>
-        </button>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge variant={council.is_active ? "secondary" : "outline"} className="text-[11px]">
+          <Badge
+            variant={council.is_active ? "secondary" : "outline"}
+            className="text-[10px] shrink-0"
+          >
             {council.is_active ? "مفعّل" : "غير مفعّل"}
           </Badge>
-          <Button
-            type="button"
-            size="sm"
-            variant={selected ? "default" : "outline"}
-            className="gap-1.5 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onManageMembership();
-            }}
-          >
-            <Users2 className="h-3.5 w-3.5" />
-            إدارة العضويات
-          </Button>
+        </div>
+      </button>
+    </li>
+  );
+}
+
+function AdminNextMeetingPriority({
+  meeting,
+  onOpenMeetings,
+  onOpenAgenda,
+  onOpenTopics,
+}: {
+  meeting: AdminCouncilMeetingItem;
+  onOpenMeetings: () => void;
+  onOpenAgenda: () => void;
+  onOpenTopics: () => void;
+}) {
+  return (
+    <section
+      data-testid="admin-next-meeting-priority"
+      className="rounded-xl border border-border bg-card p-4 shadow-card"
+    >
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary shrink-0">
+          <CalendarClock className="h-5 w-5" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <h2 className="font-bold text-primary text-sm">الاجتماع القادم</h2>
+          <p className="text-sm font-bold text-foreground">{meeting.title}</p>
+          <p className="text-xs text-muted-foreground">
+            {formatDateTime(meeting.scheduled_at)}
+            {meeting.location ? ` · ${meeting.location}` : ""}
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Badge variant="outline" className="text-[10px]">
+              {meetingStatusLabel(meeting.status)}
+            </Badge>
+            {meeting.intake_closes_at ? (
+              <Badge variant="secondary" className="text-[10px]">
+                إغلاق الاستقبال: {formatDateTime(meeting.intake_closes_at)}
+              </Badge>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button type="button" size="sm" className="min-h-9 text-xs" onClick={onOpenMeetings}>
+              عرض/تعديل الاجتماع
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-9 text-xs"
+              onClick={onOpenAgenda}
+            >
+              جدول الأعمال
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="min-h-9 text-xs"
+              onClick={onOpenTopics}
+            >
+              الموضوعات
+            </Button>
+          </div>
         </div>
       </div>
-    </li>
+    </section>
+  );
+}
+
+function AdminActionRequiredPanel({
+  items,
+  onNavigate,
+}: {
+  items: ReturnType<typeof deriveAdminActionRequiredItems>;
+  onNavigate: (tab: string) => void;
+}) {
+  return (
+    <section data-testid="admin-action-required" className="space-y-2">
+      <h2 className="font-display text-sm font-bold text-primary">يتطلب انتباهك</h2>
+      {items.length === 0 ? (
+        <div
+          data-testid="admin-action-required-empty"
+          className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground"
+        >
+          لا توجد إجراءات عاجلة لهذا المجلس حالياً.
+        </div>
+      ) : (
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {items.map((item) => (
+            <li
+              key={item.id}
+              data-testid={`admin-action-${item.kind}`}
+              className="rounded-lg border border-border bg-card px-3 py-2.5 flex items-start gap-2"
+            >
+              <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-primary">{item.title}</div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
+                  {item.description}
+                </p>
+                {item.tab ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="mt-2 h-8 text-xs gap-1"
+                    onClick={() => onNavigate(item.tab!)}
+                  >
+                    فتح
+                    <ArrowLeft className="h-3 w-3" aria-hidden />
+                  </Button>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function MinutesDecisionsPanel({
+  meetings,
+  isLoading,
+  isError,
+}: {
+  meetings: AdminCouncilMeetingItem[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  const relevant = meetings.filter((m) =>
+    ["minutes_draft", "minutes_review", "minutes_locked", "archived"].includes(m.status),
+  );
+
+  if (isLoading) {
+    return (
+      <div className="p-6 grid place-items-center" role="status" aria-label="جاري التحميل">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+        تعذّر تحميل بيانات المحاضر لهذا المجلس.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3" data-testid="admin-minutes-decisions-panel">
+      {relevant.length === 0 ? (
+        <EmptyState text="لا توجد محاضر مرتبطة بهذا المجلس حالياً." />
+      ) : (
+        <ul className="space-y-2">
+          {relevant.map((m) => (
+            <li
+              key={m.meeting_id}
+              className="rounded-lg border border-border bg-background p-3 flex flex-wrap items-center justify-between gap-2"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-primary">{m.title}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {formatDateTime(m.scheduled_at)}
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[10px]">
+                {meetingStatusLabel(m.status)}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        إصدار القرارات الرسمية يتم عبر دورة الحوكمة وفق عضوية المجلس؛ دور الأدمن وحده لا يمنح سلطة أكاديمية.
+        أعداد القرارات العامة للبوابة تظهر في شريط المؤشرات أعلى الصفحة فقط وليست خاصة بهذا المجلس.
+      </p>
+    </div>
+  );
+}
+
+function FollowUpPanel() {
+  return (
+    <div
+      data-testid="admin-followup-panel"
+      className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground space-y-2"
+    >
+      <EmptyState text="لا تتوفر حالياً بيانات متابعة قرارات محمّلة على مستوى المجلس المحدد." />
+      <p className="text-[11px] text-muted-foreground leading-relaxed px-1">
+        مؤشرات القرارات العامة (قيد المتابعة / المتأخرة) تُعرض في شريط ملخص البوابة أعلى الصفحة ولا تُنسب إلى المجلس الحالي.
+        يمكن الرجوع إلى تقارير المجلس عند توفر تقرير متخصص.
+      </p>
+    </div>
+  );
+}
+
+function ArchivePanel({
+  meetings,
+  isLoading,
+  isError,
+}: {
+  meetings: AdminCouncilMeetingItem[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  const archived = meetings.filter((m) => m.status === "archived");
+  if (isLoading) {
+    return (
+      <div className="p-6 grid place-items-center" role="status">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+        تعذّر تحميل الأرشيف لهذا المجلس.
+      </div>
+    );
+  }
+  if (archived.length === 0) {
+    return <EmptyState text="لا توجد اجتماعات مؤرشفة لهذا المجلس." />;
+  }
+  return (
+    <ul className="space-y-2" data-testid="admin-archive-panel">
+      {archived.map((m) => (
+        <li
+          key={m.meeting_id}
+          className="rounded-lg border border-border bg-background p-3 flex flex-wrap justify-between gap-2"
+        >
+          <div>
+            <div className="text-sm font-bold text-primary">{m.title}</div>
+            <div className="text-[11px] text-muted-foreground">{formatDateTime(m.scheduled_at)}</div>
+          </div>
+          <Badge variant="outline" className="text-[10px]">
+            {meetingStatusLabel(m.status)}
+          </Badge>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -1899,376 +2100,465 @@ const EMPTY_SUMMARY: CouncilsSummary = {
 
 function AcademicCouncilsPage() {
   const fetchSummary = useServerFn(getCouncilsSummary);
+  const fetchMeetings = useServerFn(getCouncilMeetingsForAdmin);
+  const fetchTopicQueue = useServerFn(getCouncilTopicReviewQueueForAdmin);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin", "academic-councils", "summary"],
     queryFn: () => fetchSummary(),
     staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const summary: CouncilsSummary = data ?? EMPTY_SUMMARY;
-  const collegeCouncils = summary.councils.filter((c) => c.council_type === "college");
-  const departmentCouncils = summary.councils.filter((c) => c.council_type === "department");
   const allCouncils = summary.councils;
 
   const [selectedCouncilId, setSelectedCouncilId] = useState<string | null>(null);
-  const [pendingMembershipFocus, setPendingMembershipFocus] = useState(false);
-  const membershipPanelRef = useRef<HTMLElement>(null);
+  const [workspaceTab, setWorkspaceTab] = useState<string>("overview");
+
   const selectedCouncil = useMemo(
     () => allCouncils.find((c) => c.id === selectedCouncilId) ?? null,
     [allCouncils, selectedCouncilId],
   );
 
-  const selectCouncil = (id: string) => setSelectedCouncilId(id);
-
-  const selectCouncilAndFocusMembership = (id: string) => {
-    setSelectedCouncilId(id);
-    setPendingMembershipFocus(true);
-  };
-
   useEffect(() => {
     if (!isLoading && allCouncils.length === 1 && selectedCouncilId === null) {
-      setSelectedCouncilId(allCouncils[0].id);
+      setSelectedCouncilId(allCouncils[0]!.id);
     }
   }, [isLoading, allCouncils, selectedCouncilId]);
 
-  useEffect(() => {
-    if (!pendingMembershipFocus || !selectedCouncilId) return;
-    setPendingMembershipFocus(false);
-    const panel = membershipPanelRef.current;
-    if (!panel) return;
-    requestAnimationFrame(() => {
-      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  const meetingsQuery = useQuery({
+    queryKey: ["admin", "academic-councils", "meetings", selectedCouncilId],
+    queryFn: () => fetchMeetings({ data: { councilId: selectedCouncilId! } }),
+    enabled: Boolean(selectedCouncilId),
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const topicsQuery = useQuery({
+    queryKey: ["admin", "academic-councils", "topic-review-queue", selectedCouncilId],
+    queryFn: () => fetchTopicQueue({ data: { councilId: selectedCouncilId! } }),
+    enabled: Boolean(selectedCouncilId),
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const allMeetings = useMemo(() => {
+    const upcoming = meetingsQuery.data?.upcomingMeetings ?? [];
+    const previous = meetingsQuery.data?.previousMeetings ?? [];
+    return [...upcoming, ...previous];
+  }, [meetingsQuery.data]);
+
+  const nextMeeting = useMemo(() => {
+    const upcoming = meetingsQuery.data?.upcomingMeetings ?? [];
+    return upcoming[0] ?? null;
+  }, [meetingsQuery.data]);
+
+  const minutesReviewCount = useMemo(
+    () => countMinutesReview(allMeetings),
+    [allMeetings],
+  );
+
+  const actionItems = useMemo(() => {
+    if (!selectedCouncil) return [];
+    return deriveAdminActionRequiredItems({
+      selectedCouncilName: selectedCouncil.name,
+      upcomingMeeting: nextMeeting
+        ? {
+            meeting_id: nextMeeting.meeting_id,
+            title: nextMeeting.title,
+            status: String(nextMeeting.status),
+            scheduled_at: nextMeeting.scheduled_at,
+          }
+        : null,
+      meetings: allMeetings.map((m) => ({
+        meeting_id: m.meeting_id,
+        title: m.title,
+        status: String(m.status),
+        scheduled_at: m.scheduled_at,
+      })),
+      topics: (topicsQuery.data?.queue ?? []).map((t) => ({
+        topic_id: t.topic_id,
+        title: t.title,
+        status: t.status,
+      })),
     });
-  }, [pendingMembershipFocus, selectedCouncilId]);
+  }, [selectedCouncil, nextMeeting, allMeetings, topicsQuery.data?.queue]);
 
   const kpis = [
-    { label: "الاجتماعات القادمة", value: summary.kpis.upcoming_meetings, icon: CalendarClock },
-    { label: "الموضوعات المرفوعة", value: summary.kpis.submitted_topics, icon: FilePlus2 },
-    { label: "القرارات قيد المتابعة", value: summary.kpis.open_decisions, icon: ClipboardCheck },
-    { label: "القرارات المتأخرة", value: summary.kpis.overdue_decisions, icon: AlertTriangle },
+    {
+      label: "الاجتماعات القادمة",
+      value: summary.kpis.upcoming_meetings,
+      icon: CalendarClock,
+      testId: "admin-kpi-upcoming-meetings",
+    },
+    {
+      label: "الموضوعات التي تحتاج متابعة",
+      value: summary.kpis.submitted_topics,
+      icon: FilePlus2,
+      testId: "admin-kpi-submitted-topics",
+    },
+    {
+      label: "القرارات قيد المتابعة",
+      value: summary.kpis.open_decisions,
+      icon: ClipboardCheck,
+      testId: "admin-kpi-open-decisions",
+    },
+    {
+      label: "القرارات المتأخرة",
+      value: summary.kpis.overdue_decisions,
+      icon: AlertTriangle,
+      testId: "admin-kpi-overdue-decisions",
+    },
   ] as const;
 
-  const agendaStages = [
-    { label: "دراسة المقترح", count: summary.agenda_stages.draft },
-    { label: "قيد المراجعة", count: summary.agenda_stages.under_review },
-    { label: "معتمد على جدول الأعمال", count: summary.agenda_stages.approved },
-    { label: "مؤجَّل", count: summary.agenda_stages.deferred },
-  ];
+  const selectCouncil = (id: string) => {
+    setSelectedCouncilId(id);
+  };
+
+  const goMembers = () => {
+    setWorkspaceTab("members");
+  };
+
+  const goMeetings = () => {
+    setWorkspaceTab("meetings");
+  };
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gold-gradient text-primary-deep shrink-0">
-          <ScrollText className="h-6 w-6" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-primary">
-              بوابة إدارة المجالس الأكاديمية
+    <div className="space-y-4 sm:space-y-5" dir="rtl" data-testid="admin-councils-operational-workspace">
+      <header
+        data-testid="admin-councils-page-header"
+        className="flex flex-wrap items-start justify-between gap-3"
+      >
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+            <ScrollText className="h-5 w-5" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-display text-xl sm:text-2xl font-extrabold text-primary">
+              إدارة المجالس الأكاديمية
             </h1>
-            <Badge variant="outline" className="border-emerald-400 bg-emerald-50 text-emerald-800">
-              عضويات + اجتماعات + جدول أعمال
-            </Badge>
-            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
-              الموضوعات والقرارات — قراءة فقط
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground max-w-3xl leading-relaxed">
-            بوابة رقمية متخصصة لإدارة مجالس الكلية ومجالس الأقسام، تشمل جدولة الاجتماعات،
-            استقبال الموضوعات، إعداد جداول الأعمال، توثيق المحاضر والقرارات، متابعة تنفيذ
-            التوصيات، وأرشفة أعمال المجالس وفق صلاحيات مؤسسية دقيقة.
-          </p>
-        </div>
-      </div>
-
-      {/* Notice */}
-      <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 flex items-start gap-3 text-emerald-900">
-        <Info className="h-5 w-5 shrink-0 mt-0.5 text-emerald-700" />
-        <div className="text-sm">
-          <div className="font-bold">إدارة العضويات والاجتماعات وجدول الأعمال مفعّلة</div>
-          <div className="mt-0.5 leading-relaxed">
-            يمكنك اختيار مجلس وإدارة عضوياته وجدولة اجتماعاته وإعداد جدول الأعمال.
-            عمليات رفع الموضوعات والقرارات والتنبيهات لا تزال في وضع القراءة فقط.
+            <p className="mt-0.5 text-xs text-muted-foreground max-w-2xl leading-relaxed">
+              إدارة مجالس الكلية والأقسام والاجتماعات والموضوعات والقرارات من مساحة تشغيل موحدة.
+            </p>
           </div>
         </div>
-      </div>
+        {selectedCouncil ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            data-testid="admin-councils-reports-action"
+            onClick={() => setWorkspaceTab("reports")}
+          >
+            التقارير
+          </Button>
+        ) : null}
+      </header>
 
       {isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          تعذّر تحميل بيانات المجالس حالياً. يرجى إعادة المحاولة لاحقاً.
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+        >
+          تعذّر تحميل بيانات المجالس حالياً. يرجى إعادة المحاولة.
         </div>
       ) : null}
 
-      {/* KPI strip */}
-      <SectionCard
-        icon={BarChart3}
-        title="لوحة المجالس"
-        subtitle="مؤشرات مباشرة من قاعدة بيانات المجالس."
+      <div
+        data-testid="admin-councils-operational-summary"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-2"
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {kpis.map((k) => (
-            <div key={k.label} className="rounded-lg border border-border bg-background p-3">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <k.icon className="h-4 w-4" />
-                <span className="text-xs">{k.label}</span>
-              </div>
-              <div className="mt-1 font-bold text-primary">
+        {kpis.map((k) => (
+          <div
+            key={k.label}
+            data-testid={k.testId}
+            className="rounded-lg border border-border bg-card px-3 py-2.5 flex items-start gap-2 min-w-0"
+          >
+            <k.icon className="h-4 w-4 text-primary mt-0.5 shrink-0" aria-hidden />
+            <div className="min-w-0">
+              <div className="text-[11px] text-muted-foreground">{k.label}</div>
+              <div className="mt-0.5 text-sm font-bold text-primary">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : k.value}
               </div>
             </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      {/* College + department councils overview */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard
-          icon={Users2}
-          title="مجلس الكلية"
-          subtitle="مجلس واحد على مستوى الكلية."
-        >
-          {isLoading ? (
-            <EmptyState text="جاري تحميل بيانات مجلس الكلية…" />
-          ) : collegeCouncils.length === 0 ? (
-            <EmptyState text="لا يوجد مجلس كلية مفعّل حالياً." />
-          ) : (
-            <ul className="space-y-2">
-              {collegeCouncils.map((c) => (
-                <CouncilPickerRow
-                  key={c.id}
-                  council={c}
-                  selected={selectedCouncilId === c.id}
-                  onSelect={() => selectCouncil(c.id)}
-                  onManageMembership={() => selectCouncilAndFocusMembership(c.id)}
-                />
-              ))}
-            </ul>
-          )}
-        </SectionCard>
-
-        <SectionCard
-          icon={Users2}
-          title="مجالس الأقسام"
-          subtitle="مجلس لكل قسم أكاديمي داخل الكلية."
-        >
-          {isLoading ? (
-            <EmptyState text="جاري تحميل بيانات مجالس الأقسام…" />
-          ) : departmentCouncils.length === 0 ? (
-            <EmptyState text="لا توجد مجالس أقسام مفعّلة حالياً." />
-          ) : (
-            <ul className="space-y-2">
-              {departmentCouncils.map((c) => (
-                <CouncilPickerRow
-                  key={c.id}
-                  council={c}
-                  selected={selectedCouncilId === c.id}
-                  onSelect={() => selectCouncil(c.id)}
-                  onManageMembership={() => selectCouncilAndFocusMembership(c.id)}
-                />
-              ))}
-            </ul>
-          )}
-        </SectionCard>
+          </div>
+        ))}
+        {selectedCouncil && meetingsQuery.isSuccess && minutesReviewCount > 0 ? (
+          <div
+            data-testid="admin-kpi-minutes-review"
+            className="rounded-lg border border-border bg-card px-3 py-2.5 flex items-start gap-2 min-w-0 col-span-2 lg:col-span-1"
+          >
+            <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" aria-hidden />
+            <div className="min-w-0">
+              <div className="text-[11px] text-muted-foreground">محاضر بانتظار الاعتماد</div>
+              <div className="mt-0.5 text-sm font-bold text-primary">{minutesReviewCount}</div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      {/* Membership administration */}
-      <SectionCard
-        id="council-membership-panel"
-        sectionRef={membershipPanelRef}
-        icon={Users2}
-        title="إدارة عضويات المجلس"
-        subtitle="أضف أعضاء هيئة التدريس إلى المجلس، أو عطّل العضويات دون حذف."
+      <section
+        data-testid="admin-selected-council-control"
+        className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3"
       >
-        {selectedCouncil ? (
-          <p className="mb-4 text-xs text-muted-foreground">
-            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
-          </p>
-        ) : null}
-        {!selectedCouncil ? (
-          <div className="rounded-lg border border-dashed border-amber-300/60 bg-amber-50/50 p-6 text-center space-y-3">
-            <p className="text-sm text-foreground font-medium">
-              اضغط على بطاقة مجلس الكلية أو زر «إدارة العضويات» للبدء.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              بعد اختيار المجلس ستظهر: البحث عن الأكاديمي، اختيار الدور، وزر «حفظ العضوية».
-            </p>
-          </div>
-        ) : (
-          <CouncilMembershipPanel council={selectedCouncil} />
-        )}
-      </SectionCard>
-
-      {/* Meetings administration */}
-      <SectionCard
-        icon={CalendarClock}
-        title="الاجتماعات"
-        subtitle="جدولة وتعديل اجتماعات المجلس المحدد (للأدمن ورئيس المجلس عبر الصلاحيات)."
-      >
-        {selectedCouncil ? (
-          <p className="mb-4 text-xs text-muted-foreground">
-            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
-          </p>
-        ) : null}
-        {!selectedCouncil ? (
-          <div className="rounded-lg border border-dashed border-amber-300/60 bg-amber-50/50 p-6 text-center space-y-3">
-            <p className="text-sm text-foreground font-medium">
-              اختر مجلساً من القائمة أعلاه لعرض اجتماعاته وجدولة اجتماع جديد.
-            </p>
-          </div>
-        ) : (
-          <CouncilMeetingsPanel council={selectedCouncil} />
-        )}
-      </SectionCard>
-
-      {/* Topic review queue — read only */}
-      <SectionCard
-        icon={ScrollText}
-        title="مراجعة الموضوعات (قراءة فقط)"
-        subtitle="عرض حالة الموضوعات المقدمة للمجلس المحدد دون إمكانية تعديل الحالة."
-      >
-        {selectedCouncil ? (
-          <p className="mb-4 text-xs text-muted-foreground">
-            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
-          </p>
-        ) : null}
-        {!selectedCouncil ? (
-          <EmptyState text="اختر مجلساً من القائمة أعلاه لعرض موضوعاته المقدمة." />
-        ) : (
-          <CouncilTopicReviewQueuePanel council={selectedCouncil} />
-        )}
-      </SectionCard>
-
-      {/* Agenda */}
-      <SectionCard
-        icon={ListChecks}
-        title="جدول الأعمال"
-        subtitle="إعداد وترتيب واعتماد جدول أعمال اجتماع المجلس المحدد."
-      >
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {agendaStages.map((s) => (
-            <div key={s.label} className="rounded-lg border border-border bg-background p-3">
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-              <div className="mt-1 font-bold text-primary">
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : s.count}
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <label className="text-xs font-bold text-primary shrink-0" htmlFor="admin-council-select">
+            المجلس الحالي
+          </label>
+          <Select
+            value={selectedCouncilId ?? undefined}
+            onValueChange={(v) => selectCouncil(v)}
+            dir="rtl"
+            disabled={isLoading || allCouncils.length === 0}
+          >
+            <SelectTrigger
+              id="admin-council-select"
+              className="sm:max-w-md"
+              data-testid="admin-council-select"
+            >
+              <SelectValue placeholder="اختر مجلساً للعمل عليه" />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              {allCouncils.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name} · {councilTypeLabel(c.council_type)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {selectedCouncil ? (
-          <p className="mb-4 text-xs text-muted-foreground">
-            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
-          </p>
-        ) : null}
-        {!selectedCouncil ? (
-          <EmptyState text="اختر مجلساً من القائمة أعلاه لإدارة جدول أعمال اجتماعاته." />
-        ) : (
-          <CouncilAgendaPanel council={selectedCouncil} />
-        )}
-      </SectionCard>
 
-      {/* Minutes & decisions */}
-      <SectionCard
-        icon={FileText}
-        title="المحاضر والقرارات"
-        subtitle="توثيق المحاضر واعتماد القرارات رسمياً."
-      >
-        <EmptyState text="لا توجد محاضر أو قرارات لعرضها حالياً." />
-        <div className="mt-4">
-          <LockedAction label="إصدار قرار" />
-        </div>
-      </SectionCard>
-
-      {/* Follow-up */}
-      <SectionCard
-        icon={ClipboardCheck}
-        title="متابعة تنفيذ القرارات"
-        subtitle="تتبع حالة تنفيذ التوصيات والقرارات."
-      >
         {isLoading ? (
-          <EmptyState text="جاري تحميل بيانات المتابعة…" />
-        ) : summary.kpis.open_decisions === 0 ? (
-          <EmptyState text="لا توجد قرارات قيد المتابعة حالياً." />
-        ) : (
-          <div className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground">
-            يوجد {summary.kpis.open_decisions} قرار قيد المتابعة، منها
-            {" "}{summary.kpis.overdue_decisions} متأخرة.
+          <div className="grid place-items-center py-6" role="status" aria-label="جاري التحميل">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
+        ) : allCouncils.length === 0 ? (
+          <EmptyState text="لا توجد مجالس مفعّلة حالياً." />
+        ) : (
+          <ul
+            data-testid="admin-council-cards"
+            className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {allCouncils.map((c) => (
+              <CompactCouncilCard
+                key={c.id}
+                council={c}
+                selected={selectedCouncilId === c.id}
+                onSelect={() => selectCouncil(c.id)}
+              />
+            ))}
+          </ul>
         )}
-      </SectionCard>
+      </section>
 
-      {/* Archive + Reports */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard
-          icon={Archive}
-          title="الأرشيف"
-          subtitle="أرشفة أعمال المجالس السابقة للرجوع إليها."
+      {!selectedCouncil ? (
+        <div
+          data-testid="admin-councils-no-selection"
+          className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center space-y-2"
         >
-          <EmptyState text="سيُعرض هنا أرشيف المحاضر والقرارات المعتمدة." />
-        </SectionCard>
-
-        <SectionCard
-          icon={BarChart3}
-          title="التقارير"
-          subtitle="تقارير أداء المجالس ونسب تنفيذ التوصيات."
-        >
-          <EmptyState text="ستُتاح التقارير بعد تفعيل مرحلة الكتابة والقرارات." />
-        </SectionCard>
-      </div>
-
-      {/* Scheduling + notifications settings */}
-      <SectionCard
-        icon={Bell}
-        title="إعدادات الجدولة والتنبيهات"
-        subtitle="ضبط مواعيد التنبيهات والتذكيرات الآلية."
-      >
-        <ul className="space-y-1.5 text-xs text-muted-foreground leading-relaxed list-disc pr-5">
-          <li>قواعد جدولة دورية للاجتماعات (يومياً/أسبوعياً/شهرياً) — قيد التأسيس.</li>
-          <li>تنبيهات قبل موعد الاجتماع للأعضاء — قيد التأسيس.</li>
-          <li>تنبيهات فتح وإغلاق استقبال الموضوعات — قيد التأسيس.</li>
-          <li>تذكيرات القرارات المتأخرة على المسؤولين — قيد التأسيس.</li>
-        </ul>
-        <div className="mt-4">
-          <LockedAction label="إرسال تنبيه" hint="سيتاح بعد تفعيل خدمات التنبيهات المؤسسية." />
+          <Users2 className="h-8 w-8 text-muted-foreground mx-auto" aria-hidden />
+          <p className="text-sm font-medium text-foreground">اختر مجلساً لفتح مساحة العمل التشغيلية</p>
+          <p className="text-xs text-muted-foreground">
+            بعد الاختيار تظهر نظرة عامة والأعضاء والاجتماعات والموضوعات وجدول الأعمال.
+          </p>
         </div>
-      </SectionCard>
-
-      {/* Concept cards */}
-      <SectionCard
-        icon={Info}
-        title="نظرة معمارية على البوابة"
-        subtitle="بطاقات تعريفية للتصميم المعتمد."
-      >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { icon: LayoutDashboard, title: "هدف البوابة", desc: "توحيد إدارة مجلس الكلية ومجالس الأقسام في بيئة رقمية آمنة تحفظ سرية القرارات وتحدد الصلاحيات." },
-            { icon: Users2, title: "مجلس الكلية", desc: "مجلس واحد على مستوى الكلية يضم العمادة ورؤساء الأقسام وأعضاء التمثيل الأكاديمي." },
-            { icon: Users2, title: "مجالس الأقسام", desc: "مجلس لكل قسم أكاديمي معزول عن باقي الأقسام وفق سياسة العزل بالقسم." },
-            { icon: FilePlus2, title: "دورة الموضوع", desc: "من الرفع إلى المراجعة إلى الاعتماد على جدول الأعمال أو التأجيل أو الرفض." },
-            { icon: CalendarClock, title: "دورة الاجتماع", desc: "من الجدولة إلى فتح استقبال المواضيع إلى الجلسة إلى إغلاق المحضر والأرشفة." },
-            { icon: ClipboardCheck, title: "دورة القرار والمتابعة", desc: "إصدار القرار، إسناد المسؤول، تتبع التنفيذ، وإغلاقه رسمياً بعد الإنجاز." },
-          ].map((c) => (
-            <div key={c.title} className="rounded-lg border border-border bg-background p-3">
-              <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-md bg-secondary text-primary shrink-0">
-                  <c.icon className="h-4 w-4" />
-                </div>
-                <div className="font-bold text-primary text-sm">{c.title}</div>
+      ) : (
+        <>
+          <section
+            data-testid="admin-council-context-header"
+            className="rounded-xl border border-border bg-card p-4 flex flex-wrap items-start justify-between gap-3"
+          >
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-bold text-primary text-base">{selectedCouncil.name}</h2>
+                <Badge variant="outline" className="text-[10px]">
+                  {councilTypeLabel(selectedCouncil.council_type)}
+                </Badge>
+                <Badge
+                  variant={selectedCouncil.is_active ? "secondary" : "outline"}
+                  className="text-[10px]"
+                >
+                  {selectedCouncil.is_active ? "مفعّل" : "غير مفعّل"}
+                </Badge>
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">{c.desc}</p>
+              <p className="text-xs text-muted-foreground">
+                الأعضاء النشطون: {selectedCouncil.members_count}
+                {selectedCouncil.next_meeting_at
+                  ? ` · الاجتماع القادم: ${formatDateTime(selectedCouncil.next_meeting_at)}`
+                  : " · لا يوجد اجتماع قادم مسجّل"}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                تتوفر الإجراءات وفق عضويتك وصلاحيتك داخل المجلس.
+              </p>
             </div>
-          ))}
-        </div>
-      </SectionCard>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs min-h-9"
+                onClick={goMembers}
+              >
+                <Users2 className="h-3.5 w-3.5" aria-hidden />
+                إدارة العضويات
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5 text-xs min-h-9"
+                onClick={goMeetings}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                جدولة اجتماع
+              </Button>
+            </div>
+          </section>
 
-      {/* Footer note */}
-      <div className="rounded-lg border border-dashed border-border bg-card p-4 flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
-        <ArrowRight className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
-        <div>
-          الوظائف التشغيلية الأخرى (استقبال الموضوعات، إصدار القرارات، إرسال التنبيهات)
-          ستُفعَّل في مراحل لاحقة. إدارة العضويات والاجتماعات متاحة الآن ضمن هذا القسم.
-        </div>
-      </div>
+          <Tabs
+            value={workspaceTab}
+            onValueChange={setWorkspaceTab}
+            dir="rtl"
+            data-testid="admin-councils-workspace-tabs"
+          >
+            <TabsList className="w-full h-auto flex flex-wrap justify-start gap-1">
+              <TabsTrigger
+                value="overview"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-overview"
+              >
+                <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+                نظرة عامة
+              </TabsTrigger>
+              <TabsTrigger
+                value="members"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-members"
+              >
+                <Users2 className="h-3.5 w-3.5" aria-hidden />
+                الأعضاء
+              </TabsTrigger>
+              <TabsTrigger
+                value="meetings"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-meetings"
+              >
+                <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+                الاجتماعات
+              </TabsTrigger>
+              <TabsTrigger
+                value="topics"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-topics"
+              >
+                <FilePlus2 className="h-3.5 w-3.5" aria-hidden />
+                الموضوعات
+              </TabsTrigger>
+              <TabsTrigger
+                value="agenda"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-agenda"
+              >
+                <ListChecks className="h-3.5 w-3.5" aria-hidden />
+                جدول الأعمال
+              </TabsTrigger>
+              <TabsTrigger
+                value="minutes-decisions"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-minutes-decisions"
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden />
+                المحاضر والقرارات
+              </TabsTrigger>
+              <TabsTrigger
+                value="follow-up"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-follow-up"
+              >
+                <ClipboardCheck className="h-3.5 w-3.5" aria-hidden />
+                المتابعة
+              </TabsTrigger>
+              <TabsTrigger
+                value="archive"
+                className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                data-testid="admin-tab-archive"
+              >
+                <Archive className="h-3.5 w-3.5" aria-hidden />
+                الأرشيف
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="mt-4 space-y-4">
+              <AdminActionRequiredPanel
+                items={actionItems}
+                onNavigate={(tab) => setWorkspaceTab(tab)}
+              />
+              {nextMeeting ? (
+                <AdminNextMeetingPriority
+                  meeting={nextMeeting}
+                  onOpenMeetings={() => setWorkspaceTab("meetings")}
+                  onOpenAgenda={() => setWorkspaceTab("agenda")}
+                  onOpenTopics={() => setWorkspaceTab("topics")}
+                />
+              ) : meetingsQuery.isLoading ? (
+                <div className="grid place-items-center py-8" role="status">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <EmptyState text="لا يوجد اجتماع قادم لهذا المجلس." />
+              )}
+            </TabsContent>
+
+            <TabsContent value="members" className="mt-4" data-testid="admin-tab-panel-members">
+              <CouncilMembershipPanel council={selectedCouncil} />
+            </TabsContent>
+
+            <TabsContent value="meetings" className="mt-4" data-testid="admin-tab-panel-meetings">
+              <CouncilMeetingsPanel council={selectedCouncil} />
+            </TabsContent>
+
+            <TabsContent value="topics" className="mt-4" data-testid="admin-tab-panel-topics">
+              <CouncilTopicReviewQueuePanel council={selectedCouncil} />
+            </TabsContent>
+
+            <TabsContent value="agenda" className="mt-4" data-testid="admin-tab-panel-agenda">
+              <CouncilAgendaPanel council={selectedCouncil} />
+            </TabsContent>
+
+            <TabsContent
+              value="minutes-decisions"
+              className="mt-4"
+              data-testid="admin-tab-panel-minutes-decisions"
+            >
+              <MinutesDecisionsPanel
+                meetings={allMeetings}
+                isLoading={meetingsQuery.isLoading}
+                isError={meetingsQuery.isError}
+              />
+            </TabsContent>
+
+            <TabsContent value="follow-up" className="mt-4" data-testid="admin-tab-panel-follow-up">
+              <FollowUpPanel />
+            </TabsContent>
+
+            <TabsContent value="archive" className="mt-4" data-testid="admin-tab-panel-archive">
+              <ArchivePanel
+                meetings={allMeetings}
+                isLoading={meetingsQuery.isLoading}
+                isError={meetingsQuery.isError}
+              />
+            </TabsContent>
+
+            <TabsContent value="reports" className="mt-4" data-testid="admin-tab-panel-reports">
+              <CouncilReportsView
+                councilId={selectedCouncil.id}
+                councilName={selectedCouncil.name}
+              />
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
   );
 }
