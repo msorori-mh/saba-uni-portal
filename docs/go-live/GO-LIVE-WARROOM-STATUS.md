@@ -2,16 +2,17 @@
 
 MISSION=`PORTAL-GO-LIVE-24H-AUTONOMOUS-RELEASE-CAPTAIN-WARROOM-01`  
 MESSAGE_BUS=`PR #328 comments`  
-UPDATED_AT_UTC=`2026-08-10T12:40:00Z`  
+UPDATED_AT_UTC=`2026-08-10T13:02:00Z`  
 CAPTAIN=`release-captain-warroom-01`
 
 ## Exact tips
 
 ```text
-CURRENT_MAIN_SHA=fab94705443264ae5fe768c5091e25c7c729be1a
-CURRENT_RC_SHA=7dbc62302603f9c6e6beae4401ed721a199de106
-FINAL_MAIN_SHA=fab94705443264ae5fe768c5091e25c7c729be1a
+CURRENT_MAIN_SHA=19f0cd97abae2d206e26a1b26d62653e624f9fd3
+FINAL_RC_SHA=7dbc62302603f9c6e6beae4401ed721a199de106
+FINAL_SOURCE_MERGE_SHA=fab94705443264ae5fe768c5091e25c7c729be1a
 CURRENT_DEPLOY_SHA=UNKNOWN
+CURRENT_DEPLOY_SOURCE_SHA=19f0cd97abae2d206e26a1b26d62653e624f9fd3
 CURRENT_PRODUCTION_DB_STAGE=PRE_C5V2_APPLY (Lovable-owned; source captain does not write production DB)
 ```
 
@@ -20,8 +21,8 @@ CURRENT_PRODUCTION_DB_STAGE=PRE_C5V2_APPLY (Lovable-owned; source captain does n
 ```text
 B1_STATUS=PASS
 PG17_CHAIN_STATUS=PASS
-VISUAL_STATUS=PASS
-INDEPENDENT_REVIEW_STATUS=PASS
+VISUAL_STATUS=PASS (on FINAL_RC_SHA)
+INDEPENDENT_REVIEW_STATUS=PASS (on FINAL_RC_SHA)
 CI_STATUS=PASS
 MIGRATION_REVIEW_STATUS=PASS
 
@@ -38,50 +39,16 @@ DEPLOY_STATUS=PENDING_LOVABLE
 E2E_STATUS=BLOCKED_UNTIL_DEPLOY
 GO_LIVE_STATUS=SOURCE_MERGED_AND_FROZEN_AWAITING_PRODUCTION
 
-CRITICAL_COUNT=0
-HIGH_COUNT=0
+CRITICAL_COUNT=0 (source hotfix closed reports fallthrough; TEST_ONLY residual accepted by B1/R2 policy)
+HIGH_COUNT=0 (reports ops fallthrough closed via PR336; documents scope deferred as pre-existing design)
 ```
 
-## Token ledger (exact-tip only)
+## Post-merge source hotfixes
 
-| Gate | Token | REVIEWED_SHA / evidence | Status |
-|------|-------|-------------------------|--------|
-| B1 | `PASS_PORTAL_B1_GO_LIVE_MIGRATION_DRIFT_TESTONLY_D02_FINAL_CLOSURE_LONGRUN_01` | Integrated on RC; CRITICAL=0 HIGH=0 | PASS |
-| PG17 | `PASS_PORTAL_GO_LIVE_C5V2_THROUGH_GA3_FULL_CHAIN_PG17_REHEARSAL_LONGRUN_01` | C5V2..GA3 PASS; RUN1/RUN2 PASS | PASS |
-| Visual R2 | `PASS_PORTAL_GO_LIVE_FINAL_VISUAL_BROWSER_ACCEPTANCE_R2` | `7dbc62302603f9c6e6beae4401ed721a199de106` | PASS |
-| Independent R2 | `PASS_PORTAL_GO_LIVE_FINAL_INDEPENDENT_REVIEW_R2` | `7dbc62302603f9c6e6beae4401ed721a199de106` CRITICAL=0 HIGH=0 | PASS |
-| Web CI | SUCCESS | tip `7dbc6230` | PASS |
-| Migration Review | SUCCESS | tip `7dbc6230` | PASS |
-| Source merge | PR328 → main | merge `fab94705443264ae5fe768c5091e25c7c729be1a` | PASS |
-
-## Freeze
-
-See `docs/go-live/FINAL-RELEASE-FREEZE.json`.
-
-```text
-FINAL_RC_SHA=7dbc62302603f9c6e6beae4401ed721a199de106
-FINAL_MAIN_SHA=fab94705443264ae5fe768c5091e25c7c729be1a
-```
-
-## Post-merge posture
-
-- No new features.
-- Source hotfixes only if production blocker requires SOURCE fix.
-- No production DB writes, migrations, or deploy by this captain.
-- Monitor Lovable/Codex production reports on PR #328 bus until `PASS_PORTAL_PRODUCTION_GO_LIVE_FINAL_ACCEPTANCE_01`.
-
-## Message bus protocol
-
-```text
-AGENT=<name>
-REVIEWED_SHA=<sha>
-STATUS=PASS|HOLD|RUNNING
-TOKEN=<token>
-BLOCKER=<none|exact>
-NEXT=<exact>
-```
-
-Never accept PASS for a stale SHA.
+| PR | SHA | Purpose |
+|----|-----|---------|
+| #334 | `837f6f6c` | Freeze + warroom docs |
+| #336 | `19f0cd97` | Fail-closed finance_officer/student_affairs reports fallthrough |
 
 ## Decision
 
