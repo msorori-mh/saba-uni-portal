@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, Circle, Clock, FileText, Loader2, Send, Wallet } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, Clock, Download, FileText, Loader2, Send, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   getStudentServiceRequestDetails,
@@ -11,10 +11,12 @@ import {
 } from "@/lib/student-affairs.functions";
 import {
   getStudentRequestFeeSummaryForStudent,
+  getStudentRequestIssuedDocuments,
   getStudentRequestWorkflowTimelineForStudent,
   type StudentFeeSummary,
   type StudentWorkflowTimelineStep,
 } from "@/lib/student-requests/student-tracking.functions";
+import { getEnrollmentCertificateDocumentSignedUrl } from "@/lib/student-requests/enrollment-certificate-pdf-storage-saga.functions";
 
 export const Route = createFileRoute("/student/requests/$id")({
   component: StudentRequestDetailsPage,
@@ -149,6 +151,19 @@ function WorkflowTimelineSection({ steps }: { steps: StudentWorkflowTimelineStep
 
 
 
+const DOCUMENT_TYPE_LABEL: Record<string, string> = {
+  enrollment_certificate: "شهادة قيد",
+  status_certificate: "شهادة حالة",
+  official_transcript: "كشف درجات رسمي",
+  financial_receipt: "إيصال مالي",
+};
+
+const DOCUMENT_STATUS_LABEL: Record<string, string> = {
+  issued: "صادرة",
+  archived: "مؤرشفة",
+  cancelled: "ملغاة",
+};
+
 const STATUS_LABEL: Record<string, string> = {
   draft: "مسودة",
   submitted: "مُرسل",
@@ -170,6 +185,9 @@ function StudentRequestDetailsPage() {
   const submitFn = useServerFn(submitStudentServiceRequest);
   const timelineFn = useServerFn(getStudentRequestWorkflowTimelineForStudent);
   const feeFn = useServerFn(getStudentRequestFeeSummaryForStudent);
+  const documentsFn = useServerFn(getStudentRequestIssuedDocuments);
+  const documentUrlFn = useServerFn(getEnrollmentCertificateDocumentSignedUrl);
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
   const resubmitInFlightRef = useRef(false);
   const { data, isLoading, error } = useQuery({
@@ -186,6 +204,24 @@ function StudentRequestDetailsPage() {
     queryFn: () => feeFn({ data: { requestId: id } }),
     enabled: !!data,
   });
+  const { data: issuedDocuments = [] } = useQuery({
+    queryKey: ["student-affairs", "documents", id],
+    queryFn: () => documentsFn({ data: { requestId: id } }),
+    enabled: !!data,
+  });
+
+  const downloadDocument = async (documentId: string) => {
+    if (downloadingDocId) return;
+    setDownloadingDocId(documentId);
+    try {
+      const res = await documentUrlFn({ data: { officialDocumentId: documentId } });
+      window.open(res.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error("تعذر تنزيل الوثيقة", { description: (e as Error).message });
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
 
   const openAttachment = async (path: string) => {
     const res = await signedUrlFn({ data: { path } });
@@ -356,6 +392,55 @@ function StudentRequestDetailsPage() {
       {fee && <FeeStatusSection fee={fee} />}
 
       <WorkflowTimelineSection steps={timeline} />
+
+      {issuedDocuments.length > 0 && (
+        <section
+          data-testid="student-request-issued-documents"
+          className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-card"
+        >
+          <h2 className="mb-3 flex items-center gap-2 font-bold text-emerald-900">
+            <FileText className="h-4 w-4" /> الوثيقة الصادرة
+          </h2>
+          <div className="space-y-2">
+            {issuedDocuments.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-background p-3"
+              >
+                <div className="min-w-0 text-sm">
+                  <div className="font-bold text-primary">
+                    {DOCUMENT_TYPE_LABEL[doc.documentType] ?? doc.documentType}
+                  </div>
+                  <div className="font-mono text-xs text-muted-foreground">{doc.documentNumber}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {DOCUMENT_STATUS_LABEL[doc.status] ?? doc.status}
+                    {doc.issuedAt && <> — {new Date(doc.issuedAt).toLocaleString("ar-EG")}</>}
+                  </div>
+                </div>
+                {doc.isDownloadable ? (
+                  <button
+                    type="button"
+                    onClick={() => downloadDocument(doc.id)}
+                    disabled={downloadingDocId === doc.id}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+                  >
+                    {downloadingDocId === doc.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    تحميل الوثيقة
+                  </button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    الوثيقة غير متاحة للتنزيل في حالتها الحالية.
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-card">
