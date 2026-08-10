@@ -188,7 +188,14 @@ export const actOnB1UiRequestStepFn = createServerFn({ method: "POST" })
     if ((data.action === "return" || data.action === "reject") && !data.comment?.trim()) {
       throw new Error("B1_COMMENT_REQUIRED");
     }
+    // Fail-closed preflight: forward actions require the service details row.
+    await assertB1DetailsRowPresentForStep({
+      stepId: data.stepId,
+      action: data.action,
+      actionLabelAr: B1_PANEL_ACTION_LABELS_AR[data.action] ?? null,
+    });
     const rpcAction = await resolveB1ActOnRpcAction(data.stepId, data.action);
+
     const result = await rpcActOnB1StudentRequestStepAtomic(asSessionRpc(context.supabase), {
       stepId: data.stepId,
       action: rpcAction,
