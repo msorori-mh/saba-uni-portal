@@ -9716,6 +9716,129 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      graduate_add_contact_point: {
+        Args: {
+          p_channel_type: string
+          p_graduate_record_id: string
+          p_purpose_code: string
+          p_value: string
+        }
+        Returns: string
+      }
+      graduate_affairs_audit: {
+        Args: {
+          p_aggregate_id: string
+          p_aggregate_type: string
+          p_event_type: string
+          p_payload?: Json
+          p_purpose_code: string
+        }
+        Returns: undefined
+      }
+      graduate_affairs_can_access_record: {
+        Args: { p_graduate_record_id: string }
+        Returns: boolean
+      }
+      graduate_affairs_cohort_employment_report: {
+        Args: {
+          p_graduation_year: number
+          p_minimum_cell_size?: number
+          p_program_id: string
+        }
+        Returns: {
+          employed: number
+          population: number
+          specialization_related: number
+          suppressed: boolean
+          verified: number
+        }[]
+      }
+      graduate_affairs_create_followup: {
+        Args: {
+          p_assignee_user_id: string
+          p_graduate_record_id: string
+          p_next_action_at?: string
+          p_purpose_code: string
+        }
+        Returns: string
+      }
+      graduate_affairs_get_graduate_file: {
+        Args: { p_graduate_record_id: string }
+        Returns: Json
+      }
+      graduate_affairs_is_manager: { Args: never; Returns: boolean }
+      graduate_affairs_is_specialist: { Args: never; Returns: boolean }
+      graduate_affairs_lock_authorized_staff_profile_id: {
+        Args: { p_role_code: string; p_user_id: string }
+        Returns: string
+      }
+      graduate_affairs_lock_caller_authorized_staff_profile: {
+        Args: { p_role_code: string }
+        Returns: string
+      }
+      graduate_affairs_moderate_opportunity: {
+        Args: {
+          p_opportunity_id: string
+          p_target_state: Database["public"]["Enums"]["graduate_opportunity_state"]
+        }
+        Returns: undefined
+      }
+      graduate_affairs_resolve_authorized_staff_profile_id: {
+        Args: { p_role_code: string; p_user_id: string }
+        Returns: string
+      }
+      graduate_affairs_resolve_caller_authorized_staff_profile_id: {
+        Args: { p_role_code: string }
+        Returns: string
+      }
+      graduate_affairs_resolve_self_context: {
+        Args: { p_capability: string }
+        Returns: Json
+      }
+      graduate_affairs_resolve_staff_record_access: {
+        Args: { p_graduate_record_id: string }
+        Returns: Json
+      }
+      graduate_affairs_search_records: {
+        Args: {
+          p_department_id?: string
+          p_graduation_year?: number
+          p_limit?: number
+          p_program_id?: string
+        }
+        Returns: {
+          department_id: string
+          graduation_year: number
+          id: string
+          program_id: string
+          record_state: Database["public"]["Enums"]["graduate_decision_state"]
+        }[]
+      }
+      graduate_affairs_set_employer_verification: {
+        Args: { p_employer_id: string; p_target_state: string }
+        Returns: undefined
+      }
+      graduate_affairs_specialist_department_ids: {
+        Args: never
+        Returns: string[]
+      }
+      graduate_affairs_transition_followup: {
+        Args: {
+          p_followup_id: string
+          p_next_action_at?: string
+          p_outcome?: string
+          p_target_state: Database["public"]["Enums"]["graduate_followup_state"]
+        }
+        Returns: undefined
+      }
+      graduate_affairs_user_is_active_staff: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      graduate_affairs_user_specialist_department_ids: {
+        Args: { p_user_id: string }
+        Returns: string[]
+      }
       graduate_aggregate_employment_report: {
         Args: {
           p_graduation_year: number
@@ -9730,6 +9853,104 @@ export type Database = {
           verified: number
         }[]
       }
+      graduate_audience_matches: {
+        Args: { p_department_id: string; p_program_id: string; p_scope: Json }
+        Returns: boolean
+      }
+      graduate_cancel_event_registration: {
+        Args: { p_registration_id: string }
+        Returns: undefined
+      }
+      graduate_grant_consent: {
+        Args: {
+          p_graduate_record_id: string
+          p_notice_version: string
+          p_purpose_code: string
+        }
+        Returns: string
+      }
+      graduate_is_current_self: {
+        Args: { p_graduate_record_id: string }
+        Returns: boolean
+      }
+      graduate_is_self: {
+        Args: { p_graduate_record_id: string }
+        Returns: boolean
+      }
+      graduate_list_visible_events: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          ends_at: string
+          event_type: string
+          id: string
+          starts_at: string
+          title: string
+        }[]
+      }
+      graduate_list_visible_opportunities: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          closes_at: string
+          description: string
+          employer_name: string
+          id: string
+          opportunity_type: string
+          published_at: string
+          title: string
+        }[]
+      }
+      graduate_my_contact_points: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          channel_type: string
+          created_at: string
+          id: string
+          is_revoked: boolean
+          is_verified: boolean
+          purpose_code: string
+        }[]
+      }
+      graduate_register_for_event: {
+        Args: {
+          p_consent_id: string
+          p_event_id: string
+          p_graduate_record_id: string
+        }
+        Returns: string
+      }
+      graduate_report_employment: {
+        Args: {
+          p_employer_name_reported: string
+          p_employment_status: Database["public"]["Enums"]["graduate_employment_status"]
+          p_ended_on: string
+          p_graduate_record_id: string
+          p_occupation_title: string
+          p_specialization_relationship: Database["public"]["Enums"]["graduate_specialization_relationship"]
+          p_started_on: string
+        }
+        Returns: string
+      }
+      graduate_require_approved_record_locked: {
+        Args: { p_graduate_record_id: string }
+        Returns: undefined
+      }
+      graduate_revoke_contact_point: {
+        Args: { p_contact_point_id: string }
+        Returns: undefined
+      }
+      graduate_self_matches_audience: {
+        Args: { p_scope: Json }
+        Returns: boolean
+      }
+      graduate_submit_survey_response: {
+        Args: {
+          p_answers: Json
+          p_consent_id: string
+          p_graduate_record_id: string
+          p_survey_version_id: string
+        }
+        Returns: string
+      }
       graduate_supersede_account_continuity_policy: {
         Args: {
           p_allow_portal_sign_in: boolean
@@ -9743,6 +9964,25 @@ export type Database = {
           p_valid_from?: string
         }
         Returns: string
+      }
+      graduate_update_own_profile: {
+        Args: {
+          p_career_summary: string
+          p_expected_row_version: number
+          p_graduate_record_id: string
+          p_preferred_contact_channel: string
+          p_profile_visibility: string
+          p_public_display_name: string
+        }
+        Returns: number
+      }
+      graduate_withdraw_consent: {
+        Args: { p_consent_id: string }
+        Returns: undefined
+      }
+      graduate_withdraw_survey_response: {
+        Args: { p_response_id: string }
+        Returns: undefined
       }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
