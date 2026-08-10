@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2, GraduationCap } from "lucide-react";
+import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2, GraduationCap, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
