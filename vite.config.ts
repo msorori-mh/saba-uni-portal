@@ -55,7 +55,7 @@ function readStampedSha(): string | null {
       new URL("./build-sha.generated.json", import.meta.url),
       "utf-8",
     );
-    return normalizeShaCandidate(JSON.parse(raw)?.sha);
+    return normalizeShaCandidate((JSON.parse(raw) as { sha?: string })?.sha);
   } catch {
     return null;
   }
