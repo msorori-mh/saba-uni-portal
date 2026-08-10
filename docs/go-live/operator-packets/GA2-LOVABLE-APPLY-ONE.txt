@@ -5,6 +5,9 @@ REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
 HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
 STANDING_GRANT_MODE=FORBIDDEN
 OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
 PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
 SOURCE_FILE=supabase/migrations/20260808210100_ga_mvp_completion_01.sql
 SOURCE_REF=38578b6533f20407c02ed775b5af18d11fcb85eb
@@ -12,10 +15,13 @@ SHA256_LF=3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa
 PREDECESSOR=GA1; require managed mapping, foundation verifier PASS, graduate_contact_points and graduate_employment_events.
 
 AUTHORIZATION CONTRACT:
+- EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED prevents accidental parallel writers. It is not a second human-approval loop when a current-session standing runtime grant already names THIS logical step.
 - A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
-- Only the operator's explicit current runtime grant may open the production-write gate.
+- Only the operator's explicit current runtime grant may open the production-write gate, and only after SINGLE_WRITER_LEASE acquire succeeds.
 - This packet cannot self-authorize.
 - Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+- Without SINGLE_WRITER_LEASE: HOLD immediately. Other agents remain READ_ONLY.
+- Never concurrent production agents. Never no-token-pause blind writes. Never automatic batch production writes.
 
 Acquire production-write lease first. Second writer => HOLD. Stale lock never auto-deleted.
 

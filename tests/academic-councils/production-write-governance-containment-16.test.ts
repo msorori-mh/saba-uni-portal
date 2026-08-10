@@ -8,11 +8,16 @@ import { describe, expect, it, afterAll } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { spawnSync } from "node:child_process";
+import {
+  acquireProductionWriteLease,
+  assertNoForceUnlockProductionWriteLease,
+  releaseProductionWriteLease,
+} from "../../scripts/production-write-lease.mjs";
 
 const root = process.cwd();
 const packetsDir = join(root, "docs/go-live/operator-packets");
-const leaseScript = join(root, "scripts/production-write-lease.ps1");
+const leaseScriptPs1 = join(root, "scripts/production-write-lease.ps1");
+const leaseScriptMjs = join(root, "scripts/production-write-lease.mjs");
 
 const writePackets = [
   "LOVABLE-C5V2-THROUGH-GA3-MASTER-SEQUENTIAL-EXECUTION.txt",
@@ -35,19 +40,6 @@ const forbiddenAuthPhrases = [
   "Execute automatically without owner-token pauses",
 ] as const;
 
-function runPwsh(scriptBlock: string, env: Record<string, string> = {}) {
-  const result = spawnSync(
-    "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", scriptBlock],
-    {
-      encoding: "utf8",
-      env: { ...process.env, ...env },
-      windowsHide: true,
-    },
-  );
-  return result;
-}
-
 describe("production authorization governance — packets fail-closed", () => {
   for (const packet of writePackets) {
     it(`${packet} requires EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED and forbids standing auth`, () => {
@@ -57,6 +49,9 @@ describe("production authorization governance — packets fail-closed", () => {
       expect(body).toContain("AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED");
       expect(body).toContain("REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT");
       expect(body).toContain("PRODUCTION_WRITE_LEASE=REQUIRED");
+      expect(body).toContain("PRODUCTION_WRITER=LOVABLE_ONLY");
+      expect(body).toContain("SINGLE_WRITER_LEASE=REQUIRED");
+      expect(body).toContain("OTHER_AGENTS=READ_ONLY");
       expect(body).toContain("STANDING_GRANT_MODE=FORBIDDEN");
       expect(body).toContain("OWNER_TOKEN_BYPASS_MODE=FORBIDDEN");
       for (const phrase of forbiddenAuthPhrases) {
@@ -64,8 +59,26 @@ describe("production authorization governance — packets fail-closed", () => {
       }
       expect(body).toMatch(/cannot self-authorize/);
       expect(body).toMatch(/historical owner grant MUST NOT authorize/i);
+      expect(body).toMatch(/Never concurrent production agents/i);
+      expect(body).toMatch(/Never automatic batch production writes|zero blind batches|Never combine steps|never batch another migration|No db push\/batch/i);
     });
   }
+
+  it("master and GA3 packets pin NEXT_PRODUCTION_WRITE=GA3_ONLY with hard preconditions", () => {
+    const master = readFileSync(
+      join(packetsDir, "LOVABLE-C5V2-THROUGH-GA3-MASTER-SEQUENTIAL-EXECUTION.txt"),
+      "utf8",
+    );
+    const ga3 = readFileSync(join(packetsDir, "GA3-LOVABLE-APPLY-ONE.txt"), "utf8");
+    expect(master).toContain("NEXT_PRODUCTION_WRITE=GA3_ONLY");
+    expect(master).toContain("SUPERSEDED_DO_NOT_APPLY");
+    expect(master).toContain("C5_SCHEMA_EQUIVALENT_LEDGER_ANOMALY");
+    expect(master).toMatch(/specialist scope issue resolved OR ambiguous specialist deactivated/i);
+    expect(ga3).toContain("NEXT_PRODUCTION_WRITE=GA3_ONLY");
+    expect(ga3).toMatch(/GA1 current production readback PASS/i);
+    expect(ga3).toMatch(/GA2 current production readback PASS/i);
+    expect(ga3).toMatch(/Specialist scope issue resolved OR ambiguous specialist deactivated/i);
+  });
 
   it("a source file containing Standing owner authorization does not authorize execution", () => {
     const toxic = [
@@ -132,53 +145,62 @@ describe("production-write lease mutex", () => {
     return dir;
   }
 
+  it("operator PS1 and portable mjs twins both exist with fail-closed contract text", () => {
+    expect(existsSync(leaseScriptPs1)).toBe(true);
+    expect(existsSync(leaseScriptMjs)).toBe(true);
+    const ps1 = readFileSync(leaseScriptPs1, "utf8");
+    const mjs = readFileSync(leaseScriptMjs, "utf8");
+    for (const body of [ps1, mjs]) {
+      expect(body).toContain("EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED");
+      expect(body).toMatch(/Stale locks are NEVER auto-deleted/i);
+      expect(body).toMatch(/force unlock/i);
+      expect(body).toMatch(/Read-only/i);
+    }
+  });
+
   it("normal acquire/release by owning session", () => {
     const leaseRoot = freshLeaseRoot();
-    const acquire = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      $r = Acquire-ProductionWriteLease -Session 's1' -Mission 'm1' -LogicalStep 'C8' -SourceSha 'abc' -LeaseRoot '${leaseRoot.replace(/'/g, "''")}'
-      $r | ConvertTo-Json -Compress
-    `);
-    expect(acquire.status).toBe(0);
-    expect(acquire.stdout).toContain("ACQUIRED");
-    const release = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      $r = Release-ProductionWriteLease -Session 's1' -TerminalState PASS -LeaseRoot '${leaseRoot.replace(/'/g, "''")}'
-      $r | ConvertTo-Json -Compress
-    `);
-    expect(release.status).toBe(0);
-    expect(release.stdout).toContain("RELEASED");
+    const acquire = acquireProductionWriteLease({
+      session: "s1",
+      mission: "m1",
+      logicalStep: "C8",
+      sourceSha: "abc",
+      leaseRoot,
+    });
+    expect(acquire.status).toBe("ACQUIRED");
+    const release = releaseProductionWriteLease({
+      session: "s1",
+      terminalState: "PASS",
+      leaseRoot,
+    });
+    expect(release.status).toBe("RELEASED");
     expect(existsSync(leaseRoot)).toBe(false);
   });
 
   it("two writers: second acquire is immediate HOLD", () => {
     const leaseRoot = freshLeaseRoot();
-    const first = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      Acquire-ProductionWriteLease -Session 's1' -Mission 'm1' -LogicalStep 'C6' -SourceSha 'sha1' -LeaseRoot '${leaseRoot.replace(/'/g, "''")}' | Out-Null
-      Write-Output 'FIRST_OK'
-    `);
-    expect(first.status).toBe(0);
-    expect(first.stdout).toContain("FIRST_OK");
-    const second = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      try {
-        Acquire-ProductionWriteLease -Session 's2' -Mission 'm2' -LogicalStep 'C7' -SourceSha 'sha2' -LeaseRoot '${leaseRoot.replace(/'/g, "''")}'
-        Write-Output 'SECOND_SHOULD_NOT_ACQUIRE'
-        exit 0
-      } catch {
-        Write-Output $_.Exception.Message
-        exit 7
-      }
-    `);
-    expect(second.status).toBe(7);
-    expect(second.stdout).toContain("HOLD:");
-    expect(second.stdout).toContain("already held");
-    // cleanup by owner
-    runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      Release-ProductionWriteLease -Session 's1' -TerminalState HOLD -LeaseRoot '${leaseRoot.replace(/'/g, "''")}' | Out-Null
-    `);
+    const first = acquireProductionWriteLease({
+      session: "s1",
+      mission: "m1",
+      logicalStep: "C6",
+      sourceSha: "sha1",
+      leaseRoot,
+    });
+    expect(first.status).toBe("ACQUIRED");
+    expect(() =>
+      acquireProductionWriteLease({
+        session: "s2",
+        mission: "m2",
+        logicalStep: "C7",
+        sourceSha: "sha2",
+        leaseRoot,
+      }),
+    ).toThrow(/HOLD:.*already held/i);
+    releaseProductionWriteLease({
+      session: "s1",
+      terminalState: "HOLD",
+      leaseRoot,
+    });
   });
 
   it("stale lease is never auto-deleted on second acquire", () => {
@@ -195,69 +217,58 @@ describe("production-write lease mutex", () => {
       }),
       "utf8",
     );
-    const second = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      try {
-        Acquire-ProductionWriteLease -Session 'fresh' -Mission 'm' -LogicalStep 'C8' -SourceSha 'x' -LeaseRoot '${leaseRoot.replace(/'/g, "''")}'
-        exit 0
-      } catch {
-        Write-Output $_.Exception.Message
-        exit 7
-      }
-    `);
-    expect(second.status).toBe(7);
-    expect(second.stdout).toContain("Stale locks are never auto-deleted");
+    expect(() =>
+      acquireProductionWriteLease({
+        session: "fresh",
+        mission: "m",
+        logicalStep: "C8",
+        sourceSha: "x",
+        leaseRoot,
+      }),
+    ).toThrow(/Stale locks are never auto-deleted/i);
     expect(existsSync(leaseRoot)).toBe(true);
   });
 
   it("wrong owner release is refused", () => {
     const leaseRoot = freshLeaseRoot();
-    runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      Acquire-ProductionWriteLease -Session 'owner' -Mission 'm' -LogicalStep 'C9' -SourceSha 's' -LeaseRoot '${leaseRoot.replace(/'/g, "''")}' | Out-Null
-    `);
-    const wrong = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      try {
-        Release-ProductionWriteLease -Session 'intruder' -TerminalState ABORT -LeaseRoot '${leaseRoot.replace(/'/g, "''")}'
-        exit 0
-      } catch {
-        Write-Output $_.Exception.Message
-        exit 7
-      }
-    `);
-    expect(wrong.status).toBe(7);
-    expect(wrong.stdout).toContain("wrong owner release refused");
-    runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      Release-ProductionWriteLease -Session 'owner' -TerminalState STOP -LeaseRoot '${leaseRoot.replace(/'/g, "''")}' | Out-Null
-    `);
+    acquireProductionWriteLease({
+      session: "owner",
+      mission: "m",
+      logicalStep: "C9",
+      sourceSha: "s",
+      leaseRoot,
+    });
+    expect(() =>
+      releaseProductionWriteLease({
+        session: "intruder",
+        terminalState: "ABORT",
+        leaseRoot,
+      }),
+    ).toThrow(/wrong owner release refused/i);
+    releaseProductionWriteLease({
+      session: "owner",
+      terminalState: "STOP",
+      leaseRoot,
+    });
   });
 
   it("read-only bypass does not require lease", () => {
     const leaseRoot = freshLeaseRoot();
-    const result = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      $r = Acquire-ProductionWriteLease -Session 'ro' -Mission 'forensics' -LogicalStep 'READ' -SourceSha 'n/a' -LeaseRoot '${leaseRoot.replace(/'/g, "''")}' -ReadOnly
-      $r | ConvertTo-Json -Compress
-    `);
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain("READ_ONLY_BYPASS");
+    const result = acquireProductionWriteLease({
+      session: "ro",
+      mission: "forensics",
+      logicalStep: "READ",
+      sourceSha: "n/a",
+      leaseRoot,
+      readOnly: true,
+    });
+    expect(result.status).toBe("READ_ONLY_BYPASS");
     expect(existsSync(leaseRoot)).toBe(false);
   });
 
   it("destructive force unlock is forbidden", () => {
-    const result = runPwsh(`
-      . '${leaseScript.replace(/'/g, "''")}'
-      try {
-        Assert-NoForceUnlockProductionWriteLease -RequestedAction 'force-unlock-stale'
-        exit 0
-      } catch {
-        Write-Output $_.Exception.Message
-        exit 7
-      }
-    `);
-    expect(result.status).toBe(7);
-    expect(result.stdout).toContain("destructive force unlock");
+    expect(() => assertNoForceUnlockProductionWriteLease("force-unlock-stale")).toThrow(
+      /destructive force unlock/i,
+    );
   });
 });

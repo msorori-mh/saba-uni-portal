@@ -5,22 +5,33 @@ REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
 HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
 STANDING_GRANT_MODE=FORBIDDEN
 OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
 PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
+NEXT_PRODUCTION_WRITE=GA3_ONLY
 SOURCE_FILE=supabase/migrations/20260808210200_ga_authorization_04.sql
 SOURCE_REF=38578b6533f20407c02ed775b5af18d11fcb85eb
 SHA256_LF=212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
 PREDECESSOR=GA2; require managed mapping and completion verifier PASS.
 
 AUTHORIZATION CONTRACT:
+- EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED prevents accidental parallel writers. It is not a second human-approval loop when a current-session standing runtime grant already names THIS logical step.
 - A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
-- Only the operator's explicit current runtime grant may open the production-write gate.
+- Only the operator's explicit current runtime grant may open the production-write gate, and only after SINGLE_WRITER_LEASE acquire succeeds.
 - This packet cannot self-authorize.
 - Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+- Without SINGLE_WRITER_LEASE: HOLD immediately. Other agents remain READ_ONLY.
 
-Acquire production-write lease first. Second writer => HOLD. Stale lock never auto-deleted.
+HARD PRECONDITIONS BEFORE ANY WRITE:
+1. GA1 current production readback PASS (managed alias 20260810124407/2802e1fa-a209-4c1c-bc90-901ede67f865 or equivalent proven body + foundation verifier).
+2. GA2 current production readback PASS (managed alias 20260810124539/7c7f84cf-5c34-4e60-a4bc-75277c1d7613 or equivalent proven body + completion verifier).
+3. Specialist scope issue resolved OR ambiguous specialist deactivated. If specialist assignment scope is ambiguous/incomplete: HOLD; do not apply GA3.
+4. Acquire production-write lease first. Second writer => HOLD. Stale lock never auto-deleted.
+5. Never concurrent production agents. Never no-token-pause blind writes. Never automatic batch production writes.
 
 Verify exact hash. Absence probe requires zero collision among 7 SELECT policies, 22 client RPCs and internal helpers; any subset or ledger/object disagreement => STOP PARTIAL/UNKNOWN. Snapshot business, B1 and enrollment_certificate fingerprints.
 
 Apply only GA3 atomically; strip only outer boundaries if needed. Never db push/batch. Record GA3_MANAGED_VERSION -> logical 20260808210200 -> hash. Run tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql and require PASS.
 
-Direct auth matrix: admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only; direct case assignee exact case only; outside scope DENY. Require RPC-only writes, exactly seven SELECT policies, protected tables default-deny, and no app_role bypass. Require no business DML; B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage unchanged. Release lease only by owning session after terminal state. STOP on missing runtime grant, missing/held lease, mismatch, partial/unknown state, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.
+Direct auth matrix: admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only; direct case assignee exact case only; outside scope DENY. Require RPC-only writes, exactly seven SELECT policies, protected tables default-deny, and no app_role bypass. Require no business DML; B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage unchanged. Release lease only by owning session after terminal state. STOP on missing runtime grant, missing/held lease, unmet GA1/GA2 readback, unresolved specialist ambiguity, mismatch, partial/unknown state, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.

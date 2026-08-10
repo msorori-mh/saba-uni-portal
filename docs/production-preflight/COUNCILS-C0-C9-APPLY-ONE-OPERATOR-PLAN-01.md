@@ -4,8 +4,9 @@
 - **Base:** PR #306 / `1f50e7dcc8042cf15780c7817ecefa579c49f431`
 - **Hash contract:** `SHA256_LF_NORMALIZED_V1` (FULL file LF hash — authoritative)
 - **Rule:** **ONE migration per session.** No batch. No parallel. No CI auto-apply.
+- **Write governance (authoritative via PR339):** `PRODUCTION_WRITER=LOVABLE_ONLY` · `SINGLE_WRITER_LEASE=REQUIRED` · `OTHER_AGENTS=READ_ONLY` · `NEXT_PRODUCTION_WRITE=GA3_ONLY`
 - **Supported preflight outcomes:** `LEGACY_SUPPORTED_EXACT` authorizes C0; `PARTIAL_NEW_CHAIN_EXACT_PREFIX` and `FULL_NEW_CHAIN_VERIFIED` are successful STOP states. Unknown variation = HOLD.
-- **Status:** SOURCE READY — **NOT APPLIED**
+- **Status:** C0–C9 production lineage proven; do not re-apply. Next governed production write is GA3_ONLY under lease.
 
 Pinned hashes: `docs/migration-evidence/academic-councils/HASHES.txt`  
 Manifest: `docs/migration-evidence/academic-councils/MIGRATION_MANIFEST.json`

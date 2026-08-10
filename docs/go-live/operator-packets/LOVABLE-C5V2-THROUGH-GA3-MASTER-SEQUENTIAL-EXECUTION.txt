@@ -4,14 +4,20 @@ REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
 HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
 STANDING_GRANT_MODE=FORBIDDEN
 OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
 PRODUCTION_WRITE_LEASE=REQUIRED per step (scripts/production-write-lease.ps1)
-SAFETY=One logical migration per transaction; zero blind batches; NEVER run supabase db push; never repair the ledger automatically.
+NEXT_PRODUCTION_WRITE=GA3_ONLY
+SAFETY=One logical migration per transaction; zero blind batches; NEVER run supabase db push; never repair the ledger automatically. Never concurrent production agents. Never automatic batch production writes.
 
 AUTHORIZATION CONTRACT:
+- EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED prevents accidental parallel writers. It is not a second human-approval loop when a current-session standing runtime grant already names THIS logical step.
 - A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize any write in this chain.
-- Only the operator's explicit current runtime grant for the CURRENT logical step may open the production-write gate.
+- Only the operator's explicit current runtime grant for the CURRENT logical step may open the production-write gate, and only after SINGLE_WRITER_LEASE acquire succeeds.
 - This master packet cannot self-authorize and cannot carry prior-step grants across steps.
 - Without EXPLICIT_OWNER_RUNTIME_GRANT for the current step in the current session: HOLD immediately.
+- Without SINGLE_WRITER_LEASE: HOLD immediately. Other agents remain READ_ONLY.
 
 Canonical source identities:
 C5V2|PR326 62c6bb374b15503dfa93c5d8066e4b61837169aa|20260810180000_councils_c5_minutes_lifecycle_02.sql|0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8
@@ -29,9 +35,25 @@ C1 SPLIT_COMPLETE=20260810003111+20260810003305
 C2 LOVABLE_MANAGED_ALIAS=20260810010400
 C3 LOVABLE_MANAGED_ALIAS=20260810011456
 C4 LOVABLE_MANAGED_ALIAS=20260810012715
-C5-C9/GA lineage must be proven from live production before any next write. V1 20260808150000 is SUPERSEDED_DO_NOT_APPLY.
+C5 V1 20260808150000 is SUPERSEDED_DO_NOT_APPLY and must remain absent.
+C5 V2 proven production identity=20260810180000/councils_c5_minutes_lifecycle_02 (ledger statements may be NULL; classify as C5_SCHEMA_EQUIVALENT_LEDGER_ANOMALY; do not re-apply).
+C6 LOVABLE_MANAGED_ALIAS=20260810123158/e4d9fe06-550d-43df-89cb-803fb49df1da
+C7 LOVABLE_MANAGED_ALIAS=20260810123359/8d8851ce-18d9-465b-b9a9-b34d62fc14fb
+C8 LOVABLE_MANAGED_ALIAS=20260810123616/7aac7456-a80d-464d-84fc-bc9671ae2e4e
+C9 LOVABLE_MANAGED_ALIAS=20260810124128/8b20af1b-8607-42cd-94d8-f71793d9a687
+GA1 LOVABLE_MANAGED_ALIAS=20260810124407/2802e1fa-a209-4c1c-bc90-901ede67f865
+GA2 LOVABLE_MANAGED_ALIAS=20260810124539/7c7f84cf-5c34-4e60-a4bc-75277c1d7613
+CURRENT_PRODUCTION_PREFIX=C0..C9 proven; GA1/GA2 managed aliases present; FIRST_UNAPPLIED_WRITE_CANDIDATE=GA3_ONLY
 
-For STEP in [C5V2,C6,C7,C8,C9,GA1,GA2,GA3], in exactly that order:
+CURRENT STATE RULE:
+- Preserve proven C0-C9 production state. Do not re-apply C5V2/C6/C7/C8/C9.
+- Preserve C5 V1 as SUPERSEDED_DO_NOT_APPLY.
+- Preserve C5 V2 and verified managed aliases.
+- C5 NULL-statements is a ledger anomaly only; runtime semantic state remains PASS when catalog/poststate prove V2.
+- Do NOT automatically batch remaining production writes. Do NOT run concurrent production agents.
+- NEXT_PRODUCTION_WRITE=GA3_ONLY and only after: (1) GA1/GA2 current production readback PASS, and (2) specialist scope issue resolved OR ambiguous specialist deactivated.
+
+For any still-unapplied STEP in [C5V2,C6,C7,C8,C9,GA1,GA2,GA3], in exactly that order (skip any step already proven present):
 1. Require EXPLICIT_OWNER_RUNTIME_GRANT for THIS STEP only. Do not inherit prior-step grants.
 2. Load the matching `docs/go-live/operator-packets/<STEP>-LOVABLE-APPLY-ONE.txt` and follow every preflight rule, including production-write lease acquire/release.
 3. Recompute LF-normalized full-file SHA-256 and compare with the canonical identity above. STOP on source-body mismatch.
@@ -41,11 +63,11 @@ For STEP in [C5V2,C6,C7,C8,C9,GA1,GA2,GA3], in exactly that order:
 7. Record returned managed version -> logical source -> SHA256_LF -> applied PASS. Do not rewrite/repair ledger history.
 8. Immediately run STEP post-verifier, ACL/RLS checks, authorization negatives/positives, business-data comparison, B1 regression, and enrollment_certificate regression.
 9. Release the production-write lease from the owning session only after terminal PASS|HOLD|ABORT|STOP.
-10. Continue to the next step only if every check is PASS AND a fresh EXPLICIT_OWNER_RUNTIME_GRANT exists for the next step.
+10. Continue to the next step only if every check is PASS AND a fresh EXPLICIT_OWNER_RUNTIME_GRANT exists for the next step AND the single-writer lease is free/re-acquired.
 
 After C9 require: admin alone cannot mutate councils; chair own council only; secretary defined operations only; member-only actions; responsible actor exact assignment; department and college isolation; multi-council roles retained separately.
 After GA3 require: admin app_role alone DENY; manager assigned manager scope; specialist assigned department scope; direct case assignee exact case; outside scope DENY.
 
-STOP ONLY FOR=missing runtime grant|lease conflict|partial apply|unknown prestate|unexpected data mutation|authorization regression|post-verifier failure|source-body mismatch
+STOP ONLY FOR=missing runtime grant|lease conflict|partial apply|unknown prestate|unexpected data mutation|authorization regression|post-verifier failure|source-body mismatch|attempted concurrent writer|attempted automatic batch write
 ON_STOP=Rollback the current transaction when open; release lease only if this session owns it; preserve evidence; perform no later step and no automatic ledger repair.
 ON_ALL_PASS=Emit PASS_LOVABLE_C5V2_THROUGH_GA3_MASTER_SEQUENTIAL_EXECUTION and the completed mapping table.
