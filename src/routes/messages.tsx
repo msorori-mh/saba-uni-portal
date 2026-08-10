@@ -138,10 +138,15 @@ function MessagesCenter() {
                   <div className="grid h-full place-items-center text-sm text-muted-foreground">اختر رسالة لعرضها</div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="text-xs text-muted-foreground">
-                      {box === "sent" ? `إلى: ${(selected as any).recipient_name}` : `من: ${(selected as any).sender_name}`}
-                      {" • "}
-                      {new Date((selected as any).sent_at).toLocaleString("ar-EG")}
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <button onClick={() => setSelectedId(null)} className="text-xs text-primary font-bold inline-flex items-center gap-1">
+                        <ArrowRight className="h-3.5 w-3.5" /> عودة لقائمة الرسائل
+                      </button>
+                      <div className="text-xs text-muted-foreground">
+                        {box === "sent" ? `إلى: ${(selected as any).recipient_name}` : `من: ${(selected as any).sender_name}`}
+                        {" • "}
+                        {new Date((selected as any).sent_at).toLocaleString("ar-EG")}
+                      </div>
                     </div>
                     <h2 className="font-display text-lg font-extrabold text-primary">{(selected as any).subject}</h2>
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{(selected as any).message_body}</p>
