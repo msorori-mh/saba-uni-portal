@@ -79,10 +79,8 @@ function AuditLogPage() {
     );
   }, [data, search]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
+  const handleLogout = useStaffLogout();
+
 
   return (
     <PortalShell title="سجل التدقيق" onLogout={handleLogout}>
