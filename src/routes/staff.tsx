@@ -37,15 +37,32 @@ export const Route = createFileRoute("/staff")({
 
 function StaffLayout() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
+  const lastUserId = useRef<string | null>(null);
 
   useEffect(() => {
     setReady(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session) navigate({ to: "/portal-login", replace: true });
+      if (!session) {
+        lastUserId.current = null;
+        queryClient.clear();
+        navigate({ to: "/portal-login", replace: true });
+        return;
+      }
+      const uid = session.user.id;
+      if (lastUserId.current && lastUserId.current !== uid) {
+        // A different staff member signed in on this browser: drop every
+        // cached query/route match belonging to the previous identity.
+        queryClient.clear();
+        void router.invalidate();
+      }
+      lastUserId.current = uid;
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, router, queryClient]);
+
 
   if (!ready) {
     return (
