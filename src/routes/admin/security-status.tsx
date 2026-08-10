@@ -43,7 +43,7 @@ function buildSections(s: HardeningStatus): Section[] {
     { label: "Leaked Password Protection (HIBP)", status: "PASS", detail: "تم تفعيله من إعدادات Auth" },
     { label: "Email Auto-Confirm", status: "PASS", detail: "مفعّل — لا حاجة لتأكيد البريد لكون الحسابات تُنشأ مركزياً" },
     { label: "Password Minimum Strength", status: "WARNING", detail: "غير مُحدّد صراحةً", recommendation: "ارفع الحد الأدنى من إعدادات Cloud → Auth إلى 10+ مع رموز ومحارف خاصة" },
-    { label: "MFA (Multi-Factor Authentication)", status: "WARNING", detail: "غير مُفعّل", recommendation: "خارج نطاق هذه المرحلة — يُنفّذ لاحقاً" },
+    { label: "MFA (Multi-Factor Authentication)", status: "WARNING", detail: "غير مُفعّل", recommendation: "يتطلب تفعيل خدمة المصادقة المتعددة العوامل على المستضد" },
   ];
 
   const bucketChecks: Check[] = s.buckets.map((b) => {
