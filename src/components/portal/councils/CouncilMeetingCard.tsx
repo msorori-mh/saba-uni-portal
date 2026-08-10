@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ListChecks, Loader2, Pencil, PlayCircle } from "lucide-react";
+import { CheckCircle2, ListChecks, Loader2, Pencil, PlayCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,10 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { updateCouncilMeeting } from "@/lib/admin-councils.functions";
-import { transitionMyCouncilMeeting } from "@/lib/faculty-councils.functions";
-import type { CouncilMeetingV2Item } from "@/lib/faculty-councils.functions";
+import {
+  approveCouncilQuorumPolicy,
+  evaluateCouncilMeetingQuorum,
+  finalizeCouncilAttendance,
+  getCouncilAttendanceRoll,
+  getCouncilCurrentQuorumPolicy,
+  recordCouncilAttendance,
+  transitionMyCouncilMeeting,
+} from "@/lib/faculty-councils.functions";
+import type { CouncilAttendanceRollMember, CouncilMeetingV2Item } from "@/lib/faculty-councils.functions";
 import { MeetingAgendaExpandable } from "./MeetingAgendaExpandable";
 import {
   extractErrorMessage,
