@@ -33,7 +33,12 @@ import {
   recordCouncilAttendance,
   transitionMyCouncilMeeting,
 } from "@/lib/faculty-councils.functions";
-import type { CouncilAttendanceRollMember, CouncilMeetingV2Item } from "@/lib/faculty-councils.functions";
+import type {
+  CouncilAttendanceRollMember,
+  CouncilAttendanceRollResult,
+  CouncilMeetingV2Item,
+  CouncilQuorumPolicyResult,
+} from "@/lib/faculty-councils.functions";
 import { MeetingAgendaExpandable } from "./MeetingAgendaExpandable";
 import {
   extractErrorMessage,
