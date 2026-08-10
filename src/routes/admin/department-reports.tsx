@@ -40,10 +40,25 @@ function DepartmentReportsPage() {
     refetchOnWindowFocus: false,
   });
 
-  const isPrivilegedOrDean = useMemo(() => {
-    const r = actorScope?.roles ?? roles;
-    return r.some((role) => ["system_admin", "admin", "dean"].includes(role));
-  }, [actorScope?.roles, roles]);
+  const resolvedRoles = actorScope?.roles ?? roles;
+
+  /** Explicit department selector — admin / system_admin only (existing contract). */
+  const isPrivilegedAdmin = useMemo(
+    () => resolvedRoles.some((role) => ["system_admin", "admin"].includes(role)),
+    [resolvedRoles],
+  );
+
+  /**
+   * Dean must NOT enumerate or submit arbitrary department IDs.
+   * No trustworthy college→department containment exists server-side yet —
+   * fail closed and direct to College / Reports Center.
+   */
+  const isDeanWithoutAdmin = useMemo(
+    () =>
+      resolvedRoles.includes("dean") &&
+      !resolvedRoles.some((role) => ["system_admin", "admin"].includes(role)),
+    [resolvedRoles],
+  );
 
   const { data: departments = [] } = useQuery({
     queryKey: ["department-list-for-reports"],
@@ -55,30 +70,44 @@ function DepartmentReportsPage() {
       if (error) return [];
       return data ?? [];
     },
-    enabled: isPrivilegedOrDean,
+    enabled: isPrivilegedAdmin,
     staleTime: 300_000,
   });
 
-  // Auto-select department if available
+  // Auto-select: department_head uses bound dept; admin may pick from list.
   useEffect(() => {
-    if (actorScope?.departmentId) {
+    if (isDeanWithoutAdmin) {
+      setSelectedDepartmentId(null);
+      return;
+    }
+    if (!isPrivilegedAdmin && actorScope?.departmentId) {
       setSelectedDepartmentId(actorScope.departmentId);
-    } else if (isPrivilegedOrDean && departments.length > 0 && !selectedDepartmentId) {
+    } else if (isPrivilegedAdmin && departments.length > 0 && !selectedDepartmentId) {
       setSelectedDepartmentId(departments[0].id);
     }
-  }, [actorScope?.departmentId, isPrivilegedOrDean, departments, selectedDepartmentId]);
+  }, [
+    actorScope?.departmentId,
+    isPrivilegedAdmin,
+    isDeanWithoutAdmin,
+    departments,
+    selectedDepartmentId,
+  ]);
 
-  const targetDeptId = selectedDepartmentId ?? actorScope?.departmentId ?? null;
+  const targetDeptId = isDeanWithoutAdmin
+    ? null
+    : (selectedDepartmentId ??
+      (!isPrivilegedAdmin ? actorScope?.departmentId ?? null : null));
 
   const { data, isLoading: isSummaryLoading, error } = useQuery({
     queryKey: ["department-reports-summary", targetDeptId],
     queryFn: () => fetchSummary({ data: { department_id: targetDeptId ?? undefined } }),
-    enabled: Boolean(targetDeptId || (!isPrivilegedOrDean && actorScope?.departmentId)),
+    enabled: Boolean(targetDeptId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const isLoading = isScopeLoading || (Boolean(targetDeptId) && isSummaryLoading);
+  const isLoading =
+    isScopeLoading || (Boolean(targetDeptId) && isSummaryLoading);
 
   const viewerScope = actorScope
     ? catalogViewerFromActorScope(actorScope)
@@ -119,13 +148,15 @@ function DepartmentReportsPage() {
     [data],
   );
 
+  const showScopeGate = !isLoading && (!targetDeptId || error);
+
   return (
     <div dir="rtl" className="p-4 md:p-6 space-y-4">
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : error || (!targetDeptId && !isLoading) ? (
+      ) : showScopeGate ? (
         <div className="rounded-xl border border-border bg-card p-6 space-y-4 max-w-xl mx-auto text-center">
           <div className="flex justify-center text-amber-600">
             <AlertCircle className="h-10 w-10" />
@@ -134,9 +165,11 @@ function DepartmentReportsPage() {
           <p className="text-sm text-muted-foreground">
             {error
               ? (error as Error).message || "تعذر تحميل تقارير القسم."
-              : "يتطلب استعراض تقارير القسم تحديد قسم صريح أو امتلاك ربط قسم معتمد. يمكنك الاطلاع على التقارير العامة من مركز التقارير."}
+              : isDeanWithoutAdmin
+                ? "نطاق تقارير الأقسام للعميد غير متاح حتى يتوفر ربط كلية→أقسام موثوق على الخادم. استخدم تقارير الكلية أو مركز التقارير — لا يُسمح باختيار قسم اعتباطي."
+                : "يتطلب استعراض تقارير القسم تحديد قسم صريح أو امتلاك ربط قسم معتمد. يمكنك الاطلاع على التقارير العامة من مركز التقارير."}
           </p>
-          {isPrivilegedOrDean && departments.length > 0 && (
+          {isPrivilegedAdmin && departments.length > 0 && (
             <div className="pt-2 flex flex-col items-center gap-2">
               <label htmlFor="error-dept-select" className="text-xs font-semibold text-muted-foreground">
                 اختر قسماً للعرض:
@@ -155,7 +188,15 @@ function DepartmentReportsPage() {
               </select>
             </div>
           )}
-          <div className="pt-2">
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+            {isDeanWithoutAdmin && (
+              <Link
+                to="/admin/executive-reports"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-bold text-primary"
+              >
+                تقارير الكلية
+              </Link>
+            )}
             <Link
               to="/admin/reports"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
@@ -180,7 +221,7 @@ function DepartmentReportsPage() {
                   </p>
                 </div>
               </div>
-              {isPrivilegedOrDean && departments.length > 0 && (
+              {isPrivilegedAdmin && departments.length > 0 && (
                 <div className="flex items-center gap-2">
                   <label htmlFor="dept-select" className="text-xs font-bold text-muted-foreground whitespace-nowrap">
                     القسم:

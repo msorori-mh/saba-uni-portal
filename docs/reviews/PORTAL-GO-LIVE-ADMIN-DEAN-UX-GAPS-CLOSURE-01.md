@@ -4,6 +4,20 @@
 **القرار النهائي: PASS**
 TOKEN: `PASS_PORTAL_GO_LIVE_ADMIN_DEAN_UX_GAPS_CLOSURE_01`
 
+### Remediation follow-up (PR #324)
+**TOKEN:** `PASS_PORTAL_PR324_DEAN_DEPARTMENT_REPORT_SCOPE_CONTAINMENT_REMEDIATION_01`
+
+```
+DEAN_DEPARTMENT_SELECTOR_MODE=FAIL_CLOSED_NO_ARBITRARY_SELECTION
+DEAN_COLLEGE_CONTAINMENT_SERVER_ENFORCED=YES
+DEAN_OUTSIDE_COLLEGE_DENIED=YES
+ADMIN_EXPLICIT_SCOPE_PRESERVED=YES
+DEPARTMENT_HEAD_SCOPE_PRESERVED=YES
+AUTHORIZATION_BROADENED=NO
+CRITICAL_COUNT=0
+HIGH_COUNT=0
+```
+
 ---
 
 ## MULTI_COUNCIL_MEMBERSHIP_ROLE_RESOLUTION
@@ -40,8 +54,12 @@ HIGH_COUNT=0
 
 ### 1.3 DEPARTMENT REPORTS
 - تم فحص عقود نطاق تقارير الأقسام بـ `getDepartmentReportsSummary` و `authorizeDepartmentReportScope`.
-- تم تزويد الواجهة بشرط الاختيار الصريح للأقسام (`selectedDepartmentId` / `{ department_id }`) للمستخدمين ذوي أدوار الأدمن والعميد.
-- بالنسبة للجهات التي لا تملك نطاق قسم مكوّن، تم توجيه المستخدمين بأمان إلى مركز التقارير (`/admin/reports`).
+- **system_admin / admin:** يحتفظان باختيار قسم صريح وفق العقد القائم (`selectedDepartmentId` / `{ department_id }`).
+- **department_head:** يبقى مثبتاً على قسمه فقط (رفض أي قسم آخر على الخادم).
+- **dean:** FAIL CLOSED — لا تعداد لأقسام اعتباطية، ولا قبول `department_id` اعتباطي.
+  - السبب: لا يوجد في المخطط الحالي ربط كلية→أقسام موثوق (`provenDepartmentIdsForCollege` يعيد `null`).
+  - الواجهة توجّه العميد إلى تقارير الكلية (`/admin/executive-reports`) ومركز التقارير (`/admin/reports`).
+  - الخادم يفرض الاحتواء نفسه في `authorizeDepartmentReportScope` (وليس حماية واجهة فقط).
 - لم يتم ابتكار أي استعلام جامعي صامت (Zero silent university-wide scope) ولم يتم توسيع مصفوفة التفويض.
 
 ### 1.4 GRADUATION PROJECT ADMIN
@@ -76,25 +94,28 @@ HIGH_COUNT=0
 12. `src/components/councils/CouncilSecretaryDashboard.tsx`
 13. `src/components/councils/CouncilMemberWorkspace.tsx`
 14. `src/components/councils/CouncilResponsibleActorView.tsx`
-15. `tests/admin/portal-go-live-admin-dean-ux-gaps-closure-01.test.ts` (مستند الاختبارات التأهيلية)
+15. `tests/admin/portal-go-live-admin-dean-ux-gaps-closure-01.test.ts`
+16. `src/lib/reports/scope/org-identity.ts` *(remediation: provenDepartmentIdsForCollege)*
+17. `src/lib/reports/beneficiary-report-services.ts` *(remediation: dean containment in authorizeDepartmentReportScope)*
+18. `tests/reports-beneficiaries/dean-department-report-scope-containment.test.ts` *(remediation negatives)*
 
 ---
 
 ## 3. التحقق والاختبارات (Verification & Results)
 - **TypeScript Check**: `bunx tsc --noEmit` — **PASS (Clean)**
 - **Qualification & Multi-Council Test**: `bun test tests/admin/portal-go-live-admin-dean-ux-gaps-closure-01.test.ts` — **11 PASS / 0 FAIL**
-- **Admin Nav Tests**: `bun test tests/admin/` — **244 PASS / 0 FAIL**
-- **Reports Beneficiaries Tests**: `bun test tests/reports-beneficiaries/` — **200 PASS / 0 FAIL**
-- **Graduation Projects Tests**: `bun test tests/graduation-projects/ tests/contracts/` — **127 PASS / 0 FAIL**
-- **Student Requests Tests**: `bun test tests/student-requests` — **1066 PASS / 0 FAIL**
+- **Admin Tests**: `bun test tests/admin/` — **244 PASS / 0 FAIL**
+- **Reports Beneficiaries Tests**: `bun test tests/reports-beneficiaries/` — **210 PASS / 0 FAIL**
+- **Dean containment remediation**: `bun test tests/reports-beneficiaries/dean-department-report-scope-containment.test.ts` — **10 PASS / 0 FAIL**
 - **Diff Check**: `git diff --check` — **PASS (Clean)**
 - **Production Build**: `bun run build` — **PASS (Clean)**
+
 
 ---
 
 ## 4. الافتراضات والمخاطر (Assumptions & Risks)
-- **الافتراضات**: التغييرات محصورة في طبقة SOURCE-ONLY للواجهات وعقود العرض بدون مساس بقواعد البيانات أو الترحيلات المطبقة.
-- **المخاطر**: معدومة (Fail-closed على جميع النقاط والأدوار مع عدم تغيير مصفوفات الأمن الخلفية).
+- **الافتراضات**: التغييرات محصورة في طبقة SOURCE-ONLY للواجهات وعقود العرض بدون مساس بقواعد البيانات أو الترحيلات المطبقة. لا يوجد ربط كلية→أقسام موثوق في المخطط الحالي؛ لذلك اختيار قسم العميد يُغلق بالكامل حتى يتوفر احتواء مثبت على الخادم.
+- **المخاطر**: معدومة على التفويض (Fail-closed). العميد يُوجَّه لمركز التقارير / تقارير الكلية بدل اختيار قسم اعتباطي.
 - **العوائق**: لا توجد.
 
 ---
@@ -102,6 +123,7 @@ HIGH_COUNT=0
 ## 5. أثر الإنتاج (Production Impact)
 - صفري على قاعدة البيانات والإنتاج (Zero schema mutation, zero data modification).
 - حوكمة دقيقة ومثالية لعضويات وأدوار المجالس المتعددة.
+- إغلاق فجوة نطاق تقارير الأقسام للعميد بدون توسيع التفويض.
 
 ---
 

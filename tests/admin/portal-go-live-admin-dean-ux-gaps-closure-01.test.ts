@@ -71,11 +71,18 @@ describe("PORTAL-GO-LIVE-ADMIN-DEAN-UX-GAPS-CLOSURE-01", () => {
   });
 
   describe("3. DEPARTMENT REPORTS", () => {
-    it("supports explicit department selection and directs unassigned actors to Reports Center", () => {
+    it("supports explicit department selection for admin only; dean fail-closed to College/Reports Center", () => {
       expect(DEPT_REPORTS_SRC).toContain("selectedDepartmentId");
       expect(DEPT_REPORTS_SRC).toContain("department_id:");
       expect(DEPT_REPORTS_SRC).toContain("/admin/reports");
       expect(DEPT_REPORTS_SRC).toContain("رئيس القسم يرى قسمه فقط");
+      // Remediation: dean is NOT a selectable-department actor.
+      expect(DEPT_REPORTS_SRC).toContain("isPrivilegedAdmin");
+      expect(DEPT_REPORTS_SRC).toContain("isDeanWithoutAdmin");
+      expect(DEPT_REPORTS_SRC).not.toContain("isPrivilegedOrDean");
+      expect(DEPT_REPORTS_SRC).toContain("enabled: isPrivilegedAdmin");
+      expect(DEPT_REPORTS_SRC).toContain("/admin/executive-reports");
+      expect(DEPT_REPORTS_SRC).toContain("ربط كلية→أقسام موثوق");
     });
   });
 
