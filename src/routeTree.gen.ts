@@ -87,6 +87,7 @@ import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffAuditLogRouteImport } from './routes/staff.audit-log'
 import { Route as StaffB1RequestsRouteImport } from './routes/staff.b1-requests'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
+import { Route as StaffFixturesDiagnosticsRouteImport } from './routes/staff.fixtures-diagnostics'
 import { Route as StaffGraduatesAffairsRouteImport } from './routes/staff.graduates-affairs'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
@@ -582,6 +583,12 @@ const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffFixturesDiagnosticsRoute =
+  StaffFixturesDiagnosticsRouteImport.update({
+    id: '/fixtures-diagnostics',
+    path: '/fixtures-diagnostics',
+    getParentRoute: () => StaffRoute,
+  } as any)
 const StaffGraduatesAffairsRoute = StaffGraduatesAffairsRouteImport.update({
   id: '/graduates-affairs',
   path: '/graduates-affairs',
@@ -843,6 +850,7 @@ export interface FileRoutesByFullPath {
   '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsRouteWithChildren
@@ -958,6 +966,7 @@ export interface FileRoutesByTo {
   '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
@@ -1078,6 +1087,7 @@ export interface FileRoutesById {
   '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsRouteWithChildren
@@ -1201,6 +1211,7 @@ export interface FileRouteTypes {
     | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
     | '/student/change-password'
     | '/student/graduation-projects'
@@ -1316,6 +1327,7 @@ export interface FileRouteTypes {
     | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
     | '/student/change-password'
     | '/student/notifications'
@@ -1435,6 +1447,7 @@ export interface FileRouteTypes {
     | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
     | '/student/change-password'
     | '/student/graduation-projects'
@@ -2104,6 +2117,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffChangePasswordRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/fixtures-diagnostics': {
+      id: '/staff/fixtures-diagnostics'
+      path: '/fixtures-diagnostics'
+      fullPath: '/staff/fixtures-diagnostics'
+      preLoaderRoute: typeof StaffFixturesDiagnosticsRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/staff/graduates-affairs': {
       id: '/staff/graduates-affairs'
       path: '/graduates-affairs'
@@ -2547,6 +2567,7 @@ interface StaffRouteChildren {
   StaffAuditLogRoute: typeof StaffAuditLogRoute
   StaffB1RequestsRoute: typeof StaffB1RequestsRoute
   StaffChangePasswordRoute: typeof StaffChangePasswordRoute
+  StaffFixturesDiagnosticsRoute: typeof StaffFixturesDiagnosticsRoute
   StaffGraduatesAffairsRoute: typeof StaffGraduatesAffairsRoute
   StaffIndexRoute: typeof StaffIndexRoute
 }
@@ -2555,6 +2576,7 @@ const StaffRouteChildren: StaffRouteChildren = {
   StaffAuditLogRoute: StaffAuditLogRoute,
   StaffB1RequestsRoute: StaffB1RequestsRoute,
   StaffChangePasswordRoute: StaffChangePasswordRoute,
+  StaffFixturesDiagnosticsRoute: StaffFixturesDiagnosticsRoute,
   StaffGraduatesAffairsRoute: StaffGraduatesAffairsRoute,
   StaffIndexRoute: StaffIndexRoute,
 }
@@ -2682,13 +2704,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
