@@ -79,4 +79,14 @@ describe("admin reports department containment (Independent R2 HIGH)", () => {
     expect(ADMIN_FN).toContain("لا يوجد ربط كلية→أقسام موثوق لعزل نطاق العميد");
     expect(ADMIN_FN).toContain("لا نطاق جامعي صامت");
   });
+
+  test("operational residual roles fail closed (no silent university fallthrough)", () => {
+    expect(ADMIN_FN).toContain(
+      "نطاق التقارير غير معزول لهذا الدور — يُرفض العرض الجامعي الصامت بدون قسم محدد",
+    );
+    // Containment helper must not end with a permissive null fallthrough.
+    expect(ADMIN_FN).not.toMatch(
+      /if \(scope\.roles\.includes\("dean"\)\) \{[\s\S]*?return deptId;\s*\}\s*return requestedDepartmentId \?\? null;/,
+    );
+  });
 });
