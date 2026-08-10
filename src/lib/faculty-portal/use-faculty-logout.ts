@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
@@ -16,6 +16,7 @@ import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferen
  */
 export function useFacultyLogout() {
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   return useCallback(async () => {
@@ -27,7 +28,8 @@ export function useFacultyLogout() {
     } finally {
       queryClient.clear();
       clearReportsLocalPreferences();
+      await router.invalidate();
       navigate({ to: "/portal-login", replace: true });
     }
-  }, [navigate, queryClient]);
+  }, [navigate, router, queryClient]);
 }
