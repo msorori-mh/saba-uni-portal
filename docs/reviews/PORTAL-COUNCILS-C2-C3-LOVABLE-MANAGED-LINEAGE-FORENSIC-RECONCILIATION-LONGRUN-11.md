@@ -16,7 +16,7 @@ PRODUCTION SUPABASE: `wpmicqriltrowwonknox`
 | Field | Value |
 |---|---|
 | STARTING_SHA | `8a0e3fe79fc7449d261587985f35f344546294c9` |
-| FINAL_SHA | _(filled after commit)_ |
+| FINAL_SHA | `c72518ee5db53b35631d8e9e328bad92da96380e` |
 | PRODUCTION_WRITES | **0** |
 | BUSINESS_RPC_CALLS | **0** |
 | MIGRATION_APPLIED | **NO** |
