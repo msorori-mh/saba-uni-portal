@@ -60,7 +60,7 @@ function formatDateTime(value: string | null): string {
 
 function AuditLogPage() {
   const [search, setSearch] = useState("");
-  const [search, setSearch] = useState("");
+
   const load = useServerFn(fetchRequestAuditLog);
 
   const { data, isLoading, isError } = useQuery({
