@@ -371,6 +371,18 @@ export function CouncilMeetingCard({
               جدول الأعمال
             </Button>
           ) : null}
+          {(canRecordAttendance || canEdit) && meeting.status !== "archived" && meeting.status !== "cancelled" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-[10px]"
+              onClick={() => setAttendanceOpen(true)}
+            >
+              <Users className="h-3.5 w-3.5" />
+              الحضور والنصاب
+            </Button>
+          ) : null}
 
         </div>
       </div>
