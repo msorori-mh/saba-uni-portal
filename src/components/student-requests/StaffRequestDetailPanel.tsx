@@ -65,6 +65,7 @@ const STUDENT_STATUS_LABEL: Record<string, string> = {
 function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) {
   const queryClient = useQueryClient();
   const feeContextFn = useServerFn(getStudentRequestFeeProcessingContext);
+  const capabilityFn = useServerFn(getFeeProcessingCapability);
 
   const {
     data: feeCtx,
@@ -75,6 +76,12 @@ function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) 
     queryKey: ["student-request-fee-context", requestId],
     queryFn: () => feeContextFn({ data: { requestId } }),
     retry: 1,
+  });
+
+  const { data: capability } = useQuery({
+    queryKey: ["fee-processing-capability"],
+    queryFn: () => capabilityFn(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const refreshAfterFeeAction = async () => {
