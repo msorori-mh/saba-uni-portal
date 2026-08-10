@@ -1736,7 +1736,7 @@ export const getCouncilAttendanceRoll = createServerFn({ method: "POST" })
     return {
       roll_id: rollRows?.id ?? null,
       status: rollRows?.status ?? null,
-      eligible_member_count: rollRows?.eligible_member_count ?? 0,
+      eligible_member_count: rollRows?.eligible_member_count ?? members.length,
       finalized_at: rollRows?.finalized_at ?? null,
       finalized_by: rollRows?.finalized_by ?? null,
       members,
