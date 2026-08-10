@@ -6,9 +6,13 @@
 -- Requires already applied in the same DB session:
 --   tests/graduation-projects/postgres-minimal-schema.sql
 --   docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A1-FOUNDATION-01.sql
+--     (or supabase SET U A1 equivalent)
 --   docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A2-STORAGE-01.sql
 --   docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A3-LIFECYCLE-01.sql
 --   docs/migration-drafts/GRADUATION-PROJECTS-PACKAGE-D-FIXTURES-AND-CLEANUP.sql
+--   For FIX6 BRANCH B (H-01 round integrity + revision notes): also apply
+--     supabase/migrations/20260811020000_gp_independent_security_audit_remediation_02.sql
+--     (and L4 + identity predecessors when chaining the promoted production line)
 --
 -- Ends with ROLLBACK. No production apply/deploy.
 
@@ -353,6 +357,20 @@ insert into public.faculty_profiles(id, user_id, department_id) values
   ('40000000-0000-0000-0000-000000000097','10000000-0000-0000-0000-000000000097','20000000-0000-0000-0000-000000000001'),
   ('40000000-0000-0000-0000-000000000098','10000000-0000-0000-0000-000000000098','20000000-0000-0000-0000-000000000001')
 on conflict do nothing;
+
+-- L4 eligibility for Branch B/C leaders when L4 guard is applied in the harness
+insert into public.student_academic_status(student_profile_id, academic_year_id, semester_id, level_id, enrollment_status)
+select sp.id, '22000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000001',
+       '50000000-0000-0000-0000-000000000004', 'enrolled'
+from public.student_profiles sp
+where sp.id in (
+  '30000000-0000-0000-0000-000000000005',
+  '30000000-0000-0000-0000-000000000006',
+  '30000000-0000-0000-0000-000000000007'
+)
+  and not exists (
+    select 1 from public.student_academic_status s where s.student_profile_id = sp.id
+  );
 
 -- Department coordinator capability (privileged verifier seed; not a title bypass)
 insert into public.graduation_project_department_coordinators(department_id, faculty_profile_id, user_id, assigned_by)
@@ -1379,7 +1397,8 @@ select public.conclude_graduation_project_result(
   (select v from pg_temp.gp_ids where k = 'project_b'),
   'revisions_required',
   pg_temp.ver((select v from pg_temp.gp_ids where k = 'project_b')),
-  'd1000000-0000-0000-0000-0000000001d3'
+  'd1000000-0000-0000-0000-0000000001d3',
+  'Must revise the methodology chapter'
 );
 select pg_temp.pos();
 
@@ -1393,7 +1412,17 @@ select pg_temp.expect_fail_zs(
   'project not archive-ready'
 );
 
--- corrected final → ready → passed → archived
+-- H-01: stale round-N evaluations cannot authorize a new final decision
+select pg_temp.expect_fail_zs(
+  (select v from pg_temp.gp_ids where k = 'project_b'),
+  format($q$select public.conclude_graduation_project_result(%L::uuid,'passed',%s,%L::uuid)$q$,
+    (select v from pg_temp.gp_ids where k = 'project_b'),
+    pg_temp.ver((select v from pg_temp.gp_ids where k = 'project_b')),
+    'd1000000-0000-0000-0000-0000000001dc'),
+  'all committee evaluations required'
+);
+
+-- corrected final → ready
 select pg_temp.set_uid('10000000-0000-0000-0000-000000000005');
 insert into pg_temp.gp_ids(k, v)
 select 'final_file_b', (public.create_graduation_project_file_upload_intent(
@@ -1424,6 +1453,32 @@ select public.review_graduation_project_final(
   pg_temp.ver((select v from pg_temp.gp_ids where k = 'project_b')),
   'd1000000-0000-0000-0000-0000000001d9'
 );
+
+-- H-01: still DENY final decision until fresh round N+1 evaluations exist
+select pg_temp.expect_fail_zs(
+  (select v from pg_temp.gp_ids where k = 'project_b'),
+  format($q$select public.conclude_graduation_project_result(%L::uuid,'passed',%s,%L::uuid)$q$,
+    (select v from pg_temp.gp_ids where k = 'project_b'),
+    pg_temp.ver((select v from pg_temp.gp_ids where k = 'project_b')),
+    'd1000000-0000-0000-0000-0000000001dd'),
+  'all committee evaluations required'
+);
+
+-- Fresh authorized evaluation evidence for round N+1
+select pg_temp.set_uid('10000000-0000-0000-0000-000000000014');
+select public.submit_graduation_project_evaluation(
+  (select v from pg_temp.gp_ids where k = 'project_b'),
+  88, 'Round 2 ok',
+  'd1000000-0000-0000-0000-0000000001de'
+);
+select pg_temp.set_uid('10000000-0000-0000-0000-000000000015');
+select public.submit_graduation_project_evaluation(
+  (select v from pg_temp.gp_ids where k = 'project_b'),
+  90, 'Round 2 ok',
+  'd1000000-0000-0000-0000-0000000001df'
+);
+select pg_temp.pos();
+
 select pg_temp.set_uid('10000000-0000-0000-0000-000000000011');
 select public.conclude_graduation_project_result(
   (select v from pg_temp.gp_ids where k = 'project_b'),

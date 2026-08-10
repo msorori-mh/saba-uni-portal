@@ -157,3 +157,67 @@ REMAINING_BLOCKERS=L4_APPLY; IDENTITY_REVISION_NOTES_APPLY; SAFE_PRODUCTION_PRIN
 ## ظ…ظ„ط®طµ طھظ†ظپظٹط°ظٹ ط¹ط±ط¨ظٹ
 
 ط£ظڈط؛ظ„ظ‚ ط³ط·ط­ ظ…ط´ط§ط±ظٹط¹ ط§ظ„طھط®ط±ط¬ ط¹ظ„ظ‰ ظ…ط³طھظˆظ‰ ط§ظ„ظ…طµط¯ط±: ط£ظ‡ظ„ظٹط© ط§ظ„ظ…ط³طھظˆظ‰ ط§ظ„ط±ط§ط¨ط¹طŒ ظˆط§ط¬ظ‡ط© ط¥ظ†ط´ط§ط، ط§ظ„ظپط±ظٹظ‚طŒ ط±ط¨ط· ظ…ط±ظپظ‚ط§طھ ط§ظ„طھظ‚ط¯ظ…طŒ ط­ظ„ظ‚ط© ط§ظ„طھط¹ط¯ظٹظ„ط§طھ ط§ظ„ظ‚ط§ط¨ظ„ط© ظ„ظ„طھظ†ظپظٹط°طŒ ظˆطھطµط­ظٹط­ ط­ط²ظ…ط© E2E ط§ظ„ط¥ظ†طھط§ط¬ظٹط© ط¨ط£ط³ظ…ط§ط، RPC ط§ظ„ظ…ط¬ظ…ظ‘ط¯ط©. ظ„ط§ ظٹظˆط¬ط¯ ظ…ظ…ط«ظ„ ط¥ظ†طھط§ط¬ ط¢ظ…ظ† ط­ط§ظ„ظٹط§ظ‹طŒ ظˆطھط±ط­ظٹظ„ط§طھ L4 ظˆط¯ظ„ظٹظ„ ط§ظ„ظ‡ظˆظٹط§طھ/ظ…ظ„ط§ط­ط¸ط§طھ ط§ظ„طھط¹ط¯ظٹظ„ ظ…ط§ ط²ط§ظ„طھ ط؛ظٹط± ظ…ط·ط¨ظ‘ظ‚ط© â€” ظ„ط°ظ„ظƒ ط§ظ„ظ‚ط±ط§ط± **HOLD** ط¥ظ„ظ‰ ط­ظٹظ† طھط·ط¨ظٹظ‚ Lovable ظˆطھظˆظپظٹط± ظ…ظ…ط«ظ„ظٹظ† ظ…ط¹طھظ…ط¯ظٹظ†.
+
+
+---
+
+## INDEPENDENT_SECURITY_AUDIT_REMEDIATION_02
+
+**Mission:** `PORTAL-GP-INDEPENDENT-SECURITY-AUDIT-FINDINGS-REMEDIATION-02`  
+**PR:** #340  
+**Audit reviewed stale checkout** `d8f34619` / audit commit `34f1a022…` — remediations land on current PR340 head.
+
+### Migration strategy (R7)
+
+| Artifact | Decision |
+|---|---|
+| SET U `20260806*` / `20260807*` | Historical/applied — **not rewritten** |
+| `20260808010000` L4 + `20260811010000` identity/notes | PR340-only, **NOT_APPLIED** per closure evidence — **identity left stable** (no ambiguous rewrite) |
+| `20260811020000_gp_independent_security_audit_remediation_02.sql` | **New forward-only** remediation superseding conclude / evaluate / detail / create_team |
+
+### Findings disposition
+
+| ID | Status | Evidence |
+|---|---|---|
+| H-01 | **CLOSED** | `evaluation_round` binding; stale conclude DENY + ZERO MUTATION; Branch B + remediation verifier |
+| H-03 | **CLOSED** | Backend `identity_options` dept/active/L4/exclusion; PG17 `H03_IDENTITY_OPTIONS_SCOPE_PASS` |
+| M-01 | **CLOSED** | `program.department_id = p_department_id` AND `is_active`; RPC negative |
+| M-02 | **CLOSED** | Join-safe counts; matrix committee=2/3; no hardcoded authoritative `2` fallback |
+| M-03 | **CLOSED** | Safe `archive` projection in detail + adapter; unauthorized DENY |
+| L-01 | **CLOSED** | `viewer_is_leader` from exact assignment; adapter ignores teammate leader row; member RPC DENY |
+
+### FINAL OUTPUT (remediation 02)
+
+```
+BASE_SHA=5e18dd2dd2e45de3dcfc17ce2355fc44b382471a
+FINAL_SHA=<set-after-commit>
+
+H01=CLOSED
+H03=CLOSED
+M01=CLOSED
+M02=CLOSED
+M03=CLOSED
+L01=CLOSED
+
+STALE_EVALUATION_DIRECT_RPC_NEGATIVE=PASS
+PROGRAM_DEPARTMENT_NEGATIVE=PASS
+IDENTITY_OPTIONS_SCOPE=PASS
+COMMITTEE_COUNT_MATRIX=PASS
+ARCHIVE_DETAIL=PASS
+LEADER_ROLE_UI_BACKEND_PARITY=PASS
+
+GP_TESTS=PASS
+STUDENT_REQUESTS=PASS
+PG17=PASS
+TYPECHECK=PASS
+BUILD=PASS
+
+CRITICAL_COUNT=0
+HIGH_COUNT=0
+MEDIUM_COUNT=0
+LOW_COUNT=0
+
+PASS_PORTAL_GP_INDEPENDENT_SECURITY_AUDIT_FINDINGS_REMEDIATION_02
+```
+
+**Decision:** PASS source remediation. Production apply of L4 + identity + remediation-02 remains operator-gated (Lovable). Do not merge without owner authorization.

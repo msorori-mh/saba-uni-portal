@@ -4313,6 +4313,7 @@ export type Database = {
       graduation_project_evaluations: {
         Row: {
           discussion_id: string
+          evaluation_round: number
           id: string
           notes: string | null
           panel_member_id: string
@@ -4323,6 +4324,7 @@ export type Database = {
         }
         Insert: {
           discussion_id: string
+          evaluation_round?: number
           id?: string
           notes?: string | null
           panel_member_id: string
@@ -4333,6 +4335,7 @@ export type Database = {
         }
         Update: {
           discussion_id?: string
+          evaluation_round?: number
           id?: string
           notes?: string | null
           panel_member_id?: string
@@ -4674,6 +4677,7 @@ export type Database = {
           average_score: number | null
           created_at: string
           department_id: string
+          evaluation_round: number
           final_decision:
             | Database["public"]["Enums"]["graduation_project_final_decision"]
             | null
@@ -4695,6 +4699,7 @@ export type Database = {
           average_score?: number | null
           created_at?: string
           department_id: string
+          evaluation_round?: number
           final_decision?:
             | Database["public"]["Enums"]["graduation_project_final_decision"]
             | null
@@ -4716,6 +4721,7 @@ export type Database = {
           average_score?: number | null
           created_at?: string
           department_id?: string
+          evaluation_round?: number
           final_decision?:
             | Database["public"]["Enums"]["graduation_project_final_decision"]
             | null

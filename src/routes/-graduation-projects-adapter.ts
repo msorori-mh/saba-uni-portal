@@ -177,24 +177,24 @@ function mapIdentityOptions(raw: unknown): {
   };
 }
 
-function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
+/** Exported for unit tests — maps RPC detail payload to MVP UI model. */
+export function mapGraduationProjectDetail(
+  raw: Record<string, unknown>,
+): GraduationProjectDetail {
   const roles = mapRoles(raw.viewer_roles ?? raw.roles);
   const team = Array.isArray(raw.team) ? raw.team : [];
-  const viewerUserRoles = roles;
-  const isLeader = team.some(
-    (m) =>
-      typeof m === "object"
-      && m
-      && (m as { is_leader?: boolean }).is_leader === true
-      && viewerUserRoles.includes("member"),
-  );
-  // Prefer explicit leader role when assignment says so
-  let viewer = pickViewer(roles, false);
-  if (roles.includes("member") || roles.includes("leader")) {
-    const leaderRow = team.find(
-      (m) => typeof m === "object" && m && (m as { is_leader?: boolean }).is_leader,
-    ) as { is_leader?: boolean; user_id?: string } | undefined;
-    viewer = leaderRow?.is_leader ? "leader" : roles.includes("leader") ? "leader" : "member";
+
+  // L-01: leader capability from exact active student assignment (backend viewer_is_leader),
+  // never from "project contains any leader".
+  const viewerIsLeader =
+    raw.viewer_is_leader === true
+    || raw.is_leader === true
+    || roles.includes("leader");
+
+  let viewer = pickViewer(roles, viewerIsLeader);
+  if (roles.includes("member") || roles.includes("leader") || viewerIsLeader) {
+    if (viewerIsLeader) viewer = "leader";
+    else if (roles.includes("member") || roles.includes("leader")) viewer = "member";
     if (roles.includes("coordinator")) viewer = "coordinator";
     if (roles.includes("committee")) viewer = "committee";
     if (roles.includes("supervisor")) {
@@ -202,13 +202,13 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
       viewer = sup?.status === "pending" ? "supervisor_pending" : "supervisor";
     }
   }
-  if (isLeader && viewer === "member") viewer = "leader";
 
   const progress = Array.isArray(raw.progress) ? raw.progress : [];
   const defense = raw.defense as Record<string, unknown> | null | undefined;
   const ownEval = raw.own_evaluation as Record<string, unknown> | null | undefined;
   const agg = raw.evaluation_aggregate as Record<string, unknown> | null | undefined;
   const supervisor = raw.supervisor as { user_id?: string; status?: string } | null | undefined;
+  const archiveRaw = raw.archive as Record<string, unknown> | null | undefined;
 
   const summary = mapSummary({
     project_id: raw.project_id,
@@ -218,6 +218,7 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
     roles: raw.viewer_roles,
     version: raw.version,
     updated_at: raw.updated_at,
+    is_leader: viewerIsLeader,
   });
 
   return {
@@ -284,7 +285,12 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
       ownNotes: ownEval?.notes != null ? String(ownEval.notes) : undefined,
       submitted: Boolean(ownEval?.state === "submitted" || ownEval?.score != null),
       submittedCount: Number(agg?.submitted_count ?? 0),
-      requiredCount: Number(agg?.required_count ?? 2),
+      // Authoritative backend count only — no hardcoded committee floor fallback
+      requiredCount: Number(
+        agg?.required_count
+          ?? defense?.committee_count
+          ?? 0,
+      ),
       average: agg?.average_score != null ? Number(agg.average_score) : undefined,
     },
     revisions: raw.revisions_notes
@@ -292,10 +298,29 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
       : raw.revision_notes
         ? String(raw.revision_notes)
         : undefined,
+    archive: archiveRaw
+      ? {
+          archivedAt: String(archiveRaw.archived_at ?? ""),
+          summary: String(archiveRaw.summary ?? "مشروع مؤرشف"),
+          file: archiveRaw.final_file_id
+            ? {
+                id: String(archiveRaw.final_file_id),
+                name: "final-archived.pdf",
+                category: "final" as const,
+                state: "ready" as const,
+                downloadable: true,
+              }
+            : undefined,
+        }
+      : undefined,
     coordinatorOptions: mapIdentityOptions(
       raw.identity_options ?? raw.coordinator_options ?? {},
     ),
   };
+}
+
+function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
+  return mapGraduationProjectDetail(raw);
 }
 
 async function sha256Hex(file: File): Promise<string> {
