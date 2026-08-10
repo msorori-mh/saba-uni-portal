@@ -1592,6 +1592,304 @@ export const getAgendaItemsForMeeting = createServerFn({ method: "POST" })
     };
   });
 
+// ============================================================================
+// ATTENDANCE + QUORUM
+// ============================================================================
+
+const ATTENDANCE_STATE_OPTIONS: Array<{
+  value: string;
+  label: string;
+}> = [
+  { value: "present", label: "حاضر" },
+  { value: "present_remote", label: "حاضر عن بُعد" },
+  { value: "excused", label: "معذور" },
+  { value: "absent", label: "غائب" },
+];
+
+function mapAttendanceRpcError(message: string): string {
+  const msg = message ?? "";
+  if (msg.includes("COUNCIL_QUORUM_POLICY_CHAIR_REQUIRED")) {
+    return "رئيس المجلس فقط من يمكنه اعتماد سياسة النصاب.";
+  }
+  if (msg.includes("COUNCIL_ATTENDANCE_SECRETARY_REQUIRED")) {
+    return "أمين سر المجلس فقط من يمكنه تسجيل الحضور.";
+  }
+  if (msg.includes("COUNCIL_ATTENDANCE_FINALIZE_CHAIR_REQUIRED")) {
+    return "رئيس المجلس فقط من يمكنه اعتماد سجل الحضور.";
+  }
+  if (msg.includes("COUNCIL_ATTENDANCE_LOCKED")) {
+    return "سجل الحضور مغلق ولا يمكن تعديله.";
+  }
+  if (msg.includes("COUNCIL_ATTENDANCE_MEMBER_NOT_IN_SNAPSHOT")) {
+    return "أحد الأعضاء المحددين غير موجود في لقطة الحضور.";
+  }
+  if (msg.includes("COUNCIL_QUORUM_POLICY_REQUIRED")) {
+    return "لا توجد سياسة نصاب معتمدة لهذا المجلس.";
+  }
+  if (msg.includes("COUNCIL_QUORUM_FAIL_CLOSED")) {
+    return "فشل تقييم النصاب؛ تأكد من وجود أعضاء مؤهلين وسياسة صالحة.";
+  }
+  if (msg.includes("COUNCIL_INVALID_ATTENDANCE_STATE")) {
+    return "حالة حضور غير صالحة.";
+  }
+  if (msg.includes("COUNCIL_ATTENDANCE_ENTRIES_REQUIRED")) {
+    return "يجب تحديد حالة حضور واحدة على الأقل.";
+  }
+  return RLS_DENIED_MESSAGE;
+}
+
+export const getCouncilAttendanceRoll = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ meetingId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+
+    const { data: rollRows, error: rollError } = await sb
+      .from("academic_council_meeting_attendance_rolls")
+      .select("id, status, eligible_member_count, finalized_at, finalized_by")
+      .eq("meeting_id", data.meetingId)
+      .maybeSingle();
+
+    if (rollError) throw new Error(MEETINGS_LOAD_FAILED_MESSAGE);
+
+    let members: CouncilAttendanceRollMember[] = [];
+    if (rollRows?.id) {
+      const { data: memberRows, error: memberError } = await sb
+        .from("academic_council_meeting_attendance")
+        .select(
+          "id, membership_id, user_id, member_role, attendance_state, recorded_at, recorded_by",
+        )
+        .eq("meeting_id", data.meetingId)
+        .order("member_role", { ascending: false });
+
+      if (memberError) throw new Error(MEETINGS_LOAD_FAILED_MESSAGE);
+
+      members = (memberRows ?? []).map((m) => ({
+        attendance_id: m.id,
+        membership_id: m.membership_id,
+        user_id: m.user_id,
+        member_role: m.member_role,
+        attendance_state: m.attendance_state,
+        recorded_at: m.recorded_at,
+        recorded_by: m.recorded_by,
+      }));
+    }
+
+    let latestEvaluation: CouncilAttendanceRollResult["latest_evaluation"] = null;
+    const { data: evalRows, error: evalError } = await sb
+      .from("academic_council_meeting_quorum_evaluations")
+      .select(
+        "id, eligible_member_count, present_member_count, required_member_count, quorum_met, evaluated_at, policy_version, is_final",
+      )
+      .eq("meeting_id", data.meetingId)
+      .order("evaluated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!evalError && evalRows) {
+      latestEvaluation = {
+        evaluation_id: evalRows.id,
+        eligible_member_count: evalRows.eligible_member_count,
+        present_member_count: evalRows.present_member_count,
+        required_member_count: evalRows.required_member_count,
+        quorum_met: evalRows.quorum_met,
+        evaluated_at: evalRows.evaluated_at,
+        policy_version: evalRows.policy_version,
+        is_final: evalRows.is_final,
+      };
+    }
+
+    return {
+      roll_id: rollRows?.id ?? null,
+      status: rollRows?.status ?? null,
+      eligible_member_count: rollRows?.eligible_member_count ?? 0,
+      finalized_at: rollRows?.finalized_at ?? null,
+      finalized_by: rollRows?.finalized_by ?? null,
+      members,
+      latest_evaluation: latestEvaluation,
+    } satisfies CouncilAttendanceRollResult;
+  });
+
+export const getCouncilCurrentQuorumPolicy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ councilId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const { data: policyRows, error } = await sb
+      .from("academic_council_quorum_policies")
+      .select(
+        "id, policy_version, threshold_kind, absolute_count, ratio_numerator, ratio_denominator",
+      )
+      .eq("council_id", data.councilId)
+      .eq("status", "approved")
+      .order("policy_version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw new Error(MEETINGS_LOAD_FAILED_MESSAGE);
+    if (!policyRows) return null;
+    return {
+      policy_id: policyRows.id,
+      policy_version: policyRows.policy_version,
+      threshold_kind: policyRows.threshold_kind,
+      absolute_count: policyRows.absolute_count,
+      ratio_numerator: policyRows.ratio_numerator,
+      ratio_denominator: policyRows.ratio_denominator,
+    } satisfies CouncilQuorumPolicyResult;
+  });
+
+export const approveCouncilQuorumPolicy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        councilId: z.string().uuid(),
+        thresholdKind: z.enum(["absolute", "ratio"]),
+        absoluteCount: z.number().int().positive().nullable().optional(),
+        ratioNumerator: z.number().int().positive().nullable().optional(),
+        ratioDenominator: z.number().int().positive().nullable().optional(),
+      })
+      .refine(
+        (v) => {
+          if (v.thresholdKind === "absolute") {
+            return typeof v.absoluteCount === "number" && v.absoluteCount > 0;
+          }
+          return (
+            typeof v.ratioNumerator === "number" &&
+            typeof v.ratioDenominator === "number" &&
+            v.ratioNumerator > 0 &&
+            v.ratioDenominator > 0 &&
+            v.ratioNumerator <= v.ratioDenominator
+          );
+        },
+        { message: "بيانات سياسة النصاب غير صالحة." },
+      )
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: rpc, error } = await sb.rpc("council_approve_quorum_policy" as never, {
+      p_council_id: data.councilId,
+      p_threshold_kind: data.thresholdKind,
+      p_absolute_count: data.thresholdKind === "absolute" ? data.absoluteCount : null,
+      p_ratio_numerator: data.thresholdKind === "ratio" ? data.ratioNumerator : null,
+      p_ratio_denominator: data.thresholdKind === "ratio" ? data.ratioDenominator : null,
+    } as never);
+
+    if (error) {
+      throw new Error(mapAttendanceRpcError(error.message));
+    }
+
+    const payload = (rpc ?? {}) as Record<string, unknown>;
+    return {
+      ok: payload.ok === true,
+      policy_id: String(payload.policy_id ?? ""),
+      policy_version: Number(payload.policy_version ?? 0),
+    };
+  });
+
+export const recordCouncilAttendance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        meetingId: z.string().uuid(),
+        entries: z.array(
+          z.object({
+            membership_id: z.string().uuid(),
+            attendance_state: z.enum(["present", "present_remote", "excused", "absent"]),
+          }),
+        ),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: rpc, error } = await sb.rpc("record_council_meeting_attendance" as never, {
+      p_meeting_id: data.meetingId,
+      p_entries: data.entries.map((e) => ({
+        membership_id: e.membership_id,
+        attendance_state: e.attendance_state,
+      })),
+    } as never);
+
+    if (error) {
+      throw new Error(mapAttendanceRpcError(error.message));
+    }
+
+    const payload = (rpc ?? {}) as Record<string, unknown>;
+    return {
+      ok: payload.ok === true,
+      updated_count: Number(payload.updated_count ?? 0),
+      eligible_member_count: Number(payload.eligible_member_count ?? 0),
+    };
+  });
+
+export const evaluateCouncilMeetingQuorum = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ meetingId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: rpc, error } = await sb.rpc("evaluate_council_meeting_quorum" as never, {
+      p_meeting_id: data.meetingId,
+    } as never);
+
+    if (error) {
+      throw new Error(mapAttendanceRpcError(error.message));
+    }
+
+    const payload = (rpc ?? {}) as Record<string, unknown>;
+    return {
+      ok: payload.ok === true,
+      eligible_member_count: Number(payload.eligible_member_count ?? 0),
+      present_member_count: Number(payload.present_member_count ?? 0),
+      required_member_count: Number(payload.required_member_count ?? 0),
+      quorum_met: Boolean(payload.quorum_met),
+      policy_version: Number(payload.policy_version ?? 0),
+    };
+  });
+
+export const finalizeCouncilAttendance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ meetingId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: rpc, error } = await sb.rpc("finalize_council_meeting_attendance" as never, {
+      p_meeting_id: data.meetingId,
+    } as never);
+
+    if (error) {
+      throw new Error(mapAttendanceRpcError(error.message));
+    }
+
+    const payload = (rpc ?? {}) as Record<string, unknown>;
+    return {
+      ok: payload.ok === true,
+      roll_id: String(payload.roll_id ?? ""),
+      evaluation_id: String(payload.evaluation_id ?? ""),
+      eligible_member_count: Number(payload.eligible_member_count ?? 0),
+      present_member_count: Number(payload.present_member_count ?? 0),
+      required_member_count: Number(payload.required_member_count ?? 0),
+      quorum_met: Boolean(payload.quorum_met),
+    };
+  });
+
 /**
  * Chair-scoped meeting status transition for the faculty portal.
  * Authorization is enforced by the `council_transition_meeting` RPC
