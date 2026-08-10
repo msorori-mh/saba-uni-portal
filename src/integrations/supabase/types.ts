@@ -61,6 +61,10 @@ export type Database = {
           meeting_id: string
           notes: string | null
           order_index: number
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          session_status: Database["public"]["Enums"]["academic_council_agenda_item_session_status"]
           title: string
           topic_id: string | null
           updated_at: string
@@ -76,6 +80,10 @@ export type Database = {
           meeting_id: string
           notes?: string | null
           order_index: number
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          session_status?: Database["public"]["Enums"]["academic_council_agenda_item_session_status"]
           title: string
           topic_id?: string | null
           updated_at?: string
@@ -91,6 +99,10 @@ export type Database = {
           meeting_id?: string
           notes?: string | null
           order_index?: number
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          session_status?: Database["public"]["Enums"]["academic_council_agenda_item_session_status"]
           title?: string
           topic_id?: string | null
           updated_at?: string
@@ -109,6 +121,57 @@ export type Database = {
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "academic_council_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_attendance_audit_events: {
+        Row: {
+          action_type: string
+          actor_user_id: string | null
+          council_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          meeting_id: string | null
+          payload: Json
+        }
+        Insert: {
+          action_type: string
+          actor_user_id?: string | null
+          council_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          meeting_id?: string | null
+          payload?: Json
+        }
+        Update: {
+          action_type?: string
+          actor_user_id?: string | null
+          council_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          meeting_id?: string | null
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_attendance_audit_events_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_attendance_audit_events_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
             referencedColumns: ["id"]
           },
         ]
@@ -179,6 +242,203 @@ export type Database = {
           },
         ]
       }
+      academic_council_meeting_attendance: {
+        Row: {
+          attendance_state: Database["public"]["Enums"]["academic_council_attendance_state"]
+          created_at: string
+          id: string
+          meeting_id: string
+          member_role: Database["public"]["Enums"]["academic_council_member_role"]
+          membership_active_from: string
+          membership_active_to: string | null
+          membership_id: string
+          recorded_at: string | null
+          recorded_by: string | null
+          roll_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attendance_state?: Database["public"]["Enums"]["academic_council_attendance_state"]
+          created_at?: string
+          id?: string
+          meeting_id: string
+          member_role: Database["public"]["Enums"]["academic_council_member_role"]
+          membership_active_from: string
+          membership_active_to?: string | null
+          membership_id: string
+          recorded_at?: string | null
+          recorded_by?: string | null
+          roll_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attendance_state?: Database["public"]["Enums"]["academic_council_attendance_state"]
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          member_role?: Database["public"]["Enums"]["academic_council_member_role"]
+          membership_active_from?: string
+          membership_active_to?: string | null
+          membership_id?: string
+          recorded_at?: string | null
+          recorded_by?: string | null
+          roll_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_meeting_attendance_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_meeting_attendance_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_meeting_attendance_roll_id_fkey"
+            columns: ["roll_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meeting_attendance_rolls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_meeting_attendance_rolls: {
+        Row: {
+          council_id: string
+          created_at: string
+          eligible_member_count: number
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          meeting_id: string
+          opened_by: string
+          snapshot_taken_at: string
+          status: Database["public"]["Enums"]["academic_council_attendance_roll_status"]
+          updated_at: string
+        }
+        Insert: {
+          council_id: string
+          created_at?: string
+          eligible_member_count?: number
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          meeting_id: string
+          opened_by: string
+          snapshot_taken_at?: string
+          status?: Database["public"]["Enums"]["academic_council_attendance_roll_status"]
+          updated_at?: string
+        }
+        Update: {
+          council_id?: string
+          created_at?: string
+          eligible_member_count?: number
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          meeting_id?: string
+          opened_by?: string
+          snapshot_taken_at?: string
+          status?: Database["public"]["Enums"]["academic_council_attendance_roll_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_meeting_attendance_rolls_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_meeting_attendance_rolls_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: true
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_meeting_quorum_evaluations: {
+        Row: {
+          created_at: string
+          eligible_member_count: number
+          evaluated_at: string
+          evaluated_by: string
+          id: string
+          is_final: boolean
+          meeting_id: string
+          policy_id: string
+          policy_version: number
+          present_member_count: number
+          quorum_met: boolean
+          required_member_count: number
+          roll_id: string
+        }
+        Insert: {
+          created_at?: string
+          eligible_member_count: number
+          evaluated_at?: string
+          evaluated_by: string
+          id?: string
+          is_final?: boolean
+          meeting_id: string
+          policy_id: string
+          policy_version: number
+          present_member_count: number
+          quorum_met: boolean
+          required_member_count: number
+          roll_id: string
+        }
+        Update: {
+          created_at?: string
+          eligible_member_count?: number
+          evaluated_at?: string
+          evaluated_by?: string
+          id?: string
+          is_final?: boolean
+          meeting_id?: string
+          policy_id?: string
+          policy_version?: number
+          present_member_count?: number
+          quorum_met?: boolean
+          required_member_count?: number
+          roll_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_meeting_quorum_evaluations_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_meeting_quorum_evaluations_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_quorum_policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_meeting_quorum_evaluations_roll_id_fkey"
+            columns: ["roll_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meeting_attendance_rolls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_council_meeting_transition_events: {
         Row: {
           actor_user_id: string
@@ -226,6 +486,8 @@ export type Database = {
       academic_council_meetings: {
         Row: {
           academic_year_id: string | null
+          closed_at: string | null
+          closed_by: string | null
           council_id: string
           created_at: string
           created_by: string
@@ -235,6 +497,8 @@ export type Database = {
           location: string | null
           meeting_number: number
           notes: string | null
+          opened_at: string | null
+          opened_by: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["academic_council_meeting_status"]
           title: string
@@ -243,6 +507,8 @@ export type Database = {
         }
         Insert: {
           academic_year_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           council_id: string
           created_at?: string
           created_by: string
@@ -252,6 +518,8 @@ export type Database = {
           location?: string | null
           meeting_number: number
           notes?: string | null
+          opened_at?: string | null
+          opened_by?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["academic_council_meeting_status"]
           title: string
@@ -260,6 +528,8 @@ export type Database = {
         }
         Update: {
           academic_year_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           council_id?: string
           created_at?: string
           created_by?: string
@@ -269,6 +539,8 @@ export type Database = {
           location?: string | null
           meeting_number?: number
           notes?: string | null
+          opened_at?: string | null
+          opened_by?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["academic_council_meeting_status"]
           title?: string
@@ -385,6 +657,65 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: true
             referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_quorum_policies: {
+        Row: {
+          absolute_count: number | null
+          approved_at: string | null
+          approved_by: string | null
+          council_id: string
+          created_at: string
+          created_by: string
+          id: string
+          policy_version: number
+          ratio_denominator: number | null
+          ratio_numerator: number | null
+          status: Database["public"]["Enums"]["academic_council_quorum_policy_status"]
+          superseded_at: string | null
+          threshold_kind: Database["public"]["Enums"]["academic_council_quorum_threshold_kind"]
+          updated_at: string
+        }
+        Insert: {
+          absolute_count?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          council_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          policy_version: number
+          ratio_denominator?: number | null
+          ratio_numerator?: number | null
+          status?: Database["public"]["Enums"]["academic_council_quorum_policy_status"]
+          superseded_at?: string | null
+          threshold_kind: Database["public"]["Enums"]["academic_council_quorum_threshold_kind"]
+          updated_at?: string
+        }
+        Update: {
+          absolute_count?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          council_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          policy_version?: number
+          ratio_denominator?: number | null
+          ratio_numerator?: number | null
+          status?: Database["public"]["Enums"]["academic_council_quorum_policy_status"]
+          superseded_at?: string | null
+          threshold_kind?: Database["public"]["Enums"]["academic_council_quorum_threshold_kind"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_quorum_policies_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
             referencedColumns: ["id"]
           },
         ]
@@ -508,6 +839,122 @@ export type Database = {
           },
           {
             foreignKeyName: "academic_council_topics_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_vote_results: {
+        Row: {
+          abstain_count: number
+          agenda_item_id: string
+          calculated_at: string
+          calculated_by: string
+          council_id: string
+          id: string
+          meeting_id: string
+          no_count: number
+          outcome: string
+          total_votes: number
+          yes_count: number
+        }
+        Insert: {
+          abstain_count?: number
+          agenda_item_id: string
+          calculated_at?: string
+          calculated_by: string
+          council_id: string
+          id?: string
+          meeting_id: string
+          no_count?: number
+          outcome: string
+          total_votes?: number
+          yes_count?: number
+        }
+        Update: {
+          abstain_count?: number
+          agenda_item_id?: string
+          calculated_at?: string
+          calculated_by?: string
+          council_id?: string
+          id?: string
+          meeting_id?: string
+          no_count?: number
+          outcome?: string
+          total_votes?: number
+          yes_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_vote_results_agenda_item_id_fkey"
+            columns: ["agenda_item_id"]
+            isOneToOne: true
+            referencedRelation: "academic_council_agenda_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_vote_results_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_vote_results_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_votes: {
+        Row: {
+          agenda_item_id: string
+          cast_at: string
+          council_id: string
+          id: string
+          meeting_id: string
+          vote_value: Database["public"]["Enums"]["academic_council_vote_value"]
+          voter_user_id: string
+        }
+        Insert: {
+          agenda_item_id: string
+          cast_at?: string
+          council_id: string
+          id?: string
+          meeting_id: string
+          vote_value: Database["public"]["Enums"]["academic_council_vote_value"]
+          voter_user_id: string
+        }
+        Update: {
+          agenda_item_id?: string
+          cast_at?: string
+          council_id?: string
+          id?: string
+          meeting_id?: string
+          vote_value?: Database["public"]["Enums"]["academic_council_vote_value"]
+          voter_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_votes_agenda_item_id_fkey"
+            columns: ["agenda_item_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_agenda_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_votes_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_votes_meeting_id_fkey"
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "academic_council_meetings"
@@ -7295,6 +7742,10 @@ export type Database = {
         Args: { p_student_profile_id: string }
         Returns: Json
       }
+      calculate_agenda_item_result: {
+        Args: { p_agenda_item_id: string }
+        Returns: Json
+      }
       can_access_student_service_request: {
         Args: { _request_id: string; _user_id: string }
         Returns: boolean
@@ -7327,6 +7778,14 @@ export type Database = {
         Args: { _council_id: string; _topic_id: string; _user: string }
         Returns: boolean
       }
+      can_review_council_topic_final: {
+        Args: { _topic: string; _user: string }
+        Returns: boolean
+      }
+      can_review_council_topic_prepare: {
+        Args: { _topic: string; _user: string }
+        Returns: boolean
+      }
       can_schedule_council_meeting: {
         Args: { _council: string; _user: string }
         Returns: boolean
@@ -7337,6 +7796,10 @@ export type Database = {
       }
       can_submit_council_topic: {
         Args: { _council: string; _user: string }
+        Returns: boolean
+      }
+      can_submit_to_council_meeting_intake: {
+        Args: { _meeting: string; _user: string }
         Returns: boolean
       }
       can_upload_council_topic_attachment: {
@@ -7354,6 +7817,10 @@ export type Database = {
       cancel_official_document: {
         Args: { _document_id: string; _reason?: string }
         Returns: undefined
+      }
+      cast_council_vote: {
+        Args: { p_agenda_item_id: string; p_vote_value: string }
+        Returns: Json
       }
       check_and_record_rate_limit: {
         Args: {
@@ -7378,10 +7845,15 @@ export type Database = {
         Returns: Json
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: number }
+      close_agenda_item_vote: {
+        Args: { p_agenda_item_id: string }
+        Returns: Json
+      }
       close_b1_e2e_88_execution: {
         Args: { p_correlation_id: string; p_reason?: string }
         Returns: boolean
       }
+      close_council_session: { Args: { p_meeting_id: string }; Returns: Json }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
@@ -7424,11 +7896,120 @@ export type Database = {
         }
         Returns: Json
       }
+      council_approve_quorum_policy: {
+        Args: {
+          p_absolute_count?: number
+          p_council_id: string
+          p_ratio_denominator?: number
+          p_ratio_numerator?: number
+          p_threshold_kind: Database["public"]["Enums"]["academic_council_quorum_threshold_kind"]
+        }
+        Returns: Json
+      }
+      council_assert_c1_contract_present: { Args: never; Returns: boolean }
+      council_attendance_deny: { Args: { p_code?: string }; Returns: undefined }
+      council_attendance_emit_audit: {
+        Args: {
+          p_action_type: string
+          p_actor: string
+          p_council_id: string
+          p_entity_id: string
+          p_entity_type: string
+          p_meeting_id: string
+          p_payload?: Json
+        }
+        Returns: undefined
+      }
+      council_attendance_require_auth_uid: { Args: never; Returns: string }
+      council_attendance_state_counts_present: {
+        Args: {
+          p_state: Database["public"]["Enums"]["academic_council_attendance_state"]
+        }
+        Returns: boolean
+      }
+      council_compute_required_member_count: {
+        Args: {
+          p_eligible: number
+          p_policy: Database["public"]["Tables"]["academic_council_quorum_policies"]["Row"]
+        }
+        Returns: number
+      }
+      council_current_approved_quorum_policy: {
+        Args: { p_council_id: string }
+        Returns: {
+          absolute_count: number | null
+          approved_at: string | null
+          approved_by: string | null
+          council_id: string
+          created_at: string
+          created_by: string
+          id: string
+          policy_version: number
+          ratio_denominator: number | null
+          ratio_numerator: number | null
+          status: Database["public"]["Enums"]["academic_council_quorum_policy_status"]
+          superseded_at: string | null
+          threshold_kind: Database["public"]["Enums"]["academic_council_quorum_threshold_kind"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "academic_council_quorum_policies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       council_deactivate_membership: {
         Args: { p_membership_id: string }
         Returns: Json
       }
       council_deny: { Args: { p_code?: string }; Returns: undefined }
+      council_ensure_attendance_roll: {
+        Args: { p_actor: string; p_meeting_id: string }
+        Returns: {
+          council_id: string
+          created_at: string
+          eligible_member_count: number
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          meeting_id: string
+          opened_by: string
+          snapshot_taken_at: string
+          status: Database["public"]["Enums"]["academic_council_attendance_roll_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "academic_council_meeting_attendance_rolls"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      council_evaluate_quorum_internal: {
+        Args: { p_actor: string; p_final: boolean; p_meeting_id: string }
+        Returns: {
+          created_at: string
+          eligible_member_count: number
+          evaluated_at: string
+          evaluated_by: string
+          id: string
+          is_final: boolean
+          meeting_id: string
+          policy_id: string
+          policy_version: number
+          present_member_count: number
+          quorum_met: boolean
+          required_member_count: number
+          roll_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "academic_council_meeting_quorum_evaluations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       council_finalize_meeting_agenda: {
         Args: { p_meeting_id: string }
         Returns: Json
@@ -7441,10 +8022,20 @@ export type Database = {
         }
         Returns: Json
       }
+      council_meeting_attendance_is_locked: {
+        Args: { p_meeting_id: string }
+        Returns: boolean
+      }
       council_meeting_transition_is_legal: {
         Args: {
           p_from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
           p_to_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+        }
+        Returns: boolean
+      }
+      council_member_is_quorum_eligible: {
+        Args: {
+          p_role: Database["public"]["Enums"]["academic_council_member_role"]
         }
         Returns: boolean
       }
@@ -7453,9 +8044,10 @@ export type Database = {
         Returns: Json
       }
       council_require_auth_uid: { Args: never; Returns: string }
+      council_resubmit_topic: { Args: { p_topic_id: string }; Returns: Json }
       council_review_topic: {
         Args: {
-          p_meeting_id?: string
+          p_expected_status?: Database["public"]["Enums"]["academic_council_topic_status"]
           p_review_note?: string
           p_status: Database["public"]["Enums"]["academic_council_topic_status"]
           p_topic_id: string
@@ -7479,6 +8071,7 @@ export type Database = {
           p_body?: string
           p_category?: string
           p_council_id: string
+          p_meeting_id: string
           p_title: string
         }
         Returns: Json
@@ -7486,6 +8079,13 @@ export type Database = {
       council_topic_attachment_count: {
         Args: { _topic_id: string }
         Returns: number
+      }
+      council_topic_transition_is_legal: {
+        Args: {
+          p_from: Database["public"]["Enums"]["academic_council_topic_status"]
+          p_to: Database["public"]["Enums"]["academic_council_topic_status"]
+        }
+        Returns: boolean
       }
       council_transition_meeting: {
         Args: {
@@ -7638,12 +8238,20 @@ export type Database = {
           unit_name_ar: string
         }[]
       }
+      evaluate_council_meeting_quorum: {
+        Args: { p_meeting_id: string }
+        Returns: Json
+      }
       fail_enrollment_certificate_document_generation: {
         Args: {
           p_attempt_id: string
           p_error_code: string
           p_error_message: string
         }
+        Returns: Json
+      }
+      finalize_council_meeting_attendance: {
+        Args: { p_meeting_id: string }
         Returns: Json
       }
       finalize_enrollment_certificate_document_generation: {
@@ -8108,6 +8716,14 @@ export type Database = {
         }
         Returns: string
       }
+      meeting_has_valid_quorum: {
+        Args: { p_meeting_id: string }
+        Returns: boolean
+      }
+      open_agenda_item_vote: {
+        Args: { p_agenda_item_id: string }
+        Returns: Json
+      }
       open_b1_e2e_88_execution: {
         Args: {
           p_audit_metadata?: Json
@@ -8118,6 +8734,7 @@ export type Database = {
         }
         Returns: string
       }
+      open_council_session: { Args: { p_meeting_id: string }; Returns: Json }
       persist_b1_draft_form_and_details: {
         Args: {
           p_canonical: string
@@ -8143,6 +8760,10 @@ export type Database = {
       recalc_student_fee_status: {
         Args: { _fee_id: string }
         Returns: undefined
+      }
+      record_council_meeting_attendance: {
+        Args: { p_entries: Json; p_meeting_id: string }
+        Returns: Json
       }
       record_external_university_payment_confirmation: {
         Args: { p_note?: string; p_step_id: string }
@@ -8299,6 +8920,10 @@ export type Database = {
         Args: { p_student_profile_id: string }
         Returns: undefined
       }
+      resolve_agenda_item: {
+        Args: { p_agenda_item_id: string; p_resolution?: string }
+        Returns: Json
+      }
       respond_graduation_project_supervision: {
         Args: {
           p_correlation_id: string
@@ -8367,6 +8992,10 @@ export type Database = {
           p_venue: string
         }
         Returns: string
+      }
+      start_agenda_item_discussion: {
+        Args: { p_agenda_item_id: string }
+        Returns: Json
       }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
@@ -8485,6 +9114,18 @@ export type Database = {
       }
     }
     Enums: {
+      academic_council_agenda_item_session_status:
+        | "pending"
+        | "in_discussion"
+        | "voting_open"
+        | "voting_closed"
+        | "resolved"
+      academic_council_attendance_roll_status: "open" | "finalized"
+      academic_council_attendance_state:
+        | "present"
+        | "present_remote"
+        | "excused"
+        | "absent"
       academic_council_decision_status:
         | "issued"
         | "assigned"
@@ -8510,6 +9151,8 @@ export type Database = {
         | "secretary"
         | "member"
         | "viewer"
+      academic_council_quorum_policy_status: "draft" | "approved" | "superseded"
+      academic_council_quorum_threshold_kind: "absolute" | "ratio"
       academic_council_topic_status:
         | "draft"
         | "submitted"
@@ -8521,6 +9164,7 @@ export type Database = {
         | "decided"
         | "closed"
       academic_council_type: "college" | "department"
+      academic_council_vote_value: "yes" | "no" | "abstain"
       app_role:
         | "admin"
         | "editor"
@@ -8711,6 +9355,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      academic_council_agenda_item_session_status: [
+        "pending",
+        "in_discussion",
+        "voting_open",
+        "voting_closed",
+        "resolved",
+      ],
+      academic_council_attendance_roll_status: ["open", "finalized"],
+      academic_council_attendance_state: [
+        "present",
+        "present_remote",
+        "excused",
+        "absent",
+      ],
       academic_council_decision_status: [
         "issued",
         "assigned",
@@ -8739,6 +9397,12 @@ export const Constants = {
         "member",
         "viewer",
       ],
+      academic_council_quorum_policy_status: [
+        "draft",
+        "approved",
+        "superseded",
+      ],
+      academic_council_quorum_threshold_kind: ["absolute", "ratio"],
       academic_council_topic_status: [
         "draft",
         "submitted",
@@ -8751,6 +9415,7 @@ export const Constants = {
         "closed",
       ],
       academic_council_type: ["college", "department"],
+      academic_council_vote_value: ["yes", "no", "abstain"],
       app_role: [
         "admin",
         "editor",
