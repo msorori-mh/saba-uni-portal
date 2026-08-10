@@ -13,7 +13,7 @@ MISSION=PORTAL-COUNCILS-C5-DIGEST-SEARCH-PATH-SOURCE-REVISION-LONGRUN-13
 BASE_SHA=cde33de20581ceeba62fcc8dc16dc28e864dd338
 BASE_PR=#321 / fix/councils-preflight-ledger-lineage-10
 BRANCH=fix/councils-c5-digest-source-revision-13
-FINAL_SHA=6c88e22ee81d19f79ad69168051c33d03fc39853
+FINAL_SHA=f14543fdd16a77b6e4f5a754a2abaf5ab2f47b17
 ```
 
 ## C5 freeze / revision
