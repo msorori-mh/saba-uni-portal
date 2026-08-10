@@ -4,7 +4,7 @@
 **Branch:** `feat/ga-final-closure-20260811`  
 **Target:** `main` (Draft PR, do not merge)  
 **BASE_SHA:** `d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc`  
-**FINAL_SHA:** `c80b2288d8ccdd52a7fbe9a08a50f33ba108194d`
+**FINAL_SHA:** `COMMIT_SHA_PLACEHOLDER`
 
 ---
 
@@ -12,7 +12,9 @@
 
 Graduates Affairs is now source-closed as a complete operational product. All required positive and negative authorization paths are implemented and verified, the graduate self-service surface is functional, the staff workspace is operational, and no production writes, migrations, or deploys were performed by this mission.
 
-**Decision:** `PASS_PORTAL_GRADUATES_AFFAIRS_FINAL_PRODUCT_OPERATIONAL_CLOSURE_01`
+Independent Codex audit findings H-02, M-04, and M-05 have been remediated in source via a forward-only SQL migration and executable negative tests. M-06 was reverified against the current PR341 head and remains closed.
+
+**Decision:** `PASS_PORTAL_GA_INDEPENDENT_SECURITY_AUDIT_FINDINGS_REMEDIATION_02`
 
 The remaining items are documented operational caveats, not source blockers. Lovable owns production identity creation and E2E execution.
 
@@ -32,9 +34,12 @@ The remaining items are documented operational caveats, not source blockers. Lov
 | 8 | Specialist scope decision | Real production specialist `aa4f5c16-…` is ambiguous/unscoped. | Closed (do not scope) | Decision recorded as `AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE`; TEST_ONLY single-department fixture documented for Lovable. |
 | 9 | Cross-platform failure-matrix runner | Bash/Git Bash runner cannot propagate `docker exec -i … psql` non-zero exit codes on Windows. | Documented as environment limitation, not source | PowerShell canonical runner documented in `tests/graduates-affairs/ga-failure-matrix-cross-platform.test.ts` passes. |
 | 10 | Survey list / employment history read-back | No approved RPC exists for graduates to list available surveys or read full employment history in the UI. | Documented caveat | UI allows manual UUID entry for surveys and append-only employment reporting; no source mutation path is left dead. |
+| 11 | H-02 event registration audience bypass | Direct `graduate_register_for_event` did not enforce the audience boundary used by `graduate_list_visible_events`. | Fixed | Forward-only remediation migration now calls `graduate_audience_matches`; negative tests `EVENT_CROSS_AUDIENCE_DENY` and `EVENT_UNPUBLISHED_DENY` pass. |
+| 12 | M-04 survey arbitrary answers JSON | `graduate_submit_survey_response` trusted client JSON without server-side validation against the question contract. | Fixed | Canonical validator `graduate_validate_survey_answers` rejects unknown keys, wrong types, missing required answers, out-of-option choices, and length violations. |
+| 13 | M-05 ambiguous approved graduate record | `graduate_affairs_resolve_self_context` silently selected the newest record when multiple approved records existed. | Fixed | Self context now requires exactly one approved record; ambiguity returns `continuity_allowed=false` and no actionable `graduate_record_id`. |
 
-**GAPS_FOUND:** 10  
-**GAPS_FIXED:** 8  
+**GAPS_FOUND:** 13  
+**GAPS_FIXED:** 11  
 **GAPS_DOCUMENTED/CLOSED_BY_DECISION:** 2 (specialist scope, failure-matrix runner environment)
 
 ---
@@ -163,12 +168,12 @@ Evidence: `tests/graduates-affairs/graduates-affairs-authorization-04-sql.test.t
 |---|---|
 | Employment | Append-only reporting via `graduate_report_employment`; supersession keeps history; verified flag surfaced in reports. |
 | Opportunities | Published/visibility/audience matching; graduate sees only opportunities whose audience scope matches their record. |
-| Events | Eligibility checked; registration and cancellation wired. |
-| Surveys | Eligible response, single/allowed submission enforced by backend, aggregate reporting with small-cell suppression and no free-text echo. |
+| Events | Eligibility and audience checked; registration and cancellation wired; direct RPC enforces the same `graduate_audience_matches` boundary as the listing. |
+| Surveys | Eligible response, single/allowed submission enforced by backend, server-side answer validation against the exact version contract, aggregate reporting with small-cell suppression and no free-text echo. |
 
 No dead UI remains.
 
-Evidence: `src/lib/graduates-affairs/graduates-affairs.functions.ts`, `src/routes/student.graduates-affairs.index.tsx`, `tests/graduates-affairs/graduates-affairs-completion-01.test.ts`.
+Evidence: `src/lib/graduates-affairs/graduates-affairs.functions.ts`, `src/routes/student.graduates-affairs.index.tsx`, `tests/graduates-affairs/graduates-affairs-completion-01.test.ts`, `tests/graduates-affairs/ga-independent-security-audit-remediation-02.pg-verify.sql`.
 
 ---
 
@@ -239,12 +244,12 @@ Evidence: `tests/graduates-affairs/graduates-affairs-visual-ux-qa-01.test.ts`, `
 
 | Check | Command | Result |
 |---|---|---|
-| Graduates Affairs tests | `bun test tests/graduates-affairs` | **193 pass / 0 fail** |
+| Graduates Affairs tests | `bun test tests/graduates-affairs` | **201 pass / 0 fail** |
 | Student Requests tests | `bun test tests/student-requests` | **1066 pass / 0 fail** |
 | Type check | `bunx tsc --noEmit` | **clean** |
 | Build | `bun run build` | **pass** |
 | Whitespace | `git diff --check` | **clean** |
-| PG17 authorization/privacy verifiers | `bash scripts/ga-local-exact-rehearsal.sh` | **LOCAL_EXACT_APPLY_REHEARSAL_PASS** with `AUTH04_POST_VERIFIER_PASS` and authority-race PASS |
+| PG17 authorization/privacy verifiers | `bash scripts/ga-local-exact-rehearsal.sh` | **LOCAL_EXACT_APPLY_REHEARSAL_PASS** with `AUTH04_POST_VERIFIER_PASS`, authority-race PASS, and `REMEDIATION_02_VERIFIER_PASS` |
 | Failure-matrix cross-platform contract | `bun test tests/graduates-affairs/ga-failure-matrix-cross-platform.test.ts` | **pass** |
 
 **TESTS:** PASS  
@@ -269,6 +274,13 @@ Evidence: `tests/graduates-affairs/graduates-affairs-visual-ux-qa-01.test.ts`, `
 - `docs/reviews/PORTAL-GRADUATES-AFFAIRS-PRODUCTION-ACTOR-MATRIX-01.md`
 - `docs/reviews/PORTAL-GRADUATES-AFFAIRS-FINAL-PRODUCT-OPERATIONAL-CLOSURE-01.md`
 
+### Remediation 02 source additions
+
+- `supabase/migrations/20260811230000_ga_independent_security_audit_remediation_02.sql`
+- `tests/graduates-affairs/ga-independent-security-audit-remediation-02-sql.test.ts`
+- `tests/graduates-affairs/ga-independent-security-audit-remediation-02.pg-verify.sql`
+- `scripts/ga-local-exact-rehearsal.sh`
+
 ### Pull Request
 
 Draft PR opened:
@@ -279,13 +291,114 @@ Draft PR opened:
 
 ---
 
+## O — Independent Security Audit Remediation 02
+
+**Audit:** `PORTAL-GP-GA-FINAL-INDEPENDENT-SECURITY-AND-COMPLETENESS-AUDIT-01`  
+**Audit commit:** `34f1a02260f6e63c989f2320cab52d0e18b00722` reviewed `d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc`  
+**Remediation status:** all assigned findings closed in source.
+
+### H-02 — Event registration audience bypass
+
+**Status:** CLOSED
+
+`graduate_register_for_event` now enforces the same audience boundary as `graduate_list_visible_events` by calling the canonical `graduate_audience_matches` predicate on the event scope against the graduate record's program and department. Hidden, unpublished, or out-of-audience events result in `GRADUATE_EVENT_AUDIENCE_DENIED` or `GRADUATE_EVENT_NOT_OPEN` with zero insert.
+
+Evidence:
+- `supabase/migrations/20260811230000_ga_independent_security_audit_remediation_02.sql` — `graduate_register_for_event` uses `graduate_audience_matches(...)`.
+- `tests/graduates-affairs/ga-independent-security-audit-remediation-02.pg-verify.sql` — `EVENT_CROSS_AUDIENCE_DENY` and `EVENT_UNPUBLISHED_DENY` raise the expected exceptions and leave `graduate_event_registrations` unchanged.
+
+### M-04 — Survey arbitrary answers JSON
+
+**Status:** CLOSED
+
+`graduate_submit_survey_response` now calls a canonical server-side validator `graduate_validate_survey_answers` that checks every answer against the exact survey version question contract. Fail-closed cases:
+
+- empty answers when required questions exist
+- unknown question key
+- wrong answer type
+- missing required answer
+- answer outside allowed option set
+- free text exceeding `maxLength`
+- inactive/unpublished survey
+
+The validator is revoked from `PUBLIC`, `anon`, and `authenticated`; it is an internal helper, never directly executable by clients.
+
+Evidence:
+- `supabase/migrations/20260811230000_ga_independent_security_audit_remediation_02.sql` — `graduate_validate_survey_answers` and its invocation from `graduate_submit_survey_response`.
+- `tests/graduates-affairs/ga-independent-security-audit-remediation-02.pg-verify.sql` — `SURVEY_UNKNOWN_KEY_DENY`, `SURVEY_WRONG_TYPE_DENY`, `SURVEY_REQUIRED_MISSING_DENY`, invalid option, and max-length denials all raise and leave `graduate_survey_responses` unchanged.
+
+### M-05 — Ambiguous approved graduate record
+
+**Status:** CLOSED
+
+`graduate_affairs_resolve_self_context` no longer silently selects the newest record. It counts approved records for `auth.uid()` and allows self mutation only when the count is exactly one. Zero or more than one approved record returns:
+
+- `owns_graduate_record: false`
+- `graduate_record_id: null`
+- `graduate_record_state: 'absent'`
+- `continuity_allowed: false`
+
+Evidence:
+- `supabase/migrations/20260811230000_ga_independent_security_audit_remediation_02.sql` — `graduate_affairs_resolve_self_context` uses `count(*)` and `v_record_count = 1`.
+- `tests/graduates-affairs/ga-independent-security-audit-remediation-02.pg-verify.sql` — `SELF_CONTEXT_TWO_APPROVED_DENY` asserts the fail-closed shape.
+
+### M-06 — Operational surface reverification
+
+**Status:** CLOSED
+
+Reverified against current PR341 head:
+
+- Feature flags are ON (`studentGraduatesAffairs`, `staffGraduatesAffairs` in `src/lib/portal-features.ts`).
+- Self route `/student/graduates-affairs` resolves context, renders an actionable dashboard, and exposes functional sections for profile, contact points, consent, employment, opportunities, events, and surveys.
+- Staff route mounts `GraduatesAffairsStaffWorkspace`, which loads scoped records, opens files, creates follow-ups, and transitions follow-up states.
+- No dead buttons remain; every button either performs an AUTH-04 RPC call or is a pure presentation filter.
+- All mutations (contact, consent, employment, survey, event registration/cancellation, follow-ups) route through `GraduatesAffairsRpcClient`, which is gated by the `GRADUATES_AFFAIRS_AUTH04_RPCS` allowlist.
+- Privacy preserved: protected values are not selected in read paths, audit events are written, and aggregate reports suppress small cells.
+
+Evidence: `src/routes/student.graduates-affairs.index.tsx`, `src/routes/staff.graduates-affairs.tsx`, `src/components/portal/GraduatesAffairsStaffWorkspace.tsx`, `src/lib/graduates-affairs/rpc.ts`, `src/lib/graduates-affairs/runtime-gate.ts`, `tests/graduates-affairs/graduates-affairs-runtime-wire-01.test.ts`.
+
+### Direct RPC parity review
+
+All graduate-facing mutating RPCs touched by PR341 were reviewed for read/write parity:
+
+| RPC | Read/list gate | Write gate | Parity verdict |
+|---|---|---|---|
+| `graduate_register_for_event` | `graduate_list_visible_events` uses `graduate_is_current_self` + `graduate_audience_matches` | Remediation added `graduate_is_self` + `graduate_require_approved_record_locked` + `graduate_audience_matches` | PASS |
+| `graduate_cancel_event_registration` | ownership via registration row | `graduate_is_self` + `graduate_require_approved_record_locked` | PASS |
+| `graduate_submit_survey_response` | active/published version check | `graduate_is_self` + `graduate_require_approved_record_locked` + `graduate_validate_survey_answers` | PASS |
+| `graduate_withdraw_survey_response` | ownership via response row | `graduate_is_self` + `graduate_require_approved_record_locked` | PASS |
+| `graduate_grant_consent` / `withdraw_consent` | `graduate_my_contact_points` / file | `graduate_is_self` + `graduate_require_approved_record_locked` | PASS |
+| `graduate_add_contact_point` / `revoke_contact_point` | `graduate_my_contact_points` | `graduate_is_self` + `graduate_require_approved_record_locked` | PASS |
+| `graduate_report_employment` | file summary / cohort reports | `graduate_is_self` + `graduate_require_approved_record_locked` | PASS |
+| Opportunities | `graduate_list_visible_opportunities` (no self mutation) | staff-only moderation via `graduate_affairs_moderate_opportunity` | PASS |
+
+No new HIGH-severity IDOR or audience inconsistency was found.
+
+---
+
 ## Final Status Variables
 
 ```
 BASE_SHA=d8f34619744bc27ebdfc854c5f9f64d87a6bd3bc
-FINAL_SHA=c80b2288d8ccdd52a7fbe9a08a50f33ba108194d
-GAPS_FOUND=10
-GAPS_FIXED=8
+FINAL_SHA=COMMIT_SHA_PLACEHOLDER
+H02=CLOSED
+M04=CLOSED
+M05=CLOSED
+M06=CLOSED
+EVENT_AUDIENCE_DIRECT_RPC=PASS
+SURVEY_SERVER_VALIDATION=PASS
+AMBIGUOUS_APPROVED_RECORD=PASS
+OPERATIONAL_SURFACE=PASS
+GA_TESTS=201 pass / 0 fail
+STUDENT_REQUESTS=1066 pass / 0 fail
+PG17=LOCAL_EXACT_APPLY_REHEARSAL_PASS
+TYPECHECK=PASS
+BUILD=PASS
+CRITICAL_COUNT=0
+HIGH_COUNT=0
+MEDIUM_COUNT=0
+GAPS_FOUND=13
+GAPS_FIXED=11
 OFFICIAL_GRADUATION_GATE=PASS
 ACCOUNT_CONTINUITY=PASS
 GRADUATE_SELF_SERVICE=PASS
@@ -303,10 +416,6 @@ UX=PASS
 PRODUCTION_ACTOR_MATRIX=PASS
 PRODUCTION_E2E_READY=PASS (with documented caveats)
 TESTS=PASS
-TYPECHECK=PASS
-BUILD=PASS
-CRITICAL_COUNT=0
-HIGH_COUNT=0
 REMAINING_BLOCKERS=NONE
 ```
 
@@ -321,7 +430,7 @@ REMAINING_BLOCKERS=NONE
 ## Final Decision
 
 ```
-PASS_PORTAL_GRADUATES_AFFAIRS_FINAL_PRODUCT_OPERATIONAL_CLOSURE_01
+PASS_PORTAL_GA_INDEPENDENT_SECURITY_AUDIT_FINDINGS_REMEDIATION_02
 ```
 
 Review document saved locally at:
