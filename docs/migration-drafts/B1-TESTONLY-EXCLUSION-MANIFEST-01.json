@@ -1,0 +1,121 @@
+{
+  "manifest_id": "B1-TESTONLY-EXCLUSION-MANIFEST-01",
+  "mission": "PORTAL-B1-GO-LIVE-MIGRATION-DRIFT-TESTONLY-D02-FINAL-CLOSURE-LONGRUN-01",
+  "purpose": "List all TEST_ONLY-bearing migrations under supabase/migrations and their release-path classification. A migration in this manifest must not be applied by a fresh Go-Live release orchestration.",
+  "generated_at": "2026-08-10",
+  "policy": {
+    "batch_apply_forbidden": true,
+    "production_apply_forbidden": true,
+    "fresh_environment_apply": "EXCLUDE unless explicitly re-authorized for a disposable test environment",
+    "history_preservation": "Files are moved to docs/migration-drafts/test-only-archive/ or left in place with EXCLUDE_FROM_NEW_RELEASE_PATH classification; git history is never destroyed."
+  },
+  "entries": [
+    {
+      "file": "supabase/migrations/20260727071538_122ddb4e-9ca5-4bc8-8445-06164813ca52.sql",
+      "role": "TEST_ONLY fixture profile adjustment",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "556457035649f3cf226340a475264c166072b7b6",
+      "runbook_references": [],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "supabase/migrations/20260727071651_9a525ae0-2f8e-4447-aeee-6bdc8479a84e.sql",
+      "role": "TEST_ONLY first-delivery fixture snapshot + assignments",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "3e179578efbab80ad7ac39ed9dad07d05bd8cd3c",
+      "runbook_references": [],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "supabase/migrations/20260727075603_a8b94d89-b6ff-4a77-955e-cb3c3e974df5.sql",
+      "role": "TEST_ONLY first-delivery fixture restore / cleanup",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "89f9d0afa8b37108f061ed9c7d266b826dbe62ff",
+      "runbook_references": [],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "supabase/migrations/20260727165538_84075c1c-e9da-46c1-bcea-727159d46863.sql",
+      "role": "TEST_ONLY second fixture student insert",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "08eee7388276584769536509ec644d5b0e97918a",
+      "runbook_references": [],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "supabase/migrations/20260731203030_8e3ed620-f5d3-4f20-a326-e4f6366f44fd.sql",
+      "role": "TEST_ONLY Stage-3 limited cleanup (forward-only)",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "538e8df7b90631b347f568d2c474a62c2dd76f6a",
+      "runbook_references": [
+        "docs/B1-STAGE3-TESTONLY-FORWARD-ONLY-CLEANUP-PRODUCTION-APPLY-136-REPORT.md"
+      ],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; forward-only cleanup of TEST_ONLY rows; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "supabase/migrations/20260801021541_4a93f2d8-18ad-453f-a00d-6a9ea08f7fbe.sql",
+      "role": "TEST_ONLY safe-RPC fixture package (Fixture 13)",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "a4c916c038d963853deaef9d8c9a6d8407477a66",
+      "runbook_references": [
+        "docs/B1-FIVE-SERVICES-SAFE-RPC-FIXTURE-PACKAGE-RUNTIME-CONTRACT-REMEDIATION-15-REPORT.md"
+      ],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; creates 19 TEST_ONLY fixture requests; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql",
+      "role": "TEST_ONLY Fixture 15 reissue",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "42a0388fc5cd42883727b13987fbac524b2470b8",
+      "runbook_references": [
+        "docs/B1-FIXTURE-15-FORWARD-ONLY-REISSUE-44-REPORT.md"
+      ],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "docs/migration-drafts/test-only-archive/20260804004546_17b78d6d-3a17-41d9-ba7b-d0c19c6459cc.sql",
+      "role": "Duplicate managed alias of Fixture 15 reissue",
+      "canonical_superseded_testonly": "SUPERSEDED/TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "42a0388fc5cd42883727b13987fbac524b2470b8",
+      "runbook_references": [
+        "docs/B1-FIXTURE-15-FORWARD-ONLY-REISSUE-44-REPORT.md"
+      ],
+      "action_required": "ARCHIVED. Identical content to 20260803030000_b1_44_restore_sr_20260801_13000015.sql. Removed from Go-Live apply graph. History preserved."
+    },
+    {
+      "file": "supabase/migrations/20260804120000_b1_88_request_scoped_e2e_support.sql",
+      "role": "TEST_ONLY request-scoped E2E support",
+      "canonical_superseded_testonly": "TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "40b8b50912ee10f8b97b310faf1e8906d1a27dee",
+      "runbook_references": [
+        "docs/PORTAL-B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97-REPORT.md",
+        "docs/B1-E2E-88-LOVABLE-READONLY-EXECUTION-PACKAGE-97.md"
+      ],
+      "action_required": "EXCLUDE_FROM_NEW_RELEASE_PATH; creates TEST_ONLY E2E infrastructure; classify as HISTORICAL_APPLIED if production schema_migrations shows it applied."
+    },
+    {
+      "file": "docs/migration-drafts/test-only-archive/20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql",
+      "role": "Duplicate of B1_E2E_88 request-scoped E2E support",
+      "canonical_superseded_testonly": "SUPERSEDED/TEST_ONLY",
+      "production_applied_state": "UNKNOWN",
+      "hash_source": "identical content to 20260804120000_b1_88_request_scoped_e2e_support.sql (trailing newline only differs)",
+      "runbook_references": [
+        "docs/PORTAL-B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97-REPORT.md"
+      ],
+      "action_required": "ARCHIVED. Identical content to 20260804120000_b1_88_request_scoped_e2e_support.sql. Removed from Go-Live apply graph. History preserved."
+    }
+  ],
+  "release_graph_status": {
+    "TEST_ONLY_PRODUCTION_PATH_UNKNOWN": 0,
+    "TEST_ONLY_RELEASE_GRAPH_SAFE": "YES — all archived duplicates are outside supabase/migrations; remaining TEST_ONLY migrations are classified EXCLUDE_FROM_NEW_RELEASE_PATH and must be skipped by release orchestration."
+  }
+}

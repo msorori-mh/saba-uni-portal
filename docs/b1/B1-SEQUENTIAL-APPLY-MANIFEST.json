@@ -5,10 +5,10 @@
  "repo": "msorori-mh/saba-uni-portal",
  "base_ref": {
   "branch": "main",
-  "commit": "45148e0939d6e2d8f2baba792df4ca79907df8ac"
+  "commit": "38578b6533f20407c02ed775b5af18d11fcb85eb"
  },
- "manifest_branch": "docs/b1-sequential-apply-manifest-verifier-closure-01",
- "generated_by": "track C implementation agent (recon: INVENTORY.md/INVENTORY.json in work area)",
+ "manifest_branch": "fix/b1-go-live-final-drift-d02-closure-01",
+ "generated_by": "B1 canonical migration graph builder (fix/b1-go-live-final-drift-d02-closure-01)",
  "status_semantics": {
   "allowed_values": [
    "NOT_APPLIED",
@@ -17,7 +17,7 @@
    "PARTIAL",
    "BLOCKED"
   ],
-  "current": "seq 1-7 partially present as Lovable UUID migrations on main@b63725e (PR #219 merged); seq 8-19 SOURCE_PROMOTED via PR #219; seq 20 (B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19) SOURCE_PROMOTED on fix/b1-confirm-payment-predecessor-guard-01 but NOT_APPLIED to production catalog",
+  "current": "Canonical B1 graph rebuilt at HEAD 38578b6533f20407c02ed775b5af18d11fcb85eb; all seq 1-27 mapped to current source migration files; stale SHA references cleared.",
   "proof_policy": "application state is proven ONLY by object-level catalog evidence; name-matching draft filenames against Lovable UUID-named rows in supabase_migrations.schema_migrations is FORBIDDEN as proof"
  },
  "global_policies": {
@@ -121,7 +121,14 @@
    "B1-FREE-SERVICE-WORKFLOWS-16",
    "B1-EXT-UNI-PAYMENT-WORKFLOWS-17",
    "B1-DETAIL-ACL-CUTOVER-18",
-   "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19"
+   "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
+   "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
+   "B1-SECURE-DRAFT-MUTATIONS-21",
+   "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
+   "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
+   "B1-ACADEMIC-EFFECT-MARKERS-25",
+   "B1-ACADEMIC-EFFECT-FUNCTIONS-26",
+   "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-27"
   ],
   "edges": [
    {
@@ -319,6 +326,34 @@
    {
     "from": "B1-DETAIL-ACL-CUTOVER-18",
     "to": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19"
+   },
+   {
+    "from": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
+    "to": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20"
+   },
+   {
+    "from": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
+    "to": "B1-SECURE-DRAFT-MUTATIONS-21"
+   },
+   {
+    "from": "B1-SECURE-DRAFT-MUTATIONS-21",
+    "to": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23"
+   },
+   {
+    "from": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
+    "to": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24"
+   },
+   {
+    "from": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
+    "to": "B1-ACADEMIC-EFFECT-MARKERS-25"
+   },
+   {
+    "from": "B1-ACADEMIC-EFFECT-MARKERS-25",
+    "to": "B1-ACADEMIC-EFFECT-FUNCTIONS-26"
+   },
+   {
+    "from": "B1-ACADEMIC-EFFECT-FUNCTIONS-26",
+    "to": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-27"
    }
   ],
   "first_migration": "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
@@ -330,7 +365,8 @@
    "exactly one zero-dependency entry (the first)",
    "every entry has preflight, post_verifier, stop_conditions, partial_apply_detection, rollback_by_forward, activation_dependency",
    "all status NOT_APPLIED",
-   "sequence_order is a total order; dependencies include the sequence predecessor so the graph itself forbids batching"
+   "sequence_order is a total order; dependencies include the sequence predecessor so the graph itself forbids batching",
+   "all 27 canonical B1 migrations present in graph"
   ]
  },
  "migrations": [
@@ -342,10 +378,10 @@
    "plan_order": 1,
    "sequence_order": 1,
    "sequence_predecessor": null,
-   "source_sha": "0659fe34e4ed7f47ff1f69c041adefe289c2d594",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "3eb01f9901e031231a2d67375dd0874bc3b8000bfd165ce6d0b329bfb31789b0",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 3253,
    "dependencies": [],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
@@ -401,7 +437,12 @@
    "rollback_by_forward": "forward CREATE OR REPLACE of cancel_official_document restoring the baseline definition captured at preflight (keeps explicit 7-arg log_audit call contract); no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- inert remediation; no service activation",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "migration_file": "20260723061809_7f864e4b-262d-4dce-8475-d663377fb472.sql",
+   "migration_sha256_lf": "3eb01f9901e031231a2d67375dd0874bc3b8000bfd165ce6d0b329bfb31789b0",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
@@ -411,10 +452,10 @@
    "plan_order": 2,
    "sequence_order": 2,
    "sequence_predecessor": "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
-   "source_sha": "26b63bb93de4506d1b73440250503c0f166db217",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "bc08fcb6e1ce35c1e575b29fee56dd87714f7e7c53d17a0b376bc97102ac1b2d",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 23408,
    "dependencies": [
     "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01"
@@ -473,7 +514,12 @@
    "rollback_by_forward": "forward CREATE OR REPLACE restoring the 4 captured baseline function definitions if a defect is found; note: restoring v1 re-opens the authorization bypass -- prefer forward-fix of the strict gate; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- tightens existing gates only; no service activation",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "migration_file": "20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql",
+   "migration_sha256_lf": "bc08fcb6e1ce35c1e575b29fee56dd87714f7e7c53d17a0b376bc97102ac1b2d",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
@@ -483,10 +529,10 @@
    "plan_order": null,
    "sequence_order": 3,
    "sequence_predecessor": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-   "source_sha": "3fb5340a431204db12cf30b6a9caef7a55a242f3",
-   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the owner-approved M3 replacement draft in the working tree; supersedes NEVER-PROMOTE B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
-   "sha256": "54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified); documented in docs/PORTAL-B1-THIRD-MIGRATION-BLOCKER-ONLY-PREFLIGHT-01-REPORT.md section 8 and runbook-07 row M3",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "3aa28371119674ca21d334b5721be4d8bd1b8d7797d4ac8838f8fcf3087b3b54",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 15835,
    "dependencies": [
     "B1-ACTOR-AUTHORIZATION-HARDENING-02"
@@ -545,7 +591,12 @@
    "rollback_by_forward": "forward CREATE OR REPLACE of can_current_user_act_on_step (and helpers) to corrected definitions; guard logic changes must ship as a new reviewed revision; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- guard tightening only",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence (catalog probes show created objects absent); owner approved -02 for chain slot M3 and banned -01 from production permanently (enrollment_certificate regression); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "migration_file": "20260723225159_6af54cae-3956-4f19-bbd9-a4aa8a8f446f.sql",
+   "migration_sha256_lf": "3aa28371119674ca21d334b5721be4d8bd1b8d7797d4ac8838f8fcf3087b3b54",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-PROCESSING-DOMAINS-EXPANSION-03",
@@ -555,10 +606,10 @@
    "plan_order": 3,
    "sequence_order": 4,
    "sequence_predecessor": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
-   "source_sha": "5278c7ace88e993ed214d5c7905a0a31828df910",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "0a2a4d6c1c354a7a951d4393de0a986ab009633ce483cdceff7aedd81bbde58d",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 6193,
    "dependencies": [
     "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02"
@@ -609,7 +660,12 @@
    "rollback_by_forward": "forward remediation: deactivate (is_active=false) any wrongly-resolved unit/role/assignment rather than DELETE; assignments are identity data referenced by future workflows; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- reference data only; services remain unavailable until workflows (16/17 in sequence) + activation gate",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "migration_file": "20260716172804_3baccc1f-0879-4a6c-ad1b-225616d024c8.sql",
+   "migration_sha256_lf": "0a2a4d6c1c354a7a951d4393de0a986ab009633ce483cdceff7aedd81bbde58d",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-ATOMIC-SUBMIT-ACTION-04",
@@ -619,10 +675,10 @@
    "plan_order": 4,
    "sequence_order": 5,
    "sequence_predecessor": "B1-PROCESSING-DOMAINS-EXPANSION-03",
-   "source_sha": "90bad45e4fd93659c3ebf5fdd2d83c0dda2a4a6c",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "e7f755c501a2e106a0e3146e54429a1fbf224f362255b050dc092a4a08e5a644",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 26447,
    "dependencies": [
     "B1-PROCESSING-DOMAINS-EXPANSION-03",
@@ -705,7 +761,12 @@
    "rollback_by_forward": "forward: DISABLE the two guard triggers and/or CREATE OR REPLACE functions to corrected versions in a new migration; keep dispatcher fail-closed until a fixed dispatcher lands; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "dispatcher stays fail-closed after this step; no service callable until B1-SERVICE-DETAILS-DISPATCHER-15 + ACL cutover + activation gate 19",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "migration_file": "20260724061333_abf1bbb5-1bd0-4a7b-a805-866a3b98a61a.sql",
+   "migration_sha256_lf": "e7f755c501a2e106a0e3146e54429a1fbf224f362255b050dc092a4a08e5a644",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "STALE"
   },
   {
    "canonical_id": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
@@ -715,10 +776,10 @@
    "plan_order": 5,
    "sequence_order": 6,
    "sequence_predecessor": "B1-ATOMIC-SUBMIT-ACTION-04",
-   "source_sha": "5851bf9e2b04c8232e2001a749a3d1421c5688be",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "717a99a0259d388b1d9ab09a2e4855a08042d97feb0724b3f6444bf02a95df48",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 1009,
    "dependencies": [
     "B1-ATOMIC-SUBMIT-ACTION-04"
@@ -767,8 +828,13 @@
    "rollback_by_forward": "forward: re-stamp with corrected evidence SHA via a new stamp revision (obj_description overwrite); never edit the applied comment in place outside a migration; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- evidence marker only",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof",
-   "stamp_note": "sha256 above covers the PLACEHOLDER bytes on main; the draft must not be applied while the placeholder remains; after inserting the approved 40-hex release SHA the revised file MUST be re-hashed and this manifest entry updated before apply"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "stamp_note": "sha256 above covers the PLACEHOLDER bytes on main; the draft must not be applied while the placeholder remains; after inserting the approved 40-hex release SHA the revised file MUST be re-hashed and this manifest entry updated before apply",
+   "migration_file": "20260724071928_faa15163-e8bc-4f47-bdad-dc067d6c1b0b.sql",
+   "migration_sha256_lf": "717a99a0259d388b1d9ab09a2e4855a08042d97feb0724b3f6444bf02a95df48",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
@@ -778,10 +844,10 @@
    "plan_order": 6,
    "sequence_order": 7,
    "sequence_predecessor": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
-   "source_sha": "0a61db10a81f8ee01ff5ada1c0aa5df6a4882204",
-   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the draft amended for R-3 closure (owner decision): replacement action_type constraint is a superset of the applied one and retains assess_fee",
-   "sha256": "41ab67a1208f926400799d2c6870dd44015e59fbbb9a7d6adaba4faf9d3b7f84",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified) after R-3 assess_fee retention; matches runbook-07 order 6 pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "00706047e8b5801e41c089ed98d32550699c3bd19d94eff98bc9429d21691a94",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 11257,
    "dependencies": [
     "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
@@ -843,7 +909,12 @@
    "rollback_by_forward": "forward: restore prior CHECK definitions (captured at preflight) via new ALTER statements and/or CREATE OR REPLACE the RPC to a corrected version; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "RPC inert until payment_confirmation runtime steps exist (B1-EXT-UNI-PAYMENT-WORKFLOWS-17); incomplete-predecessor bypass closed by B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 before activation gate 21",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
+   "migration_file": "20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql",
+   "migration_sha256_lf": "00706047e8b5801e41c089ed98d32550699c3bd19d94eff98bc9429d21691a94",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-SECURE-ATTACHMENTS-SOURCE-07",
@@ -853,10 +924,10 @@
    "plan_order": 7,
    "sequence_order": 8,
    "sequence_predecessor": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
-   "source_sha": "d21aaaeff26ed11b452e2825932a7a2e5763daed",
-   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the draft amended for R-2 closure (owner decision): authenticated submit_student_request(uuid) revoke deferred to a separate cutover phase",
-   "sha256": "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified) after R-2 revoke deferral; matches runbook-07 order 7 pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "66ba4c96c23c44bbcca62de28360d806ee6ff5dbd358a20f2e181b9a8fd6bca8",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 16361,
    "dependencies": [
     "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
@@ -947,12 +1018,17 @@
    "rollback_by_forward": "forward: REVOKE the new RPCs and DROP the storage INSERT policy in a new migration to close the surface; uploaded objects in the private bucket are protected records -- never mass-delete; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "attachment runtime usable only through the atomic submit path; no service activation by itself",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110000_b1_07_secure_attachments_source_01.sql",
+   "migration_sha256_lf": "66ba4c96c23c44bbcca62de28360d806ee6ff5dbd358a20f2e181b9a8fd6bca8",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-TRUSTED-REFERENCE-VALIDATORS-08",
@@ -962,10 +1038,10 @@
    "plan_order": 8,
    "sequence_order": 9,
    "sequence_predecessor": "B1-SECURE-ATTACHMENTS-SOURCE-07",
-   "source_sha": "8fa9e01faeeb393633db6f3884afa256e5da4e44",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 2395,
    "dependencies": [
     "B1-SECURE-ATTACHMENTS-SOURCE-07"
@@ -1023,12 +1099,17 @@
    "rollback_by_forward": "forward: CREATE OR REPLACE validators to corrected logic; they are inert until called by the dispatcher; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "inert until invoked by dispatcher",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110100_b1_08_trusted_reference_validators_05a.sql",
+   "migration_sha256_lf": "e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-EXCUSED-ABSENCE-VOCABULARY-09",
@@ -1038,10 +1119,10 @@
    "plan_order": 9,
    "sequence_order": 10,
    "sequence_predecessor": "B1-TRUSTED-REFERENCE-VALIDATORS-08",
-   "source_sha": "30af305ce46c8776016c089c243cc878e946f8d4",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 3943,
    "dependencies": [
     "B1-TRUSTED-REFERENCE-VALIDATORS-08"
@@ -1092,12 +1173,17 @@
    "rollback_by_forward": "forward: adjust constraint/trigger to corrected vocabulary in a new migration; historical family/emergency rows stay untouched (protected); no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "constraint/trigger affect only new direct writes; service activation unchanged",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110200_b1_09_excused_absence_vocabulary_05a.sql",
+   "migration_sha256_lf": "9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-EXCUSED-ABSENCE-DETAIL-10",
@@ -1107,10 +1193,10 @@
    "plan_order": 10,
    "sequence_order": 11,
    "sequence_predecessor": "B1-EXCUSED-ABSENCE-VOCABULARY-09",
-   "source_sha": "fd80dedd7f852842c359822fdd1920201118710e",
-   "source_sha_provenance": "git hash-object of REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql after SEQ10 sandbox_exec ACL fail-safe remediation",
-   "sha256": "a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4",
-   "sha256_provenance": "LF-normalized SHA-256 after SEQ10 sandbox_exec ACL fail-safe remediation (revoke platform role when present; never allowlisted)",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 5602,
    "dependencies": [
     "B1-EXCUSED-ABSENCE-VOCABULARY-09",
@@ -1169,12 +1255,17 @@
    "rollback_by_forward": "forward: tighten/relax trigger logic or policy via new migration; existing absence_excuse_details rows (incl. historical null absence_reason_detail) are protected; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- table hardening only",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110300_b1_10_excused_absence_detail_05a.sql",
+   "migration_sha256_lf": "ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-FILE-WITHDRAWAL-DETAILS-11",
@@ -1184,10 +1275,10 @@
    "plan_order": 11,
    "sequence_order": 12,
    "sequence_predecessor": "B1-EXCUSED-ABSENCE-DETAIL-10",
-   "source_sha": "f3714d00a3c4fa605983018eb80d22141bad0d7a",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "febf7a9bedd9d62f6fefe1533784d7e1f8fa7d995ea90a5fc3b16812a392ca71",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 7731,
    "dependencies": [
     "B1-EXCUSED-ABSENCE-DETAIL-10",
@@ -1244,12 +1335,17 @@
    "rollback_by_forward": "forward: ALTER/RLS corrections via new migration; if the table must be retired before any data exists, a reviewed DROP is acceptable only while row count = 0; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- table creation only",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110400_b1_11_file_withdrawal_details_05a.sql",
+   "migration_sha256_lf": "35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-TRANSFER-SECURE-ATTACHMENT-12",
@@ -1259,10 +1355,10 @@
    "plan_order": 12,
    "sequence_order": 13,
    "sequence_predecessor": "B1-FILE-WITHDRAWAL-DETAILS-11",
-   "source_sha": "805d3534a02ba1c63b742cd5626c255708ddfd73",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response). NOTE: the local text-channel staging copy diverges (fabe936a7590b786c087c59eee477d7cc3d8737f, 8426 bytes -- 12 non-rendered bytes lost), so git hash-object of the staging copy does NOT match; the API blob SHA is authoritative here",
-   "sha256": "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
-   "sha256_provenance": "B1-plan pin (d80f691c...). LOCAL TEXT-CHANNEL RE-HASH DIVERGES: fetched text hashed to 06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53 (8426 bytes vs 8438 remote; 12 non-rendered bytes lost by the text channel; blob SHA cross-verified 805d3534). FOLLOW-UP: re-hash via raw-byte channel before apply.",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "sha256_local_text_channel": "06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53",
    "byte_size": 8438,
    "dependencies": [
@@ -1331,13 +1427,18 @@
    "rollback_by_forward": "forward: restore prior field_key CHECK or function variants via new migration; existing attachment rows/objects are protected; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- attachment vocabulary extension only",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "byte_size_local_text_channel": 8426,
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110500_b1_12_transfer_secure_attachment_05a.sql",
+   "migration_sha256_lf": "224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-FINAL-CHANCE-CANONICAL-WRITE-13",
@@ -1347,10 +1448,10 @@
    "plan_order": 13,
    "sequence_order": 14,
    "sequence_predecessor": "B1-TRANSFER-SECURE-ATTACHMENT-12",
-   "source_sha": "ed1de1bffcc63b8c265e0fb5672d329422b8aa48",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "ac71b01ca78d0946152be39fee6eb1e659031dcc820f492f419eb7855947be46",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 6891,
    "dependencies": [
     "B1-TRANSFER-SECURE-ATTACHMENT-12",
@@ -1408,12 +1509,17 @@
    "rollback_by_forward": "forward: adjust validators/triggers/constraints via new migration; historical chance_type aliases remain read-only (protected); no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- write enforcement only",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110600_b1_13_final_chance_canonical_write_03.sql",
+   "migration_sha256_lf": "ac71b01ca78d0946152be39fee6eb1e659031dcc820f492f419eb7855947be46",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-DETAIL-RPC-WRITE-BOUNDARIES-14",
@@ -1423,10 +1529,10 @@
    "plan_order": 14,
    "sequence_order": 15,
    "sequence_predecessor": "B1-FINAL-CHANCE-CANONICAL-WRITE-13",
-   "source_sha": "682f681cbe3cee0ea73807ffb99619ea4f8619e7",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0",
-   "sha256_provenance": "LF-normalized SHA-256 recomputed after PR219 migration-review remediation (DROP POLICY split-format)",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 3897,
    "dependencies": [
     "B1-FINAL-CHANCE-CANONICAL-WRITE-13",
@@ -1484,12 +1590,17 @@
    "rollback_by_forward": "forward: CREATE OR REPLACE the boundaries function to corrected logic; it is inert until invoked by the cutover; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "inert primitive; executed only inside B1-DETAIL-ACL-CUTOVER-18",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql",
+   "migration_sha256_lf": "3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-SERVICE-DETAILS-DISPATCHER-15",
@@ -1499,10 +1610,10 @@
    "plan_order": 15,
    "sequence_order": 16,
    "sequence_predecessor": "B1-DETAIL-RPC-WRITE-BOUNDARIES-14",
-   "source_sha": "82341aadd502307c1c50bcb1542dae20fe7f4959",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "a1d1e143e89ca457b0776f06d11e0e50f1e8c471e8799debad3ef5dd79d0b8c2",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 8933,
    "dependencies": [
     "B1-DETAIL-RPC-WRITE-BOUNDARIES-14",
@@ -1568,12 +1679,17 @@
    "rollback_by_forward": "forward: CREATE OR REPLACE dispatcher back to fail-closed (or corrected branches) in a new migration -- this immediately closes all 5 services' write path; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "dispatcher installed but direct client table writes remain closed until B1-DETAIL-ACL-CUTOVER-18; service visibility still gated by activation gate 19",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110800_b1_15_service_details_dispatcher_05a.sql",
+   "migration_sha256_lf": "a1d1e143e89ca457b0776f06d11e0e50f1e8c471e8799debad3ef5dd79d0b8c2",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-FREE-SERVICE-WORKFLOWS-16",
@@ -1583,10 +1699,10 @@
    "plan_order": 16,
    "sequence_order": 17,
    "sequence_predecessor": "B1-SERVICE-DETAILS-DISPATCHER-15",
-   "source_sha": "b12d510154fc2d6e5022d7fdd9b86d9a52565054",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "b6034a7f61b8de71c5cd0eb8648c6ff16df4a685dcc43c140f19dfe51ca380ae",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 10535,
    "dependencies": [
     "B1-SERVICE-DETAILS-DISPATCHER-15",
@@ -1638,12 +1754,17 @@
    "rollback_by_forward": "forward: since workflows are inactive drafts, remediate by updating/deleting the DRAFT rows in a new migration before any activation; once activated (separate gate) only forward fixes allowed; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "creates INACTIVE drafts only; activation requires the separate reviewed activation gate (B1 gate 19) -- never activate in the same session",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725110900_b1_16_free_service_workflows_08.sql",
+   "migration_sha256_lf": "b6034a7f61b8de71c5cd0eb8648c6ff16df4a685dcc43c140f19dfe51ca380ae",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-EXT-UNI-PAYMENT-WORKFLOWS-17",
@@ -1653,10 +1774,10 @@
    "plan_order": 17,
    "sequence_order": 18,
    "sequence_predecessor": "B1-FREE-SERVICE-WORKFLOWS-16",
-   "source_sha": "8ba94dde082d0f6e4b7727fa5a42c81fdce37a19",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "841daba372958e2e7d53d3bc3364dd93cfd67e1b95057c0d58c2a0207c4a8f01",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 13501,
    "dependencies": [
     "B1-FREE-SERVICE-WORKFLOWS-16",
@@ -1711,12 +1832,17 @@
    "rollback_by_forward": "forward: same as B1-FREE-SERVICE-WORKFLOWS-16 -- draft rows may be corrected pre-activation; post-activation forward-only; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "creates INACTIVE drafts only; same activation gate 19",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725111000_b1_17_external_university_payment_workflows_02.sql",
+   "migration_sha256_lf": "841daba372958e2e7d53d3bc3364dd93cfd67e1b95057c0d58c2a0207c4a8f01",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-DETAIL-ACL-CUTOVER-18",
@@ -1726,10 +1852,10 @@
    "plan_order": 18,
    "sequence_order": 19,
    "sequence_predecessor": "B1-EXT-UNI-PAYMENT-WORKFLOWS-17",
-   "source_sha": "74bf895c1c65a2f88564c5716da585ca528b8d63",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "3eb6501f03ccab78ed739253e1ce64f2d5b48ac2b812121397d924f045359e3c",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 4641,
    "dependencies": [
     "B1-EXT-UNI-PAYMENT-WORKFLOWS-17",
@@ -1797,12 +1923,17 @@
    "rollback_by_forward": "forward: re-open write path corrections by restoring prior table ACLs/policies (captured at preflight) via new migration; never re-grant direct INSERT/UPDATE/DELETE to authenticated as a 'fix' without review; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "final DB cutover; B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 (sequence_order 20) must apply next; user-facing service activation remains a SEPARATE reviewed step (activation gate 21) after the predecessor guard verifies green",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725111100_b1_18_detail_acl_cutover_06.sql",
+   "migration_sha256_lf": "3eb6501f03ccab78ed739253e1ce64f2d5b48ac2b812121397d924f045359e3c",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
@@ -1812,10 +1943,10 @@
    "plan_order": null,
    "sequence_order": 20,
    "sequence_predecessor": "B1-DETAIL-ACL-CUTOVER-18",
-   "source_sha": "00e51372e9cded9643b57e5a323d31d17b7449bd",
-   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the forward-only payment predecessor-guard draft on fix/b1-confirm-payment-predecessor-guard-01",
-   "sha256": "98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 19 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 8632,
    "dependencies": [
     "B1-DETAIL-ACL-CUTOVER-18",
@@ -1874,14 +2005,19 @@
    "rollback_by_forward": "forward: REPLACE function again via a new reviewed migration if guard needs tightening; no down-migration; historical migration 20260725002135_* must not be edited; no DELETE of production data",
    "activation_dependency": "mandatory before secure-read sequence_order 21, secure-draft sequence_order 22, transfer/withdrawal 23-24, and activation gate 25 / student_visible=true / Hidden E2E / Production activation; closes HOLD_B1_FIVE_SERVICES_AUTHORIZATION_CONFIRM_PAYMENT_PREDECESSOR_BYPASS",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED on fix/b1-confirm-payment-predecessor-guard-01 as supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql; production catalog apply still REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01",
     "promoted_migration": "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
     "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
+   "migration_sha256_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
@@ -1891,10 +2027,10 @@
    "plan_order": null,
    "sequence_order": 21,
    "sequence_predecessor": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
-   "source_sha": "50a862770dd0ea55cc316720f25f8dff2843942a",
-   "source_sha_provenance": "git blob SHA-1 of the reviewed LF-normalized secure-read draft",
-   "sha256": "0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 21 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 31648,
    "dependencies": [
     "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19"
@@ -1971,14 +2107,19 @@
    "rollback_by_forward": "replace or revoke affected functions through a new reviewed forward migration; never edit an applied migration or mutate production data",
    "activation_dependency": "mandatory before secure-draft sequence_order 22, transfer/withdrawal 23-24, and separate activation gate 25; migration itself never changes student_visible or workflow activation",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED in PR #227; no Production/Staging apply or catalog evidence",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01",
     "promoted_migration": "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql",
     "migration_sha_lf": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
-   }
+   },
+   "migration_file": "20260725130000_b1_21_secure_read_contracts_01.sql",
+   "migration_sha256_lf": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-SECURE-DRAFT-MUTATIONS-21",
@@ -1988,10 +2129,10 @@
    "plan_order": null,
    "sequence_order": 22,
    "sequence_predecessor": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
-   "source_sha": "c4e6ad0f85e0ebd8a7fa5e7ca4620386a39527ae",
-   "source_sha_provenance": "git blob SHA-1 (git hash-object) of LF-normalized draft on feat/b1-five-services-secure-draft-mutations-01",
-   "sha256": "e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 22 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 34976,
    "dependencies": [
     "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20"
@@ -2051,14 +2192,19 @@
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
    "activation_dependency": "draft create/save only; transfer/withdrawal remediations at sequence_order 23-24 and activation gate 25 follow; student_visible remains untouched",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "PORTAL-B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01",
     "promoted_migration": "supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 22,
     "migration_sha_lf": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242"
-   }
+   },
+   "migration_file": "20260725140000_b1_22_secure_draft_mutations_01.sql",
+   "migration_sha256_lf": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
@@ -2068,10 +2214,10 @@
    "plan_order": null,
    "sequence_order": 23,
    "sequence_predecessor": "B1-SECURE-DRAFT-MUTATIONS-21",
-   "source_sha": "c80e74efe9761e9efe352dce4f208b6e73c579f4",
-   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
-   "sha256": "85d6a256127584f4e8793d2db7ed0a5925e7787dea36d0d255a76e11a45271d2",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 23 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 3247,
    "dependencies": [
     "B1-SECURE-DRAFT-MUTATIONS-21"
@@ -2118,14 +2264,19 @@
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
    "activation_dependency": "mandatory before activation gate 25; sequence_order 23",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
     "promoted_migration": "supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
     "migration_sha_lf": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 23
-   }
+   },
+   "migration_file": "20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
+   "migration_sha256_lf": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
@@ -2135,10 +2286,10 @@
    "plan_order": null,
    "sequence_order": 24,
    "sequence_predecessor": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
-   "source_sha": "b1cc3d0fd48ac2b92e485136c5e1600f763592e6",
-   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
-   "sha256": "684aac3bc3801e7e50bb9c65ff041489afb3d9bf91083b28b97b63faa0434425",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 24 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 9906,
    "dependencies": [
     "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23"
@@ -2184,14 +2335,19 @@
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
    "activation_dependency": "mandatory before activation gate 25; sequence_order 24",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
     "promoted_migration": "supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql",
     "migration_sha_lf": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 24
-   }
+   },
+   "migration_file": "20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql",
+   "migration_sha256_lf": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-ACADEMIC-EFFECT-MARKERS-25",
@@ -2201,10 +2357,10 @@
    "plan_order": null,
    "sequence_order": 25,
    "sequence_predecessor": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
-   "source_sha": "5c9e7dc7adec9d9423372d4189f7e45ea1816be5",
-   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-ACADEMIC-EFFECT-MARKERS-01.sql",
-   "sha256": "50db2dfec04e940d2e474f81e660167ea28453e0cca892228dfd8d6cfa629bdf",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 25 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 1767,
    "dependencies": [
     "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24"
@@ -2250,14 +2406,19 @@
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
    "activation_dependency": "mandatory before activation gate 25; sequence_order 25",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "B1-ACADEMIC-EFFECT-MARKERS-25",
     "promoted_migration": "supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql",
     "migration_sha_lf": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 25
-   }
+   },
+   "migration_file": "20260727120000_b1_25_academic_effect_markers_01.sql",
+   "migration_sha256_lf": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-ACADEMIC-EFFECT-FUNCTIONS-26",
@@ -2267,10 +2428,10 @@
    "plan_order": null,
    "sequence_order": 26,
    "sequence_predecessor": "B1-ACADEMIC-EFFECT-MARKERS-25",
-   "source_sha": "b35962cd132e1279effd985125bac1acfcc7994f",
-   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
-   "sha256": "ad0a5de204a0bfdc7df21a0283c0761e5f4060a062a200352eb828c7cb33e795",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 26 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 19256,
    "dependencies": [
     "B1-ACADEMIC-EFFECT-MARKERS-25"
@@ -2333,14 +2494,19 @@
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
    "activation_dependency": "mandatory before activation gate 25; sequence_order 26",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "B1-ACADEMIC-EFFECT-FUNCTIONS-26",
     "promoted_migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
     "migration_sha_lf": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 26
-   }
+   },
+   "migration_file": "20260727120100_b1_26_academic_effect_functions_01.sql",
+   "migration_sha256_lf": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   },
   {
    "canonical_id": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-27",
@@ -2350,10 +2516,10 @@
    "plan_order": null,
    "sequence_order": 27,
    "sequence_predecessor": "B1-ACADEMIC-EFFECT-FUNCTIONS-26",
-   "source_sha": "b66959160ce4bc996a38ca77eabe92fcc16b11cc",
-   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql",
-   "sha256": "0b29034dd3d30d4e2e54516d09b53be87ec58a175a9b187db7203853f28b0937",
-   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 27 draft_sha_lf",
+   "source_sha": "38578b6533f20407c02ed775b5af18d11fcb85eb",
+   "source_sha_provenance": "current branch tip fix/b1-go-live-final-drift-d02-closure-01 @ 38578b6533f20407c02ed775b5af18d11fcb85eb; canonical current source is the promoted migration file",
+   "sha256": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
+   "sha256_provenance": "SHA-256 of promoted migration body (LF-normalized); matches canonical current source",
    "byte_size": 7226,
    "dependencies": [
     "B1-ACADEMIC-EFFECT-FUNCTIONS-26"
@@ -2400,14 +2566,19 @@
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
    "activation_dependency": "mandatory before activation gate 25; sequence_order 27",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "source-only manifest on current branch tip; production state must be proven by D-02 object evidence, not by name-matching migration rows",
    "source_promotion": {
     "track": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-27",
     "promoted_migration": "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
     "migration_sha_lf": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 27
-   }
+   },
+   "migration_file": "20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
+   "migration_sha256_lf": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
+   "drift_from_canonical_draft": false,
+   "source_sha_status": "CURRENT",
+   "sha256_status": "CURRENT"
   }
  ],
  "excluded": {
