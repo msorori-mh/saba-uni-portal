@@ -22,6 +22,7 @@ import {
   type ReportsCenterGrouping,
   type ReportsCenterProps,
 } from "./types";
+import { REPORTS_FAVORITES_STORAGE_KEY } from "@/lib/reports/clear-local-preferences";
 
 type ChangeEventLike = { target: { value: string } };
 
@@ -31,7 +32,7 @@ interface ReportGroup {
   readonly entries: readonly ReportEntry[];
 }
 
-const FAVORITES_KEY = "portal.reports.favorites.v1";
+const FAVORITES_KEY = REPORTS_FAVORITES_STORAGE_KEY;
 
 function loadFavorites(): Set<string> {
   try {

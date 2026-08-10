@@ -1,91 +1,93 @@
 ===============================================================================
 PRODUCTION E2E OPERATOR PACKET: REPORTS, MESSAGES & DOCUMENTS
-MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+MISSION: PORTAL-24H-REPORTS-DEPLOY-PUBLISH-PRODUCTION-E2E-CLOSURE-01
 PACKET ID: PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS-01
 ENVIRONMENT: PRODUCTION (quboolye.com)
 AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+DO NOT EXECUTE until DB_FULL_READY (C9 + GA1–GA3 verified) and Deploy/Publish grant.
 ===============================================================================
 
 1. PURPOSE & SCOPE
 ------------------
-This packet defines post-deployment E2E verification procedures for three critical sub-systems:
-Reports Center (with beneficiary-based authorization scoping), System Messaging Service,
-and Official Documents / Certificates (including the finance options suppression guard).
+Post-deploy E2E for five beneficiary report centers, messaging, and official
+documents (including finance-options absence). Routes below are the only
+authoritative report hubs.
 
-2. PART 1: REPORTS CENTER E2E & BENEFICIARY SCOPING
----------------------------------------------------
+2. PART 1: FIVE REPORT CENTERS
+------------------------------
 
-TEST H1.1: DEPARTMENT HEAD REPORT SCOPING (OWN DEPARTMENT ONLY)
-  Action: Execute report query `get_department_summary_report(dept_id)` as Department Head of CS (Dept ID = 101).
-  Assertion: Report succeeds for Dept 101. Querying Dept 102 (IS) returns empty dataset or `403 FORBIDDEN`.
+CANONICAL HUBS (do not use legacy /reports or /reports/strategic):
+  Student:     /student/reports
+  Faculty:     /faculty-portal/reports
+  Department:  /admin/department-reports
+  Executive:   /admin/executive-reports
+  Admin:       /admin/reports
 
-TEST H1.2: DEAN FAIL-CLOSED DEPARTMENT DETAIL ACCESS
-  Action: Execute `get_college_summary_report()` as Dean.
-  Assertion: College overview succeeds across all departments. Detailed drill-down requires explicit department selection, failing closed if target department is invalid or unassigned.
+UX HIERARCHY (every hub using ReportsOperationalWorkspace):
+  Level 1 data-reports-level="attention"  → يحتاج انتباهك الآن
+  Level 2 data-reports-level="kpis"       → المؤشرات الرئيسية
+  Level 3 data-reports-level="catalog"    → جميع التقارير
 
-TEST H1.3: ADMIN EXPLICIT DEPARTMENT SELECTION
-  Action: Execute report query as Admin.
-  Assertion: Admin must explicitly specify `department_id` parameter to fetch department-level detail; unparameterized queries return aggregate summary only.
+VIEWPORTS (manual browser):
+  Desktop ≥1280, Tablet 768, Mobile 360 — RTL, no clipped headings, catalog cards wrap.
 
-TEST H1.4: REPORTS CENTER CATALOG & RENDERING
-  Action: Load `/reports` route for authorized user.
-  Assertion: Renders available report cards: Operational Requests, Academic Performance, Student Statistics, Timetable Load.
+TEST H1.1: STUDENT SELF HUB
+  Action: Login as student → /student/reports → refresh.
+  Assertion: Three-level workspace; KPIs use ScopedMetric (never fake 0 for missing);
+             catalog self-only; no other-student PII; logout clears RQ cache + favorites.
 
-TEST H1.5: STRATEGIC REPORTS PRIVILEGE GUARD
-  Action: Access `/reports/strategic` as regular staff vs Dean.
-  Assertion: Regular staff receives `403 / STRATEGIC_REPORTS_RESTRICTED`. Dean receives full strategic report dashboard.
+TEST H1.2: FACULTY SELF HUB
+  Action: Login as faculty → /faculty-portal/reports.
+  Assertion: Assigned sections/materials scope only; hierarchy intact; RTL.
+
+TEST H1.3: DEPARTMENT HEAD SCOPING
+  Action: Department head → /admin/department-reports.
+  Assertion: Bound department only. Foreign department drill-down DENY / empty fail-closed.
+
+TEST H1.4: DEAN FAIL-CLOSED DEPARTMENT DETAIL
+  Action: Dean → /admin/department-reports without admin role.
+  Assertion: No arbitrary department picker; redirected/fail-closed to college/executive hubs.
+             Dean college overview via /admin/executive-reports?view=dean succeeds.
+
+TEST H1.5: EXECUTIVE / STRATEGIC BINDING GATES
+  Action: Staff without presidency/VP binding → /admin/executive-reports strategic/VP views.
+  Assertion: BLOCKED / binding-required — not openable as LIVE. Dean/registrar alone ≠ presidency.
+
+TEST H1.6: ADMIN CATALOG + SECTION TABS
+  Action: Admin → /admin/reports (catalog tab + students/requests/…).
+  Assertion: Catalog uses three-level workspace; BLOCKED/NOT_ACTIVATED not openable;
+             exports from current filtered rows only; no email/phone/national_id in projections.
+
+TEST H1.7: CATALOG CONTRACT SPOT-CHECK
+  Action: Inspect visible ReportEntry cards.
+  Assertion: Each shows real source, honest status, role scope, org scope, route or
+             «قيد التجهيز», filters, output types. No fabricated KPI tiles.
+
+TEST H1.8: DIRECT BACKEND DENIAL
+  Action: Call department/executive summary server fns as wrong role / wrong dept.
+  Assertion: Auth denial (not coerced to DATA_INCOMPLETE / empty success with zeros).
+
+TEST H1.9: ACCESSIBILITY / ROUTE REFRESH
+  Action: Keyboard tab through attention→KPIs→catalog; hard refresh each hub URL.
+  Assertion: aria-labelledby headings present; severity text (حرج/تنبيه/معلومة);
+             state survives refresh via server re-fetch (no stale cross-user cache).
 
 3. PART 2: MESSAGING SYSTEM E2E
 --------------------------------
-
-TEST H2.1: INBOX LISTING & UNREAD COUNTER
-  Action: Query `get_user_messages(user_id, folder='inbox')`.
-  Assertion: Returns inbox messages array; `unread_count` matches count of messages with `is_read = false`.
-
-TEST H2.2: SENT MESSAGES LISTING
-  Action: Query `get_user_messages(user_id, folder='sent')`.
-  Assertion: Returns messages sent by logged-in user with recipient names and timestamps.
-
-TEST H2.3: MARK AS READ & UNREAD BADGE UPDATE
-  Action: Call `mark_message_read(message_id)`.
-  Assertion: `is_read` updated to `true`; inbox unread badge decrements by 1.
-
-TEST H2.4: COMPOSE & SEND MESSAGE
-  Action: Call `send_portal_message(recipient_id, subject, body_text)`.
-  Assertion: Message created, inserted into recipient inbox, notification emitted.
-
-TEST H2.5: UI NAVIGATION BACK PRESERVATION
-  Action: In UI, click message detail -> Click Back button.
-  Assertion: Navigation returns to message list with scroll position and active folder filter preserved.
-
-TEST H2.6: ADMIN FALLBACK ROUTING
-  Action: Send message to unassigned or deactivated user role.
-  Assertion: System fallbacks to Admin fallback queue, preventing lost messages.
+(Unchanged operational checks H2.1–H2.6 from prior packet — inbox/sent/mark-read/compose/back/fallback.)
 
 4. PART 3: OFFICIAL DOCUMENTS & FINANCE OPTION GUARD
 ----------------------------------------------------
-
-TEST H3.1: OFFICIAL CERTIFICATES ACCESS
-  Action: Access student document view `/student/documents`.
-  Assertion: Displays issued enrollment certificates and academic statements with valid download controls.
-
-TEST H3.2: FINANCE OPTIONS ABSENCE GUARD (adminFinance = false)
-  Action: Inspect UI & API response payload when `adminFinance = false` (default state).
-  Assertion:
-    - ALL financial payment links, payment confirmation buttons, and fee amount inputs ARE STRICTLY ABSENT.
-    - Zero fee requests bypass payment steps without creating fake financial transaction records.
-
-TEST H3.3: PUBLIC DOCUMENT VERIFICATION PAGE
-  Action: GET `https://quboolye.com/verify-document?hash=<VALID_QR_HASH>`.
-  Assertion: Verification page loads without authentication, displays valid document badge, masks private student PII.
+(Unchanged H3.1–H3.3 — documents, adminFinance=false absence, public verify masking.)
 
 5. PASS CRITERIA
 ----------------
-1. Department Head reports restricted strictly to own department data.
-2. Dean fail-closed reporting verified.
-3. Complete messaging lifecycle (inbox, sent, compose, mark read, fallback) passes.
-4. Finance options strictly absent when `adminFinance = false`.
-5. Public document verification page functions without auth or PII exposure.
+1. All five hubs load with Attention → KPIs → Catalog hierarchy.
+2. Department / dean / executive binding scopes fail closed.
+3. No fake KPI zeros; honest unavailable/null/no_data labels.
+4. No raw PII in report projections or strategic attention.
+5. Logout clears React Query + portal.reports.favorites.v1.
+6. Messaging + documents finance guard pass.
 
 ===============================================================================
 END OF PACKET: PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS-01

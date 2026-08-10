@@ -112,10 +112,15 @@ describe("Go-Live Operator Packets & Demo Script Verification", () => {
     const filePath = join(OPERATOR_PACKETS_DIR, "PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS.txt");
     expect(existsSync(filePath)).toBe(true);
     const content = readFileSync(filePath, "utf-8");
-    expect(content).toContain("DEPARTMENT HEAD REPORT SCOPING");
+    expect(content).toContain("DEPARTMENT HEAD SCOPING");
     expect(content).toContain("DEAN FAIL-CLOSED");
+    expect(content).toContain("/student/reports");
+    expect(content).toContain("/faculty-portal/reports");
+    expect(content).toContain("/admin/department-reports");
+    expect(content).toContain("/admin/executive-reports");
+    expect(content).toContain("/admin/reports");
     expect(content).toContain("MESSAGING SYSTEM");
-    expect(content).toContain("adminFinance = false");
+    expect(content).toContain("adminFinance=false");
   });
 
   test("Section I: PRODUCTION-E2E-PWA-PRIVACY.txt exists and contains PWA manifest & cache security audits", () => {
