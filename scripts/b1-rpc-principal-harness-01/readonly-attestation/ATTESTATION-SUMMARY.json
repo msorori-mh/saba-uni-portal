@@ -1,0 +1,20 @@
+{
+  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08",
+  "status": "READONLY_ATTESTATION_READY",
+  "attested_at_utc": "2026-08-08T20:30:00Z",
+  "channel": "Lovable Cloud query_database SELECT-only",
+  "project_id": "90f4dcde-07fb-4441-b86a-6ad5510833b8",
+  "production_rpc_calls": 0,
+  "production_writes": 0,
+  "authoritative_baseline": "PENDING",
+  "fingerprint": null,
+  "function_graph_closure_size": 29,
+  "all_hashes_non_null": true,
+  "external_call_scan": {
+    "status": "PASS",
+    "hits": 0,
+    "channel": "Lovable Cloud query_database SELECT-only",
+    "checked_at_utc": "2026-08-08T20:37:02.629Z",
+    "note": "Entrypoint and helper defs scanned for nextval/setval/pg_net/dblink/pg_notify/lo_export|import/COPY PROGRAM; 0 hits."
+  }
+}

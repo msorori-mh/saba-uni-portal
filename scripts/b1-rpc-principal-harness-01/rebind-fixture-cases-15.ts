@@ -12,6 +12,7 @@
  *
  * Run: bun run scripts/b1-rpc-principal-harness-01/rebind-fixture-cases-15.ts
  */
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const MATRIX_PATH = "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json";
@@ -93,8 +94,8 @@ function fixtureFor(service: string, stepKey: string) {
 
 const matrix = JSON.parse(readFileSync(MATRIX_PATH, "utf8"));
 
-/** Legacy production pins are the source of truth for each service's
- *  unit / role / configured action_type / rpc / direct assignee per step. */
+/** Canonical production step model is taken from the 24 authoritative positive
+ *  cases (the ones that carry a principal_key, not the fixture-only expectations). */
 type LegacyPin = {
   request_type: string;
   step_order: number;
@@ -103,14 +104,25 @@ type LegacyPin = {
   configured_action_type: string;
   direct_assignee_user_id: string;
   rpc: string;
+  step_key: string;
 };
-const serviceStepModel = new Map<string, Map<number, LegacyPin & { step_key: string }>>();
-for (const [key, pin] of Object.entries(matrix.step_state_pins as Record<string, LegacyPin>)) {
-  if (!pin.processing_unit_code) continue; // already-rebound fixture pin
-  const stepKey = key.split("|")[1];
-  const perService = serviceStepModel.get(pin.request_type) ?? new Map();
-  perService.set(pin.step_order, { ...pin, step_key: stepKey });
-  serviceStepModel.set(pin.request_type, perService);
+const serviceStepModel = new Map<string, Map<number, LegacyPin>>();
+for (const p of matrix.positive_cases as Array<Record<string, unknown>>) {
+  if (p.fixture_only_step_expectation || !p.principal_key) continue;
+  const svc = p.request_type as string;
+  const order = p.step_order as number;
+  const perService = serviceStepModel.get(svc) ?? new Map();
+  perService.set(order, {
+    request_type: svc,
+    step_order: order,
+    step_key: p.step_key as string,
+    processing_unit_code: p.unit as string,
+    processing_role_code: p.role as string,
+    configured_action_type: p.legal_action as string,
+    direct_assignee_user_id: p.principal_user_id as string,
+    rpc: p.rpc as string,
+  });
+  serviceStepModel.set(svc, perService);
 }
 function stepModel(service: string, order: number) {
   const m = serviceStepModel.get(service)?.get(order);
@@ -122,6 +134,13 @@ function assigneeFor(service: string, order: number): string {
   const m = stepModel(service, order);
   if (m.step_key === "target_department_head_approval") return HEAD_CS;
   return m.direct_assignee_user_id;
+}
+
+// Keep the authoritative positive-case target-head principal consistent with G3.
+for (const p of matrix.positive_cases as Array<Record<string, unknown>>) {
+  if (p.step_key === "target_department_head_approval" && p.principal_key === "department/department_head@target") {
+    p.principal_user_id = HEAD_CS;
+  }
 }
 
 /** G3 — department actor model: source=IT, target=CS, unrelated=CIS. */
@@ -164,12 +183,18 @@ matrix.fixture_package = {
 
 let rebound = 0;
 
-/** ---- illegal-action cases: rebind every pending-step case onto a fixture ---- */
+/** ---- illegal-action cases: rebind every pending-step case onto a fixture ----
+ *  The 22 pending cases all exercise the department_transfer source/payment steps
+ *  through an exact-direct-assignee illegal action, so the binding is deterministic. */
+function illegalActionFixture(stepKey: string) {
+  if (stepKey === "source_department_head_approval") return fixtureFor("department_transfer", "source_department_head_approval");
+  if (stepKey === "payment_confirmation") return fixtureFor("department_transfer", "payment_confirmation");
+  throw new Error(`unmapped illegal-action step_key ${stepKey}`);
+}
 for (const c of matrix.illegal_action_cases as Array<Record<string, unknown>>) {
   const legacyNumber = (c.legacy_request_number as string) ?? (c.request_number as string);
   if (c.execution_status === "EXECUTABLE") continue;
-  const service = matrix.step_state_pins[`${legacyNumber}|${c.step_key}`]?.request_type as string;
-  const f = fixtureFor(service, c.step_key as string);
+  const f = illegalActionFixture(c.step_key as string);
   c.legacy_request_number = legacyNumber;
   c.request_number = reqNumber(f.ord);
   c.request_id = reqId(f.ord);
@@ -226,78 +251,67 @@ for (const c of matrix.supplemental_department_scope_cases as Array<Record<strin
   rebound += 1;
 }
 
-/** ---- fixture step-state pins, positive step expectations, attestation ---- */
-matrix.positive_cases = (matrix.positive_cases as Array<Record<string, unknown>>).filter(
-  (p) => !String(p.request_number).startsWith("SR-20260801-13"),
-);
-for (const f of FIXTURES) {
-  const model = stepModel(f.service, f.activeOrder);
-  const assignee = assigneeFor(f.service, f.activeOrder);
-  const number = reqNumber(f.ord);
-  const key = `${number}|${model.step_key}`;
+// Discard any previously-rebound or drifted fixture pins; rebuild the full 24-step
+// service model pinned to deterministic Fixture-13 request identifiers.
+matrix.step_state_pins = {};
 
-  const predecessorSet = [];
-  for (let order = 1; order < f.activeOrder; order += 1) {
-    predecessorSet.push({
-      step_key: stepModel(f.service, order).step_key,
+/** Map every (service, step_order) to the deterministic Fixture-13 request that
+ *  contains that step. Active steps map to their own fixture; predecessor steps
+ *  map to the earliest fixture whose active step follows them on the same request. */
+function fixtureForStep(service: string, order: number) {
+  // Prefer the fixture whose active step equals this order.
+  const exact = FIXTURES.find((f) => f.service === service && f.activeOrder === order);
+  if (exact) return exact;
+  // Otherwise, the earliest fixture in the same service whose active step is later.
+  const later = FIXTURES.filter((f) => f.service === service && f.activeOrder > order);
+  if (later.length === 0) throw new Error(`no fixture for ${service} step ${order}`);
+  return later[0];
+}
+
+for (const [service, orders] of serviceStepModel) {
+  for (const [order, model] of orders) {
+    const f = fixtureForStep(service, order);
+    const number = reqNumber(f.ord);
+    const key = `${number}|${model.step_key}`;
+    const isActive = f.activeOrder === order;
+
+    const predecessorSet = [];
+    for (let o = 1; o < order; o += 1) {
+      predecessorSet.push({
+        step_key: stepModel(service, o).step_key,
+        step_order: o,
+        runtime_step_id: stepId(f.ord, o),
+        runtime_status: "completed",
+      });
+    }
+
+    matrix.step_state_pins[key] = {
+      step_key: model.step_key,
+      request_type: service,
+      request_id: reqId(f.ord),
+      request_number: number,
       step_order: order,
       runtime_step_id: stepId(f.ord, order),
-      runtime_status: "completed",
-    });
+      runtime_status: isActive ? "active" : "completed",
+      processing_unit_code: model.processing_unit_code,
+      processing_role_code: model.processing_role_code,
+      configured_action_type: model.configured_action_type,
+      direct_assignee_user_id: assigneeFor(service, order),
+      predecessor_incomplete_expected: 0,
+      predecessor_total_expected: predecessorSet.length,
+      predecessor_set: predecessorSet,
+      rpc: model.rpc,
+      department_scope: service === "department_transfer" ? "transfer_department_scope" : "not_applicable",
+      fixture_ordinal: f.ord,
+      fixture_package: "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      department_scope_department_id:
+        model.step_key === "source_department_head_approval"
+          ? DEPT_IT
+          : model.step_key === "target_department_head_approval"
+            ? DEPT_CS
+            : null,
+    };
   }
-
-  matrix.step_state_pins[key] = {
-    request_type: f.service,
-    request_id: reqId(f.ord),
-    step_order: f.activeOrder,
-    runtime_step_id: stepId(f.ord, f.activeOrder),
-    runtime_status: "active",
-    processing_unit_code: model.processing_unit_code,
-    processing_role_code: model.processing_role_code,
-    configured_action_type: model.configured_action_type,
-    direct_assignee_user_id: assignee,
-    predecessor_incomplete_expected: 0,
-    predecessor_total_expected: predecessorSet.length,
-    predecessor_set: predecessorSet,
-    rpc: model.rpc,
-    department_scope:
-      f.service === "department_transfer" ? "transfer_department_scope" : "not_applicable",
-    fixture_ordinal: f.ord,
-    fixture_package: "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
-    department_scope_department_id:
-      model.step_key === "source_department_head_approval"
-        ? DEPT_IT
-        : model.step_key === "target_department_head_approval"
-          ? DEPT_CS
-          : null,
-  };
-
-  matrix.positive_cases.push({
-    request_type: f.service,
-    request_number: number,
-    step_order: f.activeOrder,
-    step_key: model.step_key,
-    runtime_step_id: stepId(f.ord, f.activeOrder),
-    runtime_status: "active",
-    unit: model.processing_unit_code,
-    role: model.processing_role_code,
-    legal_action: model.configured_action_type,
-    rpc: model.rpc,
-    principal_user_id: assignee,
-    fixture_only_step_expectation: true,
-    note: "Step expectation only: rendered positive cases remain 0.",
-  });
-
-  matrix.production_readonly_attestation.requests[number] = {
-    request_type: f.service,
-    request_status: "in_review",
-    active_step_count: 1,
-    active_step_id: stepId(f.ord, f.activeOrder),
-    fee_assessment_rows: 0,
-    source_department_id: f.service === "department_transfer" ? DEPT_IT : null,
-    target_department_id: f.service === "department_transfer" ? DEPT_CS : null,
-    fixture_package: "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
-  };
 }
 
 /** ---- counts / execution contract ---- */
@@ -331,5 +345,21 @@ matrix.fixture_rebind = {
 
 if (rebound !== 22) throw new Error(`expected to rebind 22 cases, rebound ${rebound}`);
 
-writeFileSync(MATRIX_PATH, `${JSON.stringify(matrix, null, 2)}\n`, "utf8");
+// Self-consistent LF SHA256: the hash is taken over the final written bytes,
+// including the hash field itself, so iterate until stable.
+let matrixRaw = `${JSON.stringify(matrix, null, 2)}\n`;
+let matrixHash = createHash("sha256")
+  .update(matrixRaw.replace(/\r\n/gu, "\n"), "utf8")
+  .digest("hex");
+for (let i = 0; i < 10; i += 1) {
+  matrix.sha256_lf = matrixHash;
+  matrixRaw = `${JSON.stringify(matrix, null, 2)}\n`;
+  const nextHash = createHash("sha256")
+    .update(matrixRaw.replace(/\r\n/gu, "\n"), "utf8")
+    .digest("hex");
+  if (nextHash === matrixHash) break;
+  matrixHash = nextHash;
+}
+writeFileSync(MATRIX_PATH, matrixRaw, "utf8");
 console.log(`rebound ${rebound} cases onto deterministic Fixture-13 identifiers`);
+console.log(`matrix sha256_lf: ${matrix.sha256_lf}`);

@@ -13,10 +13,11 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Pinned after Graduation Projects MVP Package C routed UI freeze
-// (five frozen GP routes + generated student/faculty index children).
+// Pinned after Final RC #313 semantic merge of PR #318 beneficiary reports
+// hubs with GA + Academic Councils + five frozen GP routes (recomputed from
+// the merged routeTree.gen.ts — do not reuse either pre-merge SHA).
 const ROUTE_SEMANTIC_SHA256 =
-  "b143b0faf8753617bffa64019cb0ecab4b23a6b44065e8a6eb04fd0724b9a5dd";
+  "09be61de31425bb15294038bbea68a367f92af4f3b4d65f8ed3232781cc90a7c";
 
 const FROZEN_GP_FULL_PATHS = [
   "/student/graduation-projects",

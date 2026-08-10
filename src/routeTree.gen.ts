@@ -40,9 +40,11 @@ import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-sta
 import { Route as AdminCommunicationsRouteImport } from './routes/admin/communications'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
+import { Route as AdminDepartmentReportsRouteImport } from './routes/admin/department-reports'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
+import { Route as AdminExecutiveReportsRouteImport } from './routes/admin/executive-reports'
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
 import { Route as AdminFacultyAccountsRouteImport } from './routes/admin/faculty-accounts'
 import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
@@ -76,6 +78,7 @@ import { Route as FacultyPortalAcademicCouncilsRouteImport } from './routes/facu
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as FacultyPortalGraduationProjectsRouteImport } from './routes/faculty-portal.graduation-projects'
 import { Route as FacultyPortalProcessingRequestsRouteImport } from './routes/faculty-portal.processing-requests'
+import { Route as FacultyPortalReportsRouteImport } from './routes/faculty-portal.reports'
 import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
 import { Route as MobileStudentRouteImport } from './routes/mobile.student'
 import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
@@ -83,14 +86,17 @@ import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffB1RequestsRouteImport } from './routes/staff.b1-requests'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
+import { Route as StaffGraduatesAffairsRouteImport } from './routes/staff.graduates-affairs'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StudentGraduationProjectsRouteImport } from './routes/student.graduation-projects'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentProgressRouteImport } from './routes/student.progress'
+import { Route as StudentReportsRouteImport } from './routes/student.reports'
 import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
+import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './routes/faculty-portal.academic-councils.reports'
 import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './routes/faculty-portal.graduation-projects.index'
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
 import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
@@ -103,6 +109,7 @@ import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.studen
 import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
 import { Route as MobileStudentRequestsRouteImport } from './routes/mobile.student.requests'
 import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
+import { Route as StudentGraduatesAffairsIndexRouteImport } from './routes/student.graduates-affairs.index'
 import { Route as StudentGraduationProjectsIndexRouteImport } from './routes/student.graduation-projects.index'
 import { Route as StudentGraduationProjectsProjectIdRouteImport } from './routes/student.graduation-projects.$projectId'
 import { Route as StudentMaterialsIndexRouteImport } from './routes/student.materials.index'
@@ -278,6 +285,11 @@ const AdminCourseOfferingsRoute = AdminCourseOfferingsRouteImport.update({
   path: '/course-offerings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDepartmentReportsRoute = AdminDepartmentReportsRouteImport.update({
+  id: '/department-reports',
+  path: '/department-reports',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
   id: '/departments',
   path: '/departments',
@@ -308,6 +320,11 @@ const AdminExecutiveDashboardLazyRoute =
   } as any).lazy(() =>
     import('./routes/admin/executive-dashboard.lazy').then((d) => d.Route),
   )
+const AdminExecutiveReportsRoute = AdminExecutiveReportsRouteImport.update({
+  id: '/executive-reports',
+  path: '/executive-reports',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFacultyRoute = AdminFacultyRouteImport.update({
   id: '/faculty',
   path: '/faculty',
@@ -519,6 +536,11 @@ const FacultyPortalProcessingRequestsRoute =
     path: '/processing-requests',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
+const FacultyPortalReportsRoute = FacultyPortalReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => FacultyPortalRoute,
+} as any)
 const FacultyPortalScheduleRoute = FacultyPortalScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -554,6 +576,11 @@ const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffGraduatesAffairsRoute = StaffGraduatesAffairsRouteImport.update({
+  id: '/graduates-affairs',
+  path: '/graduates-affairs',
+  getParentRoute: () => StaffRoute,
+} as any)
 const StudentIndexRoute = StudentIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -580,6 +607,11 @@ const StudentProgressRoute = StudentProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => StudentRoute,
 } as any)
+const StudentReportsRoute = StudentReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentRequestsRoute = StudentRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -595,6 +627,12 @@ const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
   path: '/study-plan',
   getParentRoute: () => StudentRoute,
 } as any)
+const FacultyPortalAcademicCouncilsReportsRoute =
+  FacultyPortalAcademicCouncilsReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => FacultyPortalAcademicCouncilsRoute,
+  } as any)
 const FacultyPortalGraduationProjectsIndexRoute =
   FacultyPortalGraduationProjectsIndexRouteImport.update({
     id: '/',
@@ -661,6 +699,12 @@ const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const StudentGraduatesAffairsIndexRoute =
+  StudentGraduatesAffairsIndexRouteImport.update({
+    id: '/graduates-affairs/',
+    path: '/graduates-affairs/',
+    getParentRoute: () => StudentRoute,
+  } as any)
 const StudentGraduationProjectsIndexRoute =
   StudentGraduationProjectsIndexRouteImport.update({
     id: '/',
@@ -748,9 +792,11 @@ export interface FileRoutesByFullPath {
   '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
+  '/admin/department-reports': typeof AdminDepartmentReportsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/executive-reports': typeof AdminExecutiveReportsRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-accounts': typeof AdminFacultyAccountsRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
@@ -779,20 +825,23 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
-  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
+  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRouteWithChildren
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/graduation-projects': typeof FacultyPortalGraduationProjectsRouteWithChildren
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
+  '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsRouteWithChildren
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/reports': typeof StudentReportsRoute
   '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
   '/student/study-plan': typeof StudentStudyPlanRoute
@@ -808,6 +857,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
+  '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
@@ -824,6 +874,7 @@ export interface FileRoutesByFullPath {
   '/faculty-portal/graduation-projects/': typeof FacultyPortalGraduationProjectsIndexRoute
   '/faculty-portal/materials/': typeof FacultyPortalMaterialsIndexRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
+  '/student/graduates-affairs/': typeof StudentGraduatesAffairsIndexRoute
   '/student/graduation-projects/': typeof StudentGraduationProjectsIndexRoute
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
@@ -857,9 +908,11 @@ export interface FileRoutesByTo {
   '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
+  '/admin/department-reports': typeof AdminDepartmentReportsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/executive-reports': typeof AdminExecutiveReportsRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-accounts': typeof AdminFacultyAccountsRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
@@ -888,17 +941,20 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
-  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
+  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRouteWithChildren
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
+  '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/reports': typeof StudentReportsRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/student/study-plan': typeof StudentStudyPlanRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
@@ -913,6 +969,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/admin': typeof AdminIndexLazyRoute
+  '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
@@ -929,6 +986,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/graduation-projects': typeof FacultyPortalGraduationProjectsIndexRoute
   '/faculty-portal/materials': typeof FacultyPortalMaterialsIndexRoute
   '/mobile/student': typeof MobileStudentIndexRoute
+  '/student/graduates-affairs': typeof StudentGraduatesAffairsIndexRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsIndexRoute
   '/student/materials': typeof StudentMaterialsIndexRoute
   '/student/requests': typeof StudentRequestsIndexRoute
@@ -967,9 +1025,11 @@ export interface FileRoutesById {
   '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
+  '/admin/department-reports': typeof AdminDepartmentReportsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/executive-reports': typeof AdminExecutiveReportsRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-accounts': typeof AdminFacultyAccountsRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
@@ -998,20 +1058,23 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
-  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
+  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRouteWithChildren
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/graduation-projects': typeof FacultyPortalGraduationProjectsRouteWithChildren
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
+  '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsRouteWithChildren
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/reports': typeof StudentReportsRoute
   '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
   '/student/study-plan': typeof StudentStudyPlanRoute
@@ -1027,6 +1090,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
+  '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
@@ -1043,6 +1107,7 @@ export interface FileRoutesById {
   '/faculty-portal/graduation-projects/': typeof FacultyPortalGraduationProjectsIndexRoute
   '/faculty-portal/materials/': typeof FacultyPortalMaterialsIndexRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
+  '/student/graduates-affairs/': typeof StudentGraduatesAffairsIndexRoute
   '/student/graduation-projects/': typeof StudentGraduationProjectsIndexRoute
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
@@ -1082,9 +1147,11 @@ export interface FileRouteTypes {
     | '/admin/communications'
     | '/admin/contacts'
     | '/admin/course-offerings'
+    | '/admin/department-reports'
     | '/admin/departments'
     | '/admin/enrollments'
     | '/admin/events'
+    | '/admin/executive-reports'
     | '/admin/faculty'
     | '/admin/faculty-accounts'
     | '/admin/faculty-management'
@@ -1117,16 +1184,19 @@ export interface FileRouteTypes {
     | '/faculty-portal/change-password'
     | '/faculty-portal/graduation-projects'
     | '/faculty-portal/processing-requests'
+    | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/graduates-affairs'
     | '/student/change-password'
     | '/student/graduation-projects'
     | '/student/notifications'
     | '/student/progress'
+    | '/student/reports'
     | '/student/requests'
     | '/student/schedule'
     | '/student/study-plan'
@@ -1142,6 +1212,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
+    | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
@@ -1158,6 +1229,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/graduation-projects/'
     | '/faculty-portal/materials/'
     | '/mobile/student/'
+    | '/student/graduates-affairs/'
     | '/student/graduation-projects/'
     | '/student/materials/'
     | '/student/requests/'
@@ -1191,9 +1263,11 @@ export interface FileRouteTypes {
     | '/admin/communications'
     | '/admin/contacts'
     | '/admin/course-offerings'
+    | '/admin/department-reports'
     | '/admin/departments'
     | '/admin/enrollments'
     | '/admin/events'
+    | '/admin/executive-reports'
     | '/admin/faculty'
     | '/admin/faculty-accounts'
     | '/admin/faculty-management'
@@ -1225,14 +1299,17 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
     | '/faculty-portal/processing-requests'
+    | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/graduates-affairs'
     | '/student/change-password'
     | '/student/notifications'
     | '/student/progress'
+    | '/student/reports'
     | '/student/schedule'
     | '/student/study-plan'
     | '/admin/documents'
@@ -1247,6 +1324,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/admin'
+    | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
@@ -1263,6 +1341,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/graduation-projects'
     | '/faculty-portal/materials'
     | '/mobile/student'
+    | '/student/graduates-affairs'
     | '/student/graduation-projects'
     | '/student/materials'
     | '/student/requests'
@@ -1300,9 +1379,11 @@ export interface FileRouteTypes {
     | '/admin/communications'
     | '/admin/contacts'
     | '/admin/course-offerings'
+    | '/admin/department-reports'
     | '/admin/departments'
     | '/admin/enrollments'
     | '/admin/events'
+    | '/admin/executive-reports'
     | '/admin/faculty'
     | '/admin/faculty-accounts'
     | '/admin/faculty-management'
@@ -1335,16 +1416,19 @@ export interface FileRouteTypes {
     | '/faculty-portal/change-password'
     | '/faculty-portal/graduation-projects'
     | '/faculty-portal/processing-requests'
+    | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/graduates-affairs'
     | '/student/change-password'
     | '/student/graduation-projects'
     | '/student/notifications'
     | '/student/progress'
+    | '/student/reports'
     | '/student/requests'
     | '/student/schedule'
     | '/student/study-plan'
@@ -1360,6 +1444,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
+    | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
@@ -1376,6 +1461,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/graduation-projects/'
     | '/faculty-portal/materials/'
     | '/mobile/student/'
+    | '/student/graduates-affairs/'
     | '/student/graduation-projects/'
     | '/student/materials/'
     | '/student/requests/'
@@ -1621,6 +1707,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCourseOfferingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/department-reports': {
+      id: '/admin/department-reports'
+      path: '/department-reports'
+      fullPath: '/admin/department-reports'
+      preLoaderRoute: typeof AdminDepartmentReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/departments': {
       id: '/admin/departments'
       path: '/departments'
@@ -1654,6 +1747,13 @@ declare module '@tanstack/react-router' {
       path: '/executive-dashboard'
       fullPath: '/admin/executive-dashboard'
       preLoaderRoute: typeof AdminExecutiveDashboardLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/executive-reports': {
+      id: '/admin/executive-reports'
+      path: '/executive-reports'
+      fullPath: '/admin/executive-reports'
+      preLoaderRoute: typeof AdminExecutiveReportsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/faculty': {
@@ -1929,6 +2029,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalProcessingRequestsRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
+    '/faculty-portal/reports': {
+      id: '/faculty-portal/reports'
+      path: '/reports'
+      fullPath: '/faculty-portal/reports'
+      preLoaderRoute: typeof FacultyPortalReportsRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
     '/faculty-portal/schedule': {
       id: '/faculty-portal/schedule'
       path: '/schedule'
@@ -1978,6 +2085,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffChangePasswordRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/graduates-affairs': {
+      id: '/staff/graduates-affairs'
+      path: '/graduates-affairs'
+      fullPath: '/staff/graduates-affairs'
+      preLoaderRoute: typeof StaffGraduatesAffairsRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/student/': {
       id: '/student/'
       path: '/'
@@ -2013,6 +2127,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentProgressRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/student/reports': {
+      id: '/student/reports'
+      path: '/reports'
+      fullPath: '/student/reports'
+      preLoaderRoute: typeof StudentReportsRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/requests': {
       id: '/student/requests'
       path: '/requests'
@@ -2033,6 +2154,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/student/study-plan'
       preLoaderRoute: typeof StudentStudyPlanRouteImport
       parentRoute: typeof StudentRoute
+    }
+    '/faculty-portal/academic-councils/reports': {
+      id: '/faculty-portal/academic-councils/reports'
+      path: '/reports'
+      fullPath: '/faculty-portal/academic-councils/reports'
+      preLoaderRoute: typeof FacultyPortalAcademicCouncilsReportsRouteImport
+      parentRoute: typeof FacultyPortalAcademicCouncilsRoute
     }
     '/faculty-portal/graduation-projects/': {
       id: '/faculty-portal/graduation-projects/'
@@ -2118,6 +2246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentScheduleRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/student/graduates-affairs/': {
+      id: '/student/graduates-affairs/'
+      path: '/graduates-affairs'
+      fullPath: '/student/graduates-affairs/'
+      preLoaderRoute: typeof StudentGraduatesAffairsIndexRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/graduation-projects/': {
       id: '/student/graduation-projects/'
       path: '/'
@@ -2202,9 +2337,11 @@ interface AdminRouteChildren {
   AdminCommunicationsRoute: typeof AdminCommunicationsRoute
   AdminContactsRoute: typeof AdminContactsRoute
   AdminCourseOfferingsRoute: typeof AdminCourseOfferingsRoute
+  AdminDepartmentReportsRoute: typeof AdminDepartmentReportsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
   AdminEnrollmentsRoute: typeof AdminEnrollmentsRoute
   AdminEventsRoute: typeof AdminEventsRoute
+  AdminExecutiveReportsRoute: typeof AdminExecutiveReportsRoute
   AdminFacultyRoute: typeof AdminFacultyRoute
   AdminFacultyAccountsRoute: typeof AdminFacultyAccountsRoute
   AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
@@ -2254,9 +2391,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCommunicationsRoute: AdminCommunicationsRoute,
   AdminContactsRoute: AdminContactsRoute,
   AdminCourseOfferingsRoute: AdminCourseOfferingsRoute,
+  AdminDepartmentReportsRoute: AdminDepartmentReportsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
   AdminEnrollmentsRoute: AdminEnrollmentsRoute,
   AdminEventsRoute: AdminEventsRoute,
+  AdminExecutiveReportsRoute: AdminExecutiveReportsRoute,
   AdminFacultyRoute: AdminFacultyRoute,
   AdminFacultyAccountsRoute: AdminFacultyAccountsRoute,
   AdminFacultyManagementRoute: AdminFacultyManagementRoute,
@@ -2309,6 +2448,21 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
   DepartmentsRouteChildren,
 )
 
+interface FacultyPortalAcademicCouncilsRouteChildren {
+  FacultyPortalAcademicCouncilsReportsRoute: typeof FacultyPortalAcademicCouncilsReportsRoute
+}
+
+const FacultyPortalAcademicCouncilsRouteChildren: FacultyPortalAcademicCouncilsRouteChildren =
+  {
+    FacultyPortalAcademicCouncilsReportsRoute:
+      FacultyPortalAcademicCouncilsReportsRoute,
+  }
+
+const FacultyPortalAcademicCouncilsRouteWithChildren =
+  FacultyPortalAcademicCouncilsRoute._addFileChildren(
+    FacultyPortalAcademicCouncilsRouteChildren,
+  )
+
 interface FacultyPortalGraduationProjectsRouteChildren {
   FacultyPortalGraduationProjectsProjectIdRoute: typeof FacultyPortalGraduationProjectsProjectIdRoute
   FacultyPortalGraduationProjectsIndexRoute: typeof FacultyPortalGraduationProjectsIndexRoute
@@ -2328,10 +2482,11 @@ const FacultyPortalGraduationProjectsRouteWithChildren =
   )
 
 interface FacultyPortalRouteChildren {
-  FacultyPortalAcademicCouncilsRoute: typeof FacultyPortalAcademicCouncilsRoute
+  FacultyPortalAcademicCouncilsRoute: typeof FacultyPortalAcademicCouncilsRouteWithChildren
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
   FacultyPortalGraduationProjectsRoute: typeof FacultyPortalGraduationProjectsRouteWithChildren
   FacultyPortalProcessingRequestsRoute: typeof FacultyPortalProcessingRequestsRoute
+  FacultyPortalReportsRoute: typeof FacultyPortalReportsRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
   FacultyPortalMaterialsSectionIdRoute: typeof FacultyPortalMaterialsSectionIdRoute
@@ -2340,11 +2495,13 @@ interface FacultyPortalRouteChildren {
 }
 
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
-  FacultyPortalAcademicCouncilsRoute: FacultyPortalAcademicCouncilsRoute,
+  FacultyPortalAcademicCouncilsRoute:
+    FacultyPortalAcademicCouncilsRouteWithChildren,
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
   FacultyPortalGraduationProjectsRoute:
     FacultyPortalGraduationProjectsRouteWithChildren,
   FacultyPortalProcessingRequestsRoute: FacultyPortalProcessingRequestsRoute,
+  FacultyPortalReportsRoute: FacultyPortalReportsRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
   FacultyPortalMaterialsSectionIdRoute: FacultyPortalMaterialsSectionIdRoute,
@@ -2370,12 +2527,14 @@ const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 interface StaffRouteChildren {
   StaffB1RequestsRoute: typeof StaffB1RequestsRoute
   StaffChangePasswordRoute: typeof StaffChangePasswordRoute
+  StaffGraduatesAffairsRoute: typeof StaffGraduatesAffairsRoute
   StaffIndexRoute: typeof StaffIndexRoute
 }
 
 const StaffRouteChildren: StaffRouteChildren = {
   StaffB1RequestsRoute: StaffB1RequestsRoute,
   StaffChangePasswordRoute: StaffChangePasswordRoute,
+  StaffGraduatesAffairsRoute: StaffGraduatesAffairsRoute,
   StaffIndexRoute: StaffIndexRoute,
 }
 
@@ -2423,11 +2582,13 @@ interface StudentRouteChildren {
   StudentGraduationProjectsRoute: typeof StudentGraduationProjectsRouteWithChildren
   StudentNotificationsRoute: typeof StudentNotificationsRoute
   StudentProgressRoute: typeof StudentProgressRoute
+  StudentReportsRoute: typeof StudentReportsRoute
   StudentRequestsRoute: typeof StudentRequestsRouteWithChildren
   StudentScheduleRoute: typeof StudentScheduleRoute
   StudentStudyPlanRoute: typeof StudentStudyPlanRoute
   StudentIndexRoute: typeof StudentIndexRoute
   StudentMaterialsSectionIdRoute: typeof StudentMaterialsSectionIdRoute
+  StudentGraduatesAffairsIndexRoute: typeof StudentGraduatesAffairsIndexRoute
   StudentMaterialsIndexRoute: typeof StudentMaterialsIndexRoute
 }
 
@@ -2436,11 +2597,13 @@ const StudentRouteChildren: StudentRouteChildren = {
   StudentGraduationProjectsRoute: StudentGraduationProjectsRouteWithChildren,
   StudentNotificationsRoute: StudentNotificationsRoute,
   StudentProgressRoute: StudentProgressRoute,
+  StudentReportsRoute: StudentReportsRoute,
   StudentRequestsRoute: StudentRequestsRouteWithChildren,
   StudentScheduleRoute: StudentScheduleRoute,
   StudentStudyPlanRoute: StudentStudyPlanRoute,
   StudentIndexRoute: StudentIndexRoute,
   StudentMaterialsSectionIdRoute: StudentMaterialsSectionIdRoute,
+  StudentGraduatesAffairsIndexRoute: StudentGraduatesAffairsIndexRoute,
   StudentMaterialsIndexRoute: StudentMaterialsIndexRoute,
 }
 

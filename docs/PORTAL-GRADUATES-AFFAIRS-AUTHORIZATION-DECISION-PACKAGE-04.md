@@ -106,3 +106,66 @@ in `program_ids`/`department_ids` arrays; `{}` matches nothing.
 Decision record: each selection should be appended as a dated owner entry in
 this file (or its successor), after which a follow-on source-only bundle
 implements exactly that option with its own positive/negative tests.
+
+---
+
+## OWNER DECISION RECORD — 2026-08-07
+
+Mission: `PORTAL-GRADUATES-AFFAIRS-OWNER-GATE-AND-RUNTIME-WIRE-01`
+Status: **AUTHORITATIVE / FROZEN** for subsequent wiring and promotion.
+This section is the single owner-decision artifact update for this gate. It does
+not duplicate the option analysis above; it records the selected outcomes.
+
+### OWNER_D1 — Canonical unit and roles
+
+- **Canonical unit code:** `graduate_affairs` (graduates affairs).
+- **Canonical roles:** `graduate_affairs_manager`, `graduate_affairs_specialist`.
+- **Authorization requires all of:** functional role **and** canonical
+  `graduate_affairs` unit assignment **and** explicit allowed scope or direct
+  case assignment (as already enforced by AUTH-04).
+- **`student_affairs` `appRoleFallback`:** compatibility label only. It **MUST
+  NEVER** independently grant graduates-affairs authority. Graduates-affairs
+  SQL/RPC must not consult `app_role` / `has_any_role` for access.
+- **No bypass:** admin, dean, and registrar hold no graduates-affairs
+  operational capability unless they also hold an active `graduate_affairs`
+  assignment with the required role/scope.
+- **Manager scope:** college-level graduates-affairs scope only where the
+  AUTH-04 manager capability explicitly allows it.
+- **Specialist scope:** department / program / direct-case scope only (empty
+  department scope = no access).
+- **Label remediation:** Arabic seed label «شؤون الدراسات العليا» may be
+  corrected to «شؤون الخريجين» in a later label-only migration; codes stay
+  unchanged (option A semantics).
+
+### OWNER_D2 — Account continuity
+
+- **Preserve the same auth identity** after graduation. Do **not** create a
+  second graduate auth account.
+- **Separate layers:** authentication · student capabilities · graduate
+  capabilities. Graduate capabilities require an approved continuity policy
+  and an approved authoritative graduate fact; student status alone is
+  insufficient.
+- **University email** is not permanent recovery authority. Support a verified
+  personal recovery/contact channel (contact-point surface; D-3 read path
+  remains fail-closed until separately decided).
+- **Policy surface:** approved `graduate_account_continuity_policies` rows with
+  explicit capability lists and validity windows remain the gate. Until an
+  approved policy is in force for a capability, that capability stays denied.
+
+### OFFICIAL_DECISION_INTAKE
+
+- **Owner:** registrar / academic authority owns intake, validation, approval,
+  correction, and revocation of official graduation decisions.
+- **Graduate Affairs** consumes only an **approved authoritative graduate
+  fact** (ledger → `create_graduate_record_from_official_decision` / equivalent
+  governed operator path).
+- **Graduate Affairs MUST NOT:** approve graduation; modify grades; modify GPA;
+  modify academic snapshot; issue or reissue official academic documents.
+
+### D-3 through D-12
+
+- **Retain current fail-closed defaults** exactly as documented in the option
+  sections above (no contact-value read path; current audience contract; no
+  employer accounts; no applications; notes unread; no row-level exports;
+  opaque `template_code`; identified survey responses; no auto retention; no
+  documents integration from this domain).

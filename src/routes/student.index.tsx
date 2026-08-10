@@ -262,12 +262,26 @@ const SERVICE_LINKS = [
     desc: "تقديم ومتابعة الخدمات الطلابية.",
     Icon: FileText,
   },
+  {
+    to: "/student/reports" as const,
+    title: "تقاريري",
+    desc: "ملخص أكاديمي وطلبات ووثائق ذاتية فقط.",
+    Icon: FileText,
+  },
   ...(portalFeatures.studentCourseMaterials
     ? ([{
         to: "/student/materials" as const,
         title: "المواد التعليمية",
         desc: "محاضرات وملفات المقررات.",
         Icon: BookOpen,
+      }] as const)
+    : []),
+  ...(portalFeatures.studentGraduatesAffairs
+    ? ([{
+        to: "/student/graduates-affairs" as const,
+        title: "شؤون الخريجين",
+        desc: "ملف الخريج والخدمات الذاتية بعد التخرج.",
+        Icon: GraduationCap,
       }] as const)
     : []),
 ] as const;

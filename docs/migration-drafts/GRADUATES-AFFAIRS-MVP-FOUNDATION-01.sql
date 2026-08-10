@@ -341,11 +341,64 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_actor uuid;
+  r record;
+  v_decision_event text;
 BEGIN
   IF OLD.decision_state = 'approved' AND NEW.decision_state IN ('corrected','revoked') THEN
-    UPDATE public.graduate_records
-    SET record_state = NEW.decision_state, version = version + 1
-    WHERE official_decision_id = NEW.id AND record_state = 'approved';
+    -- Prefer JWT actor when auth.uid() exists (Auth-04 harness / production);
+    -- fall back to decision approver for foundation disposable setups.
+    IF to_regprocedure('auth.uid()') IS NOT NULL THEN
+      EXECUTE 'SELECT auth.uid()' INTO v_actor;
+    END IF;
+    v_actor := coalesce(v_actor, NEW.approved_by);
+    IF v_actor IS NULL THEN
+      RAISE EXCEPTION 'GRADUATE_DECISION_PROPAGATION_ACTOR_REQUIRED';
+    END IF;
+
+    v_decision_event := CASE
+      WHEN NEW.decision_state = 'corrected' THEN 'graduation_decision_corrected'
+      ELSE 'graduation_decision_revoked'
+    END;
+
+    FOR r IN
+      UPDATE public.graduate_records
+      SET record_state = NEW.decision_state, version = version + 1
+      WHERE official_decision_id = NEW.id AND record_state = 'approved'
+      RETURNING id, version, record_state
+    LOOP
+      INSERT INTO public.graduate_domain_events (
+        event_type, aggregate_type, aggregate_id, actor_user_id, purpose_code, payload
+      ) VALUES (
+        'graduate_record_state_changed',
+        'graduate_record',
+        r.id,
+        v_actor,
+        'graduate_fact_lifecycle',
+        jsonb_build_object(
+          'decision_id', NEW.id,
+          'from_state', 'approved',
+          'to_state', NEW.decision_state,
+          'version', r.version
+        )
+      );
+    END LOOP;
+
+    INSERT INTO public.graduate_domain_events (
+      event_type, aggregate_type, aggregate_id, actor_user_id, purpose_code, payload
+    ) VALUES (
+      v_decision_event,
+      'graduate_official_decision',
+      NEW.id,
+      v_actor,
+      'graduate_fact_lifecycle',
+      jsonb_build_object(
+        'from_state', OLD.decision_state,
+        'to_state', NEW.decision_state,
+        'student_profile_id', NEW.student_profile_id
+      )
+    );
   ELSIF OLD.decision_state IS DISTINCT FROM NEW.decision_state THEN
     RAISE EXCEPTION 'INVALID_OFFICIAL_GRADUATION_DECISION_TRANSITION';
   END IF;

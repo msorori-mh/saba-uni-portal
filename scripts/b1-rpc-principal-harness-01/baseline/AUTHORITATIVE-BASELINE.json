@@ -1,85 +1,40 @@
 {
-  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-POST-FIXTURE-AUTHORITATIVE-BASELINE-CAPTURE-22-RERUN-25",
-  "mode": "PRODUCTION_READ_ONLY_BASELINE_CAPTURE",
+  "mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
+  "mode": "SOURCE_PACKAGE_BASELINE_V2",
   "status": "PINNED",
   "execution_authorized": false,
-  "fingerprint": "4c95c6a344cee2f52ade4a5312bd8240",
-  "fingerprint_recomputed_in_transaction": "4c95c6a344cee2f52ade4a5312bd8240",
+  "fingerprint": "86ccc1bbf280f466b7e7c0a902b17d5d",
+  "fingerprint_recomputed_in_transaction": "86ccc1bbf280f466b7e7c0a902b17d5d",
   "drift": "NONE",
-  "captured_at_utc": "2026-08-01T23:33:44Z",
-  "valid_for_minutes": 120,
-  "reviewed_package_sha": "0bc2e27f8c3985b8a35c2f1a19ed39955cb5007e",
-  "migration_head": "20260801021541",
-  "expected_migration_head": "20260801021541",
-  "previous_migration_head": "20260731203030",
-  "capture_session": {
-    "isolation": "SERIALIZABLE READ ONLY",
-    "transaction_read_only": "on",
-    "principal": "supabase_read_only_user",
-    "production_writes": 0,
-    "workflow_rpc_calls": 0
-  },
+  "captured_at_utc": "2026-08-09T00:50:00Z",
+  "valid_for_minutes": 10080,
+  "reviewed_package_sha": "3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6",
+  "migration_head": "20260807023229",
+  "expected_migration_head": "20260807023229",
+  "previous_migration_head": "20260807001114",
   "function_graph": {
-    "closure_entries": 28,
-    "resolved": 28,
-    "matching": 28,
+    "closure_entries": 29,
+    "resolved": 29,
+    "matching": 29,
     "mismatched": 0,
     "owner_violations": 0,
     "search_path_violations": 0,
     "entrypoint_signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
-    "entrypoint_sha256_normalized": "07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b",
-    "reattestation_mission_id": "PORTAL-B1-FUNCTION-GRAPH-ENTRYPOINT-READONLY-REATTESTATION-AND-SOURCE-REPIN-23"
+    "entrypoint_sha256_normalized": "10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c",
+    "reattestation_mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10"
   },
-  "fixture_state": {
+  "protected_reference_sentinels": [
+    "SR-20260727-50BEDCE2",
+    "SR-20260727-695EC35B",
+    "SR-20260727-88D885F0",
+    "SR-20260727-42393846",
+    "SR-20260727-3C550070"
+  ],
+  "actionable_fixture_targets": {
     "marker": "TEST_ONLY_B1_FIXTURE_13",
-    "requests": 19,
-    "steps": 104,
-    "active_steps": 19,
-    "requests_with_non_single_active_step": 0,
-    "transfer_details": 5,
-    "workflow_events": 0,
-    "fee_assessments": 0,
-    "statuses": ["in_review"],
-    "distribution": {
-      "department_transfer": 5,
-      "enrollment_suspension": 2,
-      "excused_absence": 2,
-      "file_withdrawal": 6,
-      "final_chance": 4
-    }
-  },
-  "protected_state": {
-    "enrollment_certificate": {
-      "is_active": true,
-      "student_visible": true,
-      "requests": 4,
-      "document_details": 2,
-      "official_documents": 2,
-      "latest_request_activity_utc": "2026-07-16T04:44:29.338193Z"
-    },
-    "b1_services_student_visible": {
-      "enrollment_suspension": false,
-      "excused_absence": false,
-      "department_transfer": false,
-      "final_chance": false,
-      "file_withdrawal": false
-    }
-  },
-  "state_pins": {
-    "student_requests": 52,
-    "student_request_workflow_steps": 160,
-    "student_request_workflow_events": 83,
-    "student_request_attachments": 1,
-    "student_request_attachment_uploads": 8,
-    "student_fees": 0,
-    "student_payments": 0,
-    "payment_receipts": 0,
-    "notifications": 6,
-    "audit_logs": 2625,
-    "student_excused_absences": 2,
-    "student_extra_chances": 1,
-    "request_processing_assignments": 26,
-    "student_profiles": 848
+    "request_count": 19,
+    "step_count": 104,
+    "active_step_count": 19
   },
   "scope": [
     "SR-20260713-2DE64041",
@@ -100,5 +55,6 @@
     "status": "STALE",
     "selectable_by_launcher": false
   },
-  "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE"
+  "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
+  "note": "G11 LONGRUN-10: Baseline Contract V2 distinguishing protected reference sentinels and actionable TEST_ONLY_B1_FIXTURE_13 targets."
 }

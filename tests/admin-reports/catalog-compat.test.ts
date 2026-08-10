@@ -79,9 +79,10 @@ describe("5-proof LIVE rule for the six sections", () => {
     }
   });
 
-  test("EXEC-CORE-KPIS stays DATA_DEPENDENT (out of scope; documented follow-up)", () => {
+  test("EXEC-CORE-KPIS is LIVE with executive dashboard route + beneficiary tests", () => {
     const entry = findByCode(REPORT_CATALOG_ENTRIES, "EXEC-CORE-KPIS")!;
-    expect(entry.status).toBe("DATA_DEPENDENT");
+    expect(entry.status).toBe("LIVE");
     expect(entry.route).toBe("/admin/executive-dashboard");
+    expect(entry.tests.some((t) => t.includes("university-leadership-reports"))).toBe(true);
   });
 });

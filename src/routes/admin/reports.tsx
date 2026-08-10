@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,8 +30,16 @@ import {
 } from "@/lib/admin-reports.functions";
 import { buildExtendedReportTypeOptions } from "@/lib/student-requests/request-type-registry";
 import { logReportEvent } from "@/lib/reports/report-audit.functions";
+import { ReportsOperationalWorkspace } from "@/components/reports/ReportsOperationalWorkspace";
+import {
+  REPORT_CATALOG_ENTRIES,
+  catalogViewerFromActorScope,
+} from "@/lib/reports/catalog";
+import { getMyReportScope } from "@/lib/beneficiary-reports.functions";
+import { buildAdminAttention } from "@/lib/reports/attention";
 
-const VALID_TABS = ["students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
+
+const VALID_TABS = ["catalog", "students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
 type TabId = typeof VALID_TABS[number];
 
 export const Route = createFileRoute("/admin/reports")({
@@ -298,6 +306,7 @@ function ReportsPage() {
   };
 
   const sections: Array<{ id: TabId; title: string; icon: any; active?: boolean }> = [
+    { id: "catalog", title: "جميع التقارير", icon: BarChart3, active: true },
     { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
     { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
     { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
@@ -349,13 +358,16 @@ function ReportsPage() {
         })}
       </section>
 
+      {activeSection === "catalog" && (
+        <CatalogReportsTab />
+      )}
       {activeSection === "students" && <StudentsReport />}
       {activeSection === "imports" && <ImportJobsReport />}
       {activeSection === "accounts" && <StudentAccountsReport />}
       {activeSection === "academic" && <AcademicReports />}
       {activeSection === "schedules" && <ScheduleReports />}
       {activeSection === "requests" && <RequestsReport />}
-      {!["students", "imports", "accounts", "academic", "schedules", "requests"].includes(activeSection) && (
+      {!["catalog", "students", "imports", "accounts", "academic", "schedules", "requests"].includes(activeSection) && (
         <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
@@ -2318,5 +2330,40 @@ function ReportField({ label, children }: { label: string; children: React.React
       <span className="text-xs font-bold text-primary">{label}</span>
       {children}
     </label>
+  );
+}
+
+
+function CatalogReportsTab() {
+  const { adminSession } = useRouteContext({ from: "/admin" });
+  const roles = adminSession?.roles ?? [];
+  const fetchScope = useServerFn(getMyReportScope);
+  const { data: actorScope } = useQuery({
+    queryKey: ["admin-catalog-reports-scope"],
+    queryFn: () => fetchScope(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const viewerScope = actorScope
+    ? catalogViewerFromActorScope(actorScope)
+    : null;
+
+  // Attention only when proven counts are supplied — no fabricated fillers.
+  const attentionItems = buildAdminAttention({});
+
+  return (
+    <ReportsOperationalWorkspace
+      attentionItems={attentionItems}
+      kpiTiles={[]}
+      catalog={{
+        entries: REPORT_CATALOG_ENTRIES,
+        viewerRoles: viewerScope?.roles?.length ? viewerScope.roles : roles,
+        viewerScope,
+        title: "جميع التقارير",
+        subtitle:
+          "الرؤية fail-closed — التقارير المحجوبة لا تُعرض كأنها متاحة. لا يتجاوز الكتالوج التفويض التنظيمي داخل التقارير.",
+        defaultGrouping: "beneficiary",
+      }}
+    />
   );
 }

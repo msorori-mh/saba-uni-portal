@@ -18,6 +18,8 @@ import { BUILD_SHA } from "@/lib/build-provenance";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
+import { PortalInstallPrompt } from "@/components/pwa/PortalInstallPrompt";
+import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
 
 function NotFoundComponent() {
   // Unknown /admin/* paths get an admin-scoped 404 that keeps the admin
@@ -142,6 +144,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // the "unknown" sentinel. Read via document.querySelector('meta[name="build-sha"]')
       // or curl + grep. Never secret; never fails the build.
       { name: "build-sha", content: BUILD_SHA },
+      { name: "theme-color", content: "#061F33" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "بوابة الكلية" },
+      { name: "application-name", content: "بوابة الكلية" },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
       {
@@ -173,7 +181,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/jpeg", href: collegeLogo },
-      { rel: "apple-touch-icon", href: collegeLogo },
+      { rel: "apple-touch-icon", href: "/icon-192.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -227,6 +236,10 @@ function RootComponent() {
   const pathname = useRouter().state.location.pathname;
   const isAdmin = pathname.startsWith("/admin");
 
+  useEffect(() => {
+    registerPortalPWA();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {isAdmin ? (
@@ -240,6 +253,7 @@ function RootComponent() {
           <Footer />
         </div>
       )}
+      <PortalInstallPrompt />
       <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );

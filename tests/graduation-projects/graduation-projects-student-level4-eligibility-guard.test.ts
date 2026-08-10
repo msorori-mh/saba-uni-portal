@@ -83,6 +83,12 @@ const adminShellPath = join(
   "admin",
   "AdminShell.tsx",
 );
+const adminNavConfigPath = join(
+  root,
+  "src",
+  "lib",
+  "admin-navigation-config.ts",
+);
 const ciPath = join(root, ".github", "workflows", "ci.yml");
 
 const draft = readFileSync(draftPath, "utf8");
@@ -91,6 +97,7 @@ const studentIndex = readFileSync(studentIndexPath, "utf8");
 const studentGpRoute = readFileSync(studentGpRoutePath, "utf8");
 const facultyShell = readFileSync(facultyShellPath, "utf8");
 const adminShell = readFileSync(adminShellPath, "utf8");
+const adminNavConfig = readFileSync(adminNavConfigPath, "utf8");
 const ciYml = readFileSync(ciPath, "utf8");
 
 const container = `gp-l4-eligibility-${Date.now()}`;
@@ -238,7 +245,8 @@ describe("GP student Level-4-only eligibility guard", () => {
     expect(studentGpRoute).toContain("student_academic_status");
     expect(studentGpRoute).not.toContain("searchParams");
     expect(facultyShell).toContain("/faculty-portal/graduation-projects");
-    expect(adminShell).toContain("/admin/graduation-projects");
+    expect(adminNavConfig).toContain("/admin/graduation-projects");
+    expect(adminShell).toContain("ADMIN_NAV_GROUPS");
   });
 
   it("CI PG17 chains use canonical SET U migrations and promoted L4", () => {
@@ -329,7 +337,8 @@ describe("GP student Level-4-only eligibility guard", () => {
     );
     const ready = await waitReady();
     expect(ready).toBe(true);
-    // Brief settle — CI runners can race between pg_isready and first SQL apply.
+    // Brief settle — CI runners can race between pg_isready and first SQL apply
+    // when many disposable PG17 harnesses start in the same bun test process.
     await Bun.sleep(1000);
     const settled = await waitReady();
     expect(settled).toBe(true);
@@ -351,7 +360,7 @@ describe("GP student Level-4-only eligibility guard", () => {
       let result = psqlFile(path);
       if (!result.ok) {
         // One retry after a short settle for transient docker socket races.
-        await Bun.sleep(1000);
+        await Bun.sleep(1500);
         if (!(await waitReady())) {
           throw new Error(`${label} failed (postgres not ready):\n${result.out}`);
         }

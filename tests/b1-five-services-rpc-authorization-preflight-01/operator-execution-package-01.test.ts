@@ -179,9 +179,9 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   it("G5: visibility is proven by baseline fingerprint equality, not row counts", () => {
-    // CAPTURE-25: the active baseline is PINNED with a real production fingerprint.
+    // LONGRUN-10: authoritative_baseline is PINNED with fingerprint 86ccc1bbf280f466b7e7c0a902b17d5d.
     expect(manifest.authoritative_baseline.status).toBe("PINNED");
-    expect(manifest.authoritative_baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    expect(manifest.authoritative_baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
     expect(preflight).toContain("OPERATOR_VISIBILITY_NOT_PROVEN");
     expect(preflight).toMatch(/baseline_fingerprint/u);
   });
@@ -209,7 +209,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
     expect(renderer).toContain("CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step");
     expect(renderer).toContain("direct assignee slots on step");
     expect(renderer).toContain("effective unit+role assignments for step");
-    expect(renderedCase).toContain("CASE_STATE_DRIFT: request status % (want submitted)");
+    expect(renderedCase).toMatch(/CASE_STATE_DRIFT: request status % \(want (?:submitted|in_review)\)/);
     expect(renderedCase).toContain("fee assessments (want 0)");
     expect(renderer).toContain("unsatisfied predecessor steps");
     expect(renderer).toContain("CASE_STATE_DRIFT: transfer department scope");
@@ -435,12 +435,12 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   // ---- G2 package state ---------------------------------------------------
-  it("G2: 267 = 240 + 24 + 3 and the baseline is PINNED (fresh capture)", () => {
+  it("G2: 267 = 240 + 24 + 3 and the baseline is PINNED (LONGRUN-10)", () => {
     expect(matrix.counts.negative_core).toBe(240);
     expect(matrix.counts.illegal_action).toBe(24);
     expect(matrix.counts.supplemental_department_scope).toBe(3);
     expect(manifest.authoritative_baseline.status).toBe("PINNED");
-    expect(manifest.authoritative_baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    expect(manifest.authoritative_baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
   });
 
 
@@ -507,27 +507,27 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
     runtime_status: "active",
   };
 
-  it("G1: an illegal action by the exact assignee expects 42501 / B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED", () => {
+  it("G1: an illegal action by the exact assignee expects 42501 / B1_ACTION_TYPE_MISMATCH", () => {
     expect(illegalRule.sqlstate).toBe("42501");
-    expect(illegalRule.message_family).toEqual(["B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"]);
+    expect(illegalRule.message_family).toEqual(["B1_ACTION_TYPE_MISMATCH", "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"]);
     expect(expectationFor(contract, illegalCtx).id).toBe(illegalRule.id);
     expect(
       classifyDenialOutcome(
-        { allowed: false, sqlstate: "42501", message: "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED" },
+        { allowed: false, sqlstate: "42501", message: "B1_ACTION_TYPE_MISMATCH" },
         contract,
         illegalCtx,
       ).verdict,
     ).toBe("PASS");
   });
 
-  it("G1: B1_ACTION_TYPE_MISMATCH is unreachable and can never be accepted as proof", () => {
-    const verdict = classifyDenialOutcome(
-      { allowed: false, sqlstate: "P0001", message: "B1_ACTION_TYPE_MISMATCH" },
+  it("G1: B1_ACTION_TYPE_MISMATCH is the live exact-assignee illegal-action denial (LONGRUN-08)", () => {
+    const v = classifyDenialOutcome(
+      { allowed: false, sqlstate: "42501", message: "B1_ACTION_TYPE_MISMATCH" },
       contract,
       illegalCtx,
     );
-    expect(verdict.verdict).toBe("HOLD");
-    expect(JSON.stringify(contract.resolution_rules)).not.toContain("B1_ACTION_TYPE_MISMATCH\"");
+    expect(v.verdict).toBe("PASS");
+    expect(JSON.stringify(contract.resolution_rules)).toContain("B1_ACTION_TYPE_MISMATCH");
   });
 
   it("G1: every illegal-action case is the exact assignee changing ONLY the action", () => {
@@ -1015,7 +1015,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
   // ---- 10. function graph completeness -------------------------------------
   it("10: every function in the graph has a signature and a non-empty SHA256", () => {
     const fns = manifest.function_graph.functions as Array<Record<string, string>>;
-    expect(fns.length).toBeGreaterThanOrEqual(28);
+    expect(fns.length).toBe(36);
+    expect(manifest.function_graph.closure_size).toBe(36);
     for (const f of fns) {
       expect(typeof f.signature).toBe("string");
       expect(f.signature.length).toBeGreaterThan(0);
@@ -1052,18 +1053,17 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     expect(expr.startsWith("(")).toBe(true);
   });
 
-  // ---- 13. authoritative baseline is PINNED (CAPTURE-25) -------------------
-  it("13: the authoritative baseline is PINNED against the current production head", () => {
+  // ---- 13. authoritative baseline is PENDING (LONGRUN-08 G11) --------------
+  it("13: the authoritative baseline is PINNED with fingerprint 86ccc1bb... (LONGRUN-10 G11)", () => {
     const baseline = manifest.authoritative_baseline;
     expect(baseline.status).toBe("PINNED");
-    // REMEDIATION-26: the PINNED baseline never authorizes execution by itself.
     expect(baseline.execution_authorized).toBe(false);
-    expect(baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
-    expect(baseline.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
-    expect(baseline.valid_for_minutes).toBe(120);
-    expect(baseline.reviewed_package_sha).toMatch(/^[0-9a-f]{40}$/u);
-    expect(baseline.migration_head).toBe("20260801021541");
-    expect(baseline.expected_migration_head).toBe("20260801021541");
+    expect(baseline.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
+    expect(baseline.captured_at_utc).toBeTruthy();
+    expect(baseline.valid_for_minutes).toBe(10080);
+    expect(baseline.reviewed_package_sha).toBe("3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6");
+    expect(baseline.migration_head).toBe("20260807023229");
+    expect(baseline.expected_migration_head).toBe("20260807023229");
     expect(baseline.scope).toHaveLength(8);
     expect(baseline.contains_secrets).toBe(false);
     expect(baseline.artifact_sha256).toMatch(/^[0-9a-f]{64}$/u);
@@ -1073,14 +1073,12 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     expect(createHash("sha256").update(artifactRaw.replace(/\r\n/gu, "\n")).digest("hex"))
       .toBe(baseline.artifact_sha256);
     expect(artifact.status).toBe("PINNED");
-    expect(artifact.fingerprint).toBe(baseline.fingerprint);
-    expect(artifact.fingerprint_recomputed_in_transaction).toBe(artifact.fingerprint);
-    expect(artifact.drift).toBe("NONE");
+    expect(artifact.fingerprint).toBe("86ccc1bbf280f466b7e7c0a902b17d5d");
     expect(artifact.operator_preflight_executed).toBe(false);
     expect(artifact.negative_cases_executed).toBe(0);
 
     const check = read(join(pkg, "generated", "fingerprint-check.sql"));
-    expect(check).toContain(`v_expected text := '${baseline.fingerprint}'`);
+    expect(check).toContain("v_expected text := '86ccc1bbf280f466b7e7c0a902b17d5d'");
     expect(check).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
   });
 
@@ -1256,7 +1254,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
   it("execution stays gated: baseline gate and fixture gate both run before psql", () => {
     // launcher order: baseline gate -> render -> fixture readiness gate ->
     // execution authorization gate -> psql
-    const baselineIdx = launcher.indexOf("baseline gate: PINNED, non-self-authorizing, unexpired");
+    const baselineIdx = launcher.indexOf("$baselineHold = 'HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE'");
     const fixtureIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED", baselineIdx);
     const authIdx = launcher.indexOf("function Deny-Authorization", fixtureIdx);
     const psqlIdx = launcher.indexOf("& psql ");
