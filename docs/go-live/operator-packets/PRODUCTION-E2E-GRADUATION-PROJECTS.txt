@@ -1,0 +1,91 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: GRADUATION PROJECTS (GP)
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+PACKET ID: PRODUCTION-E2E-GRADUATION-PROJECTS-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet defines the E2E verification cycle for the Graduation Projects (GP) module.
+It enforces strict Level-4 student eligibility guards, multi-stage project workflow execution
+(including proposal, supervision, defense, committee scoring, and revisions loop), and read-only
+administrative oversight without academic grade/evaluation bypass.
+
+2. ELIGIBILITY GUARD (LEVEL-4 ONLY)
+-----------------------------------
+Rule: Only active Level-4 students (`academic_level = 4`) holding required completed credit hours
+      may initiate or join graduation project teams.
+Verification:
+  - Call `check_gp_eligibility(student_id)` for Level 1, 2, 3 student -> Expect `ELIGIBILITY_FAILED` (403 Forbidden).
+  - Call `check_gp_eligibility(student_id)` for Level 4 student -> Expect `ELIGIBLE` (200 OK).
+
+3. 11-STEP EXECUTABLE LIFECYCLE SEQUENCE
+----------------------------------------
+
+STEP F.1: TEAM FORMATION & PROPOSAL SUBMISSION
+  Action: Level-4 Student Leader creates team (`create_gp_team`), adds Level-4 team members, submits proposal (`submit_gp_proposal`).
+  Assertion: Proposal status set to `pending_department_review`.
+
+STEP F.2: PROPOSAL DEPARTMENT REVIEW
+  Action: Department GP Coordinator reviews proposal via `review_gp_proposal`.
+  Assertion: Status updated to `proposal_approved`.
+
+STEP F.3: SUPERVISOR ASSIGNMENT & APPROVAL
+  Action: Department assigns faculty supervisor; supervisor calls `accept_gp_supervision`.
+  Assertion: Supervisor UUID bound to project record (`supervisor_id`).
+
+STEP F.4: PROGRESS REPORT EVALUATION
+  Action: Team uploads progress reports (Report 1, Report 2); Supervisor evaluates via `evaluate_gp_progress`.
+  Assertion: Progress scores recorded in `gp_progress_evaluations`.
+
+STEP F.5: FINAL PROJECT SUBMISSION
+  Action: Team uploads final thesis PDF, source code repo URL, presentation deck via `submit_gp_final_deliverables`.
+  Assertion: Deliverable status set to `submitted_for_defense`.
+
+STEP F.6: DEFENSE SCHEDULING
+  Action: GP Coordinator schedules defense session via `schedule_gp_defense`.
+  Assertion: Defense date, time, location, and room reserved in `gp_defenses`.
+
+STEP F.7: DISCUSSION COMMITTEE FORMATION
+  Action: Coordinator assigns discussion committee (Examiner 1, Examiner 2, Supervisor) via `assign_gp_committee`.
+  Assertion: Committee members bound to defense session.
+
+STEP F.8: COMMITTEE EVALUATION & SCORING
+  Action: Each committee member submits rubric score sheet via `submit_gp_evaluation`.
+  Assertion: Individual scores recorded; total score calculated from weighted rubrics.
+
+STEP F.9: DECISION RENDERING
+  Action: System computes final result via `render_gp_defense_decision`.
+  Options: `approved` OR `revisions_required`.
+
+STEP F.10: REVISIONS REQUIRED LOOP (CONDITIONAL EXECUTION)
+  Action: If status = `revisions_required`:
+    - Team uploads revised thesis & response document via `resubmit_gp_revisions`.
+    - Supervisor re-evaluates and confirms revisions via `approve_gp_revisions`.
+    - Final status transitions to `approved`.
+  Assertion: Revisions loop completes with timestamped audit log.
+
+STEP F.11: ARCHIVING & LIBRARY CATALOGING
+  Action: Project coordinator calls `archive_gp_project(project_id)`.
+  Assertion: Thesis and metadata cataloged in College GP Library Archive.
+
+4. ADMIN OVERSIGHT CONTROL (READ-ONLY)
+--------------------------------------
+Role: `graduation_project_admin`
+Assertion:
+  - Admin role CAN view all project metrics, committee assignments, defense schedules, and grades.
+  - Admin role attempting to execute `submit_gp_evaluation`, `accept_gp_supervision`, or `render_gp_defense_decision`
+    MUST be REJECTED with error `42501 / READ_ONLY_ADMIN_OVERVIEW`.
+
+5. PASS CRITERIA
+----------------
+1. Level 1-3 students strictly blocked from GP creation.
+2. Complete 11-step lifecycle executes without error.
+3. Revisions loop successfully transitions project from `revisions_required` to `approved`.
+4. Admin access is strictly read-only; no evaluation bypass permitted.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-GRADUATION-PROJECTS-01
+===============================================================================

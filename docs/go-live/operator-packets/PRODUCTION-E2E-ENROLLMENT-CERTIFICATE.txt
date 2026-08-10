@@ -1,0 +1,86 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: ENROLLMENT CERTIFICATE REGRESSION & LIFECYCLE
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+SERVICE CODE: enrollment_certificate (شهادة قيد)
+PACKET ID: PRODUCTION-E2E-ENROLLMENT-CERTIFICATE-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. PURPOSE & SCOPE
+------------------
+This packet protects the `enrollment_certificate` service contract from any regression
+caused by B1 expansion, Academic Councils, or Graduate Affairs integration.
+It enforces strict verification across the authoritative 7-step document lifecycle,
+ensuring signed storage isolation, public document verification, and strict download
+blocking for cancelled/rejected certificates.
+
+2. 7-STEP EXECUTABLE LIFECYCLE CYCLE
+------------------------------------
+
+STEP D.1: SUBMIT (STUDENT REQUEST INITIALIZATION)
+  Action: Student executes `submit_student_request` for type `enrollment_certificate`.
+  Assertion:
+    - Request created with status `pending_processing`.
+    - Initial step assigned to `registrar` processing unit.
+    - Zero fee handling verified (no dummy finance records created).
+
+STEP D.2: WORKFLOW (STAFF PROCESSING & VERIFICATION)
+  Action: Assigned Registrar staff queries inbox and approves step via `process_request_step`.
+  Assertion:
+    - Processor identity verified via `processing_role = 'registrar'`.
+    - Workflow completes with status `approved`.
+    - Document issuance trigger dispatched.
+
+STEP D.3: DOCUMENT CREATION (DOCUMENT ISSUANCE CONTRACT)
+  Action: Inspect `document_issuance` table for request ID.
+  Assertion:
+    - Row exists with `document_type = 'enrollment_certificate'`.
+    - Unique official serial number generated (e.g. EC-2026-000412).
+    - Status = `issued`.
+    - Verification QR code hash generated.
+
+STEP D.4: SIGNED DOWNLOAD & STORAGE ISOLATION
+  Action: Call `get_signed_document_download_url(document_id)` as document owner (student).
+  Assertion:
+    - Returns temporary Signed URL targeting private bucket `documents/enrollment-certificates/`.
+    - Direct public bucket URL access is STRICTLY DENIED (403 Forbidden).
+    - File Content-Type = `application/pdf`.
+
+STEP D.5: PUBLIC VERIFICATION PROBE (MASKED PII)
+  Action: GET `https://quboolye.com/verify-document?hash=<QR_HASH>`.
+  Assertion:
+    - Responds with HTTP 200 OK.
+    - Returns document status `ISSUED / VALID`.
+    - Serial number, issue date, and college seal displayed.
+    - Sensitive student PII (national ID, phone) is STRICTLY MASKED or OMITTED.
+
+STEP D.6: ARCHIVAL TRANSITION
+  Action: Execute document expiry / archival handler.
+  Assertion:
+    - Document status transitions from `issued` to `archived`.
+    - Verification probe for archived document returns status `ARCHIVED / EXPIRED`.
+
+STEP D.7: CANCELLED / REJECTED DOWNLOAD RESTRICTION (FAIL-CLOSED SECURITY)
+  Action: Test `get_signed_document_download_url` for a request with status `cancelled` or `rejected`.
+  Assertion:
+    - Function REJECTS URL generation with error `DOCUMENT_NOT_ISSUED_OR_REVOKED`.
+    - Public verification probe returns status `INVALID / REVOKED`.
+
+3. REGRESSION CROSS-CHECKS
+--------------------------
+  - Cross-Check 1 (B1 Services Integrity): Verify enrollment_certificate schema changes did not alter B1 request_types columns.
+  - Cross-Check 2 (Councils RLS Isolation): Verify council RLS policies do not lock document_issuance tables.
+  - Cross-Check 3 (Graduate Affairs Isolation): Verify GA feature flag activation does not override student document download policies.
+
+4. PASS CRITERIA
+----------------
+1. All 7 lifecycle steps complete cleanly.
+2. Signed URLs generated exclusively for `issued` / `archived` documents.
+3. Downloads for `cancelled` or `rejected` requests are strictly blocked.
+4. Public verification probe exposes zero unmasked student PII.
+5. Zero regression detected against B1, Councils, or GA modules.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-ENROLLMENT-CERTIFICATE-01
+===============================================================================
