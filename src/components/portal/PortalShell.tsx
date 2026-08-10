@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { LogOut } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { cn } from "@/lib/utils";
+import { PageBackButton } from "@/components/navigation/PageBackButton";
 
 export interface PortalShellProps {
   title?: string;
@@ -54,6 +55,7 @@ export function PortalShell({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <PageBackButton className="border-gold/40 text-gold hover:bg-gold hover:text-primary-deep" />
             {shellActions}
             <button
               type="button"

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { filterNavGroups } from "@/lib/admin-nav";
 import { portalFeatures } from "@/lib/portal-features";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
+import { PageBackButton } from "@/components/navigation/PageBackButton";
 import { useAdminLogout } from "@/lib/use-admin-logout";
 import {
   ADMIN_NAV_GROUPS,
@@ -377,6 +378,8 @@ export function AdminShell({
           >
             <Menu className="h-5 w-5" aria-hidden />
           </button>
+
+          <PageBackButton className="border-border text-primary hover:bg-accent" />
 
           <div className="flex-1 min-w-0 truncate font-display font-bold text-primary text-sm sm:text-base">
             مرحباً بك في لوحة الإدارة
