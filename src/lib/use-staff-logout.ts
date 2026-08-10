@@ -5,10 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
 
 /**
- * Safe student-portal logout: sign out, clear React Query cache, clear
- * local reports favorites, then navigate to portal login.
+ * Centralized, safe logout for the staff portal.
+ *
+ * - Navigation lives in `finally`, so a failed sign-out never strands the user.
+ * - Clears the React Query cache and invalidates the router so no stale
+ *   identity/profile data from the previous staff member survives into the
+ *   next login on the same browser.
  */
-export function useStudentLogout() {
+export function useStaffLogout() {
   const navigate = useNavigate();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -17,7 +21,7 @@ export function useStudentLogout() {
     try {
       await supabase.auth.signOut();
     } catch {
-      // Never block navigation on sign-out failure.
+      // Swallow: the local session is discarded anyway.
     } finally {
       queryClient.clear();
       clearReportsLocalPreferences();
