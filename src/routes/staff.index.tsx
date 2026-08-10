@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2, GraduationCap } from "lucide-react";
+import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2, GraduationCap, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
@@ -100,6 +100,22 @@ function StaffDashboard() {
                 </Link>
               </div>
             )}
+
+            <div className="mt-4">
+              <Link
+                to="/staff/audit-log"
+                className="flex items-center gap-3 rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+              >
+                <ClipboardList className="h-5 w-5 text-gold shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-bold text-primary">سجل التدقيق</div>
+                  <div className="text-xs text-muted-foreground">
+                    وقت اعتماد كل خطوة، واسم المستخدم، وحالة الخطوة.
+                  </div>
+                </div>
+              </Link>
+            </div>
+
 
             <div className="mt-6 space-y-3">
               <h2 className="font-display text-lg font-extrabold text-primary-deep flex items-center gap-2">

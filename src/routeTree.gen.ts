@@ -84,6 +84,7 @@ import { Route as MobileStudentRouteImport } from './routes/mobile.student'
 import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
+import { Route as StaffAuditLogRouteImport } from './routes/staff.audit-log'
 import { Route as StaffB1RequestsRouteImport } from './routes/staff.b1-requests'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
 import { Route as StaffGraduatesAffairsRouteImport } from './routes/staff.graduates-affairs'
@@ -566,6 +567,11 @@ const StaffIndexRoute = StaffIndexRouteImport.update({
   path: '/',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffAuditLogRoute = StaffAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => StaffRoute,
+} as any)
 const StaffB1RequestsRoute = StaffB1RequestsRouteImport.update({
   id: '/b1-requests',
   path: '/b1-requests',
@@ -834,6 +840,7 @@ export interface FileRoutesByFullPath {
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
@@ -948,6 +955,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
@@ -1067,6 +1075,7 @@ export interface FileRoutesById {
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
@@ -1189,6 +1198,7 @@ export interface FileRouteTypes {
     | '/mobile/student'
     | '/mobile/student-login'
     | '/news/$slug'
+    | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
     | '/staff/graduates-affairs'
@@ -1303,6 +1313,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/schedule'
     | '/mobile/student-login'
     | '/news/$slug'
+    | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
     | '/staff/graduates-affairs'
@@ -1421,6 +1432,7 @@ export interface FileRouteTypes {
     | '/mobile/student'
     | '/mobile/student-login'
     | '/news/$slug'
+    | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
     | '/staff/graduates-affairs'
@@ -2071,6 +2083,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffIndexRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/audit-log': {
+      id: '/staff/audit-log'
+      path: '/audit-log'
+      fullPath: '/staff/audit-log'
+      preLoaderRoute: typeof StaffAuditLogRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/staff/b1-requests': {
       id: '/staff/b1-requests'
       path: '/b1-requests'
@@ -2525,6 +2544,7 @@ const NewsRouteChildren: NewsRouteChildren = {
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
 interface StaffRouteChildren {
+  StaffAuditLogRoute: typeof StaffAuditLogRoute
   StaffB1RequestsRoute: typeof StaffB1RequestsRoute
   StaffChangePasswordRoute: typeof StaffChangePasswordRoute
   StaffGraduatesAffairsRoute: typeof StaffGraduatesAffairsRoute
@@ -2532,6 +2552,7 @@ interface StaffRouteChildren {
 }
 
 const StaffRouteChildren: StaffRouteChildren = {
+  StaffAuditLogRoute: StaffAuditLogRoute,
   StaffB1RequestsRoute: StaffB1RequestsRoute,
   StaffChangePasswordRoute: StaffChangePasswordRoute,
   StaffGraduatesAffairsRoute: StaffGraduatesAffairsRoute,
