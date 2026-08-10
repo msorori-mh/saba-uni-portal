@@ -49,7 +49,7 @@ export async function inspectB1DetailsRowForStep(params: { stepId: string }): Pr
 
   const { data: detailRow, error: detailErr } = await supabaseAdmin
     .from(spec.table as never)
-    .select("id")
+    .select(spec.requestColumn)
     .eq(spec.requestColumn, requestId)
     .maybeSingle();
   if (detailErr) throw new Error(detailErr.message);
@@ -105,7 +105,7 @@ export async function assertB1DetailsRowPresentForStep(params: {
 
   const { data: detailRow, error: detailErr } = await supabaseAdmin
     .from(spec.table as never)
-    .select("id")
+    .select(spec.requestColumn)
     .eq(spec.requestColumn, requestId)
     .maybeSingle();
   if (detailErr) throw new Error(detailErr.message);
