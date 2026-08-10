@@ -110,7 +110,30 @@ export function CouncilMeetingCard({
     }
   };
 
+  const nextTransition = NEXT_CHAIR_TRANSITION[meeting.status] ?? null;
+
+  const handleTransition = async () => {
+    if (!nextTransition) return;
+    setTransitionBusy(true);
+    try {
+      await transitionMeeting({
+        data: {
+          meetingId: meeting.meeting_id,
+          expectedStatus: meeting.status,
+          toStatus: nextTransition.to,
+        },
+      });
+      toast.success(nextTransition.success);
+      onUpdated();
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || MEETING_SAVE_FAILED_UI);
+    } finally {
+      setTransitionBusy(false);
+    }
+  };
+
   const displayTitle = meeting.meeting_title?.trim() || meeting.council_name;
+
   const agendaStatus = meeting.agenda_summary
     ? "جدول الأعمال متوفر"
     : meeting.status === "agenda_ready"
