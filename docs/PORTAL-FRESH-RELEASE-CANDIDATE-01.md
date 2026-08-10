@@ -5,17 +5,17 @@
 | Status | `SOURCE_ONLY — NOT PUBLISHED` |
 | Program | `PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01` |
 | Repository | `msorori-mh/saba-uni-portal` |
-| Prepared | 2026-07-21 |
-| `SOURCE_SHA` / `expected_release_sha` | `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` |
+| Prepared | 2026-08-10 |
+| `SOURCE_SHA` / `expected_release_sha` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (current branch tip `fix/b1-go-live-final-drift-d02-closure-01`; **not deployed proof**) |
 | `DEPLOYED_SHA` | `UNKNOWN` |
 | Proof gate | `NOT_RUN` until official Deploy/Publish + independent readback |
-| Supersedes as *current* RC pin | `427b7eb48f8771f31bd08a46fc4590cf883ab7e2`, `8f229d09d581d8128dc684f47ad989200312d210`, and older RC tips (`b50979a8…`, `5435a877…`, `7431601d…`, `6332095b…`) |
+| Supersedes as *current* RC pin | `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6`, `427b7eb48f8771f31bd08a46fc4590cf883ab7e2`, `8f229d09d581d8128dc684f47ad989200312d210`, and older RC tips |
 
 ## Separation of concerns (binding)
 
 | Dimension | Value for this candidate |
 |---|---|
-| `SOURCE_SHA` | `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` (`origin/main` tip at packaging) |
+| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (branch tip at packaging; **not deployed proof**) |
 | `DEPLOYED_SHA` | **Not claimed.** Remains `UNKNOWN` until Publish readback |
 | `PRODUCTION_DB_STATE` | **Unknown / not re-read in this package.** Use refreshed D-02 RO package under separate authorized channel |
 | `MIGRATION_READINESS` | Source drafts + runbook present; **apply requires separate USER_APPROVAL** |
@@ -23,14 +23,9 @@
 
 ## Why this SHA
 
-`0e2d25c9…` is the post-merge tip that includes:
+`38578b6533f20407c02ed775b5af18d11fcb85eb` is the current branch tip for this final closure package. It includes the B1 migration-source drift, TEST_ONLY exclusion, and D-02 chair-sensor fixes. Source SHA is recorded for traceability only; it is **not** evidence that this SHA is published or deployed.
 
-- PR #191 old-PRs disposition docs
-- PR #194 CI hardening (`bun-tests` fail-closed + PG 17 verifiers 8/8) with green main Web CI on merge `e3dbd93…`
-- PR #195 `student_accounts` importer **source** (no production accounts created)
-- Docs verify PR #196 for the #194/#195 closure report
-
-`427b7eb4…` is **invalid as a new release baseline** (stale relative to current `main`).
+Older pins (`0e2d25c9…`, `427b7eb4…`, `8f229d09…`) are **invalid as a new release baseline**.
 
 ## Explicit non-claims
 
@@ -41,11 +36,14 @@ D-01 executed: NO
 D-02 executed on production: NO
 Migration apply: NO
 student_visible changed: NO
+TEST_ONLY migration applied: NO
 566 student accounts created: NO
 ```
 
 ## Next gates (ordered, each separately authorized)
 
-1. Official Deploy/Publish of `expected_release_sha` → prove `DEPLOYED_SHA`.
+1. Official Deploy/Publish of `expected_release_sha` → prove `DEPLOYED_SHA` by independent read-back.
 2. Authorized D-02 read-only execution (`B1-D02-READONLY-PRODUCTION-PREFLIGHT-PACKAGE-01.md` refreshed).
 3. Only then: migration / activation decisions under their own approvals.
+
+`SOURCE_SHA` must never be used as a substitute for `DEPLOYED_SHA`.

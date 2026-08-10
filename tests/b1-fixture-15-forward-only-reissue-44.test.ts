@@ -17,9 +17,10 @@ const migRel =
   "supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql";
 const migPath = join(root, migRel);
 const managedAliasRel =
-  "supabase/migrations/20260804004546_17b78d6d-3a17-41d9-ba7b-d0c19c6459cc.sql";
+  "docs/migration-drafts/test-only-archive/20260804004546_17b78d6d-3a17-41d9-ba7b-d0c19c6459cc.sql";
 const managedAliasPath = join(root, managedAliasRel);
 const migrationsDir = join(root, "supabase/migrations");
+const testOnlyArchiveDir = join(root, "docs/migration-drafts/test-only-archive");
 const scriptDir = join(root, "scripts/b1-fixture-15-reissue-44-pg17");
 const matrixPath = join(
   root,
@@ -686,28 +687,49 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
     const baseline = "20260802225131_c5d176f3-4841-49e9-b4e7-15df8ac7e0fe.sql";
     expect(migs).toContain(baseline);
     expect(migs).toContain(APPROVED_SOURCE);
-    expect(migs).toContain(APPROVED_MANAGED_ALIAS);
+    // Managed applied alias was moved to the test-only archive as part of
+    // PORTAL-B1-GO-LIVE-MIGRATION-DRIFT-TESTONLY-D02-FINAL-CLOSURE; it must
+    // remain in the archive as historical evidence but not in the production
+    // migration path.
+    expect(migs).not.toContain(APPROVED_MANAGED_ALIAS);
 
-    const hits = classifyFixture15Carriers(migrationsDir);
-    assertApprovedCarrierSet(hits);
+    // Classify across the production path plus the archived alias (historical evidence).
+    const combined = mkdtempSync(join(tmpdir(), "b1-f15-carrier-combined-"));
+    try {
+      for (const f of readdirSync(migrationsDir).filter((x) => x.endsWith(".sql"))) {
+        copyFileSync(join(migrationsDir, f), join(combined, f));
+      }
+      copyFileSync(managedAliasPath, join(combined, APPROVED_MANAGED_ALIAS));
+      const hits = classifyFixture15Carriers(combined);
+      assertApprovedCarrierSet(hits);
 
-    // Filename-substring detection must not be the authority: E2E / unrelated
-    // later migrations must not be misclassified as carriers.
-    expect(hits.every((h) => isFixture15CarrierContent(
-      readFileSync(join(migrationsDir, h.filename), "utf8"),
-    ))).toBe(true);
-    expect(
-      hits.some((h) => h.filename.includes("b1_88_request_scoped_e2e_support")),
-    ).toBe(false);
+      // Filename-substring detection must not be the authority: E2E / unrelated
+      // later migrations must not be misclassified as carriers.
+      expect(hits.every((h) => isFixture15CarrierContent(
+        readFileSync(join(combined, h.filename), "utf8"),
+      ))).toBe(true);
+      expect(
+        hits.some((h) => h.filename.includes("b1_88_request_scoped_e2e_support")),
+      ).toBe(false);
+    } finally {
+      rmSync(combined, { recursive: true, force: true });
+    }
+
+    // Archived alias remains byte-identical to the canonical source (history preserved).
+    const sourceSql = readFileSync(migPath, "utf8");
+    const aliasSql = readFileSync(managedAliasPath, "utf8");
+    expect(normalizeSqlSemantic(sourceSql)).toBe(normalizeSqlSemantic(aliasSql));
   });
 
   it("rejects arbitrary-name clones, partial carriers, and content drift via temp dirs", () => {
     const staging = mkdtempSync(join(tmpdir(), "b1-f15-carrier-"));
     try {
-      // Copy production migrations into an isolated staging tree (never mutate real files).
+      // Copy production migrations plus archived alias into an isolated staging tree
+      // (never mutate real files).
       for (const f of readdirSync(migrationsDir).filter((x) => x.endsWith(".sql"))) {
         copyFileSync(join(migrationsDir, f), join(staging, f));
       }
+      copyFileSync(managedAliasPath, join(staging, APPROVED_MANAGED_ALIAS));
       assertApprovedCarrierSet(classifyFixture15Carriers(staging));
 
       const sourceSql = readFileSync(migPath, "utf8");
