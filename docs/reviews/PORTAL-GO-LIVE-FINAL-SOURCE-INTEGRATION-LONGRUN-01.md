@@ -6,28 +6,28 @@
 
 TOKEN: `PASS_PORTAL_GO_LIVE_FINAL_SOURCE_INTEGRATION_LONGRUN_01`
 
-## A â€” Current truth (post addendum refresh)
+## A - Current truth (post addendum refresh)
 
 | Stream | SHA | Disposition |
 |--------|-----|-------------|
-| `origin/main` | `38578b6533f20407c02ed775b5af18d11fcb85eb` | BASE â€” includes PR #323 + PR #321 |
+| `origin/main` | `38578b6533f20407c02ed775b5af18d11fcb85eb` | BASE - includes PR #323 + PR #321 |
 | PR #326 C5 Rev02 | `62c6bb374b15503dfa93c5d8066e4b61837169aa` | INTEGRATED |
 | PR #324 latest | `9aa6cf66902230bbe72952bbbf82ce40bf72af74` | INTEGRATED |
 | PR #325 | `2eccfe4ed965651462279d525eb7d2bc57baacfa` | INTEGRATED |
-| PR #322 | â€” | **NOT integrated** (superseded by PR #326) |
+| PR #322 | - | **NOT integrated** (superseded by PR #326) |
 | PR #323 | already on main | **NOT re-integrated** |
 | PR #321 | already on main | **NOT re-integrated** |
 
-## B â€” Integration order executed
+## B - Integration order executed
 
-1. Reset `integration/go-live-final-source-closure-01` â†’ `origin/main`
+1. Reset `integration/go-live-final-source-closure-01` to `origin/main`
 2. Merge PR #326 (`fix/councils-c5-digest-source-revision-13`)
 3. Merge PR #324 latest (`fix/go-live-ui-gaps-01` @ `9aa6cf66`)
 4. Merge PR #325 (`feat/graduates-affairs-admin-integration-01`)
 
-No file overlaps between PR326 أ— PR324 أ— PR325. Clean merges.
+No file overlaps between PR326 x PR324 x PR325. Clean merges.
 
-## C â€” Dean report scope
+## C - Dean report scope
 
 PR324 latest preserves fail-closed dean department selection:
 
@@ -37,7 +37,9 @@ PR324 latest preserves fail-closed dean department selection:
 - `NO_SILENT_UNIVERSITY_SCOPE=YES`
 - `AUTHORIZATION_BROADENED=NO`
 
-## D â€” Multi-council contract
+`DEAN_SCOPE=PASS`
+
+## D - Multi-council contract
 
 - future `active_to` = current; expired = previous; inactive = excluded
 - Department chair + College member concurrent memberships
@@ -45,7 +47,7 @@ PR324 latest preserves fail-closed dean department selection:
 
 `MULTI_COUNCIL=PASS`
 
-## E â€” Admin councils (from main / PR #323)
+## E - Admin councils (from main / PR #323)
 
 - `GLOBAL_KPIS_ONLY_GLOBAL_CONTEXT=YES`
 - `SELECTED_COUNCIL_GLOBAL_DECISION_MISATTRIBUTION=0`
@@ -54,31 +56,31 @@ PR324 latest preserves fail-closed dean department selection:
 
 `ADMIN_COUNCILS=PASS`
 
-## F â€” Graduation Projects admin
+## F - Graduation Projects admin
 
 Arabic fail-closed capability mapping; read-only oversight + KPIs/filters; no admin bypass.
 
 `GP_ADMIN=PASS`
 
-## G â€” Graduates Affairs
+## G - Graduates Affairs
 
 Workspace behind `staffGraduatesAffairs=false`. Assignment AUTH-04; admin `app_role` alone grants nothing.
 
 `GA_UI=PASS`
 
-## H â€” Nav / Messages / Reports
+## H - Nav / Messages / Reports
 
-- `adminFinance=false` â†’ `ط§ظ„ظˆط«ط§ط¦ظ‚ ط§ظ„ط±ط³ظ…ظٹط©`, finance link absent
+- `adminFinance=false` => group label `الوثائق الرسمية`, finance link absent
 - Messages back + `/admin` fallback
 - Department reports containment-safe
 
-`NAV=PASS` آ· `MESSAGES=PASS` آ· `REPORTS=PASS`
+`NAV=PASS` / `MESSAGES=PASS` / `REPORTS=PASS`
 
-## I â€” User-facing quality sweep
+## I - User-facing quality sweep
 
 `USER_VISIBLE_ERROR_SWEEP=PASS` for integrated streams (no new stale phase copy; GP/C9 Arabic fail-closed retained).
 
-## J â€” Qualification results
+## J - Qualification results
 
 | Suite | Result |
 |-------|--------|
@@ -93,15 +95,15 @@ Workspace behind `staffGraduatesAffairs=false`. Assignment AUTH-04; admin `app_r
 | `bun run build` | **PASS** |
 | `git diff --check` | **PASS** |
 
-## K â€” Release hygiene
+## K - Release hygiene
 
 - Migrations vs main: **only** `20260810180000_councils_c5_minutes_lifecycle_02.sql`
 - C5 V1 remains frozen `SUPERSEDED_DO_NOT_APPLY`
-- Feature flags all OFF (`staffGraduatesAffairs`, `adminFinance`, â€¦)
+- Feature flags all OFF (`staffGraduatesAffairs`, `adminFinance`, ...)
 - No secrets; no conflict markers; no routeTree accidental drift
 - No production apply / deploy / publish / main merge
 
-## L â€” C5 canonical hashes
+## L - C5 canonical hashes
 
 | Artifact | Status | SHA256_LF |
 |----------|--------|-----------|
@@ -110,13 +112,13 @@ Workspace behind `staffGraduatesAffairs=false`. Assignment AUTH-04; admin `app_r
 
 V2: `extensions.digest` qualified; `search_path = public, pg_temp`; fail-closed prerequisite; production C5 remains NOT APPLIED.
 
-`C5V1_SUPERSEDED_PRESERVED=YES` آ· `PR326_C5V2_INTEGRATED=YES`
+`C5V1_SUPERSEDED_PRESERVED=YES` / `PR326_C5V2_INTEGRATED=YES`
 
 ## University Council Acceptance delta
 
 Local worktree `review/go-live-university-council-acceptance-01` exists at stale tip `b02241c5` and is **not pushed** to origin.
 
-`ACCEPTANCE_DELTA_PENDING_PROMOTION=YES` آ· `ACCEPTANCE_DELTA_INTEGRATED=NO`
+`ACCEPTANCE_DELTA_PENDING_PROMOTION=YES` / `ACCEPTANCE_DELTA_INTEGRATED=NO`
 
 ## Findings counts
 
@@ -140,7 +142,7 @@ MAIN_MERGE=NO
 ```
 CURRENT_MAIN_SHA=38578b6533f20407c02ed775b5af18d11fcb85eb
 MAIN_BASE_SHA=38578b6533f20407c02ed775b5af18d11fcb85eb
-FINAL_SOURCE_SHA=97f3d73f89363dfbe6e765a9db757a70e7feb386
+FINAL_SOURCE_SHA=PENDING_TIP
 PR326_C5V2_INTEGRATED=YES
 C5V1_SUPERSEDED_PRESERVED=YES
 PR324_LATEST_INTEGRATED=YES
@@ -149,3 +151,5 @@ ACCEPTANCE_DELTA_INTEGRATED=NO
 ACCEPTANCE_DELTA_PENDING_PROMOTION=YES
 C5_NEW_SHA256_LF=0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8
 ```
+
+After this file is committed, tip SHA is recorded in the mission return as `FINAL_SOURCE_SHA` (branch HEAD). Report placeholder `PENDING_TIP` is replaced in the same commit body below only if commit is self-pinned; otherwise HEAD is authoritative.
