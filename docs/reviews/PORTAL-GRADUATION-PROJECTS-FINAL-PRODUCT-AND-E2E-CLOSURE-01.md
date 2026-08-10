@@ -135,7 +135,7 @@ None from this PR alone: source-only. No data mutation, no deploy, no auth user 
 
 ```
 CURRENT_BASE_SHA=2834f1cdbd5a0ff4e814f37b5b6b1e463879b58d
-FINAL_SHA=<filled after commit>
+FINAL_SHA=c5751cff200d1002eddc617a619cb27853fc92f9
 GAPS_FOUND=identity pickers empty; no create-team UI; progress file orphan; admin state drift; revisions text discarded; revisions E2E object-only; go-live packet non-canonical; stale route semantic pin; no safe prod actors; L4+identity migrations unapplied; notifications absent
 GAPS_FIXED=create-team UI; identity mapping + empty states; progress file linkage; admin canonical filters; conclude notes wiring + migration draft; revisions executable package; L4 parity matrix tests; canonical E2E packet; route semantic pin refresh
 L4_GUARD=SOURCE_PASS (UI+TS+SQL verifier); PRODUCTION_APPLY=PENDING
