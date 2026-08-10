@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { filterNavGroups } from "@/lib/admin-nav";
 import { portalFeatures } from "@/lib/portal-features";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
+import { PageBackButton } from "@/components/navigation/PageBackButton";
 import { useAdminLogout } from "@/lib/use-admin-logout";
 import {
   ADMIN_NAV_GROUPS,
