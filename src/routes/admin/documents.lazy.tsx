@@ -25,7 +25,9 @@ const TYPE_LABEL: Record<string, string> = {
   financial_receipt: "سند مالي رسمي",
 };
 
-const TYPES = ALL_TYPES.filter((t) => portalFeatures.adminFinance || t !== "financial_receipt");
+const TYPES = Object.keys(TYPE_LABEL).filter(
+  (t) => portalFeatures.adminFinance || t !== "financial_receipt",
+);
 
 function AdminDocumentsPage() {
   usePagePerf("/admin/documents");
