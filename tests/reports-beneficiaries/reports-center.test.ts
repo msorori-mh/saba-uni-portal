@@ -80,11 +80,16 @@ describe("isReportOpenable only LIVE/DATA_DEPENDENT with route", () => {
 
 describe("ReportsCenter.tsx source contracts", () => {
   test("favorites use localStorage key portal.reports.favorites.v1", () => {
-    expect(CENTER_SRC).toContain('FAVORITES_KEY = "portal.reports.favorites.v1"');
+    expect(CENTER_SRC).toContain("REPORTS_FAVORITES_STORAGE_KEY");
     expect(CENTER_SRC).toContain("localStorage.getItem(FAVORITES_KEY)");
     expect(CENTER_SRC).toContain("localStorage.setItem(FAVORITES_KEY");
     expect(CENTER_SRC).toContain("persistFavorites");
     expect(CENTER_SRC).toContain("toggleFavorite");
+    const prefs = readFileSync(
+      fileURLToPath(new URL("../../src/lib/reports/clear-local-preferences.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(prefs).toContain("portal.reports.favorites.v1");
   });
 
   test("showPreparation filters preparation entries when false", () => {

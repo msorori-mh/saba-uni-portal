@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
 
 /**
  * Centralized, safe logout for the faculty portal.
@@ -11,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
  *   `finally`, so a failed sign-out can never strand the user.
  * - Clears the React Query cache so no stale identity/profile data survives
  *   into the next login on the same client.
+ * - Clears local reports favorites so shared browsers do not leak preferences.
  */
 export function useFacultyLogout() {
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ export function useFacultyLogout() {
       // re-establishes a fresh session. Never block navigation on this.
     } finally {
       queryClient.clear();
+      clearReportsLocalPreferences();
       navigate({ to: "/portal-login", replace: true });
     }
   }, [navigate, queryClient]);
