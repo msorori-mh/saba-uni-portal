@@ -176,16 +176,76 @@ export type Database = {
           },
         ]
       }
+      academic_council_audit_events: {
+        Row: {
+          action_type: string
+          actor_user_id: string | null
+          correlation_id: string | null
+          council_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          meeting_id: string | null
+          payload: Json
+        }
+        Insert: {
+          action_type: string
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          council_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          meeting_id?: string | null
+          payload?: Json
+        }
+        Update: {
+          action_type?: string
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          council_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          meeting_id?: string | null
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_audit_events_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_audit_events_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_council_decisions: {
         Row: {
+          agenda_item_id: string | null
           body: string
+          canonical_decision_number: string | null
+          completed_at: string | null
           created_at: string
           created_by: string
           decision_number: number
           due_date: string | null
+          evidence_metadata: Json
           execution_note: string | null
           id: string
           meeting_id: string
+          minutes_id: string | null
+          responsible_unit: string | null
           responsible_user_id: string | null
           status: Database["public"]["Enums"]["academic_council_decision_status"]
           title: string
@@ -194,14 +254,20 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          agenda_item_id?: string | null
           body: string
+          canonical_decision_number?: string | null
+          completed_at?: string | null
           created_at?: string
           created_by: string
           decision_number: number
           due_date?: string | null
+          evidence_metadata?: Json
           execution_note?: string | null
           id?: string
           meeting_id: string
+          minutes_id?: string | null
+          responsible_unit?: string | null
           responsible_user_id?: string | null
           status?: Database["public"]["Enums"]["academic_council_decision_status"]
           title: string
@@ -210,14 +276,20 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          agenda_item_id?: string | null
           body?: string
+          canonical_decision_number?: string | null
+          completed_at?: string | null
           created_at?: string
           created_by?: string
           decision_number?: number
           due_date?: string | null
+          evidence_metadata?: Json
           execution_note?: string | null
           id?: string
           meeting_id?: string
+          minutes_id?: string | null
+          responsible_unit?: string | null
           responsible_user_id?: string | null
           status?: Database["public"]["Enums"]["academic_council_decision_status"]
           title?: string
@@ -227,10 +299,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "academic_council_decisions_agenda_item_id_fkey"
+            columns: ["agenda_item_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_agenda_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "academic_council_decisions_meeting_id_fkey"
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_decisions_minutes_id_fkey"
+            columns: ["minutes_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_minutes"
             referencedColumns: ["id"]
           },
           {
@@ -619,43 +705,169 @@ export type Database = {
       }
       academic_council_minutes: {
         Row: {
+          approved_at: string | null
           approved_by: string | null
           body: string
           created_at: string
           drafted_by: string
+          fingerprint: string | null
           id: string
           is_locked: boolean
           locked_at: string | null
+          locked_by: string | null
           meeting_id: string
+          status: Database["public"]["Enums"]["academic_council_minutes_status"]
           updated_at: string
+          version: number
         }
         Insert: {
+          approved_at?: string | null
           approved_by?: string | null
           body?: string
           created_at?: string
           drafted_by: string
+          fingerprint?: string | null
           id?: string
           is_locked?: boolean
           locked_at?: string | null
+          locked_by?: string | null
           meeting_id: string
+          status?: Database["public"]["Enums"]["academic_council_minutes_status"]
           updated_at?: string
+          version?: number
         }
         Update: {
+          approved_at?: string | null
           approved_by?: string | null
           body?: string
           created_at?: string
           drafted_by?: string
+          fingerprint?: string | null
           id?: string
           is_locked?: boolean
           locked_at?: string | null
+          locked_by?: string | null
           meeting_id?: string
+          status?: Database["public"]["Enums"]["academic_council_minutes_status"]
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
             foreignKeyName: "academic_council_minutes_meeting_id_fkey"
             columns: ["meeting_id"]
             isOneToOne: true
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_minutes_amendments: {
+        Row: {
+          amended_content: string
+          amendment_number: number
+          created_at: string
+          created_by: string
+          id: string
+          meeting_id: string
+          minutes_id: string
+          reason: string
+        }
+        Insert: {
+          amended_content: string
+          amendment_number: number
+          created_at?: string
+          created_by: string
+          id?: string
+          meeting_id: string
+          minutes_id: string
+          reason: string
+        }
+        Update: {
+          amended_content?: string
+          amendment_number?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          meeting_id?: string
+          minutes_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_minutes_amendments_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_minutes_amendments_minutes_id_fkey"
+            columns: ["minutes_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_council_notifications: {
+        Row: {
+          body: string
+          council_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string
+          id: string
+          is_read: boolean
+          meeting_id: string | null
+          payload: Json
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          council_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type: string
+          id?: string
+          is_read?: boolean
+          meeting_id?: string | null
+          payload?: Json
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          council_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string
+          id?: string
+          is_read?: boolean
+          meeting_id?: string | null
+          payload?: Json
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_notifications_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_notifications_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
             referencedRelation: "academic_council_meetings"
             referencedColumns: ["id"]
           },
@@ -3007,6 +3219,840 @@ export type Database = {
           sort_order?: number
           updated_at?: string
           weight?: number | null
+        }
+        Relationships: []
+      }
+      graduate_account_continuity_policies: {
+        Row: {
+          allow_portal_sign_in: boolean
+          allow_university_email_reuse: boolean
+          allowed_capabilities: Json
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          expires_at: string | null
+          id: string
+          is_current: boolean
+          policy_code: string
+          policy_state: Database["public"]["Enums"]["graduate_account_policy_state"]
+          supersedes_policy_id: string | null
+          valid_from: string | null
+        }
+        Insert: {
+          allow_portal_sign_in?: boolean
+          allow_university_email_reuse?: boolean
+          allowed_capabilities?: Json
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_current?: boolean
+          policy_code: string
+          policy_state?: Database["public"]["Enums"]["graduate_account_policy_state"]
+          supersedes_policy_id?: string | null
+          valid_from?: string | null
+        }
+        Update: {
+          allow_portal_sign_in?: boolean
+          allow_university_email_reuse?: boolean
+          allowed_capabilities?: Json
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_current?: boolean
+          policy_code?: string
+          policy_state?: Database["public"]["Enums"]["graduate_account_policy_state"]
+          supersedes_policy_id?: string | null
+          valid_from?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_account_continuity_policies_supersedes_policy_id_fkey"
+            columns: ["supersedes_policy_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_account_continuity_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_communication_events: {
+        Row: {
+          channel: string
+          consent_id: string
+          contact_point_id: string
+          graduate_record_id: string
+          id: string
+          notice_version: string
+          payload_meta: Json
+          purpose_code: string
+          sent_at: string
+          sent_by: string
+          template_code: string
+        }
+        Insert: {
+          channel: string
+          consent_id: string
+          contact_point_id: string
+          graduate_record_id: string
+          id?: string
+          notice_version: string
+          payload_meta?: Json
+          purpose_code: string
+          sent_at?: string
+          sent_by: string
+          template_code: string
+        }
+        Update: {
+          channel?: string
+          consent_id?: string
+          contact_point_id?: string
+          graduate_record_id?: string
+          id?: string
+          notice_version?: string
+          payload_meta?: Json
+          purpose_code?: string
+          sent_at?: string
+          sent_by?: string
+          template_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_communication_events_consent_id_fkey"
+            columns: ["consent_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_consents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_communication_events_contact_point_id_fkey"
+            columns: ["contact_point_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_contact_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_communication_events_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_consents: {
+        Row: {
+          affirmative_action_at: string
+          consent_state: string
+          created_at: string
+          graduate_record_id: string
+          id: string
+          notice_version: string
+          purpose_code: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          affirmative_action_at: string
+          consent_state: string
+          created_at?: string
+          graduate_record_id: string
+          id?: string
+          notice_version: string
+          purpose_code: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          affirmative_action_at?: string
+          consent_state?: string
+          created_at?: string
+          graduate_record_id?: string
+          id?: string
+          notice_version?: string
+          purpose_code?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_consents_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_contact_points: {
+        Row: {
+          channel_type: string
+          created_at: string
+          graduate_record_id: string
+          id: string
+          protected_value: string
+          purpose_code: string
+          revoked_at: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          channel_type: string
+          created_at?: string
+          graduate_record_id: string
+          id?: string
+          protected_value: string
+          purpose_code: string
+          revoked_at?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          channel_type?: string
+          created_at?: string
+          graduate_record_id?: string
+          id?: string
+          protected_value?: string
+          purpose_code?: string
+          revoked_at?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_contact_points_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_domain_events: {
+        Row: {
+          actor_user_id: string
+          aggregate_id: string
+          aggregate_type: string
+          event_type: string
+          id: string
+          occurred_at: string
+          payload: Json
+          purpose_code: string
+        }
+        Insert: {
+          actor_user_id: string
+          aggregate_id: string
+          aggregate_type: string
+          event_type: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          purpose_code: string
+        }
+        Update: {
+          actor_user_id?: string
+          aggregate_id?: string
+          aggregate_type?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          purpose_code?: string
+        }
+        Relationships: []
+      }
+      graduate_employers: {
+        Row: {
+          archived_at: string | null
+          id: string
+          legal_name: string
+          normalized_name: string
+          sector_code: string | null
+          verification_state: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          id?: string
+          legal_name: string
+          normalized_name: string
+          sector_code?: string | null
+          verification_state?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          id?: string
+          legal_name?: string
+          normalized_name?: string
+          sector_code?: string | null
+          verification_state?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
+      graduate_employment_events: {
+        Row: {
+          employer_id: string | null
+          employer_name_reported: string | null
+          employment_status: Database["public"]["Enums"]["graduate_employment_status"]
+          ended_on: string | null
+          graduate_record_id: string
+          id: string
+          occupation_title: string | null
+          recorded_at: string
+          specialization_relationship: Database["public"]["Enums"]["graduate_specialization_relationship"]
+          started_on: string | null
+          supersedes_event_id: string | null
+          verification_state: string
+        }
+        Insert: {
+          employer_id?: string | null
+          employer_name_reported?: string | null
+          employment_status: Database["public"]["Enums"]["graduate_employment_status"]
+          ended_on?: string | null
+          graduate_record_id: string
+          id?: string
+          occupation_title?: string | null
+          recorded_at?: string
+          specialization_relationship?: Database["public"]["Enums"]["graduate_specialization_relationship"]
+          started_on?: string | null
+          supersedes_event_id?: string | null
+          verification_state?: string
+        }
+        Update: {
+          employer_id?: string | null
+          employer_name_reported?: string | null
+          employment_status?: Database["public"]["Enums"]["graduate_employment_status"]
+          ended_on?: string | null
+          graduate_record_id?: string
+          id?: string
+          occupation_title?: string | null
+          recorded_at?: string
+          specialization_relationship?: Database["public"]["Enums"]["graduate_specialization_relationship"]
+          started_on?: string | null
+          supersedes_event_id?: string | null
+          verification_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_employment_events_employer_id_fkey"
+            columns: ["employer_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_employers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_employment_events_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_employment_events_supersedes_event_id_fkey"
+            columns: ["supersedes_event_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_employment_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_event_registrations: {
+        Row: {
+          cancelled_at: string | null
+          consent_id: string
+          event_id: string
+          graduate_record_id: string
+          id: string
+          registered_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          consent_id: string
+          event_id: string
+          graduate_record_id: string
+          id?: string
+          registered_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          consent_id?: string
+          event_id?: string
+          graduate_record_id?: string
+          id?: string
+          registered_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_event_registrations_consent_id_fkey"
+            columns: ["consent_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_consents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_event_registrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_event_registrations_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_events: {
+        Row: {
+          audience_scope: Json
+          ends_at: string
+          event_type: string
+          id: string
+          notice_version: string
+          purpose_code: string
+          starts_at: string
+          state: string
+          title: string
+        }
+        Insert: {
+          audience_scope?: Json
+          ends_at: string
+          event_type: string
+          id?: string
+          notice_version: string
+          purpose_code: string
+          starts_at: string
+          state?: string
+          title: string
+        }
+        Update: {
+          audience_scope?: Json
+          ends_at?: string
+          event_type?: string
+          id?: string
+          notice_version?: string
+          purpose_code?: string
+          starts_at?: string
+          state?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      graduate_followups: {
+        Row: {
+          assignee_user_id: string
+          created_at: string
+          graduate_record_id: string
+          id: string
+          next_action_at: string | null
+          notes_protected: string | null
+          outcome: string | null
+          purpose_code: string
+          state: Database["public"]["Enums"]["graduate_followup_state"]
+          updated_at: string
+        }
+        Insert: {
+          assignee_user_id: string
+          created_at?: string
+          graduate_record_id: string
+          id?: string
+          next_action_at?: string | null
+          notes_protected?: string | null
+          outcome?: string | null
+          purpose_code: string
+          state?: Database["public"]["Enums"]["graduate_followup_state"]
+          updated_at?: string
+        }
+        Update: {
+          assignee_user_id?: string
+          created_at?: string
+          graduate_record_id?: string
+          id?: string
+          next_action_at?: string | null
+          notes_protected?: string | null
+          outcome?: string | null
+          purpose_code?: string
+          state?: Database["public"]["Enums"]["graduate_followup_state"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_followups_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_official_decisions: {
+        Row: {
+          academic_snapshot: Json | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          decision_state: Database["public"]["Enums"]["graduate_decision_state"]
+          department_id: string | null
+          effective_graduation_date: string | null
+          id: string
+          program_id: string | null
+          source_kind: Database["public"]["Enums"]["graduate_source_kind"]
+          source_payload_sha256: string
+          source_reference: string
+          student_profile_id: string
+          supersedes_decision_id: string | null
+        }
+        Insert: {
+          academic_snapshot?: Json | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          decision_state?: Database["public"]["Enums"]["graduate_decision_state"]
+          department_id?: string | null
+          effective_graduation_date?: string | null
+          id?: string
+          program_id?: string | null
+          source_kind: Database["public"]["Enums"]["graduate_source_kind"]
+          source_payload_sha256: string
+          source_reference: string
+          student_profile_id: string
+          supersedes_decision_id?: string | null
+        }
+        Update: {
+          academic_snapshot?: Json | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          decision_state?: Database["public"]["Enums"]["graduate_decision_state"]
+          department_id?: string | null
+          effective_graduation_date?: string | null
+          id?: string
+          program_id?: string | null
+          source_kind?: Database["public"]["Enums"]["graduate_source_kind"]
+          source_payload_sha256?: string
+          source_reference?: string
+          student_profile_id?: string
+          supersedes_decision_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_official_decisions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_official_decisions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_official_decisions_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "graduate_official_decisions_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_official_decisions_supersedes_decision_id_fkey"
+            columns: ["supersedes_decision_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_official_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_opportunities: {
+        Row: {
+          audience_scope: Json
+          closes_at: string | null
+          created_at: string
+          description: string
+          employer_id: string | null
+          id: string
+          moderated_by: string | null
+          opportunity_type: string
+          published_at: string | null
+          state: Database["public"]["Enums"]["graduate_opportunity_state"]
+          title: string
+        }
+        Insert: {
+          audience_scope?: Json
+          closes_at?: string | null
+          created_at?: string
+          description: string
+          employer_id?: string | null
+          id?: string
+          moderated_by?: string | null
+          opportunity_type: string
+          published_at?: string | null
+          state?: Database["public"]["Enums"]["graduate_opportunity_state"]
+          title: string
+        }
+        Update: {
+          audience_scope?: Json
+          closes_at?: string | null
+          created_at?: string
+          description?: string
+          employer_id?: string | null
+          id?: string
+          moderated_by?: string | null
+          opportunity_type?: string
+          published_at?: string | null
+          state?: Database["public"]["Enums"]["graduate_opportunity_state"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_opportunities_employer_id_fkey"
+            columns: ["employer_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_employers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_profiles: {
+        Row: {
+          career_summary: string | null
+          graduate_record_id: string
+          preferred_contact_channel: string | null
+          profile_visibility: string
+          public_display_name: string | null
+          row_version: number
+          updated_at: string
+        }
+        Insert: {
+          career_summary?: string | null
+          graduate_record_id: string
+          preferred_contact_channel?: string | null
+          profile_visibility?: string
+          public_display_name?: string | null
+          row_version?: number
+          updated_at?: string
+        }
+        Update: {
+          career_summary?: string | null
+          graduate_record_id?: string
+          preferred_contact_channel?: string | null
+          profile_visibility?: string
+          public_display_name?: string | null
+          row_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_profiles_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: true
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_records: {
+        Row: {
+          academic_snapshot: Json
+          created_at: string
+          created_by: string
+          department_id: string
+          effective_graduation_date: string
+          id: string
+          official_decision_id: string
+          program_id: string
+          record_state: Database["public"]["Enums"]["graduate_decision_state"]
+          student_profile_id: string
+          version: number
+        }
+        Insert: {
+          academic_snapshot: Json
+          created_at?: string
+          created_by: string
+          department_id: string
+          effective_graduation_date: string
+          id?: string
+          official_decision_id: string
+          program_id: string
+          record_state?: Database["public"]["Enums"]["graduate_decision_state"]
+          student_profile_id: string
+          version?: number
+        }
+        Update: {
+          academic_snapshot?: Json
+          created_at?: string
+          created_by?: string
+          department_id?: string
+          effective_graduation_date?: string
+          id?: string
+          official_decision_id?: string
+          program_id?: string
+          record_state?: Database["public"]["Enums"]["graduate_decision_state"]
+          student_profile_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_records_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_records_official_decision_id_fkey"
+            columns: ["official_decision_id"]
+            isOneToOne: true
+            referencedRelation: "graduate_official_decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_records_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_records_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "graduate_records_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_survey_responses: {
+        Row: {
+          answers: Json
+          consent_id: string
+          graduate_record_id: string
+          id: string
+          submitted_at: string
+          survey_version_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          answers: Json
+          consent_id: string
+          graduate_record_id: string
+          id?: string
+          submitted_at?: string
+          survey_version_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          answers?: Json
+          consent_id?: string
+          graduate_record_id?: string
+          id?: string
+          submitted_at?: string
+          survey_version_id?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_survey_responses_consent_id_fkey"
+            columns: ["consent_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_consents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_survey_responses_graduate_record_id_fkey"
+            columns: ["graduate_record_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_survey_responses_survey_version_id_fkey"
+            columns: ["survey_version_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_survey_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_survey_versions: {
+        Row: {
+          id: string
+          notice_version: string
+          published_at: string | null
+          questions: Json
+          survey_id: string
+          version: number
+        }
+        Insert: {
+          id?: string
+          notice_version: string
+          published_at?: string | null
+          questions: Json
+          survey_id: string
+          version: number
+        }
+        Update: {
+          id?: string
+          notice_version?: string
+          published_at?: string | null
+          questions?: Json
+          survey_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_survey_versions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduate_surveys: {
+        Row: {
+          created_at: string
+          id: string
+          minimum_report_cell_size: number
+          purpose_code: string
+          state: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          minimum_report_cell_size?: number
+          purpose_code: string
+          state?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          minimum_report_cell_size?: number
+          purpose_code?: string
+          state?: string
+          title?: string
         }
         Relationships: []
       }
@@ -7358,6 +8404,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      acknowledge_council_notification: {
+        Args: { p_notification_id: string }
+        Returns: Json
+      }
       act_on_b1_student_request_step_atomic: {
         Args: {
           p_action: string
@@ -7500,6 +8550,11 @@ export type Database = {
         }
         Returns: string
       }
+      approve_and_lock_council_minutes: {
+        Args: { p_approved_body?: string; p_meeting_id: string }
+        Returns: Json
+      }
+      archive_council_meeting: { Args: { p_meeting_id: string }; Returns: Json }
       archive_enrollment_certificate_from_workflow_step: {
         Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
         Returns: Json
@@ -7854,6 +8909,14 @@ export type Database = {
         Returns: boolean
       }
       close_council_session: { Args: { p_meeting_id: string }; Returns: Json }
+      complete_council_decision: {
+        Args: {
+          p_decision_id: string
+          p_evidence_metadata?: Json
+          p_execution_note?: string
+        }
+        Returns: Json
+      }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
@@ -7963,6 +9026,13 @@ export type Database = {
         Args: { p_membership_id: string }
         Returns: Json
       }
+      council_decision_transition_is_legal: {
+        Args: {
+          p_from: Database["public"]["Enums"]["academic_council_decision_status"]
+          p_to: Database["public"]["Enums"]["academic_council_decision_status"]
+        }
+        Returns: boolean
+      }
       council_deny: { Args: { p_code?: string }; Returns: undefined }
       council_ensure_attendance_roll: {
         Args: { p_actor: string; p_meeting_id: string }
@@ -8031,6 +9101,10 @@ export type Database = {
           p_from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
           p_to_status: Database["public"]["Enums"]["academic_council_meeting_status"]
         }
+        Returns: boolean
+      }
+      council_member_had_tenure: {
+        Args: { p_at_date?: string; p_council_id: string; p_user_id: string }
         Returns: boolean
       }
       council_member_is_quorum_eligible: {
@@ -8132,6 +9206,24 @@ export type Database = {
       create_b1_request_draft_for_student: {
         Args: { p_canonical_code: string; p_idempotency_key?: string }
         Returns: Json
+      }
+      create_council_notification: {
+        Args: {
+          p_body?: string
+          p_council_id: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_event_type: string
+          p_meeting_id?: string
+          p_payload?: Json
+          p_title?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      create_graduate_record_from_official_decision: {
+        Args: { p_decision_id: string }
+        Returns: string
       }
       create_graduation_project_file_upload_intent: {
         Args: {
@@ -8238,9 +9330,28 @@ export type Database = {
           unit_name_ar: string
         }[]
       }
+      dispatch_council_notification: {
+        Args: {
+          p_council_id: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_event_type: string
+          p_meeting_id?: string
+          p_payload?: Json
+        }
+        Returns: undefined
+      }
+      draft_council_minutes: {
+        Args: { p_body: string; p_meeting_id: string }
+        Returns: Json
+      }
       evaluate_council_meeting_quorum: {
         Args: { p_meeting_id: string }
         Returns: Json
+      }
+      evaluate_graduate_account_continuity: {
+        Args: { p_at: string; p_capability: string; p_policy_code: string }
+        Returns: boolean
       }
       fail_enrollment_certificate_document_generation: {
         Args: {
@@ -8336,11 +9447,109 @@ export type Database = {
         Args: { p_step_id: string }
         Returns: Json
       }
+      get_council_archive_summary: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_attendance_quorum_summary: {
+        Args: { p_meeting_id: string }
+        Returns: Json
+      }
+      get_council_chair_dashboard: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_decision_followup_dashboard: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_historical_minutes: {
+        Args: { p_meeting_id: string }
+        Returns: Json
+      }
+      get_council_meeting_metrics: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_member_workspace: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_notification_recipients: {
+        Args: { p_context?: Json; p_council_id: string; p_event_type: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
+      get_council_overdue_decisions: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_agenda_completion: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_archive_status: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_attendance_rate: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_council_activity: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_decision_execution_status: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_meeting_duration: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_meetings_by_period: {
+        Args: { p_council_id: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      get_council_report_overdue_decisions: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_quorum_history: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_topic_disposition: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_report_vote_result_summary: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_responsible_decisions: {
+        Args: { p_user_id?: string }
+        Returns: Json
+      }
+      get_council_secretary_dashboard: {
+        Args: { p_council_id: string }
+        Returns: Json
+      }
+      get_council_vote_result: {
+        Args: { p_agenda_item_id: string }
+        Returns: Json
+      }
       get_graduation_project_detail: {
         Args: { p_project_id: string }
         Returns: Json
       }
       get_hardening_status: { Args: never; Returns: Json }
+      get_my_council_notifications: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
       get_my_request_actor_inbox: {
         Args: { p_filters?: Json; p_limit?: number; p_offset?: number }
         Returns: {
@@ -8507,6 +9716,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      graduate_aggregate_employment_report: {
+        Args: {
+          p_graduation_year: number
+          p_minimum_cell_size?: number
+          p_program_id: string
+        }
+        Returns: {
+          employed: number
+          population: number
+          specialization_related: number
+          suppressed: boolean
+          verified: number
+        }[]
+      }
+      graduate_supersede_account_continuity_policy: {
+        Args: {
+          p_allow_portal_sign_in: boolean
+          p_allow_university_email_reuse: boolean
+          p_allowed_capabilities: Json
+          p_decided_at?: string
+          p_decided_by?: string
+          p_expires_at?: string
+          p_policy_code: string
+          p_policy_state: Database["public"]["Enums"]["graduate_account_policy_state"]
+          p_valid_from?: string
+        }
+        Returns: string
+      }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
@@ -8614,6 +9851,18 @@ export type Database = {
           p_unit_code: string
         }
         Returns: boolean
+      }
+      issue_council_decision: {
+        Args: {
+          p_agenda_item_id: string
+          p_body: string
+          p_due_date?: string
+          p_meeting_id: string
+          p_responsible_unit?: string
+          p_responsible_user_id?: string
+          p_title: string
+        }
+        Returns: Json
       }
       issue_enrollment_certificate_from_workflow_step: {
         Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
@@ -9023,6 +10272,10 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_council_minutes_for_review: {
+        Args: { p_meeting_id: string }
+        Returns: Json
+      }
       submit_graduation_project_evaluation: {
         Args: {
           p_correlation_id: string
@@ -9065,6 +10318,15 @@ export type Database = {
       submit_student_request_with_secure_attachments: {
         Args: { p_attachment_ids: string[]; p_request_id: string }
         Returns: undefined
+      }
+      update_council_decision_followup: {
+        Args: {
+          p_decision_id: string
+          p_evidence_metadata?: Json
+          p_execution_note?: string
+          p_status: string
+        }
+        Returns: Json
       }
       upsert_graduation_project_proposal: {
         Args: {
@@ -9134,6 +10396,7 @@ export type Database = {
         | "completed"
         | "delayed"
         | "cancelled"
+        | "blocked"
       academic_council_meeting_status:
         | "scheduled"
         | "intake_open"
@@ -9151,6 +10414,10 @@ export type Database = {
         | "secretary"
         | "member"
         | "viewer"
+      academic_council_minutes_status:
+        | "minutes_draft"
+        | "minutes_review"
+        | "minutes_locked"
       academic_council_quorum_policy_status: "draft" | "approved" | "superseded"
       academic_council_quorum_threshold_kind: "absolute" | "ratio"
       academic_council_topic_status:
@@ -9187,6 +10454,34 @@ export type Database = {
         | "wednesday"
         | "thursday"
         | "friday"
+      graduate_account_policy_state: "undecided" | "approved" | "rejected"
+      graduate_decision_state: "pending" | "approved" | "corrected" | "revoked"
+      graduate_employment_status:
+        | "employed"
+        | "self_employed"
+        | "seeking_work"
+        | "continuing_education"
+        | "not_seeking"
+        | "not_disclosed"
+      graduate_followup_state:
+        | "open"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+      graduate_opportunity_state:
+        | "draft"
+        | "in_review"
+        | "published"
+        | "closed"
+        | "archived"
+      graduate_source_kind:
+        | "registrar_approved_decision"
+        | "university_system_of_record_import"
+      graduate_specialization_relationship:
+        | "directly_related"
+        | "partially_related"
+        | "not_related"
+        | "not_assessed"
       graduation_project_assignment_role:
         | "student"
         | "supervisor"
@@ -9377,6 +10672,7 @@ export const Constants = {
         "completed",
         "delayed",
         "cancelled",
+        "blocked",
       ],
       academic_council_meeting_status: [
         "scheduled",
@@ -9396,6 +10692,11 @@ export const Constants = {
         "secretary",
         "member",
         "viewer",
+      ],
+      academic_council_minutes_status: [
+        "minutes_draft",
+        "minutes_review",
+        "minutes_locked",
       ],
       academic_council_quorum_policy_status: [
         "draft",
@@ -9439,6 +10740,39 @@ export const Constants = {
         "wednesday",
         "thursday",
         "friday",
+      ],
+      graduate_account_policy_state: ["undecided", "approved", "rejected"],
+      graduate_decision_state: ["pending", "approved", "corrected", "revoked"],
+      graduate_employment_status: [
+        "employed",
+        "self_employed",
+        "seeking_work",
+        "continuing_education",
+        "not_seeking",
+        "not_disclosed",
+      ],
+      graduate_followup_state: [
+        "open",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
+      graduate_opportunity_state: [
+        "draft",
+        "in_review",
+        "published",
+        "closed",
+        "archived",
+      ],
+      graduate_source_kind: [
+        "registrar_approved_decision",
+        "university_system_of_record_import",
+      ],
+      graduate_specialization_relationship: [
+        "directly_related",
+        "partially_related",
+        "not_related",
+        "not_assessed",
       ],
       graduation_project_assignment_role: [
         "student",
