@@ -87,6 +87,7 @@ import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffAuditLogRouteImport } from './routes/staff.audit-log'
 import { Route as StaffB1RequestsRouteImport } from './routes/staff.b1-requests'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
+import { Route as StaffFeeAssessmentBoardRouteImport } from './routes/staff.fee-assessment-board'
 import { Route as StaffFixturesDiagnosticsRouteImport } from './routes/staff.fixtures-diagnostics'
 import { Route as StaffGraduatesAffairsRouteImport } from './routes/staff.graduates-affairs'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
@@ -583,6 +584,11 @@ const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffFeeAssessmentBoardRoute = StaffFeeAssessmentBoardRouteImport.update({
+  id: '/fee-assessment-board',
+  path: '/fee-assessment-board',
+  getParentRoute: () => StaffRoute,
+} as any)
 const StaffFixturesDiagnosticsRoute =
   StaffFixturesDiagnosticsRouteImport.update({
     id: '/fixtures-diagnostics',
@@ -850,6 +856,7 @@ export interface FileRoutesByFullPath {
   '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/fee-assessment-board': typeof StaffFeeAssessmentBoardRoute
   '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
@@ -966,6 +973,7 @@ export interface FileRoutesByTo {
   '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/fee-assessment-board': typeof StaffFeeAssessmentBoardRoute
   '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
@@ -1087,6 +1095,7 @@ export interface FileRoutesById {
   '/staff/audit-log': typeof StaffAuditLogRoute
   '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
+  '/staff/fee-assessment-board': typeof StaffFeeAssessmentBoardRoute
   '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
@@ -1211,6 +1220,7 @@ export interface FileRouteTypes {
     | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/fee-assessment-board'
     | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
     | '/student/change-password'
@@ -1327,6 +1337,7 @@ export interface FileRouteTypes {
     | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/fee-assessment-board'
     | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
     | '/student/change-password'
@@ -1447,6 +1458,7 @@ export interface FileRouteTypes {
     | '/staff/audit-log'
     | '/staff/b1-requests'
     | '/staff/change-password'
+    | '/staff/fee-assessment-board'
     | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
     | '/student/change-password'
@@ -2117,6 +2129,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffChangePasswordRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/fee-assessment-board': {
+      id: '/staff/fee-assessment-board'
+      path: '/fee-assessment-board'
+      fullPath: '/staff/fee-assessment-board'
+      preLoaderRoute: typeof StaffFeeAssessmentBoardRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/staff/fixtures-diagnostics': {
       id: '/staff/fixtures-diagnostics'
       path: '/fixtures-diagnostics'
@@ -2567,6 +2586,7 @@ interface StaffRouteChildren {
   StaffAuditLogRoute: typeof StaffAuditLogRoute
   StaffB1RequestsRoute: typeof StaffB1RequestsRoute
   StaffChangePasswordRoute: typeof StaffChangePasswordRoute
+  StaffFeeAssessmentBoardRoute: typeof StaffFeeAssessmentBoardRoute
   StaffFixturesDiagnosticsRoute: typeof StaffFixturesDiagnosticsRoute
   StaffGraduatesAffairsRoute: typeof StaffGraduatesAffairsRoute
   StaffIndexRoute: typeof StaffIndexRoute
@@ -2576,6 +2596,7 @@ const StaffRouteChildren: StaffRouteChildren = {
   StaffAuditLogRoute: StaffAuditLogRoute,
   StaffB1RequestsRoute: StaffB1RequestsRoute,
   StaffChangePasswordRoute: StaffChangePasswordRoute,
+  StaffFeeAssessmentBoardRoute: StaffFeeAssessmentBoardRoute,
   StaffFixturesDiagnosticsRoute: StaffFixturesDiagnosticsRoute,
   StaffGraduatesAffairsRoute: StaffGraduatesAffairsRoute,
   StaffIndexRoute: StaffIndexRoute,
