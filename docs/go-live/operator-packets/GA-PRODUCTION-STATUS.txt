@@ -1,0 +1,48 @@
+MISSION=GA_PRODUCTION_STATUS
+CAPTURED=2026-08-10T19:45:00+03:00
+CHANNEL=Lovable query_database READ-ONLY project=90f4dcde-07fb-4441-b86a-6ad5510833b8
+PRODUCTION_WRITES=0
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+NEXT_PRODUCTION_WRITE=GA3_ONLY
+MAIN_TIP_AT_CAPTURE=845f3501c8ccdec7d411811c565e62a8bb93ba25
+RECONCILED_MAIN=39cfc298639feab0bfa84bd8179cdbd493a5ce36
+
+GA1_CURRENT=VERIFIED_PRESENT
+GA1_EVIDENCE=managed_alias=20260810124407:2802e1fa-a209-4c1c-bc90-901ede67f865; objects=graduate_records+graduate_profiles+graduate_official_decisions+…; logical_ledger_20260808210000=ABSENT; canonical_FULL_hash_match=NO (alias body differs)
+GA2_CURRENT=VERIFIED_PRESENT
+GA2_EVIDENCE=managed_alias=20260810124539:7c7f84cf-5c34-4e60-a4bc-75277c1d7613; objects=graduate_followups+graduate_communication_events+graduate_account_continuity_policies; fns=graduate_supersede_account_continuity_policy+graduate_aggregate_employment_report; logical_ledger_20260808210100=ABSENT; canonical_FULL_hash_match=NO (alias body differs)
+GA3_CURRENT=VERIFIED_PRESENT
+GA3_EVIDENCE=managed_alias=20260810162735:d239a40c-83fa-4f0d-95b2-be9ab4cfc284; graduate_affairs_specialist_department_ids=PRESENT; graduate_affairs_search_records=PRESENT; graduate_affairs_is_manager+is_specialist=PRESENT; auth04_select_policies=7/7; graduate_records RLS=ON with 0 policies (default-deny by design); logical_ledger_20260808210200=ABSENT; managed_FULL_hash=2cc8af24… differs from canonical 212865fb… (Lovable wrapper/body packaging)
+
+AMBIGUOUS_SPECIALIST=aa4f5c16-c993-4af6-a6d4-59d9542c1a7f
+AMBIGUOUS_SPECIALIST_STATUS=AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE
+SAFE_SPECIALIST_CANDIDATE=a6e30100-0000-4000-a300-000000000001
+SAFE_SPECIALIST_DEPARTMENT=11111111-1111-4111-8111-111111111111
+SAFE_SPECIALIST_KIND=TEST_ONLY_GA_SPECIALIST_E2E_01
+SAFE_REAL_STAFF_CANDIDATE=NONE
+COLLEGE_SPD_ROWS=0
+ACTIVE_STAFF_WITH_UNIQUE_SPD=0
+
+NEXT_WRITE=NONE_SCHEMA
+NEXT_OPTIONAL_WRITE=SPECIALIST_TESTONLY_FIXTURE_OWNER_GATED
+GA3_READY=YES
+GA3_SOURCE_CANONICAL=supabase/migrations/20260808210200_ga_authorization_04.sql
+GA3_SHA256_LF_CANONICAL=212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
+GA3_MANAGED_VERSION=20260810162735
+DO_NOT_REAPPLY_GA1=YES
+DO_NOT_REAPPLY_GA2=YES
+DO_NOT_REAPPLY_GA3=YES
+PREDECESSOR_GATE=GA1_VERIFIED_PRESENT && GA2_VERIFIED_PRESENT && GA3_VERIFIED_PRESENT
+SPECIALIST_GATE=Do not scope aa4f5c16; use TEST_ONLY single-dept fixture for E2E after owner-gated execute
+AUTH04_MATRIX=admin_app_role_alone=DENY; manager_assigned=ALLOW_manager_scope; specialist_with_SPD=ALLOW_in_dept_only; specialist_aa4f5c16_zero_SPD=empty_scope_DENY_records; outside_scope=DENY
+LINEAGE_NOTE=GA1/GA2/GA3 present via Lovable UUID aliases; map logical 20260808210000/201/202 in post-apply ledger reconciliation packet — do not re-apply any GA migration
+
+PR339_ALIGNMENT=LOVABLE_ONLY + SINGLE_WRITER_LEASE required; AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY (completed); NEXT_PRODUCTION_WRITE=NONE_SCHEMA; residual ops = ledger mapping + optional TEST_ONLY specialist fixture under runtime grant/lease
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY

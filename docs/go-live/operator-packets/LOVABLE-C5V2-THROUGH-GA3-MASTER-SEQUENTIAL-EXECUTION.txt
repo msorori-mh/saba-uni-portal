@@ -8,7 +8,17 @@ PRODUCTION_WRITER=LOVABLE_ONLY
 SINGLE_WRITER_LEASE=REQUIRED
 OTHER_AGENTS=READ_ONLY
 PRODUCTION_WRITE_LEASE=REQUIRED per step (scripts/production-write-lease.ps1)
-NEXT_PRODUCTION_WRITE=GA3_ONLY
+AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY
+NEXT_PRODUCTION_WRITE=NONE_SCHEMA
+NEXT_WRITE=NONE_SCHEMA
+NEXT_OPTIONAL_WRITE=SPECIALIST_TESTONLY_FIXTURE_OWNER_GATED
+GA1_CURRENT=VERIFIED_PRESENT
+GA2_CURRENT=VERIFIED_PRESENT
+GA3_CURRENT=VERIFIED_PRESENT
+GA3_READY=YES
+STATUS_PACKET=docs/go-live/operator-packets/GA-PRODUCTION-STATUS.txt
+GA3_MANAGED_ALIAS=20260810162735:d239a40c-83fa-4f0d-95b2-be9ab4cfc284
+DO_NOT_REAPPLY_GA1_GA2_GA3=YES
 SAFETY=One logical migration per transaction; zero blind batches; NEVER run supabase db push; never repair the ledger automatically. Never concurrent production agents. Never automatic batch production writes.
 
 AUTHORIZATION CONTRACT:
@@ -43,15 +53,18 @@ C8 LOVABLE_MANAGED_ALIAS=20260810123616/7aac7456-a80d-464d-84fc-bc9671ae2e4e
 C9 LOVABLE_MANAGED_ALIAS=20260810124128/8b20af1b-8607-42cd-94d8-f71793d9a687
 GA1 LOVABLE_MANAGED_ALIAS=20260810124407/2802e1fa-a209-4c1c-bc90-901ede67f865
 GA2 LOVABLE_MANAGED_ALIAS=20260810124539/7c7f84cf-5c34-4e60-a4bc-75277c1d7613
-CURRENT_PRODUCTION_PREFIX=C0..C9 proven; GA1/GA2 managed aliases present; FIRST_UNAPPLIED_WRITE_CANDIDATE=GA3_ONLY
+GA3 LOVABLE_MANAGED_ALIAS=20260810162735/d239a40c-83fa-4f0d-95b2-be9ab4cfc284
+CURRENT_PRODUCTION_PREFIX=C0..C9 + GA1..GA3 proven; FIRST_UNAPPLIED_SCHEMA_WRITE=NONE_SCHEMA
 
 CURRENT STATE RULE:
 - Preserve proven C0-C9 production state. Do not re-apply C5V2/C6/C7/C8/C9.
 - Preserve C5 V1 as SUPERSEDED_DO_NOT_APPLY.
 - Preserve C5 V2 and verified managed aliases.
 - C5 NULL-statements is a ledger anomaly only; runtime semantic state remains PASS when catalog/poststate prove V2.
+- Preserve verified GA1/GA2/GA3 managed aliases. Do not re-apply.
 - Do NOT automatically batch remaining production writes. Do NOT run concurrent production agents.
-- NEXT_PRODUCTION_WRITE=GA3_ONLY and only after: (1) GA1/GA2 current production readback PASS, and (2) specialist scope issue resolved OR ambiguous specialist deactivated.
+- AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY (completed after GA1/GA2 readback PASS and specialist ambiguity resolution via AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE + TEST_ONLY fixture plan).
+- NEXT_PRODUCTION_WRITE=NONE_SCHEMA. Optional residual write = SPECIALIST_TESTONLY_FIXTURE_OWNER_GATED only under fresh runtime grant + lease.
 
 For any still-unapplied STEP in [C5V2,C6,C7,C8,C9,GA1,GA2,GA3], in exactly that order (skip any step already proven present):
 1. Require EXPLICIT_OWNER_RUNTIME_GRANT for THIS STEP only. Do not inherit prior-step grants.
@@ -68,6 +81,6 @@ For any still-unapplied STEP in [C5V2,C6,C7,C8,C9,GA1,GA2,GA3], in exactly that 
 After C9 require: admin alone cannot mutate councils; chair own council only; secretary defined operations only; member-only actions; responsible actor exact assignment; department and college isolation; multi-council roles retained separately.
 After GA3 require: admin app_role alone DENY; manager assigned manager scope; specialist assigned department scope; direct case assignee exact case; outside scope DENY.
 
-STOP ONLY FOR=missing runtime grant|lease conflict|partial apply|unknown prestate|unexpected data mutation|authorization regression|post-verifier failure|source-body mismatch|attempted concurrent writer|attempted automatic batch write
+STOP ONLY FOR=missing runtime grant|lease conflict|partial apply|unknown prestate|unexpected data mutation|authorization regression|post-verifier failure|source-body mismatch|attempted concurrent writer|attempted automatic batch write|attempted GA1/GA2/GA3 re-apply
 ON_STOP=Rollback the current transaction when open; release lease only if this session owns it; preserve evidence; perform no later step and no automatic ledger repair.
 ON_ALL_PASS=Emit PASS_LOVABLE_C5V2_THROUGH_GA3_MASTER_SEQUENTIAL_EXECUTION and the completed mapping table.

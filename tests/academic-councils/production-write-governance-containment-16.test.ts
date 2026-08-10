@@ -64,20 +64,28 @@ describe("production authorization governance — packets fail-closed", () => {
     });
   }
 
-  it("master and GA3 packets pin NEXT_PRODUCTION_WRITE=GA3_ONLY with hard preconditions", () => {
+  it("master and GA3 packets pin completed GA3_ONLY terminal and NONE_SCHEMA next write", () => {
     const master = readFileSync(
       join(packetsDir, "LOVABLE-C5V2-THROUGH-GA3-MASTER-SEQUENTIAL-EXECUTION.txt"),
       "utf8",
     );
     const ga3 = readFileSync(join(packetsDir, "GA3-LOVABLE-APPLY-ONE.txt"), "utf8");
-    expect(master).toContain("NEXT_PRODUCTION_WRITE=GA3_ONLY");
+    expect(master).toContain("AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY");
+    expect(master).toContain("NEXT_PRODUCTION_WRITE=NONE_SCHEMA");
+    expect(master).toContain("NEXT_WRITE=NONE_SCHEMA");
+    expect(master).toContain("GA3_CURRENT=VERIFIED_PRESENT");
     expect(master).toContain("SUPERSEDED_DO_NOT_APPLY");
     expect(master).toContain("C5_SCHEMA_EQUIVALENT_LEDGER_ANOMALY");
-    expect(master).toMatch(/specialist scope issue resolved OR ambiguous specialist deactivated/i);
-    expect(ga3).toContain("NEXT_PRODUCTION_WRITE=GA3_ONLY");
+    expect(master).toMatch(/specialist scope issue resolved OR ambiguous specialist deactivated|AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE/i);
+    expect(master).toContain("DO_NOT_REAPPLY_GA1_GA2_GA3=YES");
+    expect(ga3).toContain("AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY");
+    expect(ga3).toContain("NEXT_PRODUCTION_WRITE=NONE_SCHEMA");
+    expect(ga3).toContain("NEXT_WRITE=NONE_SCHEMA");
+    expect(ga3).toContain("GA3_CURRENT=VERIFIED_PRESENT");
     expect(ga3).toMatch(/GA1 current production readback PASS/i);
     expect(ga3).toMatch(/GA2 current production readback PASS/i);
     expect(ga3).toMatch(/Specialist scope issue resolved OR ambiguous specialist deactivated/i);
+    expect(ga3).toMatch(/DO NOT RE-APPLY|Do not re-apply|do not re-apply/i);
   });
 
   it("a source file containing Standing owner authorization does not authorize execution", () => {
