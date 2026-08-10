@@ -156,12 +156,23 @@ export function StaffRequestArchivePanel({
     enabled: actionType === "archive",
   });
 
+  // Proactive data-precondition probe: the service `*_details` row must exist
+  // before the archive RPC is attempted, otherwise the action fails closed.
+  const { data: readiness } = useQuery({
+    queryKey: ["b1-details-readiness", workflowStepRuntimeId],
+    queryFn: () => readinessFn({ data: { stepId: workflowStepRuntimeId as string } }),
+    enabled: actionType === "archive" && !!workflowStepRuntimeId,
+  });
+
   if (actionType !== "archive") return null;
+
+  const detailsBlocked = readiness ? readiness.ready === false : false;
 
   const canArchive =
     workflowRuntimeAvailable &&
     isActionable &&
     !!workflowStepRuntimeId &&
+    !detailsBlocked &&
     !archiving;
 
   const gate = !workflowRuntimeAvailable
@@ -170,7 +181,10 @@ export function StaffRequestArchivePanel({
       ? "لست المُسنَد لهذه الخطوة — لا يمكنك أرشفة الطلب."
       : !workflowStepRuntimeId
         ? "لا يمكن تنفيذ الأرشفة بدون معرّف خطوة تشغيلي."
-        : null;
+        : detailsBlocked
+          ? (readiness?.messageAr ??
+            "بيانات الخدمة التفصيلية غير مكتملة — لا يمكن تنفيذ الأرشفة.")
+          : null;
 
   const handleArchive = async () => {
     if (!canArchive || !workflowStepRuntimeId) return;
