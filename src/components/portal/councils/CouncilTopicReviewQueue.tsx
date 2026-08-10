@@ -76,27 +76,51 @@ export function CouncilTopicReviewQueue({
 
     setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: true }));
     try {
-      await reviewTopic({
+      // Re-read the authoritative status right before acting: the cached queue can be
+      // stale, and a stale expectedStatus makes the RPC reject the transition.
+      let expectedStatus = topic.status;
+      try {
+        const fresh = await fetchQueue();
+        const freshTopic = fresh?.queue?.find((t) => t.topic_id === topic.topic_id);
+        if (freshTopic) expectedStatus = freshTopic.status;
+      } catch {
+        // fall back to the cached status
+      }
+
+      if (expectedStatus === status) {
+        toast.info("الموضوع بالفعل في هذه الحالة");
+        await qc.refetchQueries({ queryKey: ["faculty", "council-topic-review-queue"] });
+        return;
+      }
+
+      const result = await reviewTopic({
         data: {
           topicId: topic.topic_id,
           status,
-          expectedStatus: topic.status,
+          expectedStatus,
           reviewNote: reviewNotes[topic.topic_id]?.trim() || undefined,
         },
       });
-      toast.success("تم تحديث حالة الموضوع");
+
+      if (!result?.ok || result.status !== status) {
+        toast.error("لم يتم تحديث حالة الموضوع، يرجى إعادة المحاولة");
+      } else {
+        toast.success("تم تحديث حالة الموضوع");
+      }
       setReviewNotes((prev) => ({ ...prev, [topic.topic_id]: "" }));
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["faculty", "council-topic-review-queue"] }),
+        qc.refetchQueries({ queryKey: ["faculty", "council-topic-review-queue"] }),
         qc.invalidateQueries({ queryKey: ["faculty", "my-council-topics"] }),
       ]);
       onUpdated();
     } catch (err) {
       toast.error(mapReviewError(extractErrorMessage(err)));
+      await qc.refetchQueries({ queryKey: ["faculty", "council-topic-review-queue"] });
     } finally {
       setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: false }));
     }
   };
+
 
   return (
     <SectionShell
