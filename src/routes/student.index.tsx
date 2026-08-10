@@ -18,7 +18,6 @@ import {
   Award,
   FileText,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 import { StudentRequestsPortalSummary } from "@/components/portal/StudentRequestsPortalSummary";
 import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
@@ -29,7 +28,9 @@ import { StatCard } from "@/components/brand";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 import { portalFeatures } from "@/lib/portal-features";
+import { useStudentLogout } from "@/lib/use-student-logout";
 import {
   resolveCanonicalCurrentFourthLevelEligibility,
   shouldShowStudentGpNav,
@@ -293,6 +294,7 @@ export const Route = createFileRoute("/student/")({
 function StudentDashboard() {
   usePagePerf("/student");
   const navigate = useNavigate();
+  const handleLogout = useStudentLogout();
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
@@ -343,11 +345,6 @@ function StudentDashboard() {
     staleTime: STALE_MED,
     refetchOnWindowFocus: false,
   });
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
 
   const ACADEMIC_NUMBER_LABEL = "الرقم الأكاديمي";
 

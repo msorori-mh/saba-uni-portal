@@ -317,7 +317,7 @@ function ExecutiveReportsPage() {
   const pageTitle = VIEW_TITLES[activeView] ?? "التقارير والمؤشرات الاستراتيجية";
 
   return (
-    <div dir="rtl" className="p-4 md:p-6">
+    <div dir="rtl" className="container mx-auto max-w-6xl p-4 md:p-6">
       {allowedViews.length === 0 ? (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
