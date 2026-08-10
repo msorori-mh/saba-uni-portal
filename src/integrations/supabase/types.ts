@@ -7362,9 +7362,111 @@ export type Database = {
         }
         Returns: Json
       }
+      council_add_manual_agenda_item: {
+        Args: {
+          p_meeting_id: string
+          p_notes?: string
+          p_order_index?: number
+          p_title: string
+        }
+        Returns: Json
+      }
+      council_add_topic_to_agenda: {
+        Args: {
+          p_meeting_id: string
+          p_notes?: string
+          p_order_index?: number
+          p_topic_id: string
+        }
+        Returns: Json
+      }
+      council_deactivate_membership: {
+        Args: { p_membership_id: string }
+        Returns: Json
+      }
+      council_deny: { Args: { p_code?: string }; Returns: undefined }
+      council_finalize_meeting_agenda: {
+        Args: { p_meeting_id: string }
+        Returns: Json
+      }
+      council_link_membership: {
+        Args: {
+          p_council_id: string
+          p_member_role: Database["public"]["Enums"]["academic_council_member_role"]
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      council_reorder_agenda_items: {
+        Args: { p_items: Json; p_meeting_id: string }
+        Returns: Json
+      }
+      council_require_auth_uid: { Args: never; Returns: string }
+      council_review_topic: {
+        Args: {
+          p_meeting_id?: string
+          p_review_note?: string
+          p_status: Database["public"]["Enums"]["academic_council_topic_status"]
+          p_topic_id: string
+        }
+        Returns: Json
+      }
+      council_schedule_meeting: {
+        Args: {
+          p_council_id: string
+          p_intake_closes_at?: string
+          p_intake_opens_at?: string
+          p_location?: string
+          p_notes?: string
+          p_scheduled_at: string
+          p_title: string
+        }
+        Returns: Json
+      }
+      council_submit_topic: {
+        Args: {
+          p_body?: string
+          p_category?: string
+          p_council_id: string
+          p_title: string
+        }
+        Returns: Json
+      }
       council_topic_attachment_count: {
         Args: { _topic_id: string }
         Returns: number
+      }
+      council_update_agenda_item: {
+        Args: {
+          p_agenda_item_id: string
+          p_is_approved?: boolean
+          p_notes?: string
+          p_order_index?: number
+          p_title?: string
+        }
+        Returns: Json
+      }
+      council_update_meeting_metadata: {
+        Args: {
+          p_intake_closes_at?: string
+          p_intake_opens_at?: string
+          p_location?: string
+          p_meeting_id: string
+          p_notes?: string
+          p_scheduled_at?: string
+          p_status?: Database["public"]["Enums"]["academic_council_meeting_status"]
+          p_title?: string
+        }
+        Returns: Json
+      }
+      council_update_own_topic_draft: {
+        Args: {
+          p_body?: string
+          p_category?: string
+          p_title?: string
+          p_topic_id: string
+        }
+        Returns: Json
       }
       count_admins: { Args: never; Returns: number }
       create_b1_request_draft_for_student: {
@@ -8013,6 +8115,10 @@ export type Database = {
         Args: { _rows: Json; _section_ids: string[] }
         Returns: Json
       }
+      require_caller_student_gp_fourth_level_when_student_only: {
+        Args: never
+        Returns: undefined
+      }
       require_graduation_project_accepted_supervisor: {
         Args: { p_project_id: string }
         Returns: {
@@ -8125,6 +8231,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      require_student_actor_gp_fourth_level: {
+        Args: { p_project_id: string }
+        Returns: undefined
+      }
+      require_student_gp_fourth_level_eligibility: {
+        Args: { p_student_profile_id: string }
+        Returns: undefined
+      }
       respond_graduation_project_supervision: {
         Args: {
           p_correlation_id: string
@@ -8196,6 +8310,10 @@ export type Database = {
       }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
+        Returns: boolean
+      }
+      student_is_current_fourth_academic_level: {
+        Args: { p_student_profile_id: string }
         Returns: boolean
       }
       student_request_ineligible_status_message: {
