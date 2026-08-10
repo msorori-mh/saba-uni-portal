@@ -198,6 +198,117 @@ export function CouncilMeetingCard({
     }
   };
 
+  const loadAttendance = async () => {
+    setAttendanceLoading(true);
+    try {
+      const [roll, policy] = await Promise.all([
+        getAttendanceRoll({ data: { meetingId: meeting.meeting_id } }),
+        getQuorumPolicy({ data: { councilId: meeting.council_id } }),
+      ]);
+      setAttendanceRollId(roll.roll_id);
+      setAttendanceRollStatus(roll.status);
+      setEligibleCount(roll.eligible_member_count);
+      setAttendanceMembers(roll.members);
+      setLatestEvaluation(roll.latest_evaluation);
+      setQuorumPolicy(policy);
+      if (policy) {
+        setPolicyMode(policy.threshold_kind as "absolute" | "ratio");
+        if (policy.threshold_kind === "absolute" && policy.absolute_count) {
+          setPolicyAbsolute(String(policy.absolute_count));
+        } else if (policy.threshold_kind === "ratio") {
+          setPolicyRatioNum(String(policy.ratio_numerator ?? 1));
+          setPolicyRatioDen(String(policy.ratio_denominator ?? 2));
+        }
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || "تعذّر تحميل سجل الحضور.");
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (attendanceOpen) {
+      void loadAttendance();
+    }
+  }, [attendanceOpen]);
+
+  const handleApprovePolicy = async () => {
+    setPolicyBusy(true);
+    try {
+      await approveQuorumPolicy({
+        data: {
+          councilId: meeting.council_id,
+          thresholdKind: policyMode,
+          absoluteCount: policyMode === "absolute" ? Number(policyAbsolute) : null,
+          ratioNumerator: policyMode === "ratio" ? Number(policyRatioNum) : null,
+          ratioDenominator: policyMode === "ratio" ? Number(policyRatioDen) : null,
+        },
+      });
+      toast.success("تم اعتماد سياسة النصاب.");
+      await loadAttendance();
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || "تعذّر اعتماد سياسة النصاب.");
+    } finally {
+      setPolicyBusy(false);
+    }
+  };
+
+  const handleRecordAttendance = async () => {
+    setAttendanceLoading(true);
+    try {
+      const entries = attendanceMembers.map((m) => ({
+        membership_id: m.membership_id,
+        attendance_state: m.attendance_state as "present" | "present_remote" | "excused" | "absent",
+      }));
+      await recordAttendance({ data: { meetingId: meeting.meeting_id, entries } });
+      toast.success("تم تسجيل حالات الحضور.");
+      await loadAttendance();
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || "تعذّر تسجيل الحضور.");
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const handleEvaluateQuorum = async () => {
+    setEvaluateBusy(true);
+    try {
+      await evaluateQuorum({ data: { meetingId: meeting.meeting_id } });
+      toast.success("تم تقييم النصاب.");
+      await loadAttendance();
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || "تعذّر تقييم النصاب.");
+    } finally {
+      setEvaluateBusy(false);
+    }
+  };
+
+  const handleFinalizeAttendance = async () => {
+    setFinalizeBusy(true);
+    try {
+      await finalizeAttendance({ data: { meetingId: meeting.meeting_id } });
+      toast.success("تم اعتماد سجل الحضور والنصاب.");
+      setAttendanceOpen(false);
+      onUpdated();
+    } catch (err) {
+      toast.error(extractErrorMessage(err) || "تعذّر اعتماد سجل الحضور.");
+    } finally {
+      setFinalizeBusy(false);
+    }
+  };
+
+  const presentCount = useMemo(
+    () => attendanceMembers.filter((m) => m.attendance_state === "present" || m.attendance_state === "present_remote").length,
+    [attendanceMembers],
+  );
+
+  const attendanceLocked = attendanceRollStatus === "finalized";
+  const canApprovePolicy = canEdit && !quorumPolicy;
+  const canRecord = canRecordAttendance && !attendanceLocked && attendanceRollId !== null;
+  const canEvaluate = (canEdit || canRecordAttendance) && attendanceRollId !== null && !attendanceLocked;
+  const canFinalize = canEdit && attendanceRollId !== null && !attendanceLocked;
+
   const displayTitle = meeting.meeting_title?.trim() || meeting.council_name;
 
   const agendaStatus = meeting.agenda_summary
