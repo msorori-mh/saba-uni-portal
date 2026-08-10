@@ -6,12 +6,14 @@ import {
   type B1StaffAction,
 } from "@/lib/student-requests/b1-ui";
 import type { B1UiAdapter } from "@/lib/student-requests/b1-ui/adapter.types";
+import { b1ActionRequiresDetails } from "@/lib/student-requests/b1-details-preflight";
 import {
   resolveB1StaffActionContract,
   toB1CanonicalCode,
   type B1StaffActionContract,
 } from "@/lib/student-requests/b1-staff-action-routing";
 import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
+import { B1DetailsPreflightNotice } from "./B1DetailsPreflightNotice";
 import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
 
 type Props = {
@@ -239,15 +241,48 @@ export function B1StaffStepActionSection({
     onSettled: invalidate,
   });
 
+  // Exit actions (return/reject) offered by the preflight notice bypass the
+  // single-action contract guard on purpose; the backend still authorizes them.
+  const handleExitAct = async (action: B1StaffAction, comment?: string): Promise<void> => {
+    if (inFlightRef.current) return;
+    if (action !== "return" && action !== "reject") {
+      throw new Error("B1_ACTION_TYPE_MISMATCH");
+    }
+    inFlightRef.current = true;
+    setActing(true);
+    try {
+      await adapter.actOnB1RequestStep(contract.stepId, action, comment);
+      await invalidate();
+    } finally {
+      inFlightRef.current = false;
+      setActing(false);
+    }
+  };
+
+  const panel = (
+    <B1EmployeeActionPanel
+      allowedAction={contract.action}
+      stepLabelAr={stepLabelAr}
+      stepKey={stepKey ?? undefined}
+      acting={acting}
+      onAct={handleAct}
+    />
+  );
+
   return (
     <div data-testid="b1-staff-action-section" data-b1-action={contract.action}>
-      <B1EmployeeActionPanel
-        allowedAction={contract.action}
-        stepLabelAr={stepLabelAr}
-        stepKey={stepKey ?? undefined}
-        acting={acting}
-        onAct={handleAct}
-      />
+      {b1ActionRequiresDetails(contract.action) ? (
+        <B1DetailsPreflightNotice
+          stepId={contract.stepId}
+          stepLabelAr={stepLabelAr}
+          acting={acting}
+          onAct={handleExitAct}
+        >
+          {panel}
+        </B1DetailsPreflightNotice>
+      ) : (
+        panel
+      )}
     </div>
   );
 }

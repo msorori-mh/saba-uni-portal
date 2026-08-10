@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -8,6 +8,8 @@ import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
 
 type Props = {
   stepId: string;
+  /** Rendered when the details row exists (normal forward action panel). */
+  children?: ReactNode;
   stepLabelAr: string;
   acting?: boolean;
   onAct: (action: B1StaffAction, comment?: string) => Promise<void> | void;
@@ -25,7 +27,7 @@ const SUGGESTED: { action: Extract<B1StaffAction, "return" | "reject">; labelAr:
  * suggested exit actions, instead of letting the staff member click the
  * forward action and only then read the backend rejection.
  */
-export function B1DetailsPreflightNotice({ stepId, stepLabelAr, acting, onAct }: Props) {
+export function B1DetailsPreflightNotice({ stepId, stepLabelAr, acting, onAct, children }: Props) {
   const probe = useServerFn(getB1DetailsReadinessFn);
   const [chosen, setChosen] = useState<"return" | "reject" | null>(null);
 
@@ -49,7 +51,7 @@ export function B1DetailsPreflightNotice({ stepId, stepLabelAr, acting, onAct }:
   }
 
   // Probe failure must not hide the action: fall back to the backend guard.
-  if (isError || !data || data.ready) return null;
+  if (isError || !data || data.ready) return <>{children}</>;
 
   return (
     <section
