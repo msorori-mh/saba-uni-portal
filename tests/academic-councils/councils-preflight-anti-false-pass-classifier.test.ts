@@ -36,6 +36,32 @@ const promoted = [
   "20260808180000_councils_c9_notifications_reporting_01",
 ] as const;
 
+const promotedVersions = promoted.map((n) => n.slice(0, 14));
+const promotedShortNames = promoted.map((n) => n.slice(15));
+
+const c1SplitA = {
+  version: "20260810003111",
+  shortName: "01d86704-d31c-42e9-9efa-aa5fe4d6a8c9",
+} as const;
+const c1SplitB = {
+  version: "20260810003305",
+  shortName: "c75271d6-2ef1-407a-96f5-66aaf2386afe",
+} as const;
+const c2LovableAlias = {
+  version: "20260810010400",
+  shortName: "4e2c4b05-5ff0-4b23-9084-18d8b1b29c86",
+} as const;
+const c3LovableAlias = {
+  version: "20260810011456",
+  shortName: "430aac8f-1f38-4e9d-99aa-022ea2680fc4",
+} as const;
+const c4LovableAlias = {
+  version: "20260810012715",
+  shortName: "72757e0e-3b8b-46fa-b252-8e1c8b594d3e",
+} as const;
+
+type LedgerEntry = { version: string; name: string };
+
 const legacyPredecessors = [
   "tests/academic-councils/postgres-minimal-schema.sql",
   "supabase/migrations/20260703192337_3ef2f7b2-cf46-4407-9f1a-60c25b46c211.sql",
@@ -188,16 +214,69 @@ function ensureLedgerTable() {
   if (!r.ok) throw new Error(`ledger table failed:\n${r.out}`);
 }
 
-function seedLedger(names: readonly string[]) {
+function seedLedgerEntries(entries: readonly LedgerEntry[]) {
   ensureLedgerTable();
-  if (names.length === 0) return;
-  const values = names
-    .map((n, i) => `('${n.slice(0, 14)}_${i}', '${n}')`)
-    .join(",\n");
+  if (entries.length === 0) return;
+  const values = entries.map((e) => `('${e.version}', '${e.name}')`).join(",\n");
   const r = psql(
     `INSERT INTO supabase_migrations.schema_migrations(version, name) VALUES\n${values};`,
   );
-  if (!r.ok) throw new Error(`seedLedger failed:\n${r.out}`);
+  if (!r.ok) throw new Error(`seedLedgerEntries failed:\n${r.out}`);
+}
+
+/** Full composite name format (historical fixture). */
+function seedLedger(names: readonly string[]) {
+  seedLedgerEntries(names.map((n) => ({ version: n.slice(0, 14), name: n })));
+}
+
+/** Production-like short name format (version + short name). */
+function seedLedgerShort(names: readonly string[]) {
+  seedLedgerEntries(
+    names.map((n) => ({ version: n.slice(0, 14), name: n.slice(15) })),
+  );
+}
+
+function seedLogicalPrefixOriginal(throughInclusive: number, format: "full" | "short") {
+  const slice = promoted.slice(0, throughInclusive + 1);
+  if (format === "full") seedLedger(slice);
+  else seedLedgerShort(slice);
+}
+
+function seedC0PlusC1Split(format: "full" | "short" = "short") {
+  const c0Name =
+    format === "full" ? promoted[0]! : promotedShortNames[0]!;
+  seedLedgerEntries([
+    { version: promotedVersions[0]!, name: c0Name },
+    {
+      version: c1SplitA.version,
+      name: format === "full" ? `${c1SplitA.version}_${c1SplitA.shortName}` : c1SplitA.shortName,
+    },
+    {
+      version: c1SplitB.version,
+      name: format === "full" ? `${c1SplitB.version}_${c1SplitB.shortName}` : c1SplitB.shortName,
+    },
+  ]);
+}
+
+function seedC0C1SplitPlusC2C3Aliases() {
+  seedLedgerEntries([
+    { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+    { version: c1SplitA.version, name: c1SplitA.shortName },
+    { version: c1SplitB.version, name: c1SplitB.shortName },
+    { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+    { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+  ]);
+}
+
+function seedC0C1SplitPlusC2C3C4Aliases() {
+  seedLedgerEntries([
+    { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+    { version: c1SplitA.version, name: c1SplitA.shortName },
+    { version: c1SplitB.version, name: c1SplitB.shortName },
+    { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+    { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+    { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+  ]);
 }
 
 function applyLegacy() {
@@ -248,6 +327,38 @@ describe("PR311 preflight anti-false-pass classifier", () => {
     const body = readFileSync(preflightPath, "utf8");
     expect(body).toContain("PREFLIGHT_LEDGER_STATE");
     expect(body).toContain("PREFLIGHT_SCHEMA_STATE");
+    expect(body).toContain("PREFLIGHT_LEDGER_STORAGE_FORMAT");
+    expect(body).toContain("PREFLIGHT_C0_LEDGER_IDENTITY");
+    expect(body).toContain("PREFLIGHT_C1_LINEAGE");
+    expect(body).toContain("PREFLIGHT_C1_SPLIT_PART_A");
+    expect(body).toContain("PREFLIGHT_C1_SPLIT_PART_B");
+    expect(body).toContain("PREFLIGHT_C2_LINEAGE");
+    expect(body).toContain("PREFLIGHT_C2_LEDGER_IDENTITY");
+    expect(body).toContain("PREFLIGHT_C3_LINEAGE");
+    expect(body).toContain("PREFLIGHT_C3_LEDGER_IDENTITY");
+    expect(body).toContain("PREFLIGHT_C4_LINEAGE");
+    expect(body).toContain("PREFLIGHT_C4_LEDGER_IDENTITY");
+    expect(body).toContain("PREFLIGHT_C5_LINEAGE");
+    expect(body).toContain("PREFLIGHT_C9_LINEAGE");
+    expect(body).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX");
+    expect(body).toContain("PREFLIGHT_SCHEMA_PREFIX");
+    expect(body).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL");
+    expect(body).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL");
+    expect(body).toContain("HOLD_C1_SPLIT_INCOMPLETE");
+    expect(body).toContain("HOLD_C1_LINEAGE_AMBIGUOUS");
+    expect(body).toContain("HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE");
+    expect(body).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+    expect(body).toContain("LOVABLE_MANAGED_ALIAS");
+    expect(body).toContain("20260810003111");
+    expect(body).toContain("20260810003305");
+    expect(body).toContain("01d86704-d31c-42e9-9efa-aa5fe4d6a8c9");
+    expect(body).toContain("c75271d6-2ef1-407a-96f5-66aaf2386afe");
+    expect(body).toContain("20260810010400");
+    expect(body).toContain("4e2c4b05-5ff0-4b23-9084-18d8b1b29c86");
+    expect(body).toContain("20260810011456");
+    expect(body).toContain("430aac8f-1f38-4e9d-99aa-022ea2680fc4");
+    expect(body).toContain("20260810012715");
+    expect(body).toContain("72757e0e-3b8b-46fa-b252-8e1c8b594d3e");
     expect(body).toContain("FULL_NEW_CHAIN_VERIFIED");
     expect(body).toContain("HOLD_FULL_LEDGER_SCHEMA_MISMATCH");
     expect(body).toContain("HOLD_FULL_SCHEMA_INCOMPLETE_LEDGER");
@@ -435,6 +546,10 @@ describe("PR311 preflight anti-false-pass classifier", () => {
       expect(c0.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
       expect(c0.out).toContain(`PARTIAL_LAST_APPLIED: ${promoted[0]}`);
       expect(c0.out).toContain(`PARTIAL_NEXT_EXPECTED: ${promoted[1]}`);
+      expect(c0.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C0");
+      expect(c0.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C1");
+      expect(c0.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 1");
+      expect(c0.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 1");
       expect(c0.out).not.toContain("READY_FOR_APPLY_C0");
 
       applyThrough(3); // through C3 (indices 1..3)
@@ -645,5 +760,506 @@ describe("PR311 preflight anti-false-pass classifier", () => {
       console.log(JSON.stringify({ PRODUCTION_GUARD_REGRESSIONS: results }));
     },
     600_000,
+  );
+
+  it(
+    "PG17 logical ledger lineage: short names + C1 split + anti-false-pass",
+    async () => {
+      if (!dockerReady) throw new Error("docker is required");
+
+      // 1: legacy / no promoted ledger
+      await resetDb();
+      applyLegacy();
+      const legacy = runPreflightLocal();
+      if (!legacy.ok) throw new Error(`legacy failed:\n${legacy.out}`);
+      expect(legacy.out).toContain("PREFLIGHT_LEDGER_STATE: LEDGER_NONE");
+      expect(legacy.out).toContain("READY_FOR_APPLY_C0");
+
+      // 2: C0 full-name format
+      await resetDb();
+      applyLegacy();
+      applyThrough(0);
+      seedLogicalPrefixOriginal(0, "full");
+      const c0Full = runPreflight();
+      if (!c0Full.ok) throw new Error(`C0 full-name failed:\n${c0Full.out}`);
+      expect(c0Full.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(c0Full.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C0");
+      expect(c0Full.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C1");
+      expect(c0Full.out).toContain("PREFLIGHT_C1_LINEAGE: ABSENT");
+
+      // 3: C0 short-name format (production Lovable)
+      seedLogicalPrefixOriginal(0, "short");
+      const c0Short = runPreflight();
+      if (!c0Short.ok) throw new Error(`C0 short-name failed:\n${c0Short.out}`);
+      expect(c0Short.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(c0Short.out).toContain(
+        `PREFLIGHT_C0_LEDGER_IDENTITY: version=${promotedVersions[0]};name=${promotedShortNames[0]}`,
+      );
+      expect(c0Short.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 1");
+      expect(c0Short.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 1");
+
+      // 4: original C0+C1 lineage
+      applyThrough(1);
+      seedLogicalPrefixOriginal(1, "short");
+      const origC1 = runPreflight();
+      if (!origC1.ok) throw new Error(`original C1 failed:\n${origC1.out}`);
+      expect(origC1.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(origC1.out).toContain("PREFLIGHT_C1_LINEAGE: ORIGINAL");
+      expect(origC1.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 2");
+      expect(origC1.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 2");
+      expect(origC1.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C1");
+      expect(origC1.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C2");
+      expect(origC1.out).not.toContain("READY_FOR_C3");
+
+      // 5: C0 + complete C1 split => logical prefix 2
+      await resetDb();
+      applyLegacy();
+      applyThrough(1);
+      seedC0PlusC1Split("short");
+      const splitComplete = runPreflight();
+      if (!splitComplete.ok) throw new Error(`split complete failed:\n${splitComplete.out}`);
+      expect(splitComplete.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(splitComplete.out).toContain("PREFLIGHT_C1_LINEAGE: SPLIT_COMPLETE");
+      expect(splitComplete.out).toContain(
+        `PREFLIGHT_C1_SPLIT_PART_A: version=${c1SplitA.version};name=${c1SplitA.shortName}`,
+      );
+      expect(splitComplete.out).toContain(
+        `PREFLIGHT_C1_SPLIT_PART_B: version=${c1SplitB.version};name=${c1SplitB.shortName}`,
+      );
+      expect(splitComplete.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 2");
+      expect(splitComplete.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 2");
+      expect(splitComplete.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C1");
+      expect(splitComplete.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C2");
+      expect(splitComplete.out).toContain(
+        "PREFLIGHT_STATE_CLASSIFICATION: PARTIAL_NEW_CHAIN_EXACT_PREFIX",
+      );
+
+      // 6: C0 + only split part A => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+      ]);
+      const onlyA = runPreflight();
+      expect(onlyA.ok).toBe(false);
+      expect(onlyA.out).toContain("HOLD_C1_SPLIT_INCOMPLETE");
+
+      // 7: C0 + only split part B => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+      ]);
+      const onlyB = runPreflight();
+      expect(onlyB.ok).toBe(false);
+      expect(onlyB.out).toContain("HOLD_C1_SPLIT_INCOMPLETE");
+
+      // 8: original C1 + split C1 ambiguous => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: promotedVersions[1]!, name: promotedShortNames[1]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+      ]);
+      const ambiguous = runPreflight();
+      expect(ambiguous.ok).toBe(false);
+      expect(ambiguous.out).toContain("HOLD_C1_LINEAGE_AMBIGUOUS");
+
+      // 9: correct version + arbitrary name => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: "arbitrary_wrong_name" },
+      ]);
+      const wrongName = runPreflight();
+      expect(wrongName.ok).toBe(false);
+      expect(wrongName.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 10: correct name + wrong version => HOLD
+      seedLedgerEntries([
+        { version: "19990101000000", name: promotedShortNames[0]! },
+      ]);
+      const wrongVersion = runPreflight();
+      expect(wrongVersion.ok).toBe(false);
+      expect(wrongVersion.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 11: C0+C1 ledger + schema prefix2 => PARTIAL exact / NEXT C2
+      seedLogicalPrefixOriginal(1, "short");
+      const exactPrefix2 = runPreflight();
+      if (!exactPrefix2.ok) throw new Error(`prefix2 failed:\n${exactPrefix2.out}`);
+      expect(exactPrefix2.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(exactPrefix2.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C2");
+
+      // 12: ledger prefix2 + schema prefix1 => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(0); // schema prefix 1
+      seedLogicalPrefixOriginal(1, "short"); // ledger claims C0+C1
+      const ledgerAhead = runPreflight();
+      expect(ledgerAhead.ok).toBe(false);
+      expect(ledgerAhead.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 13: ledger prefix1 + schema prefix2 => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(1); // schema prefix 2
+      seedLogicalPrefixOriginal(0, "short"); // ledger only C0
+      const schemaAhead = runPreflight();
+      expect(schemaAhead.ok).toBe(false);
+      expect(schemaAhead.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 14: C2 short-name ledger + C2 marker => prefix3
+      await resetDb();
+      applyLegacy();
+      applyThrough(2);
+      seedLogicalPrefixOriginal(2, "short");
+      const prefix3 = runPreflight();
+      if (!prefix3.ok) throw new Error(`prefix3 failed:\n${prefix3.out}`);
+      expect(prefix3.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(prefix3.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 3");
+      expect(prefix3.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 3");
+      expect(prefix3.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C2");
+      expect(prefix3.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C3");
+
+      // 15: C3 later marker without C2 => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(1);
+      // Force C3 marker without C2 by creating attendance table only
+      const forceC3 = psql(`
+        CREATE TABLE public.academic_council_meeting_attendance (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+        );
+      `);
+      if (!forceC3.ok) throw new Error(`force C3 marker failed:\n${forceC3.out}`);
+      seedLogicalPrefixOriginal(1, "short");
+      const laterWithoutPred = runPreflight();
+      expect(laterWithoutPred.ok).toBe(false);
+      expect(laterWithoutPred.out).toMatch(/HOLD_|UNKNOWN_UNSAFE/);
+
+      // 16: full logical chain remains FULL_NEW_CHAIN_VERIFIED only with full proof
+      await resetDb();
+      applyLegacy();
+      applyThrough(9);
+      seedLogicalPrefixOriginal(9, "short");
+      const fullShort = runPreflight();
+      if (!fullShort.ok) throw new Error(`full short-name failed:\n${fullShort.out}`);
+      expect(fullShort.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: FULL_NEW_CHAIN_VERIFIED");
+      expect(fullShort.out).toContain("COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED");
+      expect(fullShort.out).toContain("NO_APPLY_REQUIRED");
+      expect(fullShort.out).toContain("PREFLIGHT_C1_LINEAGE: ORIGINAL");
+
+      // full ledger alone still HOLD
+      await resetDb();
+      seedLogicalPrefixOriginal(9, "short");
+      const ledgerOnly = runPreflight();
+      expect(ledgerOnly.ok).toBe(false);
+      expect(ledgerOnly.out).toContain("HOLD_FULL_LEDGER_SCHEMA_MISMATCH");
+    },
+    900_000,
+  );
+
+  it(
+    "PG17 C2/C3/C4 Lovable managed alias lineage + anti-false-pass",
+    async () => {
+      if (!dockerReady) throw new Error("docker is required");
+
+      // 1: C0 + C1 split + C2/C3 managed aliases + schema prefix4 => PASS / NEXT C4
+      await resetDb();
+      applyLegacy();
+      applyThrough(3);
+      seedC0C1SplitPlusC2C3Aliases();
+      const aliasPass = runPreflight();
+      if (!aliasPass.ok) throw new Error(`C2/C3 alias pass failed:\n${aliasPass.out}`);
+      expect(aliasPass.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(aliasPass.out).toContain("PREFLIGHT_C1_LINEAGE: SPLIT_COMPLETE");
+      expect(aliasPass.out).toContain("PREFLIGHT_C2_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(aliasPass.out).toContain("PREFLIGHT_C3_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(aliasPass.out).toContain("PREFLIGHT_C4_LINEAGE: ABSENT");
+      expect(aliasPass.out).toContain("PREFLIGHT_C5_LINEAGE: ABSENT");
+      expect(aliasPass.out).toContain(
+        `PREFLIGHT_C2_LEDGER_IDENTITY: version=${c2LovableAlias.version};name=${c2LovableAlias.shortName}`,
+      );
+      expect(aliasPass.out).toContain(
+        `PREFLIGHT_C3_LEDGER_IDENTITY: version=${c3LovableAlias.version};name=${c3LovableAlias.shortName}`,
+      );
+      expect(aliasPass.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 4");
+      expect(aliasPass.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 4");
+      expect(aliasPass.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C3");
+      expect(aliasPass.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C4");
+
+      // 1b: production-shaped C0..C4 managed chain + schema through C4 => PASS / NEXT C5
+      await resetDb();
+      applyLegacy();
+      applyThrough(4);
+      seedC0C1SplitPlusC2C3C4Aliases();
+      const c4AliasPass = runPreflight();
+      if (!c4AliasPass.ok) throw new Error(`C4 alias pass failed:\n${c4AliasPass.out}`);
+      expect(c4AliasPass.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(c4AliasPass.out).toContain("PREFLIGHT_C4_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(c4AliasPass.out).toContain(
+        `PREFLIGHT_C4_LEDGER_IDENTITY: version=${c4LovableAlias.version};name=${c4LovableAlias.shortName}`,
+      );
+      expect(c4AliasPass.out).toContain("PREFLIGHT_C5_LINEAGE: ABSENT");
+      expect(c4AliasPass.out).toContain("PREFLIGHT_C9_LINEAGE: ABSENT");
+      expect(c4AliasPass.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 5");
+      expect(c4AliasPass.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 5");
+      expect(c4AliasPass.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C4");
+      expect(c4AliasPass.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C5");
+
+      // 2: C2 alias wrong version => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: "19990101000000", name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const c2WrongVer = runPreflight();
+      expect(c2WrongVer.ok).toBe(false);
+      expect(c2WrongVer.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 3: C2 alias right version wrong name => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const c2WrongName = runPreflight();
+      expect(c2WrongName.ok).toBe(false);
+      expect(c2WrongName.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 4: C3 alias wrong version => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: "19990101000000", name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const c3WrongVer = runPreflight();
+      expect(c3WrongVer.ok).toBe(false);
+      expect(c3WrongVer.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 5: C3 alias right version wrong name => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: "ffffffff-1111-2222-3333-444444444444" },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const c3WrongName = runPreflight();
+      expect(c3WrongName.ok).toBe(false);
+      expect(c3WrongName.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 5b: C4 alias wrong version => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: "19990101000000", name: c4LovableAlias.shortName },
+      ]);
+      const c4WrongVer = runPreflight();
+      expect(c4WrongVer.ok).toBe(false);
+      expect(c4WrongVer.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 5c: C4 alias right version wrong name => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: "22222222-3333-4444-5555-666666666666" },
+      ]);
+      const c4WrongName = runPreflight();
+      expect(c4WrongName.ok).toBe(false);
+      expect(c4WrongName.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 6: duplicate C2 canonical+alias => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: promotedVersions[2]!, name: promotedShortNames[2]! },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const dupC2 = runPreflight();
+      expect(dupC2.ok).toBe(false);
+      expect(dupC2.out).toContain("HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE");
+      expect(dupC2.out).toContain("logical=C2");
+
+      // 7: duplicate C3 canonical+alias => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: promotedVersions[3]!, name: promotedShortNames[3]! },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const dupC3 = runPreflight();
+      expect(dupC3.ok).toBe(false);
+      expect(dupC3.out).toContain("HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE");
+      expect(dupC3.out).toContain("logical=C3");
+
+      // 7b: duplicate C4 canonical+alias => HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: promotedVersions[4]!, name: promotedShortNames[4]! },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const dupC4 = runPreflight();
+      expect(dupC4.ok).toBe(false);
+      expect(dupC4.out).toContain("HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE");
+      expect(dupC4.out).toContain("logical=C4");
+
+      // 8: C3 alias without C2 => HOLD (noncontiguous)
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+      ]);
+      const c3WithoutC2 = runPreflight();
+      expect(c3WithoutC2.ok).toBe(false);
+      expect(c3WithoutC2.out).toContain("HOLD_NONCONTIGUOUS_LEDGER");
+
+      // 8b: C4 alias without C3 => HOLD (noncontiguous)
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+      ]);
+      const c4WithoutC3 = runPreflight();
+      expect(c4WithoutC3.ok).toBe(false);
+      expect(c4WithoutC3.out).toContain("HOLD_NONCONTIGUOUS_LEDGER");
+
+      // 9: C2 alias ledger + no C2 schema => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(1); // schema through C1 only
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+      ]);
+      const c2LedgerNoSchema = runPreflight();
+      expect(c2LedgerNoSchema.ok).toBe(false);
+      expect(c2LedgerNoSchema.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 9b: C4 alias ledger + schema through C3 => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(3);
+      seedC0C1SplitPlusC2C3C4Aliases();
+      const c4LedgerNoSchema = runPreflight();
+      expect(c4LedgerNoSchema.ok).toBe(false);
+      expect(c4LedgerNoSchema.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 10: C2 schema + no accepted C2 ledger => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(2);
+      seedC0PlusC1Split("short");
+      const c2SchemaNoLedger = runPreflight();
+      expect(c2SchemaNoLedger.ok).toBe(false);
+      expect(c2SchemaNoLedger.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 10b: C4 schema + no accepted C4 ledger => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(4);
+      seedC0C1SplitPlusC2C3Aliases();
+      const c4SchemaNoLedger = runPreflight();
+      expect(c4SchemaNoLedger.ok).toBe(false);
+      expect(c4SchemaNoLedger.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 11: C3 alias ledger + schema prefix2 => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(1); // schema prefix 2
+      seedC0C1SplitPlusC2C3Aliases();
+      const c3LedgerSchema2 = runPreflight();
+      expect(c3LedgerSchema2.ok).toBe(false);
+      expect(c3LedgerSchema2.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 12: schema prefix3/4 without accepted C3 ledger => HOLD
+      await resetDb();
+      applyLegacy();
+      applyThrough(3);
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+      ]);
+      const schemaNoC3Ledger = runPreflight();
+      expect(schemaNoC3Ledger.ok).toBe(false);
+      expect(schemaNoC3Ledger.out).toContain("HOLD_LEDGER_SCHEMA_PREFIX_MISMATCH");
+
+      // 13: arbitrary UUID names never accepted (even with C2/C3/C4 versions)
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: "00000000-0000-0000-0000-000000000000" },
+        { version: c3LovableAlias.version, name: "11111111-1111-1111-1111-111111111111" },
+        { version: c4LovableAlias.version, name: "33333333-3333-3333-3333-333333333333" },
+      ]);
+      const arbitraryUuid = runPreflight();
+      expect(arbitraryUuid.ok).toBe(false);
+      expect(arbitraryUuid.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
+      // 14: known C1 split still PASS
+      await resetDb();
+      applyLegacy();
+      applyThrough(1);
+      seedC0PlusC1Split("short");
+      const splitStill = runPreflight();
+      if (!splitStill.ok) throw new Error(`C1 split still pass failed:\n${splitStill.out}`);
+      expect(splitStill.out).toContain("PREFLIGHT_C1_LINEAGE: SPLIT_COMPLETE");
+      expect(splitStill.out).toContain("PARTIAL_NEW_CHAIN_EXACT_PREFIX");
+      expect(splitStill.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C2");
+
+      // 15: incomplete C1 split still HOLD
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+      ]);
+      const incompleteSplit = runPreflight();
+      expect(incompleteSplit.ok).toBe(false);
+      expect(incompleteSplit.out).toContain("HOLD_C1_SPLIT_INCOMPLETE");
+
+      // 16: full canonical C0-C9 behavior remains valid
+      await resetDb();
+      applyLegacy();
+      applyThrough(9);
+      seedLogicalPrefixOriginal(9, "short");
+      const fullCanon = runPreflight();
+      if (!fullCanon.ok) throw new Error(`full canonical failed:\n${fullCanon.out}`);
+      expect(fullCanon.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: FULL_NEW_CHAIN_VERIFIED");
+      expect(fullCanon.out).toContain("COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED");
+      expect(fullCanon.out).toContain("PREFLIGHT_C2_LINEAGE: CANONICAL");
+      expect(fullCanon.out).toContain("PREFLIGHT_C3_LINEAGE: CANONICAL");
+      expect(fullCanon.out).toContain("PREFLIGHT_C4_LINEAGE: CANONICAL");
+      expect(fullCanon.out).toContain("PREFLIGHT_C9_LINEAGE: CANONICAL");
+    },
+    900_000,
   );
 });

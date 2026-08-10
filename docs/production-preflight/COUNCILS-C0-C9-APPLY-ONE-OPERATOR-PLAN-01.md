@@ -47,9 +47,38 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 1. Run `docs/migration-drafts/COUNCILS-C0-C9-PRODUCTION-READONLY-PREFLIGHT-01.sql`
 2. Interpret the terminal Phase N result:
    - `LEGACY_SUPPORTED_EXACT` → `READY_FOR_APPLY_C0`; C0 may be considered under the separate approval process.
-   - `PARTIAL_NEW_CHAIN_EXACT_PREFIX` → **STOP** and report `PARTIAL_NEXT_EXPECTED`; do not apply automatically.
+   - `PARTIAL_NEW_CHAIN_EXACT_PREFIX` → **STOP** and report `PREFLIGHT_NEXT_EXPECTED_LOGICAL`; do not apply automatically.
    - `FULL_NEW_CHAIN_VERIFIED` → **NO APPLY**; expect `COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED`.
 3. **STOP** on any `HOLD:`. A full ledger alone never produces `READY_FOR_APPLY_C0`.
+
+### Ledger identity contract (logical vs physical)
+
+The classifier does **not** match raw `schema_migrations.name` against full composite filenames alone.
+
+| Layer | Meaning |
+|---|---|
+| Logical step | `LOGICAL_C0` … `LOGICAL_C9` — contiguous prefix authority |
+| Physical row | One (or, for C1 split, two) `supabase_migrations.schema_migrations` row(s) |
+| Primary identity | `version` (exact) |
+| Secondary identity | normalized `name`: short (`councils_c2_topic_intake_review_01`) **or** composite (`20260808122000_councils_c2_topic_intake_review_01`) — exact only |
+
+Supabase/Lovable production commonly stores the **short** name. Both forms are accepted only when they map to the same pinned `(version, short-name)` identity. No `LIKE`, no fuzzy match, no ordering inference.
+
+### C1 split lineage (one logical C1)
+
+Logical C1 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `ORIGINAL` | `version=20260808121000` + name `councils_c1_meeting_state_machine_01` (or composite) |
+| `SPLIT_COMPLETE` | **both** `20260810003111` / `01d86704-d31c-42e9-9efa-aa5fe4d6a8c9` **and** `20260810003305` / `c75271d6-2ef1-407a-96f5-66aaf2386afe` |
+
+- One split half only → `HOLD_C1_SPLIT_INCOMPLETE`
+- Original + any split half → `HOLD_C1_LINEAGE_AMBIGUOUS` (fail closed)
+
+Stable notices include: `PREFLIGHT_LEDGER_STORAGE_FORMAT`, `PREFLIGHT_C0_LEDGER_IDENTITY`, `PREFLIGHT_C1_LINEAGE`, `PREFLIGHT_C1_SPLIT_PART_A/B`, `PREFLIGHT_LOGICAL_LEDGER_PREFIX`, `PREFLIGHT_SCHEMA_PREFIX`, `PREFLIGHT_LAST_APPLIED_LOGICAL`, `PREFLIGHT_NEXT_EXPECTED_LOGICAL`, `PREFLIGHT_STATE_CLASSIFICATION`.
+
+Ledger alone is never enough. Schema alone is never enough. Prefix mismatch → HOLD.
 
 ## Step C0
 
@@ -67,10 +96,43 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 
 | Field | Value |
 |---|---|
-| Migration | `supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql` |
+| Migration (ORIGINAL lineage) | `supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql` |
 | FULL_SHA256_LF | `498a8d8c274277ff3ffc96e95fa30202e859aa2a2cfd74bcfaaa9f5d39a033d5` |
+| Approved SPLIT lineage (production remediation) | **both** required for one logical C1: `20260810003111_01d86704-d31c-42e9-9efa-aa5fe4d6a8c9.sql` **and** `20260810003305_c75271d6-2ef1-407a-96f5-66aaf2386afe.sql` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C1.sql` |
 | Pass marker | `COUNCILS_C1_PRODUCTION_POST_VERIFIER_PASS` |
+
+Do not treat ORIGINAL + SPLIT coexistence as a single satisfied C1 — preflight holds `HOLD_C1_LINEAGE_AMBIGUOUS`.
+
+### C2 / C3 / C4 pinned Lovable managed aliases
+
+Logical C2 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `CANONICAL` | `version=20260808122000` + name `councils_c2_topic_intake_review_01` (or composite) |
+| `LOVABLE_MANAGED_ALIAS` | `version=20260810010400` + name `4e2c4b05-5ff0-4b23-9084-18d8b1b29c86` (or composite) |
+
+Logical C3 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `CANONICAL` | `version=20260808130000` + name `councils_c3_attendance_quorum_01` (or composite) |
+| `LOVABLE_MANAGED_ALIAS` | `version=20260810011456` + name `430aac8f-1f38-4e9d-99aa-022ea2680fc4` (or composite) |
+
+Logical C4 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `CANONICAL` | `version=20260808140000` + name `councils_c4_session_voting_01` (or composite) |
+| `LOVABLE_MANAGED_ALIAS` | `version=20260810012715` + name `72757e0e-3b8b-46fa-b252-8e1c8b594d3e` (or composite) |
+
+- Canonical + alias coexistence → `HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE`
+- Wrong version or wrong name on the pinned alias → `HOLD_LEDGER_IDENTITY_MISMATCH`
+- Arbitrary UUID names are never accepted
+- C5–C9 have **no** accepted managed aliases in this classifier (canonical only)
+
+Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTITY`, `PREFLIGHT_C3_LINEAGE`, `PREFLIGHT_C3_LEDGER_IDENTITY`, `PREFLIGHT_C4_LINEAGE`, `PREFLIGHT_C4_LEDGER_IDENTITY`, and `PREFLIGHT_C5_LINEAGE`..`PREFLIGHT_C9_LINEAGE`.
 
 ## Step C2
 
@@ -78,6 +140,7 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 |---|---|
 | Migration | `supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql` |
 | FULL_SHA256_LF | `f969c6c0f63a4758944cc59f6c78292f56f3a4ac360ae77f0b386bf72e0e364e` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810010400` / `4e2c4b05-5ff0-4b23-9084-18d8b1b29c86` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C2.sql` |
 | Pass marker | `COUNCILS_C2_PRODUCTION_POST_VERIFIER_PASS` |
 
@@ -87,6 +150,7 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 |---|---|
 | Migration | `supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql` |
 | FULL_SHA256_LF | `e7361f6c85014fb37b6f8d97bd468dc1205700748a526cb7a8063f82ff6c0de6` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810011456` / `430aac8f-1f38-4e9d-99aa-022ea2680fc4` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C3.sql` |
 | Pass marker | `COUNCILS_C3_PRODUCTION_POST_VERIFIER_PASS` |
 
@@ -96,6 +160,7 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 |---|---|
 | Migration | `supabase/migrations/20260808140000_councils_c4_session_voting_01.sql` |
 | FULL_SHA256_LF | `d0825e1ddcce82c0e1123ea04cba2777e3b726bc0e4ae514940a714d322b05cd` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810012715` / `72757e0e-3b8b-46fa-b252-8e1c8b594d3e` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C4.sql` |
 | Pass marker | `COUNCILS_C4_PRODUCTION_POST_VERIFIER_PASS` |
 
