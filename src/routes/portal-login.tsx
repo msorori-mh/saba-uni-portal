@@ -113,6 +113,9 @@ function PortalSelector() {
 
 function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
