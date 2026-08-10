@@ -23,8 +23,9 @@ describe("GA production full-closure readiness artifacts", () => {
     );
     expect(sql).toContain("SPECIALIST_SCOPE_REMEDIATION_DRY_RUN_ONLY");
     expect(sql).toContain("aa4f5c16-c993-4af6-a6d4-59d9542c1a7f");
-    expect(sql).toContain("OWNER_DECISION_REQUIRED");
-    expect(sql).toMatch(/--\s*INSERT INTO public\.staff_profile_departments/);
+    expect(sql).toContain("AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE");
+    expect(sql).toContain("a6e30100-0000-4000-a300-000000000001");
+    expect(sql).not.toMatch(/INSERT INTO public\.staff_profile_departments/);
     expect(sql).not.toMatch(/^\s*INSERT\b/m);
   });
 
@@ -37,7 +38,8 @@ describe("GA production full-closure readiness artifacts", () => {
     expect(ga3).toContain("212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c");
     expect(ga1).toContain("APPLY EXACTLY ONE");
     expect(ga2).toContain("APPLY EXACTLY ONE");
-    expect(ga3).toContain("APPLY EXACTLY ONE");
+    expect(ga3).toContain("GA3_CURRENT=VERIFIED_PRESENT");
+    expect(ga3).toContain("DO NOT RE-APPLY");
   });
 
   test("mission report records HOLD and zero production writes", () => {

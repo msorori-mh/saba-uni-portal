@@ -1,12 +1,14 @@
-# GA Specialist Department-Scope — Owner Decision Package
+# GA Specialist Department-Scope — Deterministic Resolution Plan
 
-**Mission:** `PORTAL-24H-GRADUATES-AFFAIRS-SOURCE-AND-SPECIALIST-SCOPE-FINAL-RC-02`  
-**Mode:** production READ-ONLY inspection. Zero writes.  
+**Mission:** `PORTAL-PR338-GA-FINAL-RC-AND-DETERMINISTIC-SPECIALIST-RESOLUTION-01`
+**Mode:** production READ-ONLY inspection + SOURCE remediation plan. Zero writes.
 **Captured:** 2026-08-10 (Asia/Riyadh) via Lovable `query_database` on project `90f4dcde-07fb-4441-b86a-6ad5510833b8`.
+**GA schema at capture:** GA1/GA2/GA3 = `VERIFIED_PRESENT` (managed aliases including `20260810162735`).
+**Supersedes prior owner-pick gate for specialist `aa4f5c16-…`.**
 
 ---
 
-## Exact specialist identity
+## Exact current specialist identity (DO NOT SCOPE)
 
 | Field | Value |
 |---|---|
@@ -38,32 +40,77 @@ Companion manager (context only; managers are not department-scoped by AUTH-04):
 
 AUTH-04 binds specialist record access **only** via
 `public.staff_profile_departments` of the authorizing `staff_profile`.
-Other columns/tables are evidence sources for owner decision, never substitutes.
+Other columns/tables are evidence for deterministic resolution, never substitutes.
 
 | Binding source | Result for specialist `aa4f5c16-…` |
 |---|---|
 | `staff_profile_departments` | **0 rows** |
 | `staff_profiles.department_id` | **NULL** |
 | `staff_profiles.department_scope` | text `all` (not a department UUID; **not** AUTH-04 scope) |
-| `graduation_project_department_coordinators` by `user_id` / profile | **0 rows** |
+| `faculty_profiles` link by `user_id` | **none** |
+| Active org `position_assignments` → department | **none** (`organizational_positions` has no `department_id`) |
 | Active GA unit assignment | present (1 specialist) |
 
-No second active `graduate_affairs_specialist` assignment was observed.
+### College-wide staff scan (eligible GA specialist pool)
+
+| Probe | Result |
+|---|---|
+| Active `staff_profiles` | 9 |
+| With non-NULL `department_id` | **0** |
+| With `department_scope='all'` | **9 / 9** |
+| Rows in `staff_profile_departments` (entire table) | **0** |
+| Staff with exactly ONE SPD binding | **0** |
+| Staff user linked to faculty with department | **0** |
+
+No existing staff profile has exactly one authoritative department binding.
 
 ---
 
 ## Verdict
 
 ```text
-OWNER_DECISION_REQUIRED
-REASON=AMBIGUOUS_NO_SINGLE_AUTHORITATIVE_DEPARTMENT
+AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE
+SPECIALIST=aa4f5c16-c993-4af6-a6d4-59d9542c1a7f
+REASON=NO_UNIQUE_AUTHORITATIVE_DEPARTMENT_BINDING
+SAFE_REAL_STAFF_CANDIDATE=NONE
 ```
 
-Exactly one authoritative department **cannot** be proven. No department is invented.
+Do **not**:
+- invent a department for `aa4f5c16-…`
+- assign all departments / treat `department_scope='all'` as AUTH-04 scope
+- broaden GA authorization
+
+Human department-pick for `aa4f5c16-…` is **closed** as a GA gate.
+Operational specialist capacity moves to the TEST_ONLY single-department fixture below.
 
 ---
 
-## Exact active department candidates
+## SAFE_SPECIALIST_CANDIDATE (TEST_ONLY — plan only, no write)
+
+Because no suitable real staff actor exists, prepare a tightly-scoped
+**TEST_ONLY** GA specialist fixture for production E2E only.
+
+| Field | Value |
+|---|---|
+| Marker | `TEST_ONLY_GA_SPECIALIST_E2E_01` |
+| Package | `docs/production-test-fixtures/GA-SPECIALIST-SINGLE-DEPT-TESTONLY-FIXTURE-01.sql` |
+| `SAFE_SPECIALIST_CANDIDATE` (planned staff_profile_id) | `a6e30100-0000-4000-a300-000000000001` |
+| Planned auth user_id | `a6e30100-0000-4000-a100-000000000001` |
+| `SAFE_SPECIALIST_DEPARTMENT` | `11111111-1111-4111-8111-111111111111` |
+| Department name | قسم علوم الحاسوب / Department of Computer Science |
+| SPD rows planned | **exactly 1** (never all departments) |
+| High-privilege assignments | none (specialist role only) |
+| Touch current specialist `aa4f5c16-…` | **forbidden** |
+
+Department UUID is an existing active production department (sort_order=2),
+already used by other TEST_ONLY GP fixtures — not invented.
+
+Default package mode is DRY RUN (abort). Execute mode requires explicit GUC
+and owner runtime grant; this mission performs **zero** production writes.
+
+---
+
+## Exact active department reference (context only)
 
 | `department_id` | `name_ar` | `name_en` | `sort_order` | `is_active` |
 |---|---|---|---|---|
@@ -71,47 +118,16 @@ Exactly one authoritative department **cannot** be proven. No department is inve
 | `11111111-1111-4111-8111-111111111111` | قسم علوم الحاسوب | Department of Computer Science | 2 | true |
 | `22222222-2222-4222-8222-222222222222` | قسم نظم المعلومات الحاسوبية | Department of Computer Information Systems | 3 | true |
 
-Owner must pick **one or more** of the above UUIDs (or revoke the specialist assignment).
-
----
-
-## Owner options (no agent write)
-
-### Option A — Forward-only exact SPD assignment (after owner pick)
-
-For each chosen `department_id` from the candidate table:
-
-```sql
--- OWNER-GATED WRITE ONLY. Do not run without explicit approval.
-BEGIN;
-INSERT INTO public.staff_profile_departments (staff_profile_id, department_id)
-VALUES (
-  'aa4f5c16-c993-4af6-a6d4-59d9542c1a7f'::uuid,
-  '<OWNER_CHOSEN_DEPARTMENT_UUID>'::uuid
-)
-ON CONFLICT DO NOTHING;
-COMMIT;
-```
-
-Then re-run diagnosis in
-`docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-REMEDIATION-DRY-RUN-01.sql`
-and expect `department_scope_count >= 1`.
-
-### Option B — Revoke specialist assignment until scope decided
-
-Deactivate assignment `276cf8d1-4bce-4fea-9e96-b1f8dc1bdf0e` (or equivalent governed revoke path) so foundation preflight no longer sees an active specialist with empty SPD.
-
-### Option C — Hold
-
-Leave production unchanged. GA production apply-one sequence remains gated by
-`HOLD_SPECIALIST_MISSING_DEPARTMENT_SCOPE` (in addition to lineage/C9 gates).
+Fixture binds **only** the Computer Science UUID above.
 
 ---
 
 ## Related artifacts
 
+- TEST_ONLY fixture (dry-run default): `docs/production-test-fixtures/GA-SPECIALIST-SINGLE-DEPT-TESTONLY-FIXTURE-01.sql`
 - Dry-run diagnosis SQL: `docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-REMEDIATION-DRY-RUN-01.sql`
 - SELECT preflight: `docs/migration-drafts/GA-PRODUCTION-PROMOTION-PREFLIGHT-READONLY-SELECT-01.sql`
-- AUTH-04 source: `supabase/migrations/20260808210200_ga_authorization_04.sql` (`graduate_affairs_specialist_department_ids`)
+- Operator status: `docs/go-live/operator-packets/GA-PRODUCTION-STATUS.txt`
+- AUTH-04 source: `supabase/migrations/20260808210200_ga_authorization_04.sql`
 
 **Production writes this package:** `0`

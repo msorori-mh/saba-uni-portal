@@ -1,24 +1,27 @@
--- PORTAL-24H-GRADUATES-AFFAIRS-SOURCE-AND-SPECIALIST-SCOPE-FINAL-RC-02
+-- PORTAL-PR338-GA-FINAL-RC-AND-DETERMINISTIC-SPECIALIST-RESOLUTION-01
 -- Specialist department-scope remediation (DRY RUN default).
 --
--- Production finding (2026-08-10 read-only, reconfirmed RC-02):
+-- Production finding (2026-08-10 read-only, reconfirmed):
 --   active graduate_affairs_specialist assignment exists
 --   staff_profile_id = aa4f5c16-c993-4af6-a6d4-59d9542c1a7f
 --   name_ar = صالح علي / email = saleh@usr.edu.ye / employee_number = S2026008
 --   staff_profiles.department_id = NULL
 --   staff_profiles.department_scope = 'all' (NOT AUTH-04 scope)
 --   staff_profile_departments rows for that profile = 0
---   graduation_project_department_coordinators bindings = 0
+--   college-wide staff_profile_departments rows = 0
+--   active staff with unique department_id = 0
 --
 -- AUTH-04 binds specialist scope ONLY via staff_profile_departments of the
 -- authorizing staff_profile. Empty scope => DENY all specialist record access.
 --
--- Owner decision package (AMBIGUOUS — do not invent department):
+-- Deterministic resolution:
+--   AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE for aa4f5c16-…
+--   SAFE candidate = TEST_ONLY single-dept fixture (not executed here)
 --   docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-OWNER-DECISION-01.md
+--   docs/production-test-fixtures/GA-SPECIALIST-SINGLE-DEPT-TESTONLY-FIXTURE-01.sql
 --
--- DO NOT execute the INSERT against production without explicit owner approval
--- AND an owner-chosen department_id from the candidate list in that package.
--- Default path is SELECT-only diagnosis + a commented remediation template.
+-- DO NOT INSERT SPD rows for aa4f5c16 against production.
+-- DO NOT grant all-department access.
 
 \set ON_ERROR_STOP on
 
@@ -49,36 +52,40 @@ JOIN public.staff_profiles sp ON sp.id = a.staff_profile_id
 WHERE a.is_active
 ORDER BY r.code;
 
+SELECT
+  count(*) AS active_staff,
+  count(*) FILTER (WHERE department_id IS NOT NULL) AS with_profile_department_id,
+  (SELECT count(*) FROM public.staff_profile_departments) AS spd_rows_total,
+  (
+    SELECT count(*) FROM (
+      SELECT staff_profile_id
+      FROM public.staff_profile_departments
+      GROUP BY staff_profile_id
+      HAVING count(*) = 1
+    ) s
+  ) AS staff_with_exactly_one_spd
+FROM public.staff_profiles
+WHERE status = 'active';
+
 SELECT id, name_ar, name_en, is_active, sort_order
 FROM public.departments
 WHERE is_active IS DISTINCT FROM false
 ORDER BY sort_order NULLS LAST, name_ar;
 
 -- =====================================================================
--- B) Remediation template (COMMENTED — owner-gated write)
+-- B) Remediation for aa4f5c16 — FORBIDDEN in this plan
 -- =====================================================================
--- Replace :department_id with an OWNER-CHOSEN UUID from:
---   docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-OWNER-DECISION-01.md
--- Proven production specialist profile (read-only observation only):
---   aa4f5c16-c993-4af6-a6d4-59d9542c1a7f
--- Candidate active departments (do not invent; owner must choose):
---   ce485c67-5f7c-498d-b120-4b1130a86ae8  Information Technology
---   11111111-1111-4111-8111-111111111111  Computer Science
---   22222222-2222-4222-8222-222222222222  Computer Information Systems
---
--- BEGIN;
--- INSERT INTO public.staff_profile_departments (staff_profile_id, department_id)
--- VALUES (
---   'aa4f5c16-c993-4af6-a6d4-59d9542c1a7f'::uuid,
---   '11111111-1111-4111-8111-111111111111'::uuid  -- OWNER MUST CONFIRM
--- )
--- ON CONFLICT DO NOTHING;
--- -- Re-run diagnosis SELECT; expect department_scope_count >= 1
--- -- Then re-run GA-PRODUCTION-PROMOTION-PREFLIGHT-READONLY-SELECT-01.sql
--- COMMIT;
+-- No INSERT template for aa4f5c16. Marked AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE.
+-- Operational E2E actor is the TEST_ONLY package (dry-run default):
+--   docs/production-test-fixtures/GA-SPECIALIST-SINGLE-DEPT-TESTONLY-FIXTURE-01.sql
+-- SAFE_SPECIALIST_CANDIDATE=a6e30100-0000-4000-a300-000000000001
+-- SAFE_SPECIALIST_DEPARTMENT=11111111-1111-4111-8111-111111111111
 
 SELECT
   'SPECIALIST_SCOPE_REMEDIATION_DRY_RUN_ONLY' AS status,
   'No writes executed' AS note,
-  'OWNER_DECISION_REQUIRED' AS gate,
-  'AMBIGUOUS_NO_SINGLE_AUTHORITATIVE_DEPARTMENT' AS reason;
+  'AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE' AS gate,
+  'aa4f5c16-c993-4af6-a6d4-59d9542c1a7f' AS ambiguous_specialist,
+  'a6e30100-0000-4000-a300-000000000001' AS safe_specialist_candidate,
+  '11111111-1111-4111-8111-111111111111' AS safe_specialist_department,
+  'TEST_ONLY_GA_SPECIALIST_E2E_01' AS safe_specialist_kind;

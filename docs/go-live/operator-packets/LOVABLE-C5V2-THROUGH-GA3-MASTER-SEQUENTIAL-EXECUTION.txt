@@ -1,6 +1,15 @@
 MISSION=LOVABLE_C5V2_THROUGH_GA3_MASTER_SEQUENTIAL_EXECUTION
 AUTHORIZATION=Standing owner authorization. Execute automatically without owner-token pauses.
 SAFETY=One logical migration per transaction; zero blind batches; NEVER run supabase db push; never repair the ledger automatically.
+NEXT_WRITE=NONE_SCHEMA
+NEXT_OPTIONAL_WRITE=SPECIALIST_TESTONLY_FIXTURE_OWNER_GATED
+GA1_CURRENT=VERIFIED_PRESENT
+GA2_CURRENT=VERIFIED_PRESENT
+GA3_CURRENT=VERIFIED_PRESENT
+GA3_READY=YES
+STATUS_PACKET=docs/go-live/operator-packets/GA-PRODUCTION-STATUS.txt
+GA3_MANAGED_ALIAS=20260810162735:d239a40c-83fa-4f0d-95b2-be9ab4cfc284
+DO_NOT_REAPPLY_GA1_GA2_GA3=YES
 
 Canonical source identities:
 C5V2|PR326 62c6bb374b15503dfa93c5d8066e4b61837169aa|20260810180000_councils_c5_minutes_lifecycle_02.sql|0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8

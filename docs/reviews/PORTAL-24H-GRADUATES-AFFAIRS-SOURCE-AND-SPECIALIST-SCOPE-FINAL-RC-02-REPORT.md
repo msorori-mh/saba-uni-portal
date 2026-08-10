@@ -1,10 +1,11 @@
 # PORTAL-24H-GRADUATES-AFFAIRS-SOURCE-AND-SPECIALIST-SCOPE-FINAL-RC-02
 
-**Date:** 2026-08-10 (Asia/Riyadh)  
-**Branch:** `ops/24h-graduates-source-final-rc-02`  
-**Mission base (reconcile anchor):** `fab94705443264ae5fe768c5091e25c7c729be1a`  
-**Current main tip at RC cut:** `8c944b57534dda435afc7b600f590e85567e5103`  
-**Production project:** `wpmicqriltrowwonknox` (Lovable `90f4dcde-07fb-4441-b86a-6ad5510833b8`)  
+**Date:** 2026-08-10 (Asia/Riyadh)
+**Branch:** `ops/24h-graduates-source-final-rc-02`
+**Mission base (reconcile anchor):** `fab94705443264ae5fe768c5091e25c7c729be1a`
+**Current main tip at RC cut (superseded):** `8c944b57534dda435afc7b600f590e85567e5103`
+**Reconciled main tip (PR338):** `845f3501c8ccdec7d411811c565e62a8bb93ba25` (GA3 managed apply on main)
+**Production project:** `wpmicqriltrowwonknox` (Lovable `90f4dcde-07fb-4441-b86a-6ad5510833b8`)
 **Mode:** SOURCE RC + production READ-ONLY. Zero production writes.
 
 ---
@@ -15,12 +16,19 @@
 PASS_GA_SOURCE_FINAL_RC_READY_FOR_PRODUCTION_SEQUENCE
 ```
 
-Merged-source GA package is ready for the governed production apply-one sequence.
-Production apply itself remains **fail-closed** until external write-gates clear
-(lineage/C9/specialist owner decision/owner auth). This token does **not** mean
-production is closed or that GA1→GA3 may be applied now.
+Merged-source GA package is ready; GA1/GA2/GA3 schema objects are
+`VERIFIED_PRESENT` on production via managed aliases. Remaining governed ops are
+ledger mapping + optional TEST_ONLY specialist fixture under runtime grant/lease
+(`NEXT_WRITE=NONE_SCHEMA`). This token does **not** mean feature flags are ON.
 
-Prior closure hold token (still accurate for production apply):
+**Supersession (PR338 deterministic specialist resolution):** human department-pick
+for `aa4f5c16-…` is closed as `AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE`. GA1/GA2/GA3 are
+`VERIFIED_PRESENT`; `NEXT_WRITE=NONE_SCHEMA`; optional
+`SPECIALIST_TESTONLY_FIXTURE_OWNER_GATED`. See
+`docs/reviews/PORTAL-PR338-GA-FINAL-RC-AND-DETERMINISTIC-SPECIALIST-RESOLUTION-01.md`
+and `docs/go-live/operator-packets/GA-PRODUCTION-STATUS.txt`.
+
+Prior closure hold token (historical RC-02 wording; specialist limb superseded):
 `HOLD_PORTAL_24H_GRADUATES_AFFAIRS_PRODUCTION_CLOSED_PENDING_C9_AND_SPECIALIST_SCOPE`
 
 ---
@@ -51,10 +59,11 @@ Canonical ordered migrations:
 
 ## Reconcile vs current main
 
-- Branched from `origin/main` tip `8c944b57` (ancestor includes mission base `fab94705`).
-- Staff workspace + GA1–GA3 apply-one packets already on main; RC-02 adds only the
-  remaining source-closure / specialist-scope / readiness package.
-- No GA migration SQL rewritten.
+- Rebased onto `origin/main` tip `845f3501` (includes Lovable managed GA3 apply
+  `20260810162735` / `d239a40c-…`; ancestor includes mission base `fab94705`).
+- Staff workspace + GA1–GA3 apply-one packets already on main; RC-02/PR338 adds the
+  specialist-scope deterministic plan + operator status refresh.
+- No GA migration SQL rewritten. Do not re-apply GA1/GA2/GA3.
 
 ---
 
@@ -74,49 +83,55 @@ Authoritative bindings (READ-ONLY):
 | `staff_profiles.department_id` | NULL |
 | `staff_profiles.department_scope` | `all` (non-authoritative for AUTH-04) |
 | GP department coordinators | 0 |
+| College-wide unique SPD staff | 0 |
 
-**Verdict:** `OWNER_DECISION_REQUIRED` /
-`AMBIGUOUS_NO_SINGLE_AUTHORITATIVE_DEPARTMENT`
+**Verdict:** `AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE`
 
-Exact candidates (3 active departments) and owner options A/B/C:
-`docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-OWNER-DECISION-01.md`
+Deterministic plan (no invented department; no all-dept grant):
 
-Dry-run SQL (commented INSERT only):
-`docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-REMEDIATION-DRY-RUN-01.sql`
+- Do not scope `aa4f5c16-…`
+- `SAFE_SPECIALIST_CANDIDATE=a6e30100-0000-4000-a300-000000000001` (`TEST_ONLY_GA_SPECIALIST_E2E_01`)
+- `SAFE_SPECIALIST_DEPARTMENT=11111111-1111-4111-8111-111111111111`
+- Package: `docs/production-test-fixtures/GA-SPECIALIST-SINGLE-DEPT-TESTONLY-FIXTURE-01.sql` (dry-run default)
+- Decision doc: `docs/migration-drafts/GA-PRODUCTION-SPECIALIST-SCOPE-OWNER-DECISION-01.md`
+- Operator status: `NEXT_WRITE=NONE_SCHEMA` / `GA3_CURRENT=VERIFIED_PRESENT`
 
 No department invented. No production INSERT.
 
 ---
 
-## Production READ-ONLY snapshot (RC-02)
+## Production READ-ONLY snapshot (PR338 refresh)
 
 ```text
-MIGRATION_TIP=20260810180000 (councils_c5_minutes_lifecycle_02)
+MAIN_TIP=845f3501 (Applied GA3 AUTH-04 policy)
+GA_MANAGED_ALIASES=20260810124407 (GA1), 20260810124539 (GA2), 20260810162735 (GA3)
 GA_LOGICAL_LEDGER_ROWS_2026080821*=0
-GRADUATE_RELATIONS=PRESENT (records/profiles/followups/surveys/employment/…)
-GRADUATE_ROW_COUNTS=0 (records/decisions/followups/continuity)
-AUTH04_SPECIALIST_SCOPE_FN=ABSENT
-graduate_search_records=ABSENT
-graduate_% functions observed=2
-  (graduate_aggregate_employment_report, graduate_supersede_account_continuity_policy)
+GA1_CURRENT=VERIFIED_PRESENT
+GA2_CURRENT=VERIFIED_PRESENT
+GA3_CURRENT=VERIFIED_PRESENT
+AUTH04_SPECIALIST_SCOPE_FN=PRESENT
+graduate_affairs_search_records=PRESENT
+auth04_select_policies=7/7
+graduate_records_rls=ON policies=0 (default-deny)
 UNIT_OK=YES (graduate_affairs)
 ROLES_OK=YES (manager + specialist)
 ACTIVE_MANAGERS=1
 ACTIVE_SPECIALISTS=1
 SPECIALISTS_WITHOUT_DEPARTMENT_SCOPE=1
-AMBIGUOUS_STAFF=0
+COLLEGE_SPD_ROWS=0
+SAFE_REAL_STAFF_CANDIDATE=NONE
 FLAGS_SOURCE=staffGraduatesAffairs:false studentGraduatesAffairs:false
 PRODUCTION_WRITES=0 (this agent)
 ```
 
-Warroom lineage context (already on main): managed UUID migrations after
-`fab94705` do **not** match canonical C6–GA2 LF hashes; GA3/AUTH04 absent from
-that managed batch. Treat production GA object presence without logical
-`20260808210000`–`20260808210200` ledger mapping as
-`PARTIAL/AMBIGUOUS_LINEAGE` → STOP before any further GA apply.
+Warroom lineage: managed UUID migrations do **not** match canonical LF hashes.
+PR338 reconcile: GA1/GA2/GA3 object+policy sets are `VERIFIED_PRESENT` via
+managed aliases; `NEXT_WRITE=NONE_SCHEMA`; do not re-apply. Map logical
+`20260808210000`/`201`/`202` in ledger reconciliation packet.
 
-SELECT preflight token remains:
-`HOLD_SPECIALIST_MISSING_DEPARTMENT_SCOPE` (plus lineage/C9 gates).
+Specialist limb closed deterministically:
+`AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE` + TEST_ONLY single-dept fixture plan
+(see `GA-PRODUCTION-STATUS.txt`).
 
 ---
 
