@@ -414,6 +414,7 @@ function FacultyAcademicCouncilsPage() {
                   isError={meetingsQuery.isError}
                   chairCouncilIds={chairCouncilIds}
                   agendaWriteCouncilIds={agendaWriteCouncilIds}
+                  secretaryCouncilIds={secretaryCouncilIds}
                   onManageAgenda={openAgenda}
                   onUpdated={() => void meetingsQuery.refetch()}
                 />
