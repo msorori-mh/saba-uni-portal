@@ -74,6 +74,12 @@ export function filterAgendaWriteMemberships(
   return memberships.filter((m) => m.role === "chair" || m.role === "secretary");
 }
 
+export function filterSecretaryMemberships(
+  memberships: MyCouncilMembershipV2[],
+): MyCouncilMembershipV2[] {
+  return memberships.filter((m) => m.role === "secretary");
+}
+
 export function isViewerOnly(memberships: MyCouncilMembershipV2[]): boolean {
   return memberships.length > 0 && memberships.every((m) => m.role === "viewer");
 }
