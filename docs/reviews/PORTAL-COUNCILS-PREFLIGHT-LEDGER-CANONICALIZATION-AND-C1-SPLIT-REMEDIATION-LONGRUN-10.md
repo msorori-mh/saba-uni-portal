@@ -15,7 +15,7 @@ PRODUCTION SUPABASE: `wpmicqriltrowwonknox`
 | Field | Value |
 |---|---|
 | BASE_SHA | `acf2e48c6f4dfdf2816c364743d35809ff26ddb7` |
-| FINAL_SHA | _(filled after commit)_ |
+| FINAL_SHA | `7374d101f3a89b6f0a5e22554b8c5e6259010e90` |
 | EXPECTED_BASE_SHA match | YES |
 | Prior HOLD evidence preserved | `docs/reviews/PORTAL-PRODUCTION-COUNCILS-C2-APPLY-ONE-LONGRUN-09.md` (not rewritten as PASS) |
 
