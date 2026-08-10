@@ -201,9 +201,9 @@ CI status recorded after push (Web CI / Migration Review if triggered).
 
 ```
 BASE_SHA=b02241c5ccf92f8057213232092cde81a0231b48
-FINAL_SHA=<filled after commit>
+FINAL_SHA=3c43e69ffb0290465c934ea9eabfe094a5dfa1f8
 BRANCH=fix/c5-digest-extension-qualification-01
-PR_URL=<filled after draft PR>
+PR_URL=https://github.com/msorori-mh/saba-uni-portal/pull/322
 
 OLD_SOURCE_SHA256_LF=85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25
 NEW_SOURCE_SHA256_LF=364468ba45e1b7fe561316dbcfdcbc76820e63196d7b63df228868ab51011fe0
