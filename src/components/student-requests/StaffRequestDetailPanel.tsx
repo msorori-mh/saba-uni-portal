@@ -115,16 +115,19 @@ function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) 
 
   const fee = feeCtx.feeAssessment;
   const showStatus = shouldShowFeeStatusDisplay(Boolean(fee));
+  // `can_execute_current_step` is false for fee steps (assess_fee/confirm_payment
+  // are not actor actions), so fall back to the processing-role capability.
+  // Server RPCs remain the authorization boundary.
   const showAssess = shouldShowFeeAssessmentForm({
     actionType: feeCtx.actionType,
     stepStatus: feeCtx.stepStatus,
-    canExecuteStep: feeCtx.canExecuteCurrentStep,
+    canExecuteStep: feeCtx.canExecuteCurrentStep || Boolean(capability?.canAssessFee),
     hasActiveFeeAssessment: Boolean(fee),
   });
   const showConfirm = shouldShowPaymentConfirmationForm({
     actionType: feeCtx.actionType,
     stepStatus: feeCtx.stepStatus,
-    canExecuteStep: feeCtx.canExecuteCurrentStep,
+    canExecuteStep: feeCtx.canExecuteCurrentStep || Boolean(capability?.canConfirmPayment),
     paymentStatus: fee?.paymentStatus ?? null,
   });
 
