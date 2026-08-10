@@ -2,6 +2,7 @@
 PRODUCTION E2E OPERATOR PACKET: GRADUATION PROJECTS (GP) — CANONICAL
 MISSION: PORTAL-GRADUATION-PROJECTS-FINAL-PRODUCT-AND-E2E-CLOSURE-01
 PACKET ID: PRODUCTION-E2E-GRADUATION-PROJECTS-CANONICAL-01
+HANDOFF: docs/reviews/PORTAL-GP-PRODUCTION-APPLY-AND-E2E-HANDOFF-04.md
 ENVIRONMENT: PRODUCTION (authorized TEST_ONLY window only)
 AUTHORIZATION: SOURCE-ONLY preparation — NO migration apply / deploy / publish here
 AUTHORITY: docs/PORTAL-GRADUATION-PROJECTS-MVP-SCOPE-AND-CONTRACT-FREEZE-01.md
@@ -10,18 +11,25 @@ SUPERSEDES: non-canonical names in prior PRODUCTION-E2E-GRADUATION-PROJECTS.txt 
 
 0. HARD STOPS
 --------------
-- Do NOT reactivate closed/banned historical GP TEST_ONLY auth users.
+- Do NOT reactivate closed/banned historical GP TEST_ONLY auth users
+  (gp-e2e01-* / testonly.gp.* — confirmed banned as of 2026-08-11 RO preflight).
 - Do NOT invent actors or create auth.users directly from this packet.
 - Do NOT apply migrations from this packet (Lovable is the only production writer).
 - If Actor Matrix row is BLOCKED_NO_SAFE_PRINCIPAL → STOP that journey.
+- Current gate (2026-08-11): ACTOR_MATRIX=BLOCKED_NO_SAFE_PRINCIPAL
+  → full lifecycle Production E2E MUST NOT run yet.
+- L1 TEST_ONLY students may be used ONLY for eligibility DENY probes.
 
 1. PRECONDITIONS
 ----------------
-P1. SET U (A1/A2/A3 + storage INSERT fix) present in production ledger.
-P2. L4 eligibility guard migration applied (20260808010000_… or equivalent).
-P3. Identity options + revision notes migration applied (20260811010000_…) after P2.
-P4. Approved Actor Matrix principals proven (see docs/reviews/…FINAL…-01.md § Actor Matrix).
-P5. Private bucket `graduation-projects` remains non-public.
+P1. SET U (A1/A2/A3 + storage INSERT fix) present in production ledger. [CONFIRMED]
+P2. L4 eligibility guard migration applied (20260808010000_…). [CONFIRMED APPLIED]
+P3. Identity options + revision notes migration applied (20260811010000_…) after P2. [PENDING]
+P3b. Remediation-02 applied (20260811020000_…) after P3. [PENDING]
+P4. Approved Actor Matrix principals proven
+    (docs/reviews/PORTAL-GP-PRODUCTION-APPLY-AND-E2E-HANDOFF-04.md §G). [BLOCKED]
+P5. Private bucket `graduation-projects` remains non-public. [CONFIRMED]
+P6. Apply order is ONE migration at a time: 20260811010000 → postcheck → 20260811020000.
 
 2. ELIGIBILITY GUARD (LEVEL-4 ONLY)
 ----------------------------------
