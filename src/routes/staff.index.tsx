@@ -131,6 +131,21 @@ function StaffDashboard() {
               </Link>
             </div>
 
+            <div className="mt-4">
+              <Link
+                to="/staff/fee-assessment-board"
+                className="flex items-center gap-3 rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+              >
+                <ClipboardList className="h-5 w-5 text-gold shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-bold text-primary">لوحة مهام تقييم الرسوم</div>
+                  <div className="text-xs text-muted-foreground">
+                    الطلبات المعلّقة في تقييم الرسوم والخطوة التالية — لمدير شؤون الطلاب.
+                  </div>
+                </div>
+              </Link>
+            </div>
+
 
             <div className="mt-6 space-y-3">
               <h2 className="font-display text-lg font-extrabold text-primary-deep flex items-center gap-2">
