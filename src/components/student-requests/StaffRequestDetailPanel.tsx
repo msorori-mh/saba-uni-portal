@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getStudentRequestAttachmentUrl } from "@/lib/admin-student-requests.functions";
 import { getStudentRequestFeeProcessingContext } from "@/lib/student-request-fee.functions";
+import { getFeeProcessingCapability } from "@/lib/student-requests/fee-processing-capability.functions";
 import type { StaffRequestDetail } from "@/lib/student-requests/staff-inbox-ui";
 import { getStaffRoleLabelAr } from "@/lib/student-requests/staff-inbox-ui";
 import {
@@ -65,6 +66,7 @@ const STUDENT_STATUS_LABEL: Record<string, string> = {
 function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) {
   const queryClient = useQueryClient();
   const feeContextFn = useServerFn(getStudentRequestFeeProcessingContext);
+  const capabilityFn = useServerFn(getFeeProcessingCapability);
 
   const {
     data: feeCtx,
@@ -75,6 +77,12 @@ function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) 
     queryKey: ["student-request-fee-context", requestId],
     queryFn: () => feeContextFn({ data: { requestId } }),
     retry: 1,
+  });
+
+  const { data: capability } = useQuery({
+    queryKey: ["fee-processing-capability"],
+    queryFn: () => capabilityFn(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const refreshAfterFeeAction = async () => {
@@ -108,16 +116,19 @@ function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) 
 
   const fee = feeCtx.feeAssessment;
   const showStatus = shouldShowFeeStatusDisplay(Boolean(fee));
+  // `can_execute_current_step` is false for fee steps (assess_fee/confirm_payment
+  // are not actor actions), so fall back to the processing-role capability.
+  // Server RPCs remain the authorization boundary.
   const showAssess = shouldShowFeeAssessmentForm({
     actionType: feeCtx.actionType,
     stepStatus: feeCtx.stepStatus,
-    canExecuteStep: feeCtx.canExecuteCurrentStep,
+    canExecuteStep: feeCtx.canExecuteCurrentStep || Boolean(capability?.canAssessFee),
     hasActiveFeeAssessment: Boolean(fee),
   });
   const showConfirm = shouldShowPaymentConfirmationForm({
     actionType: feeCtx.actionType,
     stepStatus: feeCtx.stepStatus,
-    canExecuteStep: feeCtx.canExecuteCurrentStep,
+    canExecuteStep: feeCtx.canExecuteCurrentStep || Boolean(capability?.canConfirmPayment),
     paymentStatus: fee?.paymentStatus ?? null,
   });
 
