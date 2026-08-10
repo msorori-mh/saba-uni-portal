@@ -1,4 +1,4 @@
-# PORTAL-GO-LIVE-FINAL-SOURCE-INTEGRATION-LONGRUN-01
+﻿# PORTAL-GO-LIVE-FINAL-SOURCE-INTEGRATION-LONGRUN-01
 
 ## Decision
 
@@ -116,9 +116,9 @@ V2: `extensions.digest` qualified; `search_path = public, pg_temp`; fail-closed 
 
 ## University Council Acceptance delta
 
-Local worktree `review/go-live-university-council-acceptance-01` exists at stale tip `b02241c5` and is **not pushed** to origin.
+PR #329 head `0375436b` cherry-picked onto this branch.
 
-`ACCEPTANCE_DELTA_PENDING_PROMOTION=YES` / `ACCEPTANCE_DELTA_INTEGRATED=NO`
+`ACCEPTANCE_DELTA_PENDING_PROMOTION=NO` / `ACCEPTANCE_DELTA_INTEGRATED=YES`
 
 ## Findings counts
 
@@ -140,18 +140,124 @@ MAIN_MERGE=NO
 ## Final SHAs (integration tip)
 
 ```
-CURRENT_MAIN_SHA=38578b6533f20407c02ed775b5af18d11fcb85eb
+CURRENT_MAIN_SHA=a98b76feefa1fd67ed868c6eefe8650dd8c66f45
 MAIN_BASE_SHA=38578b6533f20407c02ed775b5af18d11fcb85eb
 FINAL_SOURCE_SHA=b912cbb36a34b81a34c905a9a5cd93d7ee85af04
 PR326_C5V2_INTEGRATED=YES
 C5V1_SUPERSEDED_PRESERVED=YES
 PR324_LATEST_INTEGRATED=YES
 PR325_INTEGRATED=YES
-ACCEPTANCE_DELTA_INTEGRATED=NO
-ACCEPTANCE_DELTA_PENDING_PROMOTION=YES
+ACCEPTANCE_DELTA_INTEGRATED=YES
+ACCEPTANCE_DELTA_PENDING_PROMOTION=NO
 C5_NEW_SHA256_LF=0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8
 ```
 
 ## Draft PR
 
 https://github.com/msorori-mh/saba-uni-portal/pull/328
+
+---
+
+## RC2 — Blocker closure and integration (LONGRUN-01 / RC2)
+
+**TOKEN:** `PASS_PORTAL_GO_LIVE_FINAL_RC2_BLOCKER_CLOSURE_AND_INTEGRATION_LONGRUN_01`
+
+### Integration matrix (RC2)
+
+| Stream | Head | Disposition |
+|--------|------|-------------|
+| PRE_RC2 tip | `8c3a468c3e1fe64c73699d558bf620ee9b7f9c86` | baseline before RC2 |
+| PR #329 acceptance delta | `0375436b267fc03ddc282466c79142d4b71abd03` | **INTEGRATED** (product UX cleanup) |
+| PR #330 DB operator pack | `77b5c84db548ee568ad669e8d9ca53f36456326a` | **INTEGRATED** (docs/operator packets only) |
+| PR #327 deploy/E2E pack | `ebac711fa08389ec0ce6f811b08675940f1e3ad3` | **INTEGRATED** (docs/tests; demo script resolved to 9-station deploy pack) |
+| C8 decision UI contract fix | `b40b35ed` | **FIXED** (source + focused regression) |
+| PR #321 / #323 | already on main | **NOT re-integrated** |
+
+### C8 decision contract (blocker closed)
+
+Backend `issue_council_decision` unchanged. UI/server-fn aligned:
+
+| Gate | Result |
+|------|--------|
+| `C8_UI_AGENDA_ITEM_REQUIRED` | **PASS** |
+| `C8_UI_UNRESOLVED_ITEM_NOT_ELIGIBLE` | **PASS** |
+| `C8_UI_ISSUE_BEFORE_MINUTES_LOCKED` | **DENY** |
+| `C8_UI_MINUTES_LOCKED_RESOLVED_ITEM` | **ALLOW** |
+| `C8_BACKEND_CONTRACT_UNCHANGED` | **YES** |
+
+- Issue CTA only when `meetingStatus === "minutes_locked"`
+- Agenda query remains enabled at `minutes_locked`
+- Dialog requires a **resolved** agenda item; Arabic validation: `اختر بند جدول الأعمال المرتبط بالقرار.`
+- `issueCouncilDecisionFn` requires `agenda_item_id` and never sends null
+
+Also repaired PR329 `documents.lazy.tsx` finance filter (`ALL_TYPES` → `Object.keys(TYPE_LABEL)`).
+
+### Release packs
+
+```
+DB_OPERATOR_PACK_INTEGRATED=YES
+DEPLOY_E2E_PACK_INTEGRATED=YES
+```
+
+### Preservation
+
+```
+C5V2_PRESERVED=YES
+C5_V2_SHA256_LF=0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8
+C5_V1_STATUS=SUPERSEDED_DO_NOT_APPLY
+GA_UI_PRESERVED=YES
+MULTI_COUNCIL_PRESERVED=YES
+DEAN_FAIL_CLOSED_PRESERVED=YES
+PR323_COUNCIL_SCOPE_TRUTH_PRESERVED=YES
+```
+
+### User-facing sweep (post PR329)
+
+```
+raw_English_backend_errors=0
+stale_phase_copy=0
+dead_critical_CTA=0
+role_mismatch=0
+scope_mismatch=0
+```
+
+### RC2 qualification
+
+| Suite | Result |
+|-------|--------|
+| `bun test tests/admin/` | **244 pass / 0 fail** |
+| `bun test tests/academic-councils/` | **103 pass / 0 fail** (includes C8 UI contract) |
+| `bun test tests/graduation-projects/` | **119 pass / 0 fail** |
+| `bun test tests/graduates-affairs/` | **180 pass / 0 fail** |
+| `bun test tests/reports-beneficiaries/` | **210 pass / 0 fail** |
+| `bun test tests/student-requests` | **1066 pass / 0 fail** |
+| `bun test tests/pwa tests/mobile` | **53 pass / 0 fail** |
+| `bun test tests/docs/go-live-operator-packets.test.ts` | **11 pass / 0 fail** |
+| `bunx tsc --noEmit` | **PASS** |
+| `bun run build` | **PASS** |
+| `git diff --check` | **PASS** |
+
+### Findings / production posture
+
+```
+CRITICAL_COUNT=0
+HIGH_COUNT=0
+PRODUCTION_WRITES=0
+DEPLOY=NO
+PUBLISH=NO
+MAIN_MERGE=NO
+```
+
+### Final RC2 tokens
+
+```
+PRE_RC2_SHA=8c3a468c3e1fe64c73699d558bf620ee9b7f9c86
+PR329_INTEGRATED=YES
+PR330_INTEGRATED=YES
+PR327_INTEGRATED=YES
+C8_DECISION_CONTRACT_FIXED=YES
+C8_AGENDA_ITEM_REQUIRED=YES
+C8_MINUTES_LOCK_GATE=YES
+C8_RESOLVED_ITEM_GATE=YES
+ACCEPTANCE_DELTA_INTEGRATED=YES
+```
