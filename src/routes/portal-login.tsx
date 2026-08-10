@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ShieldCheck, GraduationCap, BookOpen, Briefcase, Loader2, User, Sparkles, Copy, Check, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -182,6 +183,10 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
         setLoading(false);
         return;
       }
+      // Drop every cached query and route match from any previous session so
+      // the new user never sees the previous account's data.
+      queryClient.clear();
+      await router.invalidate();
       navigate({ to: dest, replace: true });
     } catch (err) {
       const msg = friendlyAuthError(err);
