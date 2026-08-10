@@ -104,12 +104,35 @@ Ledger alone is never enough. Schema alone is never enough. Prefix mismatch → 
 
 Do not treat ORIGINAL + SPLIT coexistence as a single satisfied C1 — preflight holds `HOLD_C1_LINEAGE_AMBIGUOUS`.
 
+### C2 / C3 pinned Lovable managed aliases
+
+Logical C2 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `CANONICAL` | `version=20260808122000` + name `councils_c2_topic_intake_review_01` (or composite) |
+| `LOVABLE_MANAGED_ALIAS` | `version=20260810010400` + name `4e2c4b05-5ff0-4b23-9084-18d8b1b29c86` (or composite) |
+
+Logical C3 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `CANONICAL` | `version=20260808130000` + name `councils_c3_attendance_quorum_01` (or composite) |
+| `LOVABLE_MANAGED_ALIAS` | `version=20260810011456` + name `430aac8f-1f38-4e9d-99aa-022ea2680fc4` (or composite) |
+
+- Canonical + alias coexistence → `HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE`
+- Wrong version or wrong name on the pinned alias → `HOLD_LEDGER_IDENTITY_MISMATCH`
+- Arbitrary UUID names are never accepted
+
+Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTITY`, `PREFLIGHT_C3_LINEAGE`, `PREFLIGHT_C3_LEDGER_IDENTITY`.
+
 ## Step C2
 
 | Field | Value |
 |---|---|
 | Migration | `supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql` |
 | FULL_SHA256_LF | `f969c6c0f63a4758944cc59f6c78292f56f3a4ac360ae77f0b386bf72e0e364e` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810010400` / `4e2c4b05-5ff0-4b23-9084-18d8b1b29c86` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C2.sql` |
 | Pass marker | `COUNCILS_C2_PRODUCTION_POST_VERIFIER_PASS` |
 
@@ -119,6 +142,7 @@ Do not treat ORIGINAL + SPLIT coexistence as a single satisfied C1 — preflight
 |---|---|
 | Migration | `supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql` |
 | FULL_SHA256_LF | `e7361f6c85014fb37b6f8d97bd468dc1205700748a526cb7a8063f82ff6c0de6` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810011456` / `430aac8f-1f38-4e9d-99aa-022ea2680fc4` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C3.sql` |
 | Pass marker | `COUNCILS_C3_PRODUCTION_POST_VERIFIER_PASS` |
 
