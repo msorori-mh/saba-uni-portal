@@ -1,6 +1,14 @@
 MISSION=C5V2_LOVABLE_APPLY_ONE
 MODE=SOURCE_BODY_ONLY / ZERO PRODUCTION DATA WRITES OUTSIDE THIS ONE MIGRATION
-AUTHORIZATION=STANDING_OWNER_AUTHORIZATION; NO TOKEN PAUSE
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
+HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
+PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
 
 SOURCE_REF=62c6bb374b15503dfa93c5d8066e4b61837169aa (PR326)
 SOURCE_FILE=supabase/migrations/20260810180000_councils_c5_minutes_lifecycle_02.sql
@@ -8,14 +16,25 @@ SHA256_LF=0d945a6a886ea2b8be15de6dbd0b4a2a5f15b8bdf16e7b68a2ef2bb4644212e8
 LOGICAL_STEP=C5V2
 PREDECESSOR=C4 logical source 20260808140000; production managed alias 20260810012715; require POST-VERIFIER-C4 PASS. V1 20260808150000 is SUPERSEDED_DO_NOT_APPLY and must be absent.
 
-1. Read the exact source from SOURCE_REF. Normalize CRLF/CR to LF and require SHA256_LF equality. Body mismatch => STOP.
-2. Read-only absence/partial probe: ledger must lack both C5 versions; require no C5 enum/columns/amendments/functions/triggers. Ledger absent plus any signature present, or ledger present plus incomplete signatures => STOP PARTIAL/UNKNOWN.
-3. Require extensions.digest(text,text), exact C4 poststate, inherited ACL/RLS, and business-data fingerprints for all pre-existing public tables. Record B1 and enrollment_certificate schema/data fingerprints separately.
-4. Apply exactly this one logical migration in one Lovable-owned PostgreSQL transaction. Strip only the outer BEGIN/COMMIT if the executor owns the transaction. Never use supabase db push; never batch another migration.
-5. Record the Lovable managed version returned by the executor as C5V2_MANAGED_VERSION; map it to logical source version 20260810180000 and the hash above. Do not force literal ledger equality.
-6. Run docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql and require COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS. Verify extensions.digest is schema-qualified and every C5 function search_path is exactly public, pg_temp.
-7. ACL/RLS: authenticated has no direct INSERT/UPDATE/DELETE on minutes amendments; secretary-only draft/submit; chair-only approve/lock; wrong role and cross-council calls DENY.
-8. Business data: require all pre-existing table fingerprints unchanged and new amendments row count zero. Only catalog changes are expected.
-9. B1 regression: request types, student requests, visibility, assignments, and payment_confirmation fingerprints unchanged; never change request_types.student_visible.
-10. Enrollment certificate regression: migration/function/schema/data/storage fingerprints unchanged; do not touch enrollment_certificate.
-11. STOP on source mismatch, unknown prestate, partial apply, unexpected DML, ACL/RLS drift, authorization regression, or post-verifier failure. Continue only on PASS.
+AUTHORIZATION CONTRACT:
+- EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED prevents accidental parallel writers. It is not a second human-approval loop when a current-session standing runtime grant already names THIS logical step.
+- A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
+- Only the operator's explicit current runtime grant may open the production-write gate, and only after SINGLE_WRITER_LEASE acquire succeeds.
+- This packet cannot self-authorize.
+- Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+- Without SINGLE_WRITER_LEASE: HOLD immediately. Other agents remain READ_ONLY.
+- Never concurrent production agents. Never no-token-pause blind writes. Never automatic batch production writes.
+
+1. Acquire production-write lease for session/mission/logical_step/source_sha. Second writer => HOLD. Stale lock is never auto-deleted.
+2. Read the exact source from SOURCE_REF. Normalize CRLF/CR to LF and require SHA256_LF equality. Body mismatch => STOP.
+3. Read-only absence/partial probe: ledger must lack both C5 versions; require no C5 enum/columns/amendments/functions/triggers. Ledger absent plus any signature present, or ledger present plus incomplete signatures => STOP PARTIAL/UNKNOWN.
+4. Require extensions.digest(text,text), exact C4 poststate, inherited ACL/RLS, and business-data fingerprints for all pre-existing public tables. Record B1 and enrollment_certificate schema/data fingerprints separately.
+5. Apply exactly this one logical migration in one Lovable-owned PostgreSQL transaction. Strip only the outer BEGIN/COMMIT if the executor owns the transaction. Never use supabase db push; never batch another migration.
+6. Record the Lovable managed version returned by the executor as C5V2_MANAGED_VERSION; map it to logical source version 20260810180000 and the hash above. Do not force literal ledger equality.
+7. Run docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql and require COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS. Verify extensions.digest is schema-qualified and every C5 function search_path is exactly public, pg_temp.
+8. ACL/RLS: authenticated has no direct INSERT/UPDATE/DELETE on minutes amendments; secretary-only draft/submit; chair-only approve/lock; wrong role and cross-council calls DENY.
+9. Business data: require all pre-existing table fingerprints unchanged and new amendments row count zero. Only catalog changes are expected.
+10. B1 regression: request types, student requests, visibility, assignments, and payment_confirmation fingerprints unchanged; never change request_types.student_visible.
+11. Enrollment certificate regression: migration/function/schema/data/storage fingerprints unchanged; do not touch enrollment_certificate.
+12. Release lease only from the owning session after terminal PASS|HOLD|ABORT|STOP.
+13. STOP on missing runtime grant, missing/held lease, source mismatch, unknown prestate, partial apply, unexpected DML, ACL/RLS drift, authorization regression, or post-verifier failure. Continue only on PASS.

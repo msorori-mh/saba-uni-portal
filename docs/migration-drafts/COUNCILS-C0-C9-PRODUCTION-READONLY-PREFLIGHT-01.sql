@@ -13,7 +13,10 @@
 -- C2 may be CANONICAL (one row) OR pinned historical LOVABLE_MANAGED_ALIAS.
 -- C3 may be CANONICAL (one row) OR pinned historical LOVABLE_MANAGED_ALIAS.
 -- C4 may be CANONICAL (one row) OR pinned historical LOVABLE_MANAGED_ALIAS.
--- C5..C9: CANONICAL only until independently proven managed aliases exist.
+-- C5 may be CANONICAL (statements present) OR CANONICAL_NULL_STATEMENTS_ANOMALY
+--     (exact version+name with statements IS NULL) after independent schema proof.
+-- C6..C9 may be CANONICAL OR pinned historical LOVABLE_MANAGED_ALIAS.
+-- Schema similarity alone is NEVER ledger proof.
 -- No fuzzy UUID matching: alias names are exact pinned production values only.
 \set ON_ERROR_STOP on
 
@@ -71,6 +74,16 @@ DECLARE
   v_c3_alias_short text := '430aac8f-1f38-4e9d-99aa-022ea2680fc4';
   v_c4_alias_version text := '20260810012715';
   v_c4_alias_short text := '72757e0e-3b8b-46fa-b252-8e1c8b594d3e';
+  -- Pinned historical Lovable managed aliases (production forensic identities; LONGRUN-16).
+  v_c6_alias_version text := '20260810123158';
+  v_c6_alias_short text := 'e4d9fe06-550d-43df-89cb-803fb49df1da';
+  v_c7_alias_version text := '20260810123359';
+  v_c7_alias_short text := '8d8851ce-18d9-465b-b9a9-b34d62fc14fb';
+  v_c8_alias_version text := '20260810123616';
+  v_c8_alias_short text := '7aac7456-a80d-464d-84fc-bc9671ae2e4e';
+  v_c9_alias_version text := '20260810124128';
+  v_c9_alias_short text := '8b20af1b-8607-42cd-94d8-f71793d9a687';
+  v_c5_null_statements boolean := false;
   v_markers text[] := ARRAY[
     'council_schedule_meeting',
     'academic_council_meeting_transition_events',
@@ -237,12 +250,25 @@ DECLARE
   v_c2_identity text := 'ABSENT';
   v_c3_identity text := 'ABSENT';
   v_c4_identity text := 'ABSENT';
+  v_c5_identity text := 'ABSENT';
+  v_c6_identity text := 'ABSENT';
+  v_c7_identity text := 'ABSENT';
+  v_c8_identity text := 'ABSENT';
+  v_c9_identity text := 'ABSENT';
   v_c2_canon_hit int := 0;
   v_c2_alias_hit int := 0;
   v_c3_canon_hit int := 0;
   v_c3_alias_hit int := 0;
   v_c4_canon_hit int := 0;
   v_c4_alias_hit int := 0;
+  v_c6_canon_hit int := 0;
+  v_c6_alias_hit int := 0;
+  v_c7_canon_hit int := 0;
+  v_c7_alias_hit int := 0;
+  v_c8_canon_hit int := 0;
+  v_c8_alias_hit int := 0;
+  v_c9_canon_hit int := 0;
+  v_c9_alias_hit int := 0;
 BEGIN
   RAISE NOTICE 'PREFLIGHT_LEDGER_STORAGE_FORMAT: VERSION_PLUS_NORMALIZED_NAME';
 
@@ -260,7 +286,11 @@ BEGIN
             v_c1_split_b_version,
             v_c2_alias_version,
             v_c3_alias_version,
-            v_c4_alias_version
+            v_c4_alias_version,
+            v_c6_alias_version,
+            v_c7_alias_version,
+            v_c8_alias_version,
+            v_c9_alias_version
           ]
         )
         AND NOT (
@@ -339,6 +369,34 @@ BEGIN
               OR sm.name = v_c4_alias_version || '_' || v_c4_alias_short
             )
           )
+          OR (
+            sm.version = v_c6_alias_version
+            AND (
+              sm.name = v_c6_alias_short
+              OR sm.name = v_c6_alias_version || '_' || v_c6_alias_short
+            )
+          )
+          OR (
+            sm.version = v_c7_alias_version
+            AND (
+              sm.name = v_c7_alias_short
+              OR sm.name = v_c7_alias_version || '_' || v_c7_alias_short
+            )
+          )
+          OR (
+            sm.version = v_c8_alias_version
+            AND (
+              sm.name = v_c8_alias_short
+              OR sm.name = v_c8_alias_version || '_' || v_c8_alias_short
+            )
+          )
+          OR (
+            sm.version = v_c9_alias_version
+            AND (
+              sm.name = v_c9_alias_short
+              OR sm.name = v_c9_alias_version || '_' || v_c9_alias_short
+            )
+          )
         )
       )
       OR (
@@ -353,7 +411,15 @@ BEGIN
             v_c3_alias_short,
             v_c3_alias_version || '_' || v_c3_alias_short,
             v_c4_alias_short,
-            v_c4_alias_version || '_' || v_c4_alias_short
+            v_c4_alias_version || '_' || v_c4_alias_short,
+            v_c6_alias_short,
+            v_c6_alias_version || '_' || v_c6_alias_short,
+            v_c7_alias_short,
+            v_c7_alias_version || '_' || v_c7_alias_short,
+            v_c8_alias_short,
+            v_c8_alias_version || '_' || v_c8_alias_short,
+            v_c9_alias_short,
+            v_c9_alias_version || '_' || v_c9_alias_short
           ])
         )
         AND NOT (
@@ -432,6 +498,34 @@ BEGIN
               OR sm.name = v_c4_alias_version || '_' || v_c4_alias_short
             )
           )
+          OR (
+            sm.version = v_c6_alias_version
+            AND (
+              sm.name = v_c6_alias_short
+              OR sm.name = v_c6_alias_version || '_' || v_c6_alias_short
+            )
+          )
+          OR (
+            sm.version = v_c7_alias_version
+            AND (
+              sm.name = v_c7_alias_short
+              OR sm.name = v_c7_alias_version || '_' || v_c7_alias_short
+            )
+          )
+          OR (
+            sm.version = v_c8_alias_version
+            AND (
+              sm.name = v_c8_alias_short
+              OR sm.name = v_c8_alias_version || '_' || v_c8_alias_short
+            )
+          )
+          OR (
+            sm.version = v_c9_alias_version
+            AND (
+              sm.name = v_c9_alias_short
+              OR sm.name = v_c9_alias_version || '_' || v_c9_alias_short
+            )
+          )
         )
       )
     LIMIT 1;
@@ -443,11 +537,12 @@ BEGIN
         v_poison_version, v_poison_name;
     END IF;
 
-    -- Exact identity hits for non-C1/C2/C3/C4 steps and C0 notice.
-    -- C1/C2/C3/C4 each have explicit multi-identity lineage contracts below.
+    -- Exact identity hits for non-lineage-special steps and C0 notice.
+    -- C1/C2/C3/C4/C6/C7/C8/C9 each have explicit multi-identity lineage contracts below.
+    -- C5 uses canonical identity here, then NULL-statements anomaly classification below.
     FOR v_step_i IN 1..10 LOOP
-      IF v_step_i IN (2, 3, 4, 5) THEN
-        CONTINUE; -- C1 / C2 / C3 / C4 resolved below
+      IF v_step_i IN (2, 3, 4, 5, 7, 8, 9, 10) THEN
+        CONTINUE; -- C1 / C2 / C3 / C4 / C6 / C7 / C8 / C9 resolved below
       END IF;
       v_known_version := v_step_versions[v_step_i];
       v_known_short := v_step_short_names[v_step_i];
@@ -702,17 +797,232 @@ BEGIN
     RAISE NOTICE 'PREFLIGHT_C4_LINEAGE: %', v_c4_lineage;
     RAISE NOTICE 'PREFLIGHT_C4_LEDGER_IDENTITY: %', v_c4_identity;
 
-    -- C5..C9 lineage notices (CANONICAL or ABSENT; no managed aliases proven).
-    IF v_logical_satisfied[6] THEN v_c5_lineage := 'CANONICAL'; ELSE v_c5_lineage := 'ABSENT'; END IF;
-    IF v_logical_satisfied[7] THEN v_c6_lineage := 'CANONICAL'; ELSE v_c6_lineage := 'ABSENT'; END IF;
-    IF v_logical_satisfied[8] THEN v_c7_lineage := 'CANONICAL'; ELSE v_c7_lineage := 'ABSENT'; END IF;
-    IF v_logical_satisfied[9] THEN v_c8_lineage := 'CANONICAL'; ELSE v_c8_lineage := 'ABSENT'; END IF;
-    IF v_logical_satisfied[10] THEN v_c9_lineage := 'CANONICAL'; ELSE v_c9_lineage := 'ABSENT'; END IF;
+    -- C5: CANONICAL with statements, or CANONICAL_NULL_STATEMENTS_ANOMALY.
+    -- NULL statements is NEVER body proof; schema markers must independently corroborate.
+    IF v_logical_satisfied[6] THEN
+      SELECT (sm.statements IS NULL)
+        INTO v_c5_null_statements
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[6]
+        AND (sm.name = v_step_short_names[6] OR sm.name = v_promoted[6])
+      LIMIT 1;
+      IF coalesce(v_c5_null_statements, false) THEN
+        v_c5_lineage := 'CANONICAL_NULL_STATEMENTS_ANOMALY';
+        RAISE NOTICE 'PREFLIGHT_C5_NULL_STATEMENTS_ANOMALY: true';
+        RAISE NOTICE 'PREFLIGHT_C5_LEDGER_BODY_PROOF: false';
+      ELSE
+        v_c5_lineage := 'CANONICAL';
+        RAISE NOTICE 'PREFLIGHT_C5_NULL_STATEMENTS_ANOMALY: false';
+        RAISE NOTICE 'PREFLIGHT_C5_LEDGER_BODY_PROOF: true';
+      END IF;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c5_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[6]
+        AND (sm.name = v_step_short_names[6] OR sm.name = v_promoted[6])
+      LIMIT 1;
+    ELSE
+      v_c5_lineage := 'ABSENT';
+      v_logical_satisfied[6] := false;
+    END IF;
     RAISE NOTICE 'PREFLIGHT_C5_LINEAGE: %', v_c5_lineage;
+    RAISE NOTICE 'PREFLIGHT_C5_LEDGER_IDENTITY: %', v_c5_identity;
+
+    -- C6 CANONICAL vs pinned LOVABLE_MANAGED_ALIAS.
+    SELECT count(*)::int INTO v_c6_canon_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_step_versions[7]
+      AND (sm.name = v_step_short_names[7] OR sm.name = v_promoted[7]);
+    SELECT count(*)::int INTO v_c6_alias_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_c6_alias_version
+      AND (
+        sm.name = v_c6_alias_short
+        OR sm.name = v_c6_alias_version || '_' || v_c6_alias_short
+      );
+    IF v_c6_canon_hit > 1 OR v_c6_alias_hit > 1 THEN
+      v_ledger_state := 'LEDGER_UNKNOWN';
+      RAISE NOTICE 'PREFLIGHT_LEDGER_STATE: %', v_ledger_state;
+      RAISE EXCEPTION 'HOLD: HOLD_DUPLICATE_PROMOTED_LEDGER_ENTRY logical=C6';
+    END IF;
+    IF v_c6_canon_hit = 1 AND v_c6_alias_hit = 1 THEN
+      v_c6_lineage := 'DUPLICATE_LINEAGE';
+      RAISE NOTICE 'PREFLIGHT_C6_LINEAGE: %', v_c6_lineage;
+      RAISE EXCEPTION 'HOLD: HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE logical=C6 canonical and Lovable alias coexist';
+    ELSIF v_c6_canon_hit = 1 THEN
+      v_c6_lineage := 'CANONICAL';
+      v_logical_satisfied[7] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c6_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[7]
+        AND (sm.name = v_step_short_names[7] OR sm.name = v_promoted[7])
+      LIMIT 1;
+    ELSIF v_c6_alias_hit = 1 THEN
+      v_c6_lineage := 'LOVABLE_MANAGED_ALIAS';
+      v_logical_satisfied[7] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c6_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_c6_alias_version
+        AND (
+          sm.name = v_c6_alias_short
+          OR sm.name = v_c6_alias_version || '_' || v_c6_alias_short
+        )
+      LIMIT 1;
+    ELSE
+      v_c6_lineage := 'ABSENT';
+      v_logical_satisfied[7] := false;
+    END IF;
     RAISE NOTICE 'PREFLIGHT_C6_LINEAGE: %', v_c6_lineage;
+    RAISE NOTICE 'PREFLIGHT_C6_LEDGER_IDENTITY: %', v_c6_identity;
+
+    -- C7 CANONICAL vs pinned LOVABLE_MANAGED_ALIAS.
+    SELECT count(*)::int INTO v_c7_canon_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_step_versions[8]
+      AND (sm.name = v_step_short_names[8] OR sm.name = v_promoted[8]);
+    SELECT count(*)::int INTO v_c7_alias_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_c7_alias_version
+      AND (
+        sm.name = v_c7_alias_short
+        OR sm.name = v_c7_alias_version || '_' || v_c7_alias_short
+      );
+    IF v_c7_canon_hit > 1 OR v_c7_alias_hit > 1 THEN
+      v_ledger_state := 'LEDGER_UNKNOWN';
+      RAISE NOTICE 'PREFLIGHT_LEDGER_STATE: %', v_ledger_state;
+      RAISE EXCEPTION 'HOLD: HOLD_DUPLICATE_PROMOTED_LEDGER_ENTRY logical=C7';
+    END IF;
+    IF v_c7_canon_hit = 1 AND v_c7_alias_hit = 1 THEN
+      v_c7_lineage := 'DUPLICATE_LINEAGE';
+      RAISE NOTICE 'PREFLIGHT_C7_LINEAGE: %', v_c7_lineage;
+      RAISE EXCEPTION 'HOLD: HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE logical=C7 canonical and Lovable alias coexist';
+    ELSIF v_c7_canon_hit = 1 THEN
+      v_c7_lineage := 'CANONICAL';
+      v_logical_satisfied[8] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c7_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[8]
+        AND (sm.name = v_step_short_names[8] OR sm.name = v_promoted[8])
+      LIMIT 1;
+    ELSIF v_c7_alias_hit = 1 THEN
+      v_c7_lineage := 'LOVABLE_MANAGED_ALIAS';
+      v_logical_satisfied[8] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c7_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_c7_alias_version
+        AND (
+          sm.name = v_c7_alias_short
+          OR sm.name = v_c7_alias_version || '_' || v_c7_alias_short
+        )
+      LIMIT 1;
+    ELSE
+      v_c7_lineage := 'ABSENT';
+      v_logical_satisfied[8] := false;
+    END IF;
     RAISE NOTICE 'PREFLIGHT_C7_LINEAGE: %', v_c7_lineage;
+    RAISE NOTICE 'PREFLIGHT_C7_LEDGER_IDENTITY: %', v_c7_identity;
+
+    -- C8 CANONICAL vs pinned LOVABLE_MANAGED_ALIAS.
+    SELECT count(*)::int INTO v_c8_canon_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_step_versions[9]
+      AND (sm.name = v_step_short_names[9] OR sm.name = v_promoted[9]);
+    SELECT count(*)::int INTO v_c8_alias_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_c8_alias_version
+      AND (
+        sm.name = v_c8_alias_short
+        OR sm.name = v_c8_alias_version || '_' || v_c8_alias_short
+      );
+    IF v_c8_canon_hit > 1 OR v_c8_alias_hit > 1 THEN
+      v_ledger_state := 'LEDGER_UNKNOWN';
+      RAISE NOTICE 'PREFLIGHT_LEDGER_STATE: %', v_ledger_state;
+      RAISE EXCEPTION 'HOLD: HOLD_DUPLICATE_PROMOTED_LEDGER_ENTRY logical=C8';
+    END IF;
+    IF v_c8_canon_hit = 1 AND v_c8_alias_hit = 1 THEN
+      v_c8_lineage := 'DUPLICATE_LINEAGE';
+      RAISE NOTICE 'PREFLIGHT_C8_LINEAGE: %', v_c8_lineage;
+      RAISE EXCEPTION 'HOLD: HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE logical=C8 canonical and Lovable alias coexist';
+    ELSIF v_c8_canon_hit = 1 THEN
+      v_c8_lineage := 'CANONICAL';
+      v_logical_satisfied[9] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c8_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[9]
+        AND (sm.name = v_step_short_names[9] OR sm.name = v_promoted[9])
+      LIMIT 1;
+    ELSIF v_c8_alias_hit = 1 THEN
+      v_c8_lineage := 'LOVABLE_MANAGED_ALIAS';
+      v_logical_satisfied[9] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c8_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_c8_alias_version
+        AND (
+          sm.name = v_c8_alias_short
+          OR sm.name = v_c8_alias_version || '_' || v_c8_alias_short
+        )
+      LIMIT 1;
+    ELSE
+      v_c8_lineage := 'ABSENT';
+      v_logical_satisfied[9] := false;
+    END IF;
     RAISE NOTICE 'PREFLIGHT_C8_LINEAGE: %', v_c8_lineage;
+    RAISE NOTICE 'PREFLIGHT_C8_LEDGER_IDENTITY: %', v_c8_identity;
+
+    -- C9 CANONICAL vs pinned LOVABLE_MANAGED_ALIAS.
+    SELECT count(*)::int INTO v_c9_canon_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_step_versions[10]
+      AND (sm.name = v_step_short_names[10] OR sm.name = v_promoted[10]);
+    SELECT count(*)::int INTO v_c9_alias_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_c9_alias_version
+      AND (
+        sm.name = v_c9_alias_short
+        OR sm.name = v_c9_alias_version || '_' || v_c9_alias_short
+      );
+    IF v_c9_canon_hit > 1 OR v_c9_alias_hit > 1 THEN
+      v_ledger_state := 'LEDGER_UNKNOWN';
+      RAISE NOTICE 'PREFLIGHT_LEDGER_STATE: %', v_ledger_state;
+      RAISE EXCEPTION 'HOLD: HOLD_DUPLICATE_PROMOTED_LEDGER_ENTRY logical=C9';
+    END IF;
+    IF v_c9_canon_hit = 1 AND v_c9_alias_hit = 1 THEN
+      v_c9_lineage := 'DUPLICATE_LINEAGE';
+      RAISE NOTICE 'PREFLIGHT_C9_LINEAGE: %', v_c9_lineage;
+      RAISE EXCEPTION 'HOLD: HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE logical=C9 canonical and Lovable alias coexist';
+    ELSIF v_c9_canon_hit = 1 THEN
+      v_c9_lineage := 'CANONICAL';
+      v_logical_satisfied[10] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c9_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[10]
+        AND (sm.name = v_step_short_names[10] OR sm.name = v_promoted[10])
+      LIMIT 1;
+    ELSIF v_c9_alias_hit = 1 THEN
+      v_c9_lineage := 'LOVABLE_MANAGED_ALIAS';
+      v_logical_satisfied[10] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c9_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_c9_alias_version
+        AND (
+          sm.name = v_c9_alias_short
+          OR sm.name = v_c9_alias_version || '_' || v_c9_alias_short
+        )
+      LIMIT 1;
+    ELSE
+      v_c9_lineage := 'ABSENT';
+      v_logical_satisfied[10] := false;
+    END IF;
     RAISE NOTICE 'PREFLIGHT_C9_LINEAGE: %', v_c9_lineage;
+    RAISE NOTICE 'PREFLIGHT_C9_LEDGER_IDENTITY: %', v_c9_identity;
 
     -- Contiguous LOGICAL prefix from C0..C9 (not raw row count).
     v_ledger_hits := 0;

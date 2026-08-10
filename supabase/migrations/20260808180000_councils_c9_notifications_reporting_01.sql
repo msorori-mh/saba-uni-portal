@@ -547,17 +547,8 @@ BEGIN
         'due_date', NEW.due_date
       )
     );
-  ELSIF TG_OP = 'UPDATE' AND NEW.status = 'completed' AND OLD.status <> 'completed' THEN
-    PERFORM public.dispatch_council_notification(
-      'decision_overdue', v_council_id, NEW.meeting_id, 'academic_council_decisions', NEW.id,
-      jsonb_build_object(
-        'decision_number', NEW.canonical_decision_number,
-        'title', NEW.title,
-        'responsible_user_id', NEW.responsible_user_id,
-        'due_date', NEW.due_date
-      )
-    );
   END IF;
+  -- decision_overdue is deadline-driven (not emitted on status=completed).
 
   RETURN NEW;
 END;

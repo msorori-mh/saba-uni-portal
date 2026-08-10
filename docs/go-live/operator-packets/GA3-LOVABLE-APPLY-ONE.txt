@@ -1,28 +1,42 @@
 MISSION=GA3_LOVABLE_APPLY_ONE
 MODE=POST-APPLY STATUS / DO NOT RE-APPLY
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
+HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
+PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
+AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY
+NEXT_PRODUCTION_WRITE=GA3_ONLY
 NEXT_WRITE=NONE_SCHEMA
-NEXT_OPTIONAL_WRITE=SPECIALIST_TESTONLY_FIXTURE_OWNER_GATED
-GA1_CURRENT=VERIFIED_PRESENT
-GA2_CURRENT=VERIFIED_PRESENT
+NEXT_SCHEMA_WRITE=NONE
+DO_NOT_REAPPLY_GA3=YES
 GA3_CURRENT=VERIFIED_PRESENT
-GA3_READY=YES
 SOURCE_FILE=supabase/migrations/20260808210200_ga_authorization_04.sql
-SHA256_LF_CANONICAL=212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
+SOURCE_REF=38578b6533f20407c02ed775b5af18d11fcb85eb
+SHA256_LF=212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
 MANAGED_VERSION=20260810162735
 MANAGED_NAME=d239a40c-83fa-4f0d-95b2-be9ab4cfc284
-MANAGED_FULL_SHA256_LF=2cc8af2420877e97aeec72d28b1b174e9d1e8496554016df18fe7b6af5402f17
-MAIN_TIP_AT_CAPTURE=845f3501c8ccdec7d411811c565e62a8bb93ba25
 PREDECESSOR=GA1+GA2+GA3 VERIFIED_PRESENT via managed aliases; do not re-apply GA1, GA2, or GA3.
-SPECIALIST=AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE aa4f5c16-…; E2E uses TEST_ONLY single-dept fixture only.
 
-Post-apply presence probe (READ-ONLY, 2026-08-10):
-- graduate_affairs_specialist_department_ids PRESENT
-- graduate_affairs_search_records PRESENT
-- graduate_affairs_is_manager + is_specialist PRESENT
-- exactly seven AUTH04 SELECT policies PRESENT
-- graduate_records RLS ON with zero policies (default-deny by design)
-- logical ledger 20260808210200 ABSENT (map managed→logical in reconciliation packet)
+AUTHORIZATION CONTRACT:
+- EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED prevents accidental parallel writers. It is not a second human-approval loop when a current-session standing runtime grant already names THIS logical step.
+- A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
+- Only the operator's explicit current runtime grant may open the production-write gate, and only after SINGLE_WRITER_LEASE acquire succeeds.
+- This packet cannot self-authorize.
+- Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+- Without SINGLE_WRITER_LEASE: HOLD immediately. Other agents remain READ_ONLY.
+- Never concurrent production agents. Never no-token-pause blind writes. Never automatic batch production writes.
 
-Direct auth matrix (AUTH-04): admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only (SPD); direct case assignee exact case only; outside scope DENY. Ambiguous live specialist aa4f5c16 has zero SPD ⇒ empty specialist department set ⇒ record access DENY until revoked or separately owner-remediated. Operational E2E actor = TEST_ONLY fixture a6e30100-… / dept 11111111-….
+HARD POST-APPLY RULES:
+1. GA1 current production readback PASS (managed alias verified present).
+2. GA2 current production readback PASS (managed alias verified present).
+3. GA3 already VERIFIED_PRESENT. Do NOT re-apply GA3.
+4. Specialist aa4f5c16 is AMBIGUOUS_SPECIALIST_DO_NOT_SCOPE. Specialist scope issue resolved OR ambiguous specialist deactivated is required before any live specialist scoping write; until then use TEST_ONLY single-dept fixture only under owner-gated lease.
+5. NEXT_PRODUCTION_WRITE=GA3_ONLY remains the sole permitted schema write class in this chain; because GA3 is already verified present, actionable NEXT_WRITE=NONE_SCHEMA.
+6. Any proposed re-apply of GA3 => HOLD (policy collision with existing seven SELECT policies).
 
-STOP if anyone proposes re-applying GA3: managed alias already present; re-apply would collide with existing seven SELECT policies (GA_AUTH04_PREFLIGHT_ALREADY_APPLIED).
+Direct auth matrix: admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only; direct case assignee exact case only; outside scope DENY. Ambiguous live specialist with zero SPD ⇒ empty specialist department set ⇒ record access DENY. Release lease only by owning session after terminal state.

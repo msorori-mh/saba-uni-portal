@@ -2,8 +2,15 @@ MISSION=GA_PRODUCTION_STATUS
 CAPTURED=2026-08-10T19:45:00+03:00
 CHANNEL=Lovable query_database READ-ONLY project=90f4dcde-07fb-4441-b86a-6ad5510833b8
 PRODUCTION_WRITES=0
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+NEXT_PRODUCTION_WRITE=GA3_ONLY
 MAIN_TIP_AT_CAPTURE=845f3501c8ccdec7d411811c565e62a8bb93ba25
-RECONCILED_MAIN=5570753236e134c71dfc4351c9cdc42e9255a021
+RECONCILED_MAIN=39cfc298639feab0bfa84bd8179cdbd493a5ce36
 
 GA1_CURRENT=VERIFIED_PRESENT
 GA1_EVIDENCE=managed_alias=20260810124407:2802e1fa-a209-4c1c-bc90-901ede67f865; objects=graduate_records+graduate_profiles+graduate_official_decisions+…; logical_ledger_20260808210000=ABSENT; canonical_FULL_hash_match=NO (alias body differs)
@@ -35,4 +42,7 @@ SPECIALIST_GATE=Do not scope aa4f5c16; use TEST_ONLY single-dept fixture for E2E
 AUTH04_MATRIX=admin_app_role_alone=DENY; manager_assigned=ALLOW_manager_scope; specialist_with_SPD=ALLOW_in_dept_only; specialist_aa4f5c16_zero_SPD=empty_scope_DENY_records; outside_scope=DENY
 LINEAGE_NOTE=GA1/GA2/GA3 present via Lovable UUID aliases; map logical 20260808210000/201/202 in post-apply ledger reconciliation packet — do not re-apply any GA migration
 
-PR339_ALIGNMENT=GA schema chain complete; residual ops = ledger mapping + optional TEST_ONLY specialist fixture under runtime grant/lease
+PR339_ALIGNMENT=LOVABLE_ONLY + SINGLE_WRITER_LEASE required; NEXT_PRODUCTION_WRITE=GA3_ONLY (sole permitted schema write class; already VERIFIED_PRESENT so actionable NEXT_WRITE=NONE_SCHEMA); residual ops = ledger mapping + optional TEST_ONLY specialist fixture under runtime grant/lease
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+OTHER_AGENTS=READ_ONLY
