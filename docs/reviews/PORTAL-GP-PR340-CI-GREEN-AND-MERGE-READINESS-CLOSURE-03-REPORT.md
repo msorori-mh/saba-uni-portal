@@ -10,7 +10,7 @@ GitHub Actions is not assigning runners to any job (`runner_id=0`, `steps=[]`, f
 
 ```
 START_HEAD=ae73cebb7aad437526b246cca42c5dac68cda0c4
-FINAL_HEAD=535d9a7bcba9e8211c1c6c387534849109386e7a
+FINAL_HEAD=71f65edfd5dc3cf6366b15124211c7980f785bb5
 ORIGIN_MAIN_SHA=140ca4ab3462e3d2a6a19551e6d5fa19d29d1cde
 
 PR340_MERGEABLE=MERGEABLE
@@ -141,7 +141,7 @@ No admin/dean bypass introduced; L4 guard chain PASS locally; signed-download / 
 - Pushed merge commit `801de48c` to `origin/feat/gp-final-closure-20260811` (no force)
 - Triggered new runs: Migration Review `31443424180`, Web CI `31443424178`
 - One allowed rerun of `31443424178` — identical instant failure
-- Report tip: `535d9a7bcba9e8211c1c6c387534849109386e7a`
+- Report tip: `71f65edfd5dc3cf6366b15124211c7980f785bb5`
 
 ## G9 — Watch result
 
@@ -172,7 +172,7 @@ This mission only covers SOURCE + SECURITY + CI + MERGE readiness. Production E2
 
 ## External unblock required
 
-Account owner must restore GitHub Actions capacity (billing / included minutes / spending limit) so `ubuntu-latest` jobs receive runners. After that, re-run Web CI + Migration Review on HEAD `535d9a7bcba9e8211c1c6c387534849109386e7a` (or later tip) without source changes expected for this blocker.
+Account owner must restore GitHub Actions capacity (billing / included minutes / spending limit) so `ubuntu-latest` jobs receive runners. After that, re-run Web CI + Migration Review on HEAD `71f65edfd5dc3cf6366b15124211c7980f785bb5` (or later tip) without source changes expected for this blocker.
 
 ## FINAL DECISION
 
