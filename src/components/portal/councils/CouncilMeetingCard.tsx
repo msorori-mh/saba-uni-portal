@@ -143,6 +143,22 @@ export function CouncilMeetingCard({
               تعديل
             </Button>
           ) : null}
+          {canEdit && nextTransition ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 gap-1 text-[10px]"
+              disabled={transitionBusy}
+              onClick={() => void handleTransition()}
+            >
+              {transitionBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <PlayCircle className="h-3.5 w-3.5" />
+              )}
+              {nextTransition.label}
+            </Button>
+          ) : null}
           {canManageAgenda ? (
             <Button
               type="button"
@@ -155,6 +171,7 @@ export function CouncilMeetingCard({
               جدول الأعمال
             </Button>
           ) : null}
+
         </div>
       </div>
       <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
