@@ -19,6 +19,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { PortalInstallPrompt } from "@/components/pwa/PortalInstallPrompt";
+import { GlobalBackButton } from "@/components/navigation/PageBackButton";
 import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
 
 function NotFoundComponent() {
@@ -253,6 +254,7 @@ function RootComponent() {
           <Footer />
         </div>
       )}
+      <GlobalBackButton />
       <PortalInstallPrompt />
       <Toaster richColors position="top-center" />
     </QueryClientProvider>

@@ -1,9 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { ArrowRight, ClipboardList, Loader2, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useStaffLogout } from "@/lib/use-staff-logout";
+
 import { PortalShell } from "@/components/portal/PortalShell";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,8 +60,8 @@ function formatDateTime(value: string | null): string {
 }
 
 function AuditLogPage() {
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
+
   const load = useServerFn(fetchRequestAuditLog);
 
   const { data, isLoading, isError } = useQuery({
@@ -79,10 +80,8 @@ function AuditLogPage() {
     );
   }, [data, search]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
+  const handleLogout = useStaffLogout();
+
 
   return (
     <PortalShell title="سجل التدقيق" onLogout={handleLogout}>

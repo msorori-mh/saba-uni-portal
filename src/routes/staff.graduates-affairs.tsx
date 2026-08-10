@@ -1,10 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Briefcase } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
 import { GraduatesAffairsStaffWorkspace } from "@/components/portal/GraduatesAffairsStaffWorkspace";
-import { supabase } from "@/integrations/supabase/client";
+import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures, STAFF_GRADUATES_AFFAIRS_FROZEN_MSG } from "@/lib/portal-features";
+
 
 export const Route = createFileRoute("/staff/graduates-affairs")({
   component: StaffGraduatesAffairsPage,
@@ -19,12 +20,8 @@ export const Route = createFileRoute("/staff/graduates-affairs")({
  * AUTH-04-backed props — no mock production data.
  */
 function StaffGraduatesAffairsPage() {
-  const navigate = useNavigate();
+  const handleLogout = useStaffLogout();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
 
   return (
     <PortalShell title="بوابة الموظف" onLogout={handleLogout}>
