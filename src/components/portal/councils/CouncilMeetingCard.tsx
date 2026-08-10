@@ -76,6 +76,7 @@ export type CouncilMeetingCardProps = {
   variant?: "upcoming" | "previous";
   canEdit: boolean;
   canManageAgenda: boolean;
+  canRecordAttendance?: boolean;
   onManageAgenda: (meetingId: string) => void;
   onUpdated: () => void;
 };
@@ -85,11 +86,18 @@ export function CouncilMeetingCard({
   variant = "upcoming",
   canEdit,
   canManageAgenda,
+  canRecordAttendance = false,
   onManageAgenda,
   onUpdated,
 }: CouncilMeetingCardProps) {
   const updateMeeting = useServerFn(updateCouncilMeeting);
   const transitionMeeting = useServerFn(transitionMyCouncilMeeting);
+  const getAttendanceRoll = useServerFn(getCouncilAttendanceRoll);
+  const getQuorumPolicy = useServerFn(getCouncilCurrentQuorumPolicy);
+  const approveQuorumPolicy = useServerFn(approveCouncilQuorumPolicy);
+  const recordAttendance = useServerFn(recordCouncilAttendance);
+  const evaluateQuorum = useServerFn(evaluateCouncilMeetingQuorum);
+  const finalizeAttendance = useServerFn(finalizeCouncilAttendance);
   const [transitionBusy, setTransitionBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -100,6 +108,22 @@ export function CouncilMeetingCard({
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("scheduled");
   const [editBusy, setEditBusy] = useState(false);
+
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceMembers, setAttendanceMembers] = useState<CouncilAttendanceRollMember[]>([]);
+  const [attendanceRollId, setAttendanceRollId] = useState<string | null>(null);
+  const [attendanceRollStatus, setAttendanceRollStatus] = useState<string | null>(null);
+  const [eligibleCount, setEligibleCount] = useState(0);
+  const [latestEvaluation, setLatestEvaluation] = useState<CouncilAttendanceRollResult["latest_evaluation"]>(null);
+  const [quorumPolicy, setQuorumPolicy] = useState<CouncilQuorumPolicyResult | null>(null);
+  const [policyBusy, setPolicyBusy] = useState(false);
+  const [finalizeBusy, setFinalizeBusy] = useState(false);
+  const [evaluateBusy, setEvaluateBusy] = useState(false);
+  const [policyMode, setPolicyMode] = useState<"absolute" | "ratio">("absolute");
+  const [policyAbsolute, setPolicyAbsolute] = useState<string>("1");
+  const [policyRatioNum, setPolicyRatioNum] = useState<string>("1");
+  const [policyRatioDen, setPolicyRatioDen] = useState<string>("2");
 
   const openEdit = () => {
     setEditTitle(meeting.meeting_title);
