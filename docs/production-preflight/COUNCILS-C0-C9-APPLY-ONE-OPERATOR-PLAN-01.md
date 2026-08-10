@@ -47,9 +47,38 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 1. Run `docs/migration-drafts/COUNCILS-C0-C9-PRODUCTION-READONLY-PREFLIGHT-01.sql`
 2. Interpret the terminal Phase N result:
    - `LEGACY_SUPPORTED_EXACT` → `READY_FOR_APPLY_C0`; C0 may be considered under the separate approval process.
-   - `PARTIAL_NEW_CHAIN_EXACT_PREFIX` → **STOP** and report `PARTIAL_NEXT_EXPECTED`; do not apply automatically.
+   - `PARTIAL_NEW_CHAIN_EXACT_PREFIX` → **STOP** and report `PREFLIGHT_NEXT_EXPECTED_LOGICAL`; do not apply automatically.
    - `FULL_NEW_CHAIN_VERIFIED` → **NO APPLY**; expect `COUNCILS_FULL_CHAIN_ALREADY_APPLIED_AND_VERIFIED`.
 3. **STOP** on any `HOLD:`. A full ledger alone never produces `READY_FOR_APPLY_C0`.
+
+### Ledger identity contract (logical vs physical)
+
+The classifier does **not** match raw `schema_migrations.name` against full composite filenames alone.
+
+| Layer | Meaning |
+|---|---|
+| Logical step | `LOGICAL_C0` … `LOGICAL_C9` — contiguous prefix authority |
+| Physical row | One (or, for C1 split, two) `supabase_migrations.schema_migrations` row(s) |
+| Primary identity | `version` (exact) |
+| Secondary identity | normalized `name`: short (`councils_c2_topic_intake_review_01`) **or** composite (`20260808122000_councils_c2_topic_intake_review_01`) — exact only |
+
+Supabase/Lovable production commonly stores the **short** name. Both forms are accepted only when they map to the same pinned `(version, short-name)` identity. No `LIKE`, no fuzzy match, no ordering inference.
+
+### C1 split lineage (one logical C1)
+
+Logical C1 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `ORIGINAL` | `version=20260808121000` + name `councils_c1_meeting_state_machine_01` (or composite) |
+| `SPLIT_COMPLETE` | **both** `20260810003111` / `01d86704-d31c-42e9-9efa-aa5fe4d6a8c9` **and** `20260810003305` / `c75271d6-2ef1-407a-96f5-66aaf2386afe` |
+
+- One split half only → `HOLD_C1_SPLIT_INCOMPLETE`
+- Original + any split half → `HOLD_C1_LINEAGE_AMBIGUOUS` (fail closed)
+
+Stable notices include: `PREFLIGHT_LEDGER_STORAGE_FORMAT`, `PREFLIGHT_C0_LEDGER_IDENTITY`, `PREFLIGHT_C1_LINEAGE`, `PREFLIGHT_C1_SPLIT_PART_A/B`, `PREFLIGHT_LOGICAL_LEDGER_PREFIX`, `PREFLIGHT_SCHEMA_PREFIX`, `PREFLIGHT_LAST_APPLIED_LOGICAL`, `PREFLIGHT_NEXT_EXPECTED_LOGICAL`, `PREFLIGHT_STATE_CLASSIFICATION`.
+
+Ledger alone is never enough. Schema alone is never enough. Prefix mismatch → HOLD.
 
 ## Step C0
 
@@ -67,10 +96,13 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 
 | Field | Value |
 |---|---|
-| Migration | `supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql` |
+| Migration (ORIGINAL lineage) | `supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql` |
 | FULL_SHA256_LF | `498a8d8c274277ff3ffc96e95fa30202e859aa2a2cfd74bcfaaa9f5d39a033d5` |
+| Approved SPLIT lineage (production remediation) | **both** required for one logical C1: `20260810003111_01d86704-d31c-42e9-9efa-aa5fe4d6a8c9.sql` **and** `20260810003305_c75271d6-2ef1-407a-96f5-66aaf2386afe.sql` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C1.sql` |
 | Pass marker | `COUNCILS_C1_PRODUCTION_POST_VERIFIER_PASS` |
+
+Do not treat ORIGINAL + SPLIT coexistence as a single satisfied C1 — preflight holds `HOLD_C1_LINEAGE_AMBIGUOUS`.
 
 ## Step C2
 
