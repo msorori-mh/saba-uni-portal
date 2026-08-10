@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getStudentRequestAttachmentUrl } from "@/lib/admin-student-requests.functions";
 import { getStudentRequestFeeProcessingContext } from "@/lib/student-request-fee.functions";
+import { getFeeProcessingCapability } from "@/lib/student-requests/fee-processing-capability.functions";
 import type { StaffRequestDetail } from "@/lib/student-requests/staff-inbox-ui";
 import { getStaffRoleLabelAr } from "@/lib/student-requests/staff-inbox-ui";
 import {
