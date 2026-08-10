@@ -38,6 +38,8 @@ export type CouncilsActionItem = {
   /** Optional meeting to deep-link into agenda/meeting UI */
   meetingId?: string;
   councilId?: string;
+  councilName?: string;
+  role?: string;
 };
 
 export type CouncilsOperationalSummary = {
@@ -105,10 +107,12 @@ export function deriveActionRequiredLabel(input: {
       : `${needsCompletion} موضوعات تحتاج استكمال`;
   }
 
-  if (input.chairMemberships.length > 0) return "لديك مهام كرئيس مجلس";
-  if (input.agendaWriteMemberships.some((m) => m.role === "secretary")) {
-    return "لديك مهام كأمين سر";
-  }
+  const hasChairAction = actions.some((a) => a.role === "chair");
+  const hasSecretaryAction = actions.some((a) => a.role === "secretary");
+
+  if (hasChairAction && hasSecretaryAction) return "لديك مهام رئاسة وأمانة سر";
+  if (hasChairAction) return "لديك مهام كرئيس مجلس";
+  if (hasSecretaryAction) return "لديك مهام كأمين سر";
   if (needsCompletion > 0) {
     return needsCompletion === 1
       ? "موضوع واحد يحتاج استكمال"
@@ -131,19 +135,20 @@ export function deriveActionRequiredItems(input: {
   } = input;
   const items: CouncilsActionItem[] = [];
 
-  const chairCouncilIds = new Set(chairMemberships.map((m) => m.council_id));
   const writeCouncilIds = new Set(agendaWriteMemberships.map((m) => m.council_id));
 
-  // Chair with zero upcoming meetings across chaired councils → schedule prompt
-  if (chairMemberships.length > 0) {
-    const chairUpcoming = upcomingMeetings.filter((m) => chairCouncilIds.has(m.council_id));
+  // Chair with zero upcoming meetings for their specific chaired council → schedule prompt
+  for (const m of chairMemberships) {
+    const chairUpcoming = upcomingMeetings.filter((mtg) => mtg.council_id === m.council_id);
     if (chairUpcoming.length === 0) {
       items.push({
-        id: "schedule-needed",
+        id: `schedule-needed-${m.council_id}`,
         kind: "schedule_needed",
         title: "اجتماع يحتاج جدولة",
-        description: "لا توجد اجتماعات قادمة في مجالسك التي ترأسها.",
-        councilId: chairMemberships[0]?.council_id,
+        description: `لا توجد اجتماعات قادمة في ${m.council_name}`,
+        councilId: m.council_id,
+        councilName: m.council_name,
+        role: "chair",
       });
     }
   }
@@ -152,7 +157,7 @@ export function deriveActionRequiredItems(input: {
   for (const meeting of upcomingMeetings) {
     if (!writeCouncilIds.has(meeting.council_id)) continue;
     if (!meetingNeedsAgendaCompletion(meeting.status)) continue;
-    const isChair = chairCouncilIds.has(meeting.council_id);
+    const writeMembership = agendaWriteMemberships.find((m) => m.council_id === meeting.council_id);
     items.push({
       id: `agenda-${meeting.meeting_id}`,
       kind: "agenda_incomplete",
@@ -160,11 +165,9 @@ export function deriveActionRequiredItems(input: {
       description: `${meeting.council_name} — اجتماع رقم ${meeting.meeting_number}`,
       meetingId: meeting.meeting_id,
       councilId: meeting.council_id,
+      councilName: meeting.council_name,
+      role: writeMembership?.role ?? "secretary",
     });
-    // Only surface the earliest incomplete meeting as a card; avoid flooding
-    if (isChair || true) {
-      // keep collecting but we'll cap below
-    }
   }
 
   // Cap agenda cards to first 2
@@ -185,8 +188,10 @@ export function deriveActionRequiredItems(input: {
       id: `topic-${topic.topic_id}`,
       kind: "topic_needs_completion",
       title: "موضوع يحتاج استكمال",
-      description: topic.title,
+      description: `${topic.title} (${topic.council_name})`,
       councilId: topic.council_id,
+      councilName: topic.council_name,
+      role: "member",
     });
   }
 

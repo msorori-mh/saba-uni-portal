@@ -3,10 +3,11 @@
 | field | value |
 |---|---|
 | status | `READY_FOR_AUTHORIZED_EXECUTION` — read-only package (not executed in this stage) |
-| program | `PORTAL-FRESH-RELEASE-BASELINE-AND-D02-REFRESH-01` |
-| updated | 2026-07-21 |
-| `SOURCE_SHA` / `expected_release_sha` | `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` |
-| `DEPLOYED_SHA` | `UNKNOWN` — no deploy claim |
+| program | `PORTAL-B1-GO-LIVE-MIGRATION-DRIFT-TESTONLY-D02-FINAL-CLOSURE-LONGRUN-01` |
+| updated | 2026-08-10 |
+| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (current closure branch tip; traceability only) |
+| `expected_release_sha` | `UNKNOWN` until official Deploy/Publish + independent read-back |
+| `DEPLOYED_SHA` | `UNKNOWN` — no deploy claim; never assume source SHA = deployed SHA |
 | Supabase project | `wpmicqriltrowwonknox` |
 | B1 legal ref | `docs/B1-MIGRATION-PROMOTION-AND-APPLICATION-RUNBOOK-07.md` |
 | release candidate | `docs/PORTAL-FRESH-RELEASE-CANDIDATE-01.md` |
@@ -14,16 +15,21 @@
 
 ## 0. Why refresh
 
-Prior package pinned `origin/main@8f229d09` (B1-18 only). After #194/#195, `main` is `0e2d25c9…`. This refresh pins current `SOURCE_SHA`, expands `docs/migration-drafts/*.sql` matching, adds RO probes, and checks `student_accounts` as source-only — ممنوع إنشاء حسابات.
+This refresh closes the final Go-Live blockers reported by the independent review:
+B1 migration-source drift, TEST_ONLY migrations in the production path, and the
+broken D-02 department-chair sensor. It does NOT pin a release SHA; that is
+filled only after an independent deploy read-back proves `DEPLOYED_SHA`.
+`student_accounts` remains source-only — ممنوع إنشاء حسابات.
 
 ## 0b. State dimensions
 
 | dimension | value |
 |---|---|
-| `SOURCE_SHA` | `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` |
-| `DEPLOYED_SHA` | `UNKNOWN` |
+| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (traceability only; not treated as deployed proof) |
+| `DEPLOYED_SHA` | `UNKNOWN` until independent deploy read-back |
 | `PRODUCTION_DB_STATE` | fill after SELECT on production |
-| `MIGRATION_READINESS` | from Q1-Q3; no apply |
+| `MIGRATION_READINESS` | from Q1-Q3j; no apply |
+| `TEST_ONLY_IN_PRODUCTION_PATH` | must be 0 after archive/exclusion |
 | `USER_APPROVAL_REQUIRED` | yes for production execution |
 
 ## 1. Allowed channels
@@ -151,26 +157,85 @@ where n.nspname='public' and p.proname in (
 order by 1;
 ```
 
-### Q3d DEPARTMENT-CHAIRS
+### Q3d DEPARTMENT-CHAIRS (semantic sensor)
+
+Semantic definition of a department chair (D-01 contract):
+- `request_processing_units.code = 'department'` and `is_active`
+- `request_processing_roles.code = 'department_head'` and `is_active`
+- `request_processing_assignments.assignment_type = 'faculty_profile'`
+- assignment is active and currently effective (`starts_at`/`ends_at` window)
+- counted per audited department
+
+No substring matching on role codes is used: the schema has no role code
+containing the substring "chair", so the legacy pattern-matching sensor
+(`r.code ilike '%' || 'chair' || '%'`) falsely reported zero chairs everywhere.
+
+Expected departments are discovered from the documented D-01 expected-chairs
+contract rather than scanning all departments. The three UUIDs below are
+immutable fixtures referenced by every D-01/D-02 artifact; if they drift, the
+whole chair-semantic audit stops before any write.
 
 ```sql
-select d.id, d.code, count(a.id) filter (where a.is_active) as active_chair_assignments
-from public.departments d
-left join public.request_processing_assignments a on a.department_id=d.id and a.is_active=true
-left join public.request_processing_roles r on r.id=a.role_id and r.code ilike '%chair%'
-where d.id in (
-  '11111111-1111-4111-8111-111111111111',
-  'ce485c67-5f7c-498d-b120-4b1130a86ae8',
-  '22222222-2222-4222-8222-222222222222'
+begin read only;
+set local statement_timeout = '30s';
+set local lock_timeout = '5s';
+
+with expected_chairs(dept_id, expected_employee_number) as (
+  values
+    ('11111111-1111-4111-8111-111111111111'::uuid, 'F2025006'),
+    ('ce485c67-5f7c-498d-b120-4b1130a86ae8'::uuid, 'F2025005'),
+    ('22222222-2222-4222-8222-222222222222'::uuid, 'F2025004')
+),
+chair_scope as (
+  -- exact unit + exact role; no pattern matching on role codes
+  select u.id as unit_id, r.id as role_id
+  from public.request_processing_units u
+  join public.request_processing_roles r on r.unit_id = u.id
+  where u.code = 'department' and u.is_active
+    and r.code = 'department_head' and r.is_active
+),
+chair_assignments as (
+  select
+    a.id,
+    a.department_id,
+    a.faculty_profile_id,
+    a.is_active
+      and (a.starts_at is null or a.starts_at <= now())
+      and (a.ends_at   is null or a.ends_at   >  now()) as is_current
+  from public.request_processing_assignments a
+  join chair_scope cs on cs.unit_id = a.unit_id and cs.role_id = a.role_id
+  where a.assignment_type = 'faculty_profile'
 )
-group by d.id, d.code order by d.code;
+select
+  d.id,
+  d.code,
+  count(a.id) filter (where a.is_current) as active_chair_assignments,
+  count(a.id) filter (where a.is_active and not a.is_current) as window_inactive_chair_assignments,
+  count(a.id) filter (where not a.is_active) as historical_chair_assignments,
+  string_agg(
+    distinct fp.employee_number,
+    ',' order by fp.employee_number
+  ) filter (where a.is_current) as current_holder_employee_numbers
+from expected_chairs e
+join public.departments d on d.id = e.dept_id
+left join chair_assignments a on a.department_id = d.id
+left join public.faculty_profiles fp on fp.id = a.faculty_profile_id
+group by d.id, d.code
+order by d.code;
+
+rollback;
 ```
+
+Expected verdicts:
+- `active_chair_assignments` = 1 for CS, IT, IS
+- `current_holder_employee_numbers` = `F2025006` (CS), `F2025005` (IT), `F2025004` (IS)
+- any other value ⇒ `D02_HOLD_CHAIR_SEMANTIC_DRIFT`
 
 ### Q3e student_visible
 
 ```sql
 select code, student_visible, is_active
-from public.student_request_types
+from public.request_types
 where code in ('enrollment_suspension','excused_absence','file_withdrawal','department_transfer','final_chance')
 order by code;
 ```
@@ -220,9 +285,41 @@ Object present without matching Q1 row -> `partial`.
 
 Record: `STUDENT_ACCOUNTS_SOURCE_PRESENT` or `STUDENT_ACCOUNTS_SOURCE_MISSING`.
 
+### Q3j TEST_ONLY migration path check
+
+Run locally against the source tree (no production access required). The release
+graph is unsafe while any `supabase/migrations/*.sql` file contains a
+`TEST_ONLY` marker, because a fresh environment would replay it against
+production-shaped data.
+
+```bash
+# List all TEST_ONLY-bearing migrations still in the production path
+grep -RilE 'TEST_ONLY|test_only|TESTONLY|testonly' supabase/migrations/ || true
+```
+
+Expected: empty list.
+Known archived duplicates (historical evidence, excluded from new release path):
+- `docs/migration-drafts/test-only-archive/20260804004546_17b78d6d-3a17-41d9-ba7b-d0c19c6459cc.sql`
+- `docs/migration-drafts/test-only-archive/20260805220917_081dea41-dca0-4e49-b623-0a1e5502c3d2.sql`
+
+Remaining TEST_ONLY migrations still under `supabase/migrations/` must be
+classified in the drift table as `HISTORICAL_APPLIED / EXCLUDE_FROM_NEW_RELEASE_PATH`
+or removed from the Go-Live apply graph.
+
 ## 7. Q4 provenance
 
-Record `DEPLOYED_SHA_PROVEN` only if evidence matches `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` (or later approved published SHA). Else `HOLD_RELEASE_SHA_UNPROVEN`. Do not treat `427b7eb4…` as current baseline proof.
+`DEPLOYED_SHA` is proven ONLY by an independent read-back from the deployed
+environment (e.g., deployment log, published artifact, or authorized endpoint
+probing) that returns a 40-character lowercase commit SHA. The current source
+branch tip SHA is recorded for traceability but is **never** treated as deployed
+proof. Any document that still pins `0e2d25c9…` or `427b7eb4…` as the deployed
+baseline is stale and must not be used as a release gate.
+
+| evidence | verdict |
+|---|---|
+| independent deploy read-back SHA matches expected published SHA | `DEPLOYED_SHA_PROVEN` |
+| no deploy read-back or SHA mismatch | `HOLD_RELEASE_SHA_UNPROVEN` |
+| any document treats source SHA as deployed proof | `HOLD_STALE_SHA_REFERENCE` |
 
 ## 8. Stop conditions
 
@@ -230,6 +327,9 @@ Record `DEPLOYED_SHA_PROVEN` only if evidence matches `0e2d25c9a2d7923ce74cfae07
 - `log_audit` signatures != 2 -> `D02_HOLD_LOG_AUDIT_SIGNATURE_MISMATCH`
 - any `ambiguous` or `partial`
 - `D02_HOLD_PROTECTED_RECORD_DRIFT`
+- `D02_HOLD_CHAIR_SEMANTIC_DRIFT`
+- `TEST_ONLY_IN_PRODUCTION_PATH` != 0 -> `D02_HOLD_TEST_ONLY_MIGRATION_IN_RELEASE_GRAPH`
+- stale SHA reference (`0e2d25c9…` / `427b7eb4…` treated as deployed proof)
 - write/activate/إنشاء حسابات -> ممنوع; SELECT only
 
 ## 9. Final verdicts
@@ -241,8 +341,10 @@ Record `DEPLOYED_SHA_PROVEN` only if evidence matches `0e2d25c9a2d7923ce74cfae07
 ## 10. Execution log
 
 - date/operator/channel: ____
-- `SOURCE_SHA`: ____
-- `DEPLOYED_SHA`: ____
-- Q1..Q4 outputs: ____
+- `SOURCE_SHA`: ____ (current branch tip, not deployed proof)
+- `DEPLOYED_SHA`: ____ (from independent deploy read-back only)
+- Q1..Q3j outputs: ____
 - `student_accounts` source check: ____
+- `TEST_ONLY_IN_PRODUCTION_PATH`: ____
+- chair semantic sensor result: ____
 - final: ____

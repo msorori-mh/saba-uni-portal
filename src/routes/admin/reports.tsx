@@ -349,7 +349,7 @@ function ReportsPage() {
                 <div>
                   <div className="font-display text-sm font-extrabold text-primary">{section.title}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {section.active ? "متاح الآن" : "سيتم تفعيله لاحقاً"}
+                    {section.active ? "متاح الآن" : "غير مفعّل"}
                   </div>
                 </div>
               </div>
@@ -2319,7 +2319,7 @@ function ComingSoonCard({ title }: { title: string }) {
         <BarChart3 className="h-5 w-5" />
       </div>
       <h2 className="mt-3 font-display text-lg font-extrabold text-primary">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">سيتم تفعيل هذا القسم لاحقاً.</p>
+      <p className="mt-1 text-sm text-muted-foreground">هذا القسم غير مفعّل ضمن التقرير الحالي.</p>
     </div>
   );
 }

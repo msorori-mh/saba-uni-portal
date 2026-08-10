@@ -1,0 +1,12 @@
+MISSION=GA3_LOVABLE_APPLY_ONE
+MODE=APPLY EXACTLY ONE / STANDING OWNER AUTHORIZATION / NO TOKEN PAUSE
+SOURCE_FILE=supabase/migrations/20260808210200_ga_authorization_04.sql
+SOURCE_REF=38578b6533f20407c02ed775b5af18d11fcb85eb
+SHA256_LF=212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
+PREDECESSOR=GA2; require managed mapping and completion verifier PASS.
+
+Verify exact hash. Absence probe requires zero collision among 7 SELECT policies, 22 client RPCs and internal helpers; any subset or ledger/object disagreement => STOP PARTIAL/UNKNOWN. Snapshot business, B1 and enrollment_certificate fingerprints.
+
+Apply only GA3 atomically; strip only outer boundaries if needed. Never db push/batch. Record GA3_MANAGED_VERSION -> logical 20260808210200 -> hash. Run tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql and require PASS.
+
+Direct auth matrix: admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only; direct case assignee exact case only; outside scope DENY. Require RPC-only writes, exactly seven SELECT policies, protected tables default-deny, and no app_role bypass. Require no business DML; B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage unchanged. STOP on mismatch, partial/unknown state, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.

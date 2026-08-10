@@ -1,7 +1,8 @@
 import { CalendarClock, ListChecks, FileWarning, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CouncilsActionItem } from "@/lib/faculty-portal/councils-operational";
-import { CompactEmpty } from "./shared";
+import { CompactEmpty, roleLabel } from "./shared";
 
 export function CouncilsActionRequired({
   items,
@@ -29,7 +30,14 @@ export function CouncilsActionRequired({
             >
               <ActionIcon kind={item.kind} />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold text-primary">{item.title}</div>
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="text-xs font-bold text-primary">{item.title}</div>
+                  {item.role ? (
+                    <Badge variant="outline" className="text-[10px] shrink-0 font-normal">
+                      {roleLabel(item.role)}
+                    </Badge>
+                  ) : null}
+                </div>
                 <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
                   {item.description}
                 </p>

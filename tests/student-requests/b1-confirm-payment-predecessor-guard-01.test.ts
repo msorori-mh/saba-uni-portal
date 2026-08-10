@@ -200,7 +200,7 @@ describe("B1 confirm-payment predecessor guard 01", () => {
     );
     expect(entry?.sequence_order).toBe(20);
     expect(entry?.sequence_predecessor).toBe("B1-DETAIL-ACL-CUTOVER-18");
-    expect(entry?.sha256).toBe(DRAFT_SHA_LF);
+    expect(entry?.sha256).toBe(MIGRATION_SHA_LF);
     expect(entry?.filename).toBe("B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql");
     const acl = manifest.migrations.find((m) => m.canonical_id === "B1-DETAIL-ACL-CUTOVER-18");
     expect(acl?.sequence_order).toBe(19);

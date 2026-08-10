@@ -50,9 +50,30 @@ function mapError(error: unknown): Error {
     if (error.unavailable || isGraduationProjectsRpcUnavailable(error)) {
       return new Error(GP_UNAVAILABLE);
     }
+    const msg = (error.message || "").toLowerCase();
+    if (
+      msg.includes("permission") ||
+      msg.includes("denied") ||
+      msg.includes("42501") ||
+      msg.includes("policy") ||
+      error.family === "authorization"
+    ) {
+      return new Error("عفواً، لا تملك الصلاحية الكافية لاستعراض النشرة الإدارية لمشاريع التخرج.");
+    }
     return new Error(error.message || "تعذر تنفيذ العملية.");
   }
-  if (error instanceof Error) return error;
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (
+      msg.includes("permission") ||
+      msg.includes("denied") ||
+      msg.includes("42501") ||
+      msg.includes("policy")
+    ) {
+      return new Error("عفواً، لا تملك الصلاحية الكافية لاستعراض النشرة الإدارية لمشاريع التخرج.");
+    }
+    return error;
+  }
   return new Error("تعذر تنفيذ العملية.");
 }
 
@@ -249,19 +270,49 @@ export function useGraduationProjectList(scope: "assigned" | "administration") {
   return useQuery({
     queryKey: ["graduation-projects", scope],
     queryFn: async () => {
-      const service = gpService(queryClient);
-      if (scope === "administration") {
-        const report = await service.listAdministrationOverview();
-        return report.projects.map((p) =>
-          mapSummary({
-            ...p,
-            roles: ["administration"],
-            state: p.lifecycle_state,
-          }),
-        );
+      try {
+        const service = gpService(queryClient);
+        if (scope === "administration") {
+          const report = await service.listAdministrationOverview();
+          return report.projects.map((p) =>
+            mapSummary({
+              ...p,
+              roles: ["administration"],
+              state: p.lifecycle_state,
+            }),
+          );
+        }
+        const rows = await service.listMyProjects();
+        return rows.map(mapSummary);
+      } catch (err) {
+        throw mapError(err);
       }
-      const rows = await service.listMyProjects();
-      return rows.map(mapSummary);
+    },
+    retry: false,
+  });
+}
+
+export function useGraduationProjectAdministrationReport() {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["graduation-projects", "administration-report"],
+    queryFn: async () => {
+      try {
+        const service = gpService(queryClient);
+        const report = await service.listAdministrationOverview();
+        return {
+          projects: report.projects.map((p) =>
+            mapSummary({
+              ...p,
+              roles: ["administration"],
+              state: p.lifecycle_state,
+            }),
+          ),
+          counts: report.counts,
+        };
+      } catch (err) {
+        throw mapError(err);
+      }
     },
     retry: false,
   });

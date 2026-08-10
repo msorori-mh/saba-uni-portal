@@ -1,0 +1,14 @@
+MISSION=C6_LOVABLE_APPLY_ONE
+MODE=APPLY EXACTLY ONE / STANDING OWNER AUTHORIZATION / NO TOKEN PAUSE
+SOURCE_FILE=supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql
+SOURCE_REF=62c6bb374b15503dfa93c5d8066e4b61837169aa
+SHA256_LF=1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43
+PREDECESSOR=C5V2 logical 20260810180000; require its managed mapping and POST-VERIFIER-C5 PASS.
+
+Read exact LF-normalized source and STOP on mismatch. Absence probe requires no C6 ledger mapping and no partial conjunction of enum label blocked, six decision columns, three indexes, four functions, and trigger; any subset is PARTIAL/UNKNOWN. Snapshot all business tables plus B1 and enrollment_certificate.
+
+Apply only C6 in one atomic Lovable-owned transaction (strip only outer BEGIN/COMMIT when necessary). Do not split around ALTER TYPE; do not use db push. PG17 qualification proves ALTER TYPE ADD VALUE 'blocked' is not referenced as the new literal during the same apply transaction and produces no 55P04.
+
+Record returned C6_MANAGED_VERSION -> logical 20260808160000 -> SHA256_LF above. Run POST-VERIFIER-C6.sql and require COUNCILS_C6_PRODUCTION_POST_VERIFIER_PASS. Verify inherited C0 ACL: authenticated has no INSERT/UPDATE/DELETE on academic_council_decisions; C6 intentionally does not repeat the table REVOKE. Verify issue is chair/secretary only; follow-up is exact responsible actor or own council chair; wrong roles and cross-council deny.
+
+Require unchanged business-data fingerprints, B1/request visibility/payment_confirmation unchanged, and enrollment_certificate schema/data/functions/storage unchanged. STOP on partial state, unknown prestate, mismatch, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS and continue.

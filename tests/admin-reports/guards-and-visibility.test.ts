@@ -199,12 +199,15 @@ describe("wrong-unit isolation + no cross-unit leakage", () => {
   test("server forces actor-derived department scope for department_head schedule reports", () => {
     // P0 beneficiary closure: department heads cannot widen/cross department
     // via client-supplied department_id. Scope is resolved from the actor.
+    // Independent R2 HIGH: shared applyAdminReportsDepartmentContainment also
+    // fail-closes dean university-wide silent scope.
     expect(FUNCTIONS_SRC).toContain("applyScheduleDepartmentScope");
+    expect(FUNCTIONS_SRC).toContain("applyAdminReportsDepartmentContainment");
     expect(FUNCTIONS_SRC).toContain("resolveReportActorScope");
     expect(FUNCTIONS_SRC).toContain("enforceDepartmentFilter");
     expect(FUNCTIONS_SRC).toContain("رئيس القسم بلا قسم مرتبط — يُرفض النطاق");
     expect(FUNCTIONS_SRC).toContain("forcedDepartmentId");
-    expect(FUNCTIONS_SRC).toContain("department_id: enforced.departmentId");
+    expect(FUNCTIONS_SRC).toContain("لا نطاق جامعي صامت");
   });
 });
 

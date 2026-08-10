@@ -446,8 +446,7 @@ function FacultyAcademicCouncilsPage() {
             {governanceMeetings.length > 0 && currentMemberships.length > 0 ? (
               <SectionShell icon={ShieldCheck} title="الجلسة الحية والحوكمة">
                 <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                  إدارة الجلسة والتصويت والمحضر والقرارات والأرشفة وفق دورك في المجلس.
-                  الصلاحيات النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+                  إدارة الجلسة والتصويت والمحضر والقرارات والأرشفة متاح وفق دورك المعتمد في المجلس.
                 </p>
                 <div className="space-y-6">
                   {governanceMeetings.map((m) => {
@@ -530,22 +529,26 @@ function CouncilWorkspacesSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <Select value={selectedId} onValueChange={setSelectedId} dir="rtl">
-          <SelectTrigger className="sm:max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            {memberships.map((m) => (
-              <SelectItem key={m.council_id} value={m.council_id}>
-                {m.council_name} ·{" "}
-                {MEMBER_ROLE_LABELS[m.role as CouncilLinkMemberRole] ?? m.role}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3 rounded-lg border border-border">
+        <div className="flex items-center gap-2">
+          <label htmlFor="current-council-select" className="text-xs font-bold text-primary whitespace-nowrap">
+            المجلس الحالي:
+          </label>
+          <Select value={selectedId} onValueChange={setSelectedId} dir="rtl">
+            <SelectTrigger id="current-council-select" className="sm:max-w-xs font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              {memberships.map((m) => (
+                <SelectItem key={m.council_id} value={m.council_id}>
+                  {m.council_name} — {MEMBER_ROLE_LABELS[m.role as CouncilLinkMemberRole] ?? m.role}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <p className="text-xs text-muted-foreground">
-          الصلاحيات النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+          تستند الصلاحيات والخيارات المتاحة إلى دورك المعتمد في كل مجلس.
         </p>
       </div>
 

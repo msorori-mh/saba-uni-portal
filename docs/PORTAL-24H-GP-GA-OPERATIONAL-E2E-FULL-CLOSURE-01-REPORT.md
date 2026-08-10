@@ -71,7 +71,7 @@ GA promotion E2E matrix (disposable PG17 against promoted migrations): authoriza
 
 1. **Package D not CI-gated** — added `graduation-projects-package-d` chain to `.github/workflows/ci.yml`.
 2. **Package D had no bun disposable harness** — added `graduation-projects-package-d-executable-pg17.test.ts`.
-3. **GA empty/loading/error shells missing** — added `GaStates.tsx` and mounted `GaEmpty` on flag-ON student/staff routes (flags remain OFF).
+3. **GA empty/loading/error shells** — added reusable `GaStates.tsx` for student flag-ON empty mount; staff surface uses mainline `GraduatesAffairsStaffWorkspace` loading/error/empty (reconciled from origin/main).
 4. **No cross-domain evidence inventory lock** — added `tests/portal-24h-gp-ga-operational-evidence-matrix.test.ts`.
 
 ---

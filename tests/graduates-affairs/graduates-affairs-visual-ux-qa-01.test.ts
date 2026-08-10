@@ -341,13 +341,16 @@ describe("loading / empty / error shells", () => {
     expect(withRetry).toContain("إعادة المحاولة");
   });
 
-  test("student and staff routes mount empty shells when flags are ON", () => {
+  test("student route mounts GaEmpty; staff workspace owns loading/error/empty", () => {
     const studentRoute = read("src/routes/student.graduates-affairs.index.tsx");
     const staffRoute = read("src/routes/staff.graduates-affairs.tsx");
+    const staffWorkspace = read("src/components/portal/GraduatesAffairsStaffWorkspace.tsx");
     expect(studentRoute).toContain("GaEmpty");
-    expect(staffRoute).toContain("GaEmpty");
     expect(studentRoute).toContain("لا توجد بيانات خريج معتمدة للعرض بعد");
-    expect(staffRoute).toContain("لا توجد سجلات تشغيلية ضمن نطاق التعيين الحالي");
+    expect(staffRoute).toContain("GraduatesAffairsStaffWorkspace");
+    expect(staffWorkspace).toContain("جارٍ تحميل");
+    expect(staffWorkspace).toContain("تعذّر");
+    expect(staffWorkspace).toContain("لا توجد سجلات مطابقة");
   });
 });
 

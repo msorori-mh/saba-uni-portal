@@ -12,6 +12,8 @@ import {
 } from "@/lib/admin-documents.functions";
 import { sendNotificationEmail } from "@/lib/email.functions";
 
+import { portalFeatures } from "@/lib/portal-features";
+
 export const Route = createLazyFileRoute("/admin/documents")({
   component: AdminDocumentsPage,
 });
@@ -23,7 +25,9 @@ const TYPE_LABEL: Record<string, string> = {
   financial_receipt: "سند مالي رسمي",
 };
 
-const TYPES = Object.keys(TYPE_LABEL);
+const TYPES = Object.keys(TYPE_LABEL).filter(
+  (t) => portalFeatures.adminFinance || t !== "financial_receipt",
+);
 
 function AdminDocumentsPage() {
   usePagePerf("/admin/documents");
@@ -87,7 +91,7 @@ function AdminDocumentsPage() {
           { label: "إجمالي", value: counts.total },
           { label: "الشهادات", value: counts.certs },
           { label: "السجلات", value: counts.transcripts },
-          { label: "السندات المالية", value: counts.receipts },
+          ...(portalFeatures.adminFinance ? [{ label: "السندات المالية", value: counts.receipts }] : []),
         ].map(c => (
           <div key={c.label} className="rounded-xl bg-card border border-border p-4">
             <div className="text-xs text-muted-foreground">{c.label}</div>

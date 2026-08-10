@@ -1,0 +1,90 @@
+===============================================================================
+PRODUCTION E2E OPERATOR PACKET: FINAL CHANCE SERVICE
+MISSION: PORTAL-GO-LIVE-DEPLOY-PRODUCTION-E2E-AND-DATA-RECONCILIATION-LONGRUN-01
+SERVICE CODE: final_chance (فرصة أخيرة)
+PACKET ID: PRODUCTION-E2E-FINAL-CHANCE-01
+ENVIRONMENT: PRODUCTION (quboolye.com)
+AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
+===============================================================================
+
+1. SERVICE SPECIFICATION & SCOPE
+--------------------------------
+Service Name:      Final Chance (فرصة أخيرة)
+Service Code:      final_chance
+Processing Unit:   department_head -> academic_councils -> dean
+FIXTURE REUSE:     Reuse approved TEST_ONLY fixture bindings from b1-five-services-fixture-contract-15
+
+2. 15-STEP EXECUTABLE E2E VERIFICATION CYCLE
+---------------------------------------------
+
+STEP C4.1: STUDENT VISIBILITY IN CATALOG
+  Action: Query `request_types` where `code = 'final_chance'`.
+  Assertion: `student_visible = true` AND `is_active = true`.
+
+STEP C4.2: STUDENT DYNAMIC FORM RENDER
+  Action: Load request creation interface `/student/requests/new?type=final_chance`.
+  Assertion: Form renders fields: `justification` (text), `failed_courses` (multiselect), `supporting_statement` (file upload).
+
+STEP C4.3: REFERENCE OPTIONS LOOKUP
+  Action: Query failed courses reference endpoint `get_student_failed_courses()`.
+  Assertion: Returns list of student's failed / probation courses eligible for final chance exam.
+
+STEP C4.4: DRAFT / AUTOSAVE LIFECYCLE
+  Action: Call `save_request_draft` RPC with form payload.
+  Assertion: Returns `draft_id`, status = `draft`, request payload preserved.
+
+STEP C4.5: ATTACHMENTS UPLOAD & SIGNED URL
+  Action: Request upload URL via `create_attachment_upload_url`.
+  Assertion: Returns Signed Upload URL targeting private bucket `request-attachments/final-chance/`.
+  Verify: Upload supporting justification document -> Content-Type verified.
+
+STEP C4.6: ATOMIC SUBMISSION
+  Action: Call `submit_student_request(draft_id)`.
+  Assertion: Request status transitions from `draft` to `pending_processing`.
+
+STEP C4.7: CURRENT WORKFLOW STEP RESOLUTION
+  Action: Query `student_requests` for submitted request.
+  Assertion: `current_step = 1`, `processing_unit = 'department_head'`.
+
+STEP C4.8: CORRECT PROCESSOR INBOX RESOLUTION
+  Action: Login as Department Head -> Query `/staff/inbox`.
+  Assertion: Request listed in Department Head inbox.
+
+STEP C4.9: NEGATIVE AUTHORIZATION TEST (WRONG ROLE REJECTION)
+  Action: Attempt `process_request_step` RPC as student or unauthorized role.
+  Assertion: RPC REJECTS call with error `42501` / `FORBIDDEN`.
+
+STEP C4.10: POSITIVE AUTHORIZATION TEST (CORRECT ROLE STEP APPROVAL)
+  Action: Execute `process_request_step` RPC as assigned `department_head`.
+  Assertion: Step 1 completes -> Request advances to Step 2 (`academic_councils` / College Council review).
+
+STEP C4.11: DECISION LOGIC (FINAL APPROVAL)
+  Action: Process College Council recommendation -> Dean final approval.
+  Assertion: Request status becomes `approved`.
+
+STEP C4.12: ACADEMIC EFFECT EXECUTION
+  Action: Post-approval execution handler updates final chance exam permission ledger.
+  Assertion: Student granted final chance exam authorization row in `academic_clearance_records`.
+
+STEP C4.13: STUDENT STATUS TRANSITION
+  Action: Query `student_profiles` for requesting student.
+  Assertion: Academic status reflects `final_chance_granted` status flag.
+
+STEP C4.14: NOTIFICATION EMISSION
+  Action: Query `notifications` for student user ID.
+  Assertion: Notification inserted: "تمت الموافقة على طلب الفرصة الأخيرة".
+
+STEP C4.15: HISTORY & AUDIT TRAIL
+  Action: Query `request_history` for request ID.
+  Assertion: Full step history recorded with timestamps and processor UUIDs.
+
+3. PASS CRITERIA
+----------------
+1. All 15 verification steps complete without errors.
+2. Wrong role access strictly rejected.
+3. Final chance exam authorization row created in academic records.
+4. Complete audit trail recorded in request_history.
+
+===============================================================================
+END OF PACKET: PRODUCTION-E2E-FINAL-CHANCE-01
+===============================================================================

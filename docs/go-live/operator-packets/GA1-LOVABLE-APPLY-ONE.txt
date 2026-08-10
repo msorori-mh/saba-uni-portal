@@ -1,0 +1,12 @@
+MISSION=GA1_LOVABLE_APPLY_ONE
+MODE=APPLY EXACTLY ONE / STANDING OWNER AUTHORIZATION / NO TOKEN PAUSE
+SOURCE_FILE=supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+SOURCE_REF=38578b6533f20407c02ed775b5af18d11fcb85eb
+SHA256_LF=3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43
+PREDECESSOR=Sequence policy requires C9 PASS; GA1 has no SQL dependency on C9. Require its nine guarded tables plus active graduate_affairs unit and two active roles.
+
+Verify exact hash. Collision/absence probe must cover every GA1 guarded table/object; one collision or ledger/object disagreement is PARTIAL/UNKNOWN => STOP. Snapshot all business data, B1 and enrollment_certificate.
+
+Apply only GA1 atomically; strip only outer boundaries if Lovable owns transaction. No db push/batching. Record GA1_MANAGED_VERSION -> logical 20260808210000 -> hash. Run tests/graduates-affairs/ga-production-promotion-post-verifier-foundation.sql and require its PASS token.
+
+Verify RLS/ACL default-deny and no app_role/admin bypass. New GA tables must be empty; existing business fingerprints unchanged. B1 request visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage must be unchanged. STOP on mismatch, collision/partial prestate, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.

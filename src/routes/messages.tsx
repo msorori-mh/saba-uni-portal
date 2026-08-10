@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -32,11 +32,21 @@ export const Route = createFileRoute("/messages")({
 });
 
 function MessagesCenter() {
+  const router = useRouter();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const listFn = useServerFn(listMessages);
   const sendFn = useServerFn(sendMessage);
   const searchFn = useServerFn(searchMessageRecipients);
   const markFn = useServerFn(markMessageRead);
+
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1 && document.referrer) {
+      router.history.back();
+    } else {
+      void navigate({ to: "/admin" });
+    }
+  };
 
   const [box, setBox] = useState<"inbox"|"sent"|"unread">("inbox");
   const [search, setSearch] = useState("");
@@ -69,7 +79,14 @@ function MessagesCenter() {
     <div dir="rtl" className="min-h-screen bg-surface">
       <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link to="/" className="text-xs text-muted-foreground inline-flex items-center gap-1"><ArrowRight className="h-3.5 w-3.5" /> الرئيسية</Link>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-1.5 py-1"
+            aria-label="رجوع"
+          >
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden /> رجوع
+          </button>
           <h1 className="font-display text-xl font-extrabold text-primary">صندوق الرسائل</h1>
         </div>
         {canCompose && (
@@ -121,10 +138,15 @@ function MessagesCenter() {
                   <div className="grid h-full place-items-center text-sm text-muted-foreground">اختر رسالة لعرضها</div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="text-xs text-muted-foreground">
-                      {box === "sent" ? `إلى: ${(selected as any).recipient_name}` : `من: ${(selected as any).sender_name}`}
-                      {" • "}
-                      {new Date((selected as any).sent_at).toLocaleString("ar-EG")}
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <button onClick={() => setSelectedId(null)} className="text-xs text-primary font-bold inline-flex items-center gap-1">
+                        <ArrowRight className="h-3.5 w-3.5" /> عودة لقائمة الرسائل
+                      </button>
+                      <div className="text-xs text-muted-foreground">
+                        {box === "sent" ? `إلى: ${(selected as any).recipient_name}` : `من: ${(selected as any).sender_name}`}
+                        {" • "}
+                        {new Date((selected as any).sent_at).toLocaleString("ar-EG")}
+                      </div>
                     </div>
                     <h2 className="font-display text-lg font-extrabold text-primary">{(selected as any).subject}</h2>
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{(selected as any).message_body}</p>
