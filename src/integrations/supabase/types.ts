@@ -7327,6 +7327,14 @@ export type Database = {
         Args: { _council_id: string; _topic_id: string; _user: string }
         Returns: boolean
       }
+      can_review_council_topic_final: {
+        Args: { _topic: string; _user: string }
+        Returns: boolean
+      }
+      can_review_council_topic_prepare: {
+        Args: { _topic: string; _user: string }
+        Returns: boolean
+      }
       can_schedule_council_meeting: {
         Args: { _council: string; _user: string }
         Returns: boolean
@@ -7337,6 +7345,10 @@ export type Database = {
       }
       can_submit_council_topic: {
         Args: { _council: string; _user: string }
+        Returns: boolean
+      }
+      can_submit_to_council_meeting_intake: {
+        Args: { _meeting: string; _user: string }
         Returns: boolean
       }
       can_upload_council_topic_attachment: {
@@ -7453,9 +7465,10 @@ export type Database = {
         Returns: Json
       }
       council_require_auth_uid: { Args: never; Returns: string }
+      council_resubmit_topic: { Args: { p_topic_id: string }; Returns: Json }
       council_review_topic: {
         Args: {
-          p_meeting_id?: string
+          p_expected_status?: Database["public"]["Enums"]["academic_council_topic_status"]
           p_review_note?: string
           p_status: Database["public"]["Enums"]["academic_council_topic_status"]
           p_topic_id: string
@@ -7479,6 +7492,7 @@ export type Database = {
           p_body?: string
           p_category?: string
           p_council_id: string
+          p_meeting_id: string
           p_title: string
         }
         Returns: Json
@@ -7486,6 +7500,13 @@ export type Database = {
       council_topic_attachment_count: {
         Args: { _topic_id: string }
         Returns: number
+      }
+      council_topic_transition_is_legal: {
+        Args: {
+          p_from: Database["public"]["Enums"]["academic_council_topic_status"]
+          p_to: Database["public"]["Enums"]["academic_council_topic_status"]
+        }
+        Returns: boolean
       }
       council_transition_meeting: {
         Args: {
