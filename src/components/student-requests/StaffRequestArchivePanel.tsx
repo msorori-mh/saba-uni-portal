@@ -144,6 +144,7 @@ export function StaffRequestArchivePanel({
 }) {
   const listFn = useServerFn(listStudentRequestOfficialDocuments);
   const executeFn = useServerFn(executeStudentRequestArchiveAction);
+  const readinessFn = useServerFn(getB1DetailsReadinessFn);
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   const [archiving, setArchiving] = useState(false);
