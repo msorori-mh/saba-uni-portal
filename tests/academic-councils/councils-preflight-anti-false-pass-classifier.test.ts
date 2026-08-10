@@ -59,6 +59,22 @@ const c4LovableAlias = {
   version: "20260810012715",
   shortName: "72757e0e-3b8b-46fa-b252-8e1c8b594d3e",
 } as const;
+const c6LovableAlias = {
+  version: "20260810123158",
+  shortName: "e4d9fe06-550d-43df-89cb-803fb49df1da",
+} as const;
+const c7LovableAlias = {
+  version: "20260810123359",
+  shortName: "8d8851ce-18d9-465b-b9a9-b34d62fc14fb",
+} as const;
+const c8LovableAlias = {
+  version: "20260810123616",
+  shortName: "7aac7456-a80d-464d-84fc-bc9671ae2e4e",
+} as const;
+const c9LovableAlias = {
+  version: "20260810124128",
+  shortName: "8b20af1b-8607-42cd-94d8-f71793d9a687",
+} as const;
 
 type LedgerEntry = { version: string; name: string };
 
@@ -277,6 +293,22 @@ function seedC0C1SplitPlusC2C3C4Aliases() {
     { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
     { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
     { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+  ]);
+}
+
+function seedC0C1SplitPlusC2ThroughC9Aliases() {
+  seedLedgerEntries([
+    { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+    { version: c1SplitA.version, name: c1SplitA.shortName },
+    { version: c1SplitB.version, name: c1SplitB.shortName },
+    { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+    { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+    { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+    { version: promotedVersions[5]!, name: promotedShortNames[5]! }, // C5 canonical
+    { version: c6LovableAlias.version, name: c6LovableAlias.shortName },
+    { version: c7LovableAlias.version, name: c7LovableAlias.shortName },
+    { version: c8LovableAlias.version, name: c8LovableAlias.shortName },
+    { version: c9LovableAlias.version, name: c9LovableAlias.shortName },
   ]);
 }
 
@@ -1004,7 +1036,59 @@ describe("PR311 preflight anti-false-pass classifier", () => {
       expect(c4AliasPass.out).toContain("PREFLIGHT_LAST_APPLIED_LOGICAL: C4");
       expect(c4AliasPass.out).toContain("PREFLIGHT_NEXT_EXPECTED_LOGICAL: C5");
 
+      // 1c: production-shaped C0..C9 managed chain + full schema => FULL_NEW_CHAIN_VERIFIED
+      await resetDb();
+      applyLegacy();
+      applyThrough(9);
+      seedC0C1SplitPlusC2ThroughC9Aliases();
+      // Simulate C5 NULL statements anomaly (ledger identity without body proof).
+      const c5Null = psql(`
+        UPDATE supabase_migrations.schema_migrations
+        SET statements = NULL
+        WHERE version = '${promotedVersions[5]}'
+          AND name = '${promotedShortNames[5]}';
+      `);
+      if (!c5Null.ok) throw new Error(`C5 null statements setup failed:\n${c5Null.out}`);
+      const fullAliasPass = runPreflight();
+      if (!fullAliasPass.ok) throw new Error(`C5-C9 alias pass failed:\n${fullAliasPass.out}`);
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C5_LINEAGE: CANONICAL_NULL_STATEMENTS_ANOMALY");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C5_NULL_STATEMENTS_ANOMALY: true");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C5_LEDGER_BODY_PROOF: false");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C6_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C7_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C8_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_C9_LINEAGE: LOVABLE_MANAGED_ALIAS");
+      expect(fullAliasPass.out).toContain(
+        `PREFLIGHT_C6_LEDGER_IDENTITY: version=${c6LovableAlias.version};name=${c6LovableAlias.shortName}`,
+      );
+      expect(fullAliasPass.out).toContain(
+        `PREFLIGHT_C9_LEDGER_IDENTITY: version=${c9LovableAlias.version};name=${c9LovableAlias.shortName}`,
+      );
+      expect(fullAliasPass.out).toContain("PREFLIGHT_LOGICAL_LEDGER_PREFIX: 10");
+      expect(fullAliasPass.out).toContain("PREFLIGHT_SCHEMA_PREFIX: 10");
+      expect(fullAliasPass.out).toContain("FULL_NEW_CHAIN_VERIFIED");
+
+      // 1d: C6 alias wrong name => HOLD (no fuzzy UUID)
+      seedLedgerEntries([
+        { version: promotedVersions[0]!, name: promotedShortNames[0]! },
+        { version: c1SplitA.version, name: c1SplitA.shortName },
+        { version: c1SplitB.version, name: c1SplitB.shortName },
+        { version: c2LovableAlias.version, name: c2LovableAlias.shortName },
+        { version: c3LovableAlias.version, name: c3LovableAlias.shortName },
+        { version: c4LovableAlias.version, name: c4LovableAlias.shortName },
+        { version: promotedVersions[5]!, name: promotedShortNames[5]! },
+        { version: c6LovableAlias.version, name: "99999999-9999-9999-9999-999999999999" },
+      ]);
+      const c6WrongName = runPreflight();
+      expect(c6WrongName.ok).toBe(false);
+      expect(c6WrongName.out).toContain("HOLD_LEDGER_IDENTITY_MISMATCH");
+
       // 2: C2 alias wrong version => HOLD
+      seedC0C1SplitPlusC2C3C4Aliases();
+      // restore schema context for subsequent cases that mutate ledger only
+      await resetDb();
+      applyLegacy();
+      applyThrough(4);
       seedLedgerEntries([
         { version: promotedVersions[0]!, name: promotedShortNames[0]! },
         { version: c1SplitA.version, name: c1SplitA.shortName },

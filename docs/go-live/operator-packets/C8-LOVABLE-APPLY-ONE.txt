@@ -1,12 +1,26 @@
 MISSION=C8_LOVABLE_APPLY_ONE
-MODE=APPLY EXACTLY ONE / STANDING OWNER AUTHORIZATION / NO TOKEN PAUSE
+MODE=APPLY EXACTLY ONE
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
+HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
 SOURCE_FILE=supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql
 SOURCE_REF=62c6bb374b15503dfa93c5d8066e4b61837169aa
 SHA256_LF=6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3
 PREDECESSOR=C7; require managed mapping and COUNCILS_C7_PRODUCTION_POST_VERIFIER_PASS.
 
+AUTHORIZATION CONTRACT:
+- A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
+- Only the operator's explicit current runtime grant may open the production-write gate.
+- This packet cannot self-authorize.
+- Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+
+Acquire production-write lease first. Second writer => HOLD. Stale lock never auto-deleted.
+
 Verify exact LF hash. Absence/partial detection must compare definitions, not signatures: 8 functions and all 6 archive guards are one conjunction; any subset or ledger disagreement => STOP. Snapshot business, B1, and enrollment_certificate fingerprints.
 
 Apply only C8 atomically; strip only outer boundaries if Lovable owns the transaction. No db push/batching. Record C8_MANAGED_VERSION -> logical 20260808171000 -> hash. Run POST-VERIFIER-C8.sql and require COUNCILS_C8_PRODUCTION_POST_VERIFIER_PASS.
 
-Verify inherited table ACL/RLS and exact RPC authority: member vote only; own chair close/archive; chair/secretary issue; exact responsible actor or own chair follow-up; admin app_role alone denies mutation; cross-council denies. No business DML is expected. B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage must retain fingerprints. STOP on mismatch, partial/unknown state, DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.
+Verify inherited table ACL/RLS and exact RPC authority: member vote only; own chair close/archive; chair/secretary issue; exact responsible actor or own chair follow-up; admin app_role alone denies mutation; cross-council denies. No business DML is expected. B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage must retain fingerprints. Release lease only by owning session after terminal state. STOP on missing runtime grant, missing/held lease, mismatch, partial/unknown state, DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.

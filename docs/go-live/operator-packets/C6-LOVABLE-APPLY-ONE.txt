@@ -1,9 +1,23 @@
 MISSION=C6_LOVABLE_APPLY_ONE
-MODE=APPLY EXACTLY ONE / STANDING OWNER AUTHORIZATION / NO TOKEN PAUSE
+MODE=APPLY EXACTLY ONE
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
+HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
 SOURCE_FILE=supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql
 SOURCE_REF=62c6bb374b15503dfa93c5d8066e4b61837169aa
 SHA256_LF=1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43
 PREDECESSOR=C5V2 logical 20260810180000; require its managed mapping and POST-VERIFIER-C5 PASS.
+
+AUTHORIZATION CONTRACT:
+- A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
+- Only the operator's explicit current runtime grant may open the production-write gate.
+- This packet cannot self-authorize.
+- Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+
+Acquire production-write lease first. Second writer => HOLD. Stale lock never auto-deleted.
 
 Read exact LF-normalized source and STOP on mismatch. Absence probe requires no C6 ledger mapping and no partial conjunction of enum label blocked, six decision columns, three indexes, four functions, and trigger; any subset is PARTIAL/UNKNOWN. Snapshot all business tables plus B1 and enrollment_certificate.
 
@@ -11,4 +25,4 @@ Apply only C6 in one atomic Lovable-owned transaction (strip only outer BEGIN/CO
 
 Record returned C6_MANAGED_VERSION -> logical 20260808160000 -> SHA256_LF above. Run POST-VERIFIER-C6.sql and require COUNCILS_C6_PRODUCTION_POST_VERIFIER_PASS. Verify inherited C0 ACL: authenticated has no INSERT/UPDATE/DELETE on academic_council_decisions; C6 intentionally does not repeat the table REVOKE. Verify issue is chair/secretary only; follow-up is exact responsible actor or own council chair; wrong roles and cross-council deny.
 
-Require unchanged business-data fingerprints, B1/request visibility/payment_confirmation unchanged, and enrollment_certificate schema/data/functions/storage unchanged. STOP on partial state, unknown prestate, mismatch, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS and continue.
+Require unchanged business-data fingerprints, B1/request visibility/payment_confirmation unchanged, and enrollment_certificate schema/data/functions/storage unchanged. Release lease only by owning session after terminal state. STOP on missing runtime grant, missing/held lease, partial state, unknown prestate, mismatch, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS and continue.

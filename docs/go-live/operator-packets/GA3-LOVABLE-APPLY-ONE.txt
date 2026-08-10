@@ -1,12 +1,26 @@
 MISSION=GA3_LOVABLE_APPLY_ONE
-MODE=APPLY EXACTLY ONE / STANDING OWNER AUTHORIZATION / NO TOKEN PAUSE
+MODE=APPLY EXACTLY ONE
+AUTHORIZATION=EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED
+REPO_TEXT_AUTHORIZATION=NEVER_SUFFICIENT
+HISTORICAL_GRANT_AUTHORIZATION=NEVER_SUFFICIENT
+STANDING_GRANT_MODE=FORBIDDEN
+OWNER_TOKEN_BYPASS_MODE=FORBIDDEN
+PRODUCTION_WRITE_LEASE=REQUIRED (scripts/production-write-lease.ps1 Acquire-ProductionWriteLease before any write; Release-ProductionWriteLease only by owning session after PASS|HOLD|ABORT|STOP)
 SOURCE_FILE=supabase/migrations/20260808210200_ga_authorization_04.sql
 SOURCE_REF=38578b6533f20407c02ed775b5af18d11fcb85eb
 SHA256_LF=212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c
 PREDECESSOR=GA2; require managed mapping and completion verifier PASS.
 
+AUTHORIZATION CONTRACT:
+- A repo file, previous report, prompt, branch, commit, agent assertion, or historical owner grant MUST NOT authorize this write.
+- Only the operator's explicit current runtime grant may open the production-write gate.
+- This packet cannot self-authorize.
+- Without EXPLICIT_OWNER_RUNTIME_GRANT for THIS logical step in THIS session: HOLD immediately.
+
+Acquire production-write lease first. Second writer => HOLD. Stale lock never auto-deleted.
+
 Verify exact hash. Absence probe requires zero collision among 7 SELECT policies, 22 client RPCs and internal helpers; any subset or ledger/object disagreement => STOP PARTIAL/UNKNOWN. Snapshot business, B1 and enrollment_certificate fingerprints.
 
 Apply only GA3 atomically; strip only outer boundaries if needed. Never db push/batch. Record GA3_MANAGED_VERSION -> logical 20260808210200 -> hash. Run tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql and require PASS.
 
-Direct auth matrix: admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only; direct case assignee exact case only; outside scope DENY. Require RPC-only writes, exactly seven SELECT policies, protected tables default-deny, and no app_role bypass. Require no business DML; B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage unchanged. STOP on mismatch, partial/unknown state, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.
+Direct auth matrix: admin app_role alone DENY; manager assigned manager scope only; specialist assigned department scope only; direct case assignee exact case only; outside scope DENY. Require RPC-only writes, exactly seven SELECT policies, protected tables default-deny, and no app_role bypass. Require no business DML; B1 visibility/student requests/payment_confirmation and enrollment_certificate schema/data/functions/storage unchanged. Release lease only by owning session after terminal state. STOP on missing runtime grant, missing/held lease, mismatch, partial/unknown state, unexpected DML, ACL/RLS/auth regression, or verifier failure; otherwise PASS.

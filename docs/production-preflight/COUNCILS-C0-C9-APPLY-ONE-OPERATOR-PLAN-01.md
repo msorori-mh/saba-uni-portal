@@ -130,7 +130,8 @@ Logical C4 is satisfied by **exactly one** of:
 - Canonical + alias coexistence → `HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE`
 - Wrong version or wrong name on the pinned alias → `HOLD_LEDGER_IDENTITY_MISMATCH`
 - Arbitrary UUID names are never accepted
-- C5–C9 have **no** accepted managed aliases in this classifier (canonical only)
+- C5 may be CANONICAL (statements present) or `CANONICAL_NULL_STATEMENTS_ANOMALY` (exact version+name with `statements IS NULL`); NULL statements are never body proof
+- C6–C9 may be CANONICAL or pinned LOVABLE_MANAGED_ALIAS (exact version+name only; no fuzzy UUID)
 
 Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTITY`, `PREFLIGHT_C3_LINEAGE`, `PREFLIGHT_C3_LEDGER_IDENTITY`, `PREFLIGHT_C4_LINEAGE`, `PREFLIGHT_C4_LEDGER_IDENTITY`, and `PREFLIGHT_C5_LINEAGE`..`PREFLIGHT_C9_LINEAGE`.
 
@@ -183,6 +184,7 @@ Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTI
 |---|---|
 | Migration | `supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql` |
 | FULL_SHA256_LF | `1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810123158` / `e4d9fe06-550d-43df-89cb-803fb49df1da` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C6.sql` |
 | Pass marker | `COUNCILS_C6_PRODUCTION_POST_VERIFIER_PASS` |
 
@@ -192,6 +194,7 @@ Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTI
 |---|---|
 | Migration | `supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql` |
 | FULL_SHA256_LF | `3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f6a` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810123359` / `8d8851ce-18d9-465b-b9a9-b34d62fc14fb` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C7.sql` |
 | Pass marker | `COUNCILS_C7_PRODUCTION_POST_VERIFIER_PASS` |
 
@@ -201,6 +204,7 @@ Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTI
 |---|---|
 | Migration | `supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql` |
 | FULL_SHA256_LF | `6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810123616` / `7aac7456-a80d-464d-84fc-bc9671ae2e4e` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C8.sql` |
 | Pass marker | `COUNCILS_C8_PRODUCTION_POST_VERIFIER_PASS` |
 
@@ -209,7 +213,8 @@ Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTI
 | Field | Value |
 |---|---|
 | Migration | `supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql` |
-| FULL_SHA256_LF | `c15f3378d12de10a0ef04d93ce033adca06f70fd7d9d53b764a21e828c329d4e` |
+| FULL_SHA256_LF | `7c18cab2ed35264155af241a7810d0d387ceec0b09a0c32216a10d59bc002a30` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810124128` / `8b20af1b-8607-42cd-94d8-f71793d9a687` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql` |
 | Pass marker | `COUNCILS_C9_PRODUCTION_POST_VERIFIER_PASS` |
 
