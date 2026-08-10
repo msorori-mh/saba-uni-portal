@@ -86,9 +86,19 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
 
   const applyDraft = (loaded: B1Draft) => {
     setDraft(loaded);
-    setValues({ ...getEmptyFormValues(definition), ...loaded.formData });
+    const empty = getEmptyFormValues(definition);
+    // Legacy drafts may carry keys outside the current contract allowlist
+    // (e.g. `_formCode`). Saving them back is rejected server-side, so keep
+    // only contract fields when hydrating.
+    const contractOnly = Object.fromEntries(
+      Object.entries(loaded.formData ?? {}).filter(([key]) =>
+        Object.prototype.hasOwnProperty.call(empty, key),
+      ),
+    );
+    setValues({ ...empty, ...contractOnly });
     setSaveState("saved");
   };
+
 
   const reloadDraft = async (requestId: string) => {
     const reloaded = await adapter.getB1RequestDraft(requestId);
