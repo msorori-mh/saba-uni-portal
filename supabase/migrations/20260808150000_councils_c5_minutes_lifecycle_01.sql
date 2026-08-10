@@ -376,7 +376,7 @@ BEGIN
   END IF;
 
   -- Compute deterministic SHA256 fingerprint
-  v_fp := encode(digest(p_meeting_id::text || ':' || v_final_body || ':' || now()::text, 'sha256'), 'hex');
+  v_fp := encode(extensions.digest(p_meeting_id::text || ':' || v_final_body || ':' || now()::text, 'sha256'), 'hex');
 
   UPDATE public.academic_council_minutes
   SET body = v_final_body,

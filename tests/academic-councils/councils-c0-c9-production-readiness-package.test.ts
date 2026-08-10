@@ -31,7 +31,7 @@ const chain = [
   { step: "C2", migration: "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C2.sql", pass: "COUNCILS_C2_PRODUCTION_POST_VERIFIER_PASS", sha: "f969c6c0f63a4758944cc59f6c78292f56f3a4ac360ae77f0b386bf72e0e364e" },
   { step: "C3", migration: "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C3.sql", pass: "COUNCILS_C3_PRODUCTION_POST_VERIFIER_PASS", sha: "e7361f6c85014fb37b6f8d97bd468dc1205700748a526cb7a8063f82ff6c0de6" },
   { step: "C4", migration: "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C4.sql", pass: "COUNCILS_C4_PRODUCTION_POST_VERIFIER_PASS", sha: "d0825e1ddcce82c0e1123ea04cba2777e3b726bc0e4ae514940a714d322b05cd" },
-  { step: "C5", migration: "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql", pass: "COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS", sha: "85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25" },
+  { step: "C5", migration: "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql", pass: "COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS", sha: "364468ba45e1b7fe561316dbcfdcbc76820e63196d7b63df228868ab51011fe0" },
   { step: "C6", migration: "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C6.sql", pass: "COUNCILS_C6_PRODUCTION_POST_VERIFIER_PASS", sha: "1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43" },
   { step: "C7", migration: "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C7.sql", pass: "COUNCILS_C7_PRODUCTION_POST_VERIFIER_PASS", sha: "3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f6a" },
   { step: "C8", migration: "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C8.sql", pass: "COUNCILS_C8_PRODUCTION_POST_VERIFIER_PASS", sha: "6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3" },
@@ -96,8 +96,9 @@ function psqlFile(filePath: string, vars: string[] = []): { ok: boolean; out: st
 
 function discoverSchemaFingerprint(): string {
   const r = psql(`
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    SELECT encode(digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
+    CREATE SCHEMA IF NOT EXISTS extensions;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+    SELECT encode(extensions.digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
     FROM (
       SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute a ON a.attrelid = c.oid

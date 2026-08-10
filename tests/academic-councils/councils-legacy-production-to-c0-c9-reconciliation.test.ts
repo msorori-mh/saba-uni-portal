@@ -135,9 +135,10 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
 
 function discoverSchemaFingerprint(): string {
   const r = psql(`
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE SCHEMA IF NOT EXISTS extensions;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
     SELECT encode(
-      digest(
+      extensions.digest(
         string_agg(line, E'\\n' ORDER BY line),
         'sha256'
       ),

@@ -137,7 +137,7 @@
       "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
       "ledger_name": "20260808150000_councils_c5_minutes_lifecycle_01",
       "timestamp": "20260808150000",
-      "sha256_lf": "85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25",
+      "sha256_lf": "364468ba45e1b7fe561316dbcfdcbc76820e63196d7b63df228868ab51011fe0",
       "timestamp_unique": true,
       "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql",
       "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",

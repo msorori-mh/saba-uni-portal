@@ -74,8 +74,9 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
 
 function discoverSchemaFingerprint(): string {
   const r = psql(`
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    SELECT encode(digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
+    CREATE SCHEMA IF NOT EXISTS extensions;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+    SELECT encode(extensions.digest(string_agg(line, E'\\n' ORDER BY line), 'sha256'), 'hex') AS fp
     FROM (
       SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute a ON a.attrelid = c.oid

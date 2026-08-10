@@ -104,7 +104,7 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 | Field | Value |
 |---|---|
 | Migration | `supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql` |
-| FULL_SHA256_LF | `85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25` |
+| FULL_SHA256_LF | `364468ba45e1b7fe561316dbcfdcbc76820e63196d7b63df228868ab51011fe0` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql` |
 | Pass marker | `COUNCILS_C5_PRODUCTION_POST_VERIFIER_PASS` |
 
