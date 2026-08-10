@@ -3,7 +3,7 @@
 | field | value |
 |---|---|
 | branch | `fix/b1-go-live-final-drift-d02-closure-01` |
-| source SHA (traceability only) | `38578b6533f20407c02ed775b5af18d11fcb85eb` |
+| source SHA (traceability only) | `9833269998a68f4ff1b86a57faf897f9b825f654` |
 | deployed SHA | `UNKNOWN` — no deploy claim |
 | production access | NONE |
 | date | 2026-08-10 |
@@ -130,7 +130,7 @@ Dimensions separated:
 
 | dimension | source state | deployed SHA | production DB state | service visibility | function graph | fixture state |
 |---|---|---|---|---|---|---|
-| value | current branch tip `38578b65…` | `UNKNOWN` | not read in this mission | source contract only | source contract only | source contract only |
+| value | current branch tip `98332699…` | `UNKNOWN` | not read in this mission | source contract only | source contract only | source contract only |
 | how proven | `git rev-parse HEAD` | independent deploy read-back only | D-02 Q1–Q3j when authorized | D-02 Q3e when authorized | D-02 Q3a/Q3c when authorized | D-02 Q3g + fixture audit when authorized |
 
 No source SHA is treated as deployed proof. Stale pins `0e2d25c9…`,
@@ -179,6 +179,7 @@ are **not reopened**.
 - `tests/b1-d02-chair-sensor-semantic-01/` — new source-contract + PG17 harness.
 - `tests/student-requests/b1-confirm-payment-predecessor-guard-01.test.ts` — manifest SHA assertion aligned.
 - `tests/student-requests/b1-final-unified-backend-stack-independent-review-01.test.ts` — manifest SHA assertion aligned.
+- `docs/b1/B1-FIVE-SERVICES-AND-ENROLLMENT-CERT-CURRENT-TRUTH-01.md` — five services + enrollment certificate current-truth verification (new).
 
 ### Final field summary
 
@@ -186,15 +187,17 @@ are **not reopened**.
 B1_MIGRATION_SOURCE_DRIFT=CLOSED — canonical 27-entry graph rebuilt at current branch tip
 B1_CANONICAL_GRAPH=docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json (seq 1..27) + docs/b1/B1-CANONICAL-MIGRATION-GRAPH-01.json
 TEST_ONLY_MIGRATIONS_FOUND=10 (8 in supabase/migrations, 2 archived duplicates)
-TEST_ONLY_RELEASE_PATH_STATUS=SAFE — TEST_ONLY_PRODUCTION_PATH_UNKNOWN=0
+TEST_ONLY_RELEASE_GRAPH_SAFE=YES — TEST_ONLY_PRODUCTION_PATH_UNKNOWN=0
 D02_CHAIR_SENSOR=FIXED — exact semantic unit+role+assignment_type+active-window
 D02_FALSE_POSITIVE_FIXED=PASS (PG17 disposable harness + source contract)
-STALE_RELEASE_SHA_REFERENCES=PASS — current contracts use 38578b65… as traceability only; no source SHA treated as deployed proof
+STALE_RELEASE_SHA_REFERENCES=PASS — current contracts use 98332699… as traceability only; no source SHA treated as deployed proof
 B1_NEGATIVE_MATRIX_CURRENT_STATUS=PASS — 267-case contract reconciled; baseline PINNED and valid
+B1_FIVE_SERVICES=PASS — source contract verified for all five services
+ENROLLMENT_CERTIFICATE=PASS — unchanged; submit/workflow/document/download/verification/archival/cancelled-restriction intact
 B1_PRODUCTION_E2E_READY=NO — source packaged; production E2E gated by deploy, independent DEPLOYED_SHA proof, authorized D-02 execution, and USER_APPROVAL
 
 STUDENT_REQUESTS=1066/1066 PASS
-B1_AUTHZ_TESTS=202/202 PASS
+AUTHZ=202/202 PASS
 TSC=PASS
 BUILD=PASS
 DIFF=PASS

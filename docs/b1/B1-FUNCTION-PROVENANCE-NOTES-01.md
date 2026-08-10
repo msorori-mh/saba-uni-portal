@@ -1,7 +1,7 @@
 # B1 Function Provenance Notes
 
 Generated: 2026-08-10T05:13:19.303Z
-HEAD: 38578b6533f20407c02ed775b5af18d11fcb85eb
+HEAD: 9833269998a68f4ff1b86a57faf897f9b825f654
 
 ## Scope
 This file documents known drift between the evidence artifacts `FUNCTION-PROVENANCE-36.json` and

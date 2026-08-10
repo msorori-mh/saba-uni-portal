@@ -11,8 +11,8 @@
 
 | Field | Value |
 |---|---|
-| `expected_release_sha` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (current branch tip; **not deployed proof**) |
-| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (traceability only) |
+| `expected_release_sha` | `9833269998a68f4ff1b86a57faf897f9b825f654` (current branch tip; **not deployed proof**) |
+| `SOURCE_SHA` | `9833269998a68f4ff1b86a57faf897f9b825f654` (traceability only) |
 | `DEPLOYED_SHA` | `UNKNOWN` |
 | Proof gate | `NOT_RUN` |
 | Production DB gates | `NOT_RUN` |
@@ -26,7 +26,7 @@
 ## Explicit non-claims
 
 ```text
-This document does NOT claim production publication of 38578b6533f20407c02ed775b5af18d11fcb85eb
+This document does NOT claim production publication of 9833269998a68f4ff1b86a57faf897f9b825f654
 DEPLOYED_SHA is UNKNOWN
 SOURCE_SHA is traceability only and must not be treated as deployed proof
 Proof gate remains NOT_RUN until official Deploy/Publish + independent readback

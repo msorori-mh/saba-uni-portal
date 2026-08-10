@@ -5,7 +5,7 @@
 | status | `READY_FOR_AUTHORIZED_EXECUTION` — read-only package (not executed in this stage) |
 | program | `PORTAL-B1-GO-LIVE-MIGRATION-DRIFT-TESTONLY-D02-FINAL-CLOSURE-LONGRUN-01` |
 | updated | 2026-08-10 |
-| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (current closure branch tip; traceability only) |
+| `SOURCE_SHA` | `9833269998a68f4ff1b86a57faf897f9b825f654` (current closure branch tip; traceability only) |
 | `expected_release_sha` | `UNKNOWN` until official Deploy/Publish + independent read-back |
 | `DEPLOYED_SHA` | `UNKNOWN` — no deploy claim; never assume source SHA = deployed SHA |
 | Supabase project | `wpmicqriltrowwonknox` |
@@ -25,7 +25,7 @@ filled only after an independent deploy read-back proves `DEPLOYED_SHA`.
 
 | dimension | value |
 |---|---|
-| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (traceability only; not treated as deployed proof) |
+| `SOURCE_SHA` | `9833269998a68f4ff1b86a57faf897f9b825f654` (traceability only; not treated as deployed proof) |
 | `DEPLOYED_SHA` | `UNKNOWN` until independent deploy read-back |
 | `PRODUCTION_DB_STATE` | fill after SELECT on production |
 | `MIGRATION_READINESS` | from Q1-Q3j; no apply |

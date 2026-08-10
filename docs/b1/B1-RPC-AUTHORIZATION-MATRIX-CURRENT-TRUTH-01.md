@@ -4,7 +4,7 @@
 |---|---|
 | mission | `PORTAL-B1-GO-LIVE-MIGRATION-DRIFT-TESTONLY-D02-FINAL-CLOSURE-LONGRUN-01` |
 | generated | 2026-08-10 |
-| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` |
+| `SOURCE_SHA` | `9833269998a68f4ff1b86a57faf897f9b825f654` |
 | `DEPLOYED_SHA` | `UNKNOWN` |
 | status | `CURRENT_TRUTH_RECONCILED` — no production matrix execution in this refresh |
 

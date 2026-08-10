@@ -6,7 +6,7 @@
 | program | `PORTAL-B1-GO-LIVE-MIGRATION-DRIFT-TESTONLY-D02-FINAL-CLOSURE-LONGRUN-01` |
 | version | `V2` |
 | updated | 2026-08-10 |
-| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` (current branch tip; **not** deployed proof) |
+| `SOURCE_SHA` | `9833269998a68f4ff1b86a57faf897f9b825f654` (current branch tip; **not** deployed proof) |
 | `expected_release_sha` | `<fill only after independent deploy read-back>` |
 | `DEPLOYED_SHA` | `UNKNOWN` — no deploy claim; never assume `SOURCE_SHA == DEPLOYED_SHA` |
 | Supabase project | `wpmicqriltrowwonknox` |
@@ -29,7 +29,7 @@ historical context but must not be used as the current Go-Live gate.
 
 | dimension | value | how determined |
 |---|---|---|
-| `SOURCE_SHA` | `38578b6533f20407c02ed775b5af18d11fcb85eb` | `git rev-parse HEAD` on this branch |
+| `SOURCE_SHA` | `9833269998a68f4ff1b86a57faf897f9b825f654` | `git rev-parse HEAD` on this branch |
 | `DEPLOYED_SHA` | `UNKNOWN` until independent deploy read-back | publish/deployment log or authorized endpoint probe |
 | `PRODUCTION_DB_STATE` | fill after SELECT on production | Q1–Q3j below |
 | `SERVICE_VISIBILITY` | fill from `request_types` + workflow evidence | Q3e |
@@ -437,7 +437,7 @@ as the deployed baseline is stale and must not be used as a release gate.
 ## 14. Execution log
 
 - date/operator/channel: ____
-- `SOURCE_SHA`: `38578b6533f20407c02ed775b5af18d11fcb85eb` (current branch tip, not deployed proof)
+- `SOURCE_SHA`: `9833269998a68f4ff1b86a57faf897f9b825f654` (current branch tip, not deployed proof)
 - `DEPLOYED_SHA`: ____ (from independent deploy read-back only)
 - Q1..Q3j outputs: ____
 - `SERVICE_VISIBILITY`: ____
