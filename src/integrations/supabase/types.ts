@@ -8440,6 +8440,7 @@ export type Database = {
         | "agenda_ready"
         | "in_session"
         | "minutes_draft"
+        | "minutes_review"
         | "minutes_locked"
         | "archived"
         | "cancelled"
@@ -8666,6 +8667,7 @@ export const Constants = {
         "agenda_ready",
         "in_session",
         "minutes_draft",
+        "minutes_review",
         "minutes_locked",
         "archived",
         "cancelled",
