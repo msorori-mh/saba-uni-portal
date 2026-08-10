@@ -11,6 +11,9 @@ import { rpcGetAvailableRequestTypes } from "@/lib/student-request-rpc";
 import { extractB1SecureAttachmentIds } from "@/lib/student-requests/student-request-submit-contract";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
+import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
+import { B1_PANEL_ACTION_LABELS_AR } from "@/lib/student-requests/b1-staff-action-routing";
+
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
   SECURE_ATTACHMENT_MAX_BYTES,
@@ -188,7 +191,14 @@ export const actOnB1UiRequestStepFn = createServerFn({ method: "POST" })
     if ((data.action === "return" || data.action === "reject") && !data.comment?.trim()) {
       throw new Error("B1_COMMENT_REQUIRED");
     }
+    // Fail-closed preflight: forward actions require the service details row.
+    await assertB1DetailsRowPresentForStep({
+      stepId: data.stepId,
+      action: data.action,
+      actionLabelAr: B1_PANEL_ACTION_LABELS_AR[data.action] ?? null,
+    });
     const rpcAction = await resolveB1ActOnRpcAction(data.stepId, data.action);
+
     const result = await rpcActOnB1StudentRequestStepAtomic(asSessionRpc(context.supabase), {
       stepId: data.stepId,
       action: rpcAction,
