@@ -5,6 +5,8 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
 
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
@@ -45,6 +47,17 @@ function normalizeShaCandidate(candidate: string | undefined): string | null {
   return BUILD_SHA_PATTERN.test(normalized) ? normalized : null;
 }
 
+function readStampedSha(): string | null {
+  // Committed release stamp: the ONLY fallback that survives a build sandbox
+  // without a .git directory (Lovable publish). Public data (a commit SHA).
+  try {
+    const raw = readFileSync("build-sha.generated.json", "utf-8");
+    return normalizeShaCandidate((JSON.parse(raw) as { sha?: string })?.sha);
+  } catch {
+    return null;
+  }
+}
+
 function resolveBuildSha(): string {
   const fromEnv =
     normalizeShaCandidate(process.env.VITE_BUILD_SHA) ??
@@ -58,12 +71,14 @@ function resolveBuildSha(): string {
     })
       .toString()
       .trim();
-    return normalizeShaCandidate(fromGit) ?? BUILD_SHA_SENTINEL;
+    return normalizeShaCandidate(fromGit) ?? readStampedSha() ?? BUILD_SHA_SENTINEL;
   } catch {
-    // No .git in the build sandbox (possibly the case on Lovable) - degrade.
-    return BUILD_SHA_SENTINEL;
+    // No .git in the build sandbox (the case on Lovable publish) - use the
+    // committed release stamp before degrading to the sentinel.
+    return readStampedSha() ?? BUILD_SHA_SENTINEL;
   }
 }
+
 
 const buildSha = resolveBuildSha();
 
