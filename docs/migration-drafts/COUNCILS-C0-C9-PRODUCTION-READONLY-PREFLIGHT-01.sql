@@ -12,6 +12,8 @@
 -- C1 may be ORIGINAL (one row) OR APPROVED SPLIT (two exact rows).
 -- C2 may be CANONICAL (one row) OR pinned historical LOVABLE_MANAGED_ALIAS.
 -- C3 may be CANONICAL (one row) OR pinned historical LOVABLE_MANAGED_ALIAS.
+-- C4 may be CANONICAL (one row) OR pinned historical LOVABLE_MANAGED_ALIAS.
+-- C5..C9: CANONICAL only until independently proven managed aliases exist.
 -- No fuzzy UUID matching: alias names are exact pinned production values only.
 \set ON_ERROR_STOP on
 
@@ -67,6 +69,8 @@ DECLARE
   v_c2_alias_short text := '4e2c4b05-5ff0-4b23-9084-18d8b1b29c86';
   v_c3_alias_version text := '20260810011456';
   v_c3_alias_short text := '430aac8f-1f38-4e9d-99aa-022ea2680fc4';
+  v_c4_alias_version text := '20260810012715';
+  v_c4_alias_short text := '72757e0e-3b8b-46fa-b252-8e1c8b594d3e';
   v_markers text[] := ARRAY[
     'council_schedule_meeting',
     'academic_council_meeting_transition_events',
@@ -224,12 +228,21 @@ DECLARE
   v_c1_split_b_identity text := 'ABSENT';
   v_c2_lineage text := 'ABSENT';
   v_c3_lineage text := 'ABSENT';
+  v_c4_lineage text := 'ABSENT';
+  v_c5_lineage text := 'ABSENT';
+  v_c6_lineage text := 'ABSENT';
+  v_c7_lineage text := 'ABSENT';
+  v_c8_lineage text := 'ABSENT';
+  v_c9_lineage text := 'ABSENT';
   v_c2_identity text := 'ABSENT';
   v_c3_identity text := 'ABSENT';
+  v_c4_identity text := 'ABSENT';
   v_c2_canon_hit int := 0;
   v_c2_alias_hit int := 0;
   v_c3_canon_hit int := 0;
   v_c3_alias_hit int := 0;
+  v_c4_canon_hit int := 0;
+  v_c4_alias_hit int := 0;
 BEGIN
   RAISE NOTICE 'PREFLIGHT_LEDGER_STORAGE_FORMAT: VERSION_PLUS_NORMALIZED_NAME';
 
@@ -246,7 +259,8 @@ BEGIN
             v_c1_split_a_version,
             v_c1_split_b_version,
             v_c2_alias_version,
-            v_c3_alias_version
+            v_c3_alias_version,
+            v_c4_alias_version
           ]
         )
         AND NOT (
@@ -318,6 +332,13 @@ BEGIN
               OR sm.name = v_c3_alias_version || '_' || v_c3_alias_short
             )
           )
+          OR (
+            sm.version = v_c4_alias_version
+            AND (
+              sm.name = v_c4_alias_short
+              OR sm.name = v_c4_alias_version || '_' || v_c4_alias_short
+            )
+          )
         )
       )
       OR (
@@ -330,7 +351,9 @@ BEGIN
             v_c2_alias_short,
             v_c2_alias_version || '_' || v_c2_alias_short,
             v_c3_alias_short,
-            v_c3_alias_version || '_' || v_c3_alias_short
+            v_c3_alias_version || '_' || v_c3_alias_short,
+            v_c4_alias_short,
+            v_c4_alias_version || '_' || v_c4_alias_short
           ])
         )
         AND NOT (
@@ -402,6 +425,13 @@ BEGIN
               OR sm.name = v_c3_alias_version || '_' || v_c3_alias_short
             )
           )
+          OR (
+            sm.version = v_c4_alias_version
+            AND (
+              sm.name = v_c4_alias_short
+              OR sm.name = v_c4_alias_version || '_' || v_c4_alias_short
+            )
+          )
         )
       )
     LIMIT 1;
@@ -413,11 +443,11 @@ BEGIN
         v_poison_version, v_poison_name;
     END IF;
 
-    -- Exact identity hits for non-C1/C2/C3 steps and C0 notice.
-    -- C1/C2/C3 each have explicit multi-identity lineage contracts below.
+    -- Exact identity hits for non-C1/C2/C3/C4 steps and C0 notice.
+    -- C1/C2/C3/C4 each have explicit multi-identity lineage contracts below.
     FOR v_step_i IN 1..10 LOOP
-      IF v_step_i IN (2, 3, 4) THEN
-        CONTINUE; -- C1 / C2 / C3 resolved below
+      IF v_step_i IN (2, 3, 4, 5) THEN
+        CONTINUE; -- C1 / C2 / C3 / C4 resolved below
       END IF;
       v_known_version := v_step_versions[v_step_i];
       v_known_short := v_step_short_names[v_step_i];
@@ -622,6 +652,67 @@ BEGIN
     END IF;
     RAISE NOTICE 'PREFLIGHT_C3_LINEAGE: %', v_c3_lineage;
     RAISE NOTICE 'PREFLIGHT_C3_LEDGER_IDENTITY: %', v_c3_identity;
+
+    -- C4 CANONICAL vs pinned LOVABLE_MANAGED_ALIAS (exactly one representation).
+    SELECT count(*)::int INTO v_c4_canon_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_step_versions[5]
+      AND (sm.name = v_step_short_names[5] OR sm.name = v_promoted[5]);
+    SELECT count(*)::int INTO v_c4_alias_hit
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = v_c4_alias_version
+      AND (
+        sm.name = v_c4_alias_short
+        OR sm.name = v_c4_alias_version || '_' || v_c4_alias_short
+      );
+    IF v_c4_canon_hit > 1 OR v_c4_alias_hit > 1 THEN
+      v_ledger_state := 'LEDGER_UNKNOWN';
+      RAISE NOTICE 'PREFLIGHT_LEDGER_STATE: %', v_ledger_state;
+      RAISE EXCEPTION 'HOLD: HOLD_DUPLICATE_PROMOTED_LEDGER_ENTRY logical=C4';
+    END IF;
+    IF v_c4_canon_hit = 1 AND v_c4_alias_hit = 1 THEN
+      v_c4_lineage := 'DUPLICATE_LINEAGE';
+      RAISE NOTICE 'PREFLIGHT_C4_LINEAGE: %', v_c4_lineage;
+      RAISE EXCEPTION 'HOLD: HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE logical=C4 canonical and Lovable alias coexist';
+    ELSIF v_c4_canon_hit = 1 THEN
+      v_c4_lineage := 'CANONICAL';
+      v_logical_satisfied[5] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c4_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_step_versions[5]
+        AND (sm.name = v_step_short_names[5] OR sm.name = v_promoted[5])
+      LIMIT 1;
+    ELSIF v_c4_alias_hit = 1 THEN
+      v_c4_lineage := 'LOVABLE_MANAGED_ALIAS';
+      v_logical_satisfied[5] := true;
+      SELECT 'version=' || sm.version || ';name=' || sm.name
+        INTO v_c4_identity
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.version = v_c4_alias_version
+        AND (
+          sm.name = v_c4_alias_short
+          OR sm.name = v_c4_alias_version || '_' || v_c4_alias_short
+        )
+      LIMIT 1;
+    ELSE
+      v_c4_lineage := 'ABSENT';
+      v_logical_satisfied[5] := false;
+    END IF;
+    RAISE NOTICE 'PREFLIGHT_C4_LINEAGE: %', v_c4_lineage;
+    RAISE NOTICE 'PREFLIGHT_C4_LEDGER_IDENTITY: %', v_c4_identity;
+
+    -- C5..C9 lineage notices (CANONICAL or ABSENT; no managed aliases proven).
+    IF v_logical_satisfied[6] THEN v_c5_lineage := 'CANONICAL'; ELSE v_c5_lineage := 'ABSENT'; END IF;
+    IF v_logical_satisfied[7] THEN v_c6_lineage := 'CANONICAL'; ELSE v_c6_lineage := 'ABSENT'; END IF;
+    IF v_logical_satisfied[8] THEN v_c7_lineage := 'CANONICAL'; ELSE v_c7_lineage := 'ABSENT'; END IF;
+    IF v_logical_satisfied[9] THEN v_c8_lineage := 'CANONICAL'; ELSE v_c8_lineage := 'ABSENT'; END IF;
+    IF v_logical_satisfied[10] THEN v_c9_lineage := 'CANONICAL'; ELSE v_c9_lineage := 'ABSENT'; END IF;
+    RAISE NOTICE 'PREFLIGHT_C5_LINEAGE: %', v_c5_lineage;
+    RAISE NOTICE 'PREFLIGHT_C6_LINEAGE: %', v_c6_lineage;
+    RAISE NOTICE 'PREFLIGHT_C7_LINEAGE: %', v_c7_lineage;
+    RAISE NOTICE 'PREFLIGHT_C8_LINEAGE: %', v_c8_lineage;
+    RAISE NOTICE 'PREFLIGHT_C9_LINEAGE: %', v_c9_lineage;
 
     -- Contiguous LOGICAL prefix from C0..C9 (not raw row count).
     v_ledger_hits := 0;

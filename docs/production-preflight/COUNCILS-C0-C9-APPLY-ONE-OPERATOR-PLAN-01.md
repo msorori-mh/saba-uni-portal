@@ -104,7 +104,7 @@ Ledger alone is never enough. Schema alone is never enough. Prefix mismatch → 
 
 Do not treat ORIGINAL + SPLIT coexistence as a single satisfied C1 — preflight holds `HOLD_C1_LINEAGE_AMBIGUOUS`.
 
-### C2 / C3 pinned Lovable managed aliases
+### C2 / C3 / C4 pinned Lovable managed aliases
 
 Logical C2 is satisfied by **exactly one** of:
 
@@ -120,11 +120,19 @@ Logical C3 is satisfied by **exactly one** of:
 | `CANONICAL` | `version=20260808130000` + name `councils_c3_attendance_quorum_01` (or composite) |
 | `LOVABLE_MANAGED_ALIAS` | `version=20260810011456` + name `430aac8f-1f38-4e9d-99aa-022ea2680fc4` (or composite) |
 
+Logical C4 is satisfied by **exactly one** of:
+
+| Lineage | Physical proof |
+|---|---|
+| `CANONICAL` | `version=20260808140000` + name `councils_c4_session_voting_01` (or composite) |
+| `LOVABLE_MANAGED_ALIAS` | `version=20260810012715` + name `72757e0e-3b8b-46fa-b252-8e1c8b594d3e` (or composite) |
+
 - Canonical + alias coexistence → `HOLD_LOGICAL_STEP_DUPLICATE_LINEAGE`
 - Wrong version or wrong name on the pinned alias → `HOLD_LEDGER_IDENTITY_MISMATCH`
 - Arbitrary UUID names are never accepted
+- C5–C9 have **no** accepted managed aliases in this classifier (canonical only)
 
-Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTITY`, `PREFLIGHT_C3_LINEAGE`, `PREFLIGHT_C3_LEDGER_IDENTITY`.
+Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTITY`, `PREFLIGHT_C3_LINEAGE`, `PREFLIGHT_C3_LEDGER_IDENTITY`, `PREFLIGHT_C4_LINEAGE`, `PREFLIGHT_C4_LEDGER_IDENTITY`, and `PREFLIGHT_C5_LINEAGE`..`PREFLIGHT_C9_LINEAGE`.
 
 ## Step C2
 
@@ -152,6 +160,7 @@ Stable notices also include: `PREFLIGHT_C2_LINEAGE`, `PREFLIGHT_C2_LEDGER_IDENTI
 |---|---|
 | Migration | `supabase/migrations/20260808140000_councils_c4_session_voting_01.sql` |
 | FULL_SHA256_LF | `d0825e1ddcce82c0e1123ea04cba2777e3b726bc0e4ae514940a714d322b05cd` |
+| Approved LOVABLE_MANAGED_ALIAS (production) | `20260810012715` / `72757e0e-3b8b-46fa-b252-8e1c8b594d3e` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C4.sql` |
 | Pass marker | `COUNCILS_C4_PRODUCTION_POST_VERIFIER_PASS` |
 
