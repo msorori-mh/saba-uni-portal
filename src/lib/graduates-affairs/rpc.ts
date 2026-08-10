@@ -20,6 +20,40 @@ type RpcClient = {
   ) => Promise<{ data: unknown; error: RpcErrorLike | null }>;
 };
 
+export type GraduateAffairsRecordState = "pending" | "approved" | "corrected" | "revoked";
+
+export interface GraduateAffairsSearchRecord {
+  id: string;
+  program_id: string;
+  department_id: string;
+  graduation_year: number;
+  record_state: GraduateAffairsRecordState;
+}
+
+export interface GraduateAffairsFileProjection {
+  record: GraduateAffairsSearchRecord & { version: number };
+  profile: Record<string, unknown> | null;
+  counts: {
+    employment_events: number;
+    consents: number;
+    followups: number;
+  };
+  contact_points: Array<{
+    id: string;
+    channel_type: string;
+    purpose_code: string;
+    is_verified: boolean;
+    is_revoked: boolean;
+  }>;
+  followups: Array<{
+    id: string;
+    state: string;
+    assignee_user_id: string;
+    purpose_code: string;
+    next_action_at: string | null;
+  }>;
+}
+
 export class GraduatesAffairsRpcError extends Error {
   readonly code: string;
   readonly unavailable: boolean;
@@ -49,16 +83,20 @@ export function isGraduatesAffairsRpcUnavailable(error: RpcErrorLike | null | un
   const msg = error.message ?? "";
   const code = error.code ?? "";
   return (
-    code === "42883"
-    || /function .* does not exist/i.test(msg)
-    || /could not find the function/i.test(msg)
-    || /schema cache/i.test(msg)
+    code === "42883" ||
+    /function .* does not exist/i.test(msg) ||
+    /could not find the function/i.test(msg) ||
+    /schema cache/i.test(msg)
   );
 }
 
 export function mapGraduatesAffairsRpcError(error: RpcErrorLike): GraduatesAffairsRpcError {
   if (isGraduatesAffairsRpcUnavailable(error)) {
-    return new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_SERVICE_UPDATING_MSG, error.code ?? "", true);
+    return new GraduatesAffairsRpcError(
+      GRADUATES_AFFAIRS_SERVICE_UPDATING_MSG,
+      error.code ?? "",
+      true,
+    );
   }
   const msg = error.message ?? "";
   for (const [code, label] of Object.entries(ERROR_LABELS)) {
@@ -120,7 +158,7 @@ export class GraduatesAffairsRpcClient {
     });
   }
 
-  getGraduateFile(graduateRecordId: string): Promise<unknown> {
+  getGraduateFile(graduateRecordId: string): Promise<GraduateAffairsFileProjection | null> {
     return this.call("graduate_affairs_get_graduate_file", {
       p_graduate_record_id: graduateRecordId,
     });
@@ -131,7 +169,7 @@ export class GraduatesAffairsRpcClient {
     departmentId: string | null;
     graduationYear: number | null;
     limit: number;
-  }): Promise<unknown> {
+  }): Promise<GraduateAffairsSearchRecord[]> {
     return this.call("graduate_affairs_search_records", {
       p_program_id: input.programId,
       p_department_id: input.departmentId,
