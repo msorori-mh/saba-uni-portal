@@ -42,7 +42,7 @@ SPECIALIST_GATE=Do not scope aa4f5c16; use TEST_ONLY single-dept fixture for E2E
 AUTH04_MATRIX=admin_app_role_alone=DENY; manager_assigned=ALLOW_manager_scope; specialist_with_SPD=ALLOW_in_dept_only; specialist_aa4f5c16_zero_SPD=empty_scope_DENY_records; outside_scope=DENY
 LINEAGE_NOTE=GA1/GA2/GA3 present via Lovable UUID aliases; map logical 20260808210000/201/202 in post-apply ledger reconciliation packet — do not re-apply any GA migration
 
-PR339_ALIGNMENT=LOVABLE_ONLY + SINGLE_WRITER_LEASE required; AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY (completed); NEXT_PRODUCTION_WRITE=NONE_SCHEMA; residual ops = ledger mapping + optional TEST_ONLY specialist fixture under runtime grant/lease
+PR339_ALIGNMENT=LOVABLE_ONLY + SINGLE_WRITER_LEASE required; NEXT_PRODUCTION_WRITE=GA3_ONLY (sole permitted schema write class; already VERIFIED_PRESENT so actionable NEXT_WRITE=NONE_SCHEMA); residual ops = ledger mapping + optional TEST_ONLY specialist fixture under runtime grant/lease
 PRODUCTION_WRITER=LOVABLE_ONLY
 SINGLE_WRITER_LEASE=REQUIRED
 OTHER_AGENTS=READ_ONLY

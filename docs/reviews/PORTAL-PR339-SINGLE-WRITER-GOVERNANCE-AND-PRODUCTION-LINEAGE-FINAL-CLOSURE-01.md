@@ -20,7 +20,8 @@ PRODUCTION WRITES THIS MISSION: `0`
 | RUNTIME_SEMANTIC_STATE | PASS |
 | SINGLE_WRITER_GOVERNANCE | PASS |
 | AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS | GA3_ONLY |
-| NEXT_PRODUCTION_WRITE | NONE_SCHEMA |
+| NEXT_PRODUCTION_WRITE | GA3_ONLY |
+| NEXT_WRITE | NONE_SCHEMA |
 | CRITICAL_COUNT | 0 |
 | HIGH_COUNT | 0 |
 
@@ -35,8 +36,8 @@ PRODUCTION WRITES THIS MISSION: `0`
    - `PRODUCTION_WRITER=LOVABLE_ONLY`
    - `SINGLE_WRITER_LEASE=REQUIRED`
    - `OTHER_AGENTS=READ_ONLY`
-7. Removed/blocked packet encouragement of concurrent production agents, no-token-pause blind writes, standing-owner authorization, and automatic batch production writes (including toxic auth reintroduced by PR338 master packet text).
-8. Fulfilled the GA3_ONLY authorization gate after GA1/GA2 readback + specialist resolution (PR338): recorded as `AUTHORIZED_NEXT_PRODUCTION_WRITE_WAS=GA3_ONLY`, now complete with `GA3_CURRENT=VERIFIED_PRESENT` and `NEXT_PRODUCTION_WRITE=NONE_SCHEMA`.
+7. Removed/blocked packet encouragement of concurrent production agents, no-token-pause blind writes, standing-owner authorization, and automatic batch production writes.
+8. Defined `NEXT_PRODUCTION_WRITE=GA3_ONLY` only after GA1/GA2 readback + specialist resolution (PR338). With `GA3_CURRENT=VERIFIED_PRESENT`, actionable `NEXT_WRITE=NONE_SCHEMA` / do-not-reapply.
 9. Clarified that `EXPLICIT_OWNER_RUNTIME_GRANT_REQUIRED` is an anti-parallel-writer gate (standing current-session grant may satisfy it), while the single-writer lease remains non-bypassable.
 10. Added portable `scripts/production-write-lease.mjs` twin so CI validates lease mutex without Windows PowerShell; operator PS1 retained.
 
