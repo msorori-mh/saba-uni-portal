@@ -2,7 +2,9 @@
 
 **Mission:** `PORTAL-24H-REPORTS-DEPLOY-PUBLISH-PRODUCTION-E2E-CLOSURE-01`  
 **Branch:** `prep/24h-reports-deploy-publish-e2e-01`  
+**PR:** https://github.com/msorori-mh/saba-uni-portal/pull/335  
 **Main SHA pinned:** `fab94705443264ae5fe768c5091e25c7c729be1a`  
+**Package tip:** `938c8727`  
 **Decision:** `HOLD_PORTAL_24H_PRODUCTION_DEPLOY_PUBLISH_E2E_WAITING_DB_FULL_READY`
 
 ---
