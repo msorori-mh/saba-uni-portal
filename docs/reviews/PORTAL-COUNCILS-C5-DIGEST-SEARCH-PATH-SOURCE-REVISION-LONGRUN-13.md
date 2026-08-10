@@ -13,10 +13,8 @@ MISSION=PORTAL-COUNCILS-C5-DIGEST-SEARCH-PATH-SOURCE-REVISION-LONGRUN-13
 BASE_SHA=cde33de20581ceeba62fcc8dc16dc28e864dd338
 BASE_PR=#321 / fix/councils-preflight-ledger-lineage-10
 BRANCH=fix/councils-c5-digest-source-revision-13
-FINAL_SHA=5ea17f4c218981be65d6c6a7a5ee16c308087fd9
+FINAL_SHA=72aea40dd565872923bbbeb3d2881a7f6a101b43
 ```
-
-> Tip-align note: if a follow-up pin commit is required to make FINAL_SHA equal HEAD, that SHA is recorded in the closing pin commit.
 
 ## C5 freeze / revision
 
