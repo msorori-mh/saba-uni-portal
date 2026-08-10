@@ -21,6 +21,7 @@ export function CouncilMeetingsWorkspace({
   isError,
   chairCouncilIds,
   agendaWriteCouncilIds,
+  secretaryCouncilIds,
   onManageAgenda,
   onUpdated,
 }: {
@@ -30,6 +31,7 @@ export function CouncilMeetingsWorkspace({
   isError: boolean;
   chairCouncilIds: Set<string>;
   agendaWriteCouncilIds: Set<string>;
+  secretaryCouncilIds: Set<string>;
   onManageAgenda: (meetingId: string) => void;
   onUpdated: () => void;
 }) {
