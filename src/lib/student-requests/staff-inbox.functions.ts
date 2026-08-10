@@ -10,6 +10,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
+import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
 import {
   isWorkflowRpcUnavailable,
   rpcGetMyRequestActorInbox,
@@ -1229,6 +1230,15 @@ export const executeStudentRequestArchiveAction = createServerFn({ method: "POST
         "منفذ الأرشفة يدعم فقط خطوات action_type='archive'. استخدم اللوحة المخصصة للخطوة الحالية.",
       );
     }
+
+    // Fail-closed shared preflight: every archive execution path (any panel)
+    // requires the service `*_details` row, so a missing row can never surface
+    // as an opaque/misleading authorization error.
+    await assertB1DetailsRowPresentForStep({
+      stepId: data.workflowStepRuntimeId,
+      action: "archive",
+      actionLabelAr: "الأرشفة وإغلاق المعاملة",
+    });
 
     const { data: rpcData, error: rpcErr } = await (
       context.supabase as {

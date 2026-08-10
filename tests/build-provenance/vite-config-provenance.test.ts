@@ -11,7 +11,12 @@ const viteConfigSource = readFileSync(join(process.cwd(), "vite.config.ts"), "ut
 // behaviorally evaluate it with a stubbed execSync - no full build required.
 // The block starts at the sentinel constant and ends right before
 // `const buildSha = resolveBuildSha();`.
-function loadResolveBuildSha(execSyncImpl: () => string): () => string {
+function loadResolveBuildSha(
+  execSyncImpl: () => string,
+  readFileSyncImpl: () => string = () => {
+    throw new Error("no stamp file");
+  },
+): () => string {
   const startMarker = "const BUILD_SHA_SENTINEL";
   const endMarker = "const buildSha = resolveBuildSha();";
   const start = viteConfigSource.indexOf(startMarker);
@@ -21,8 +26,12 @@ function loadResolveBuildSha(execSyncImpl: () => string): () => string {
   }
   const block = tsTranspiler.transformSync(viteConfigSource.slice(start, end));
   // eslint-disable-next-line no-new-func -- deliberate: evaluates the actual config code
-  const factory = new Function("execSync", `${block}\nreturn resolveBuildSha;`);
-  return factory(execSyncImpl) as () => string;
+  const factory = new Function(
+    "execSync",
+    "readFileSync",
+    `${block}\nreturn resolveBuildSha;`,
+  );
+  return factory(execSyncImpl, readFileSyncImpl) as () => string;
 }
 
 const ENV_KEYS = ["VITE_BUILD_SHA", "GITHUB_SHA", "CF_PAGES_COMMIT_SHA"] as const;
@@ -83,10 +92,30 @@ describe("vite.config.ts build SHA resolution (behavioral, no build)", () => {
     expect(resolve()).toBe(VALID_SHA);
   });
 
-  test("missing SHA everywhere (git fails) degrades to unknown - build never fails", () => {
+  test("missing SHA everywhere (git fails, no stamp) degrades to unknown - build never fails", () => {
     const resolve = loadResolveBuildSha(() => {
       throw new Error("spawn git ENOENT");
     });
+    expect(resolve()).toBe("unknown");
+  });
+
+  test("git-less build sandbox falls back to the committed release stamp", () => {
+    const resolve = loadResolveBuildSha(
+      () => {
+        throw new Error("spawn git ENOENT");
+      },
+      () => JSON.stringify({ sha: VALID_SHA }),
+    );
+    expect(resolve()).toBe(VALID_SHA);
+  });
+
+  test("malformed release stamp degrades to unknown (never fails the build)", () => {
+    const resolve = loadResolveBuildSha(
+      () => {
+        throw new Error("spawn git ENOENT");
+      },
+      () => "{not json",
+    );
     expect(resolve()).toBe("unknown");
   });
 
@@ -113,7 +142,7 @@ describe("vite.config.ts provenance define (static)", () => {
   test("git fallback is wrapped so the build can never fail", () => {
     expect(viteConfigSource).toContain('execSync("git rev-parse HEAD"');
     expect(viteConfigSource).toContain("} catch {");
-    expect(viteConfigSource).toContain('return BUILD_SHA_SENTINEL;');
+    expect(viteConfigSource).toContain("BUILD_SHA_SENTINEL;");
   });
 
   test("no secret passthrough is added to the define block", () => {

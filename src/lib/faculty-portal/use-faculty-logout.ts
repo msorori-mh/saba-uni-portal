@@ -1,8 +1,9 @@
 import { useCallback } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
+import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
 
 /**
  * Centralized, safe logout for the faculty portal.
@@ -16,18 +17,21 @@ import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferen
  */
 export function useFacultyLogout() {
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   return useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "global" });
     } catch {
       // Swallow: the local session is discarded anyway and the login page
       // re-establishes a fresh session. Never block navigation on this.
     } finally {
       queryClient.clear();
       clearReportsLocalPreferences();
+      clearSessionArtifacts();
+      await router.invalidate();
       navigate({ to: "/portal-login", replace: true });
     }
-  }, [navigate, queryClient]);
+  }, [navigate, router, queryClient]);
 }

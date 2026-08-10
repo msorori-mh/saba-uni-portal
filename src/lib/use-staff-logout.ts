@@ -6,16 +6,14 @@ import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferen
 import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
 
 /**
- * Centralized, safe logout for the admin portal.
+ * Centralized, safe logout for the staff portal.
  *
- * - Always navigates back to /admin/login, even if `supabase.auth.signOut()`
- *   rejects (network error, expired session, …): the navigation lives in
- *   `finally`, so a failed sign-out can never strand the user.
- * - Clears the React Query cache so no stale identity/role data survives
- *   into the next login on the same client.
- * - Clears local reports favorites so shared browsers do not leak preferences.
+ * - Navigation lives in `finally`, so a failed sign-out never strands the user.
+ * - Clears the React Query cache and invalidates the router so no stale
+ *   identity/profile data from the previous staff member survives into the
+ *   next login on the same browser.
  */
-export function useAdminLogout() {
+export function useStaffLogout() {
   const navigate = useNavigate();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -24,14 +22,13 @@ export function useAdminLogout() {
     try {
       await supabase.auth.signOut({ scope: "global" });
     } catch {
-      // Swallow: the local session is discarded anyway and the login page
-      // re-establishes a fresh session. Never block navigation on this.
+      // Swallow: the local session is discarded anyway.
     } finally {
       queryClient.clear();
       clearReportsLocalPreferences();
       clearSessionArtifacts();
       await router.invalidate();
-      navigate({ to: "/admin/login", replace: true });
+      navigate({ to: "/portal-login", replace: true });
     }
   }, [navigate, router, queryClient]);
 }

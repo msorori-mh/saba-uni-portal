@@ -305,6 +305,11 @@ export function formatWaitingDuration(sinceIso: string | null | undefined): stri
 export function sanitizeStaffErrorMessage(raw: string | null | undefined): string {
   const msg = (raw ?? "").trim();
   if (!msg) return STAFF_INBOX_UNAVAILABLE_MSG.error;
+  // Data-precondition failures carry their own explicit Arabic explanation and
+  // must never be masked as an authorization error.
+  if (/B1_DETAILS_ROW_MISSING|B1_[A-Z0-9_]*_DETAILS_REQUIRED/i.test(msg)) {
+    return msg.length > 600 ? `${msg.slice(0, 600)}…` : msg;
+  }
   if (/permission denied|42501|RLS|violates row-level/i.test(msg)) {
     return STAFF_INBOX_UNAVAILABLE_MSG.unauthorized;
   }

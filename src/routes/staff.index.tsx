@@ -1,4 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useStaffLogout } from "@/lib/use-staff-logout";
+
 import { useQuery } from "@tanstack/react-query";
 import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2, GraduationCap, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,16 +44,12 @@ export const Route = createFileRoute("/staff/")({
 });
 
 function StaffDashboard() {
-  const navigate = useNavigate();
+  const handleLogout = useStaffLogout();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["staff", "me"],
     queryFn: fetchMyStaffProfile,
   });
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
 
   return (
     <PortalShell title="بوابة الموظف" onLogout={handleLogout}>
@@ -116,20 +114,6 @@ function StaffDashboard() {
               </Link>
             </div>
 
-            <div className="mt-4">
-              <Link
-                to="/staff/fixtures-diagnostics"
-                className="flex items-center gap-3 rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
-              >
-                <ClipboardList className="h-5 w-5 text-gold shrink-0" />
-                <div className="min-w-0">
-                  <div className="font-bold text-primary">تشخيص بيانات الاختبار</div>
-                  <div className="text-xs text-muted-foreground">
-                    حالة كل fixture وجداول التفاصيل المفقودة — لمسؤولي النظام.
-                  </div>
-                </div>
-              </Link>
-            </div>
 
             <div className="mt-4">
               <Link

@@ -660,7 +660,9 @@ export type Database = {
           id: string
           is_active: boolean
           member_role: Database["public"]["Enums"]["academic_council_member_role"]
+          membership_source: Database["public"]["Enums"]["council_membership_source"]
           notes: string | null
+          source_position_assignment_id: string | null
           updated_at: string
           updated_by: string | null
           user_id: string
@@ -674,7 +676,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           member_role?: Database["public"]["Enums"]["academic_council_member_role"]
+          membership_source?: Database["public"]["Enums"]["council_membership_source"]
           notes?: string | null
+          source_position_assignment_id?: string | null
           updated_at?: string
           updated_by?: string | null
           user_id: string
@@ -688,7 +692,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           member_role?: Database["public"]["Enums"]["academic_council_member_role"]
+          membership_source?: Database["public"]["Enums"]["council_membership_source"]
           notes?: string | null
+          source_position_assignment_id?: string | null
           updated_at?: string
           updated_by?: string | null
           user_id?: string
@@ -699,6 +705,13 @@ export type Database = {
             columns: ["council_id"]
             isOneToOne: false
             referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_members_source_position_assignment_id_fkey"
+            columns: ["source_position_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "position_assignments"
             referencedColumns: ["id"]
           },
         ]
@@ -5090,8 +5103,10 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          department_id: string | null
           id: string
           is_active: boolean
+          is_department_head_position: boolean
           name_ar: string
           name_en: string | null
           notes: string | null
@@ -5103,8 +5118,10 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          department_id?: string | null
           id?: string
           is_active?: boolean
+          is_department_head_position?: boolean
           name_ar: string
           name_en?: string | null
           notes?: string | null
@@ -5116,8 +5133,10 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          department_id?: string | null
           id?: string
           is_active?: boolean
+          is_department_head_position?: boolean
           name_ar?: string
           name_en?: string | null
           notes?: string | null
@@ -5126,7 +5145,15 @@ export type Database = {
           unit_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizational_positions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_receipts: {
         Row: {
@@ -10257,6 +10284,10 @@ export type Database = {
         Args: { _fee_id: string }
         Returns: undefined
       }
+      reconcile_department_head_council_memberships: {
+        Args: { p_user_id?: string }
+        Returns: Json
+      }
       record_council_meeting_attendance: {
         Args: { p_entries: Json; p_meeting_id: string }
         Returns: Json
@@ -10693,6 +10724,9 @@ export type Database = {
         | "student"
         | "graduate"
         | "hr_officer"
+      council_membership_source:
+        | "official_assignment"
+        | "administrative_position"
       day_of_week:
         | "saturday"
         | "sunday"
@@ -10978,6 +11012,10 @@ export const Constants = {
         "student",
         "graduate",
         "hr_officer",
+      ],
+      council_membership_source: [
+        "official_assignment",
+        "administrative_position",
       ],
       day_of_week: [
         "saturday",
