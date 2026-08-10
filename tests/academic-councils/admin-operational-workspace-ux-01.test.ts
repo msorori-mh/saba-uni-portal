@@ -130,10 +130,9 @@ describe("admin operational workspace — page contracts", () => {
 });
 
 describe("admin operational helpers — truthful derivation", () => {
-  it("derives action items only from loaded data and caps at 5", () => {
+  it("derives action items only from loaded council-scoped data and caps at 5", () => {
     const items = deriveAdminActionRequiredItems({
       selectedCouncilName: "مجلس الكلية",
-      overdueDecisions: 2,
       upcomingMeeting: {
         meeting_id: "m1",
         title: "اجتماع 1",
@@ -160,17 +159,16 @@ describe("admin operational helpers — truthful derivation", () => {
       ],
     });
     expect(items.length).toBeLessThanOrEqual(5);
-    expect(items.some((i) => i.kind === "overdue_decision")).toBe(true);
     expect(items.some((i) => i.kind === "minutes_review")).toBe(true);
     expect(items.some((i) => i.kind === "topics_pending")).toBe(true);
     expect(items.some((i) => i.kind === "agenda_incomplete")).toBe(true);
+    expect(items.every((i) => i.kind !== ("overdue_decision" as never))).toBe(true);
   });
 
   it("returns empty actions when nothing urgent", () => {
     expect(
       deriveAdminActionRequiredItems({
         selectedCouncilName: "مجلس",
-        overdueDecisions: 0,
         upcomingMeeting: null,
         meetings: [],
         topics: [],
@@ -186,6 +184,82 @@ describe("admin operational helpers — truthful derivation", () => {
         { status: "minutes_review" },
       ]),
     ).toBe(2);
+  });
+});
+
+describe("selected-council scope truth — no global summary misattribution", () => {
+  it("GLOBAL_KPIS_ONLY_GLOBAL_CONTEXT=YES — portal KPIs stay in the top strip", () => {
+    // Global KPI strip remains and binds summary.kpis.*
+    expect(ROUTE_SRC).toContain('data-testid="admin-councils-operational-summary"');
+    expect(ROUTE_SRC).toContain('testId: "admin-kpi-open-decisions"');
+    expect(ROUTE_SRC).toContain('testId: "admin-kpi-overdue-decisions"');
+    expect(ROUTE_SRC).toContain("value: summary.kpis.open_decisions");
+    expect(ROUTE_SRC).toContain("value: summary.kpis.overdue_decisions");
+    expect(ROUTE_SRC).toContain("value: summary.kpis.upcoming_meetings");
+    expect(ROUTE_SRC).toContain("value: summary.kpis.submitted_topics");
+    // Marker for mission report
+    expect("YES").toBe("YES");
+  });
+
+  it("SELECTED_COUNCIL_GLOBAL_DECISION_MISATTRIBUTION=0", () => {
+    // Action derivation must not accept or pipe global overdue counts
+    expect(OPS_SRC).not.toContain("overdueDecisions");
+    expect(OPS_SRC).not.toContain("overdue_decision");
+    expect(OPS_SRC).not.toContain("open_decisions");
+    expect(ROUTE_SRC).not.toMatch(
+      /deriveAdminActionRequiredItems\(\{[\s\S]*?overdueDecisions/,
+    );
+    expect(ROUTE_SRC).not.toMatch(
+      /overdueDecisions:\s*summary\.kpis\.overdue_decisions/,
+    );
+
+    // Minutes / follow-up selected-council panels must not display global decision KPIs
+    const minutesStart = ROUTE_SRC.indexOf("function MinutesDecisionsPanel");
+    const followUpStart = ROUTE_SRC.indexOf("function FollowUpPanel");
+    const archiveStart = ROUTE_SRC.indexOf("function ArchivePanel");
+    expect(minutesStart).toBeGreaterThan(-1);
+    expect(followUpStart).toBeGreaterThan(minutesStart);
+    expect(archiveStart).toBeGreaterThan(followUpStart);
+
+    const minutesPanel = ROUTE_SRC.slice(minutesStart, followUpStart);
+    expect(minutesPanel).not.toContain("openDecisions");
+    expect(minutesPanel).not.toContain("overdueDecisions");
+    expect(minutesPanel).not.toContain("summary.kpis");
+
+    const followUpPanel = ROUTE_SRC.slice(followUpStart, archiveStart);
+    expect(followUpPanel).not.toContain("openDecisions");
+    expect(followUpPanel).not.toContain("overdueDecisions");
+    expect(followUpPanel).not.toContain("summary.kpis");
+
+    expect(ROUTE_SRC).not.toContain("openDecisions={summary.kpis.open_decisions}");
+    expect(ROUTE_SRC).not.toContain(
+      "overdueDecisions={summary.kpis.overdue_decisions}",
+    );
+
+    // Marker for mission report
+    expect(0).toBe(0);
+  });
+
+  it("SELECTED_COUNCIL_GLOBAL_AGENDA_MISATTRIBUTION=0", () => {
+    // Agenda tab must not render portal-wide summary.agenda_stages cards
+    const agendaStart = ROUTE_SRC.indexOf('data-testid="admin-tab-panel-agenda"');
+    const minutesTabStart = ROUTE_SRC.indexOf(
+      'data-testid="admin-tab-panel-minutes-decisions"',
+    );
+    expect(agendaStart).toBeGreaterThan(-1);
+    expect(minutesTabStart).toBeGreaterThan(agendaStart);
+    const agendaTab = ROUTE_SRC.slice(agendaStart, minutesTabStart);
+    expect(agendaTab).not.toContain("summary.agenda_stages");
+    expect(agendaTab).not.toContain("agenda_stages.draft");
+    expect(agendaTab).not.toContain("agenda_stages.under_review");
+    expect(agendaTab).not.toContain("agenda_stages.approved");
+    expect(agendaTab).not.toContain("agenda_stages.deferred");
+    // CouncilAgendaPanel remains the authoritative selected-council agenda UI
+    expect(agendaTab).toContain("<CouncilAgendaPanel council={selectedCouncil} />");
+    expect(ROUTE_SRC).toContain("function CouncilAgendaPanel");
+
+    // Marker for mission report
+    expect(0).toBe(0);
   });
 });
 

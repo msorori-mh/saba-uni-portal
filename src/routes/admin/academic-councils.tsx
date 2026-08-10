@@ -1964,14 +1964,10 @@ function MinutesDecisionsPanel({
   meetings,
   isLoading,
   isError,
-  openDecisions,
-  overdueDecisions,
 }: {
   meetings: AdminCouncilMeetingItem[];
   isLoading: boolean;
   isError: boolean;
-  openDecisions: number;
-  overdueDecisions: number;
 }) {
   const relevant = meetings.filter((m) =>
     ["minutes_draft", "minutes_review", "minutes_locked", "archived"].includes(m.status),
@@ -1994,16 +1990,6 @@ function MinutesDecisionsPanel({
 
   return (
     <div className="space-y-3" data-testid="admin-minutes-decisions-panel">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-background p-3 text-xs">
-          <div className="text-muted-foreground">القرارات قيد المتابعة</div>
-          <div className="mt-1 font-bold text-primary">{openDecisions}</div>
-        </div>
-        <div className="rounded-lg border border-border bg-background p-3 text-xs">
-          <div className="text-muted-foreground">القرارات المتأخرة</div>
-          <div className="mt-1 font-bold text-primary">{overdueDecisions}</div>
-        </div>
-      </div>
       {relevant.length === 0 ? (
         <EmptyState text="لا توجد محاضر مرتبطة بهذا المجلس حالياً." />
       ) : (
@@ -2028,36 +2014,23 @@ function MinutesDecisionsPanel({
       )}
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         إصدار القرارات الرسمية يتم عبر دورة الحوكمة وفق عضوية المجلس؛ دور الأدمن وحده لا يمنح سلطة أكاديمية.
+        أعداد القرارات العامة للبوابة تظهر في شريط المؤشرات أعلى الصفحة فقط وليست خاصة بهذا المجلس.
       </p>
     </div>
   );
 }
 
-function FollowUpPanel({
-  openDecisions,
-  overdueDecisions,
-  isLoading,
-}: {
-  openDecisions: number;
-  overdueDecisions: number;
-  isLoading: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <div className="p-6 grid place-items-center" role="status">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-  if (openDecisions === 0) {
-    return <EmptyState text="لا توجد قرارات قيد المتابعة حالياً." />;
-  }
+function FollowUpPanel() {
   return (
     <div
       data-testid="admin-followup-panel"
-      className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground"
+      className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground space-y-2"
     >
-      يوجد {openDecisions} قرار قيد المتابعة، منها {overdueDecisions} متأخرة.
+      <EmptyState text="لا تتوفر حالياً بيانات متابعة قرارات محمّلة على مستوى المجلس المحدد." />
+      <p className="text-[11px] text-muted-foreground leading-relaxed px-1">
+        مؤشرات القرارات العامة (قيد المتابعة / المتأخرة) تُعرض في شريط ملخص البوابة أعلى الصفحة ولا تُنسب إلى المجلس الحالي.
+        يمكن الرجوع إلى تقارير المجلس عند توفر تقرير متخصص.
+      </p>
     </div>
   );
 }
@@ -2190,7 +2163,6 @@ function AcademicCouncilsPage() {
     if (!selectedCouncil) return [];
     return deriveAdminActionRequiredItems({
       selectedCouncilName: selectedCouncil.name,
-      overdueDecisions: summary.kpis.overdue_decisions,
       upcomingMeeting: nextMeeting
         ? {
             meeting_id: nextMeeting.meeting_id,
@@ -2211,13 +2183,7 @@ function AcademicCouncilsPage() {
         status: t.status,
       })),
     });
-  }, [
-    selectedCouncil,
-    summary.kpis.overdue_decisions,
-    nextMeeting,
-    allMeetings,
-    topicsQuery.data?.queue,
-  ]);
+  }, [selectedCouncil, nextMeeting, allMeetings, topicsQuery.data?.queue]);
 
   const kpis = [
     {
@@ -2557,19 +2523,6 @@ function AcademicCouncilsPage() {
             </TabsContent>
 
             <TabsContent value="agenda" className="mt-4" data-testid="admin-tab-panel-agenda">
-              <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { label: "دراسة المقترح", count: summary.agenda_stages.draft },
-                  { label: "قيد المراجعة", count: summary.agenda_stages.under_review },
-                  { label: "معتمد على جدول الأعمال", count: summary.agenda_stages.approved },
-                  { label: "مؤجَّل", count: summary.agenda_stages.deferred },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-lg border border-border bg-background p-3">
-                    <div className="text-[11px] text-muted-foreground">{s.label}</div>
-                    <div className="mt-1 font-bold text-primary text-sm">{s.count}</div>
-                  </div>
-                ))}
-              </div>
               <CouncilAgendaPanel council={selectedCouncil} />
             </TabsContent>
 
@@ -2582,17 +2535,11 @@ function AcademicCouncilsPage() {
                 meetings={allMeetings}
                 isLoading={meetingsQuery.isLoading}
                 isError={meetingsQuery.isError}
-                openDecisions={summary.kpis.open_decisions}
-                overdueDecisions={summary.kpis.overdue_decisions}
               />
             </TabsContent>
 
             <TabsContent value="follow-up" className="mt-4" data-testid="admin-tab-panel-follow-up">
-              <FollowUpPanel
-                openDecisions={summary.kpis.open_decisions}
-                overdueDecisions={summary.kpis.overdue_decisions}
-                isLoading={isLoading}
-              />
+              <FollowUpPanel />
             </TabsContent>
 
             <TabsContent value="archive" className="mt-4" data-testid="admin-tab-panel-archive">

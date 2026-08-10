@@ -2,6 +2,8 @@
  * Pure helpers for the admin academic councils operational workspace.
  * Derives action-required items ONLY from already-loaded page data.
  * No invented counts. No backend calls. No admin academic bypass.
+ * Never ingest portal-wide getCouncilsSummary() decision/agenda aggregates
+ * into selected-council action derivation.
  */
 
 export const AGENDA_INCOMPLETE_STATUSES = new Set([
@@ -14,8 +16,7 @@ export type AdminActionKind =
   | "upcoming_meeting"
   | "topics_pending"
   | "agenda_incomplete"
-  | "minutes_review"
-  | "overdue_decision";
+  | "minutes_review";
 
 export type AdminActionItem = {
   id: string;
@@ -49,28 +50,19 @@ type TopicLike = {
 };
 
 /**
- * Cap at 5 priority items. Order: overdue → minutes_review → topics → agenda → upcoming.
+ * Cap at 5 priority items. Order: minutes_review → topics → agenda → upcoming.
+ * Global overdue/open decision KPIs are intentionally excluded — no council-scoped
+ * decision source is loaded on this page, and portal-wide totals must not be
+ * attributed to the selected council.
  */
 export function deriveAdminActionRequiredItems(input: {
   selectedCouncilName: string;
-  overdueDecisions: number;
   upcomingMeeting: MeetingLike | null;
   meetings: MeetingLike[];
   topics: TopicLike[];
 }): AdminActionItem[] {
   const items: AdminActionItem[] = [];
-  const { selectedCouncilName, overdueDecisions, upcomingMeeting, meetings, topics } =
-    input;
-
-  if (overdueDecisions > 0) {
-    items.push({
-      id: "overdue-decisions",
-      kind: "overdue_decision",
-      title: "قرارات متأخرة",
-      description: `${overdueDecisions} قرار متأخر يحتاج متابعة في نطاق المجالس.`,
-      tab: "follow-up",
-    });
-  }
+  const { selectedCouncilName, upcomingMeeting, meetings, topics } = input;
 
   const minutesReview = meetings.filter((m) => m.status === "minutes_review");
   for (const m of minutesReview.slice(0, 2)) {
