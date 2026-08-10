@@ -94,7 +94,11 @@ async function applyAdminReportsDepartmentContainment(
     return deptId;
   }
 
-  return requestedDepartmentId ?? null;
+  // finance_officer / student_affairs / any other REPORTS_ROLES residual:
+  // never silently widen to university-wide when department filter is absent.
+  throw new Error(
+    "نطاق التقارير غير معزول لهذا الدور — يُرفض العرض الجامعي الصامت بدون قسم محدد",
+  );
 }
 
 async function fetchAll<T = Record<string, unknown>>(
