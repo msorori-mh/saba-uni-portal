@@ -179,6 +179,50 @@ export type Database = {
           },
         ]
       }
+      academic_council_meeting_transition_events: {
+        Row: {
+          actor_user_id: string
+          council_id: string
+          evidence: Json
+          expected_from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          id: string
+          meeting_id: string
+          to_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          transitioned_at: string
+        }
+        Insert: {
+          actor_user_id: string
+          council_id: string
+          evidence?: Json
+          expected_from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          id?: string
+          meeting_id: string
+          to_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          transitioned_at?: string
+        }
+        Update: {
+          actor_user_id?: string
+          council_id?: string
+          evidence?: Json
+          expected_from_status?: Database["public"]["Enums"]["academic_council_meeting_status"]
+          from_status?: Database["public"]["Enums"]["academic_council_meeting_status"]
+          id?: string
+          meeting_id?: string
+          to_status?: Database["public"]["Enums"]["academic_council_meeting_status"]
+          transitioned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_meeting_transition_events_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_council_meetings: {
         Row: {
           academic_year_id: string | null
@@ -7397,6 +7441,13 @@ export type Database = {
         }
         Returns: Json
       }
+      council_meeting_transition_is_legal: {
+        Args: {
+          p_from_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          p_to_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+        }
+        Returns: boolean
+      }
       council_reorder_agenda_items: {
         Args: { p_items: Json; p_meeting_id: string }
         Returns: Json
@@ -7435,6 +7486,15 @@ export type Database = {
       council_topic_attachment_count: {
         Args: { _topic_id: string }
         Returns: number
+      }
+      council_transition_meeting: {
+        Args: {
+          p_evidence?: Json
+          p_expected_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+          p_meeting_id: string
+          p_to_status: Database["public"]["Enums"]["academic_council_meeting_status"]
+        }
+        Returns: Json
       }
       council_update_agenda_item: {
         Args: {
