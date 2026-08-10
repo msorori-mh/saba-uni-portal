@@ -1,4 +1,4 @@
-# PORTAL-GRADUATION-PROJECTS-FINAL-PRODUCT-AND-E2E-CLOSURE-01
+﻿# PORTAL-GRADUATION-PROJECTS-FINAL-PRODUCT-AND-E2E-CLOSURE-01
 
 **Branch:** `feat/gp-final-closure-20260811`  
 **Repo:** `msorori-mh/saba-uni-portal`  
@@ -16,7 +16,7 @@ Graduation Projects source is closed for product journeys on this branch: L4 par
 | CAPABILITY | IMPLEMENTED | UI | BACKEND | AUTHORIZATION | TESTED | PRODUCTION_E2E_READY | GAP |
 |---|---|---|---|---|---|---|---|
 | routes | Y | Y | Y | Y | Y | P | Frozen five routes intact |
-| navigation | Y | Y | — | Y | Y | P | L4 student nav parity covered |
+| navigation | Y | Y | â€” | Y | Y | P | L4 student nav parity covered |
 | student eligibility L4 | Y | Y | Y* | Y | Y | N | *migration promoted, not applied |
 | teams | Y | Y | Y | Y | Y | N | CreateTeamPanel wired; identity dir needs apply |
 | projects | Y | Y | Y | Y | Y | P | |
@@ -27,7 +27,7 @@ Graduation Projects source is closed for product journeys on this branch: L4 par
 | coordinator | Y | Y | Y | Y | Y | N | Same identity-dir gate |
 | progress reports | Y | Y | Y | Y | Y | P | fileId linkage fixed |
 | final submission | Y | Y | Y | Y | Y | P | |
-| readiness | P | P | P | — | P | N | Domain helper; not a separate product surface |
+| readiness | P | P | P | â€” | P | N | Domain helper; not a separate product surface |
 | defense scheduling | Y | Y | Y | Y | Y | P | |
 | committee/panel | Y | Y | Y | Y | Y | N | Options empty until identity migration apply |
 | evaluations | Y | Y | Y | Y | Y | P | |
@@ -35,24 +35,24 @@ Graduation Projects source is closed for product journeys on this branch: L4 par
 | revisions_required | Y | Y | Y | Y | Y | N | Executable package + Branch B; prod actors blocked |
 | resubmission / reevaluation | Y | Y | Y | Y | Y | N | Covered in revisions package |
 | archive | Y | Y | Y | Y | Y | P | Only after passed/failed |
-| notifications | N | N | N | — | N | N | Out of freeze MVP; deferred |
+| notifications | N | N | N | â€” | N | N | Out of freeze MVP; deferred |
 | downloads | Y | Y | Y | Y | Y | P | Authz-before-replay in L4 package |
 | authorization/RLS/RPC | Y | Y | Y | Y | Y | N | Package D PG17; no live prod actor run |
-| mobile/RTL UX | Y | Y | — | — | P | P | RTL + empty states; no browser E2E |
+| mobile/RTL UX | Y | Y | â€” | â€” | P | P | RTL + empty states; no browser E2E |
 
 ---
 
 ## Files modified / added
 
 ### Runtime / UI
-- `src/routes/-graduation-projects-adapter.ts` — identity options mapping, progress file linkage, create-team hook, revisions notes, profile/user id pairing
-- `src/routes/faculty-portal.graduation-projects.index.tsx` — CreateTeamPanel
-- `src/routes/admin/graduation-projects.tsx` — canonical lifecycle filters
-- `src/components/graduation-projects/MvpProjectWorkspace.tsx` — empty identity states, revisions visibility, userId pairing
-- `src/components/graduation-projects/mvp-ui.ts` — IdentityOption.userId + action payloads
-- `src/components/graduation-projects/CreateTeamPanel.tsx` — **new**
-- `src/lib/graduation-projects/rpc.ts` / `service.ts` — optional conclude notes
-- `src/integrations/supabase/types.ts` — optional `p_notes`
+- `src/routes/-graduation-projects-adapter.ts` â€” identity options mapping, progress file linkage, create-team hook, revisions notes, profile/user id pairing
+- `src/routes/faculty-portal.graduation-projects.index.tsx` â€” CreateTeamPanel
+- `src/routes/admin/graduation-projects.tsx` â€” canonical lifecycle filters
+- `src/components/graduation-projects/MvpProjectWorkspace.tsx` â€” empty identity states, revisions visibility, userId pairing
+- `src/components/graduation-projects/mvp-ui.ts` â€” IdentityOption.userId + action payloads
+- `src/components/graduation-projects/CreateTeamPanel.tsx` â€” **new**
+- `src/lib/graduation-projects/rpc.ts` / `service.ts` â€” optional conclude notes
+- `src/integrations/supabase/types.ts` â€” optional `p_notes`
 
 ### Migrations (SOURCE promoted, NOT APPLIED)
 - `supabase/migrations/20260811010000_gp_identity_options_and_revision_notes_01.sql`
@@ -62,27 +62,27 @@ Graduation Projects source is closed for product journeys on this branch: L4 par
 - `tests/graduation-projects/graduation-projects-revisions-loop-e2e.test.ts`
 - `tests/graduation-projects/graduation-projects-l4-parity-matrix.test.ts`
 - Package C/D test updates
-- `tests/student-requests/tanstack-register-stable-augmentation-01.test.ts` — refresh stale semantic pin
-- `docs/go-live/operator-packets/PRODUCTION-E2E-GRADUATION-PROJECTS.txt` — canonical rewrite
+- `tests/student-requests/tanstack-register-stable-augmentation-01.test.ts` â€” refresh stale semantic pin
+- `docs/go-live/operator-packets/PRODUCTION-E2E-GRADUATION-PROJECTS.txt` â€” canonical rewrite
 - this report
 
 ---
 
 ## Real Actor Matrix (Phase 8)
 
-Historical GP TEST_ONLY principals (`a4e40100-…`) are **closed/banned** and must not be reactivated.
+Historical GP TEST_ONLY principals (`a4e40100-â€¦`) are **closed/banned** and must not be reactivated.
 
 | ROLE | USER_ID | LOGIN_IDENTIFIER | AUTH_PRINCIPAL_PROVEN | SCOPE | JOURNEY |
 |---|---|---|---|---|---|
-| L4 student leader | — | — | BLOCKED_NO_SAFE_PRINCIPAL | — | full lifecycle |
-| L4 student member | — | — | BLOCKED_NO_SAFE_PRINCIPAL | — | team/member |
-| L1/L2/L3 negative | — | — | BLOCKED_NO_SAFE_PRINCIPAL | — | eligibility deny |
-| Coordinator | — | — | BLOCKED_NO_SAFE_PRINCIPAL | dept | review/schedule/result |
-| Supervisor | — | — | BLOCKED_NO_SAFE_PRINCIPAL | assigned | accept/progress/final |
-| Committee ×2 | — | — | BLOCKED_NO_SAFE_PRINCIPAL | panel | evaluation |
-| Admin overview | — | — | BLOCKED_NO_SAFE_PRINCIPAL | overview RO | list only |
+| L4 student leader | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | â€” | full lifecycle |
+| L4 student member | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | â€” | team/member |
+| L1/L2/L3 negative | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | â€” | eligibility deny |
+| Coordinator | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | dept | review/schedule/result |
+| Supervisor | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | assigned | accept/progress/final |
+| Committee أ—2 | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | panel | evaluation |
+| Admin overview | â€” | â€” | BLOCKED_NO_SAFE_PRINCIPAL | overview RO | list only |
 
-Disposable Package D / L4 fixture actors remain valid **only** on PG17 verifiers — not production.
+Disposable Package D / L4 fixture actors remain valid **only** on PG17 verifiers â€” not production.
 
 ---
 
@@ -103,13 +103,13 @@ Disposable Package D / L4 fixture actors remain valid **only** on PG17 verifiers
 
 - Lovable remains sole production writer for migration apply.
 - Notifications remain out of MVP freeze.
-- Identity directory emptiness is intentional until `20260811010000_…` apply.
+- Identity directory emptiness is intentional until `20260811010000_â€¦` apply.
 - Passing `p_notes` before that migration may fail PostgREST until applied; UI still requires notes for `revisions_required`.
 
 ## Risks
 
-- Production conclude with notes before migration apply → RPC arg error.
-- CreateTeamPanel uses validated UUID fields (bootstrap) when directory empty — workspace assignment still forbids raw UUID selectors.
+- Production conclude with notes before migration apply â†’ RPC arg error.
+- CreateTeamPanel uses validated UUID fields (bootstrap) when directory empty â€” workspace assignment still forbids raw UUID selectors.
 - No authenticated production E2E evidence yet.
 
 ## Blockers (remaining)
@@ -125,7 +125,7 @@ None from this PR alone: source-only. No data mutation, no deploy, no auth user 
 
 ## Decision
 
-**HOLD** — source closure complete; production E2E not executable without safe principals + authorized applies.
+**HOLD** â€” source closure complete; production E2E not executable without safe principals + authorized applies.
 
 `HOLD_PORTAL_GRADUATION_PROJECTS_FINAL_PRODUCT_AND_E2E_CLOSURE_BLOCKED_NO_SAFE_PRINCIPAL_AND_L4_IDENTITY_MIGRATIONS_UNAPPLIED`
 
@@ -135,7 +135,7 @@ None from this PR alone: source-only. No data mutation, no deploy, no auth user 
 
 ```
 CURRENT_BASE_SHA=2834f1cdbd5a0ff4e814f37b5b6b1e463879b58d
-FINAL_SHA=afa3a29cbef04fc61b184bb488be0fffefab7738
+FINAL_SHA=6e6c391f1ad001ba0d0d9ec42380dc445bd1282d
 GAPS_FOUND=identity pickers empty; no create-team UI; progress file orphan; admin state drift; revisions text discarded; revisions E2E object-only; go-live packet non-canonical; stale route semantic pin; no safe prod actors; L4+identity migrations unapplied; notifications absent
 GAPS_FIXED=create-team UI; identity mapping + empty states; progress file linkage; admin canonical filters; conclude notes wiring + migration draft; revisions executable package; L4 parity matrix tests; canonical E2E packet; route semantic pin refresh
 L4_GUARD=SOURCE_PASS (UI+TS+SQL verifier); PRODUCTION_APPLY=PENDING
@@ -154,6 +154,6 @@ HIGH_COUNT=0
 REMAINING_BLOCKERS=L4_APPLY; IDENTITY_REVISION_NOTES_APPLY; SAFE_PRODUCTION_PRINCIPALS; NOTIFICATIONS_OUT_OF_SCOPE
 ```
 
-## ملخص تنفيذي عربي
+## ظ…ظ„ط®طµ طھظ†ظپظٹط°ظٹ ط¹ط±ط¨ظٹ
 
-أُغلق سطح مشاريع التخرج على مستوى المصدر: أهلية المستوى الرابع، واجهة إنشاء الفريق، ربط مرفقات التقدم، حلقة التعديلات القابلة للتنفيذ، وتصحيح حزمة E2E الإنتاجية بأسماء RPC المجمّدة. لا يوجد ممثل إنتاج آمن حالياً، وترحيلات L4 ودليل الهويات/ملاحظات التعديل ما زالت غير مطبّقة — لذلك القرار **HOLD** إلى حين تطبيق Lovable وتوفير ممثلين معتمدين.
+ط£ظڈط؛ظ„ظ‚ ط³ط·ط­ ظ…ط´ط§ط±ظٹط¹ ط§ظ„طھط®ط±ط¬ ط¹ظ„ظ‰ ظ…ط³طھظˆظ‰ ط§ظ„ظ…طµط¯ط±: ط£ظ‡ظ„ظٹط© ط§ظ„ظ…ط³طھظˆظ‰ ط§ظ„ط±ط§ط¨ط¹طŒ ظˆط§ط¬ظ‡ط© ط¥ظ†ط´ط§ط، ط§ظ„ظپط±ظٹظ‚طŒ ط±ط¨ط· ظ…ط±ظپظ‚ط§طھ ط§ظ„طھظ‚ط¯ظ…طŒ ط­ظ„ظ‚ط© ط§ظ„طھط¹ط¯ظٹظ„ط§طھ ط§ظ„ظ‚ط§ط¨ظ„ط© ظ„ظ„طھظ†ظپظٹط°طŒ ظˆطھطµط­ظٹط­ ط­ط²ظ…ط© E2E ط§ظ„ط¥ظ†طھط§ط¬ظٹط© ط¨ط£ط³ظ…ط§ط، RPC ط§ظ„ظ…ط¬ظ…ظ‘ط¯ط©. ظ„ط§ ظٹظˆط¬ط¯ ظ…ظ…ط«ظ„ ط¥ظ†طھط§ط¬ ط¢ظ…ظ† ط­ط§ظ„ظٹط§ظ‹طŒ ظˆطھط±ط­ظٹظ„ط§طھ L4 ظˆط¯ظ„ظٹظ„ ط§ظ„ظ‡ظˆظٹط§طھ/ظ…ظ„ط§ط­ط¸ط§طھ ط§ظ„طھط¹ط¯ظٹظ„ ظ…ط§ ط²ط§ظ„طھ ط؛ظٹط± ظ…ط·ط¨ظ‘ظ‚ط© â€” ظ„ط°ظ„ظƒ ط§ظ„ظ‚ط±ط§ط± **HOLD** ط¥ظ„ظ‰ ط­ظٹظ† طھط·ط¨ظٹظ‚ Lovable ظˆطھظˆظپظٹط± ظ…ظ…ط«ظ„ظٹظ† ظ…ط¹طھظ…ط¯ظٹظ†.
