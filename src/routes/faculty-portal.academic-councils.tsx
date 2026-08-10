@@ -47,6 +47,7 @@ import {
   deriveActionRequiredItems,
   filterAgendaWriteMemberships,
   filterChairMemberships,
+  filterSecretaryMemberships,
   filterSubmitEligible,
   isViewerOnly,
 } from "@/lib/faculty-portal/councils-operational";
@@ -141,6 +142,10 @@ function FacultyAcademicCouncilsPage() {
     () => filterAgendaWriteMemberships(currentMemberships),
     [currentMemberships],
   );
+  const secretaryMemberships = useMemo(
+    () => filterSecretaryMemberships(currentMemberships),
+    [currentMemberships],
+  );
   const chairCouncilIds = useMemo(
     () => new Set(chairMemberships.map((m) => m.council_id)),
     [chairMemberships],
@@ -148,6 +153,10 @@ function FacultyAcademicCouncilsPage() {
   const agendaWriteCouncilIds = useMemo(
     () => new Set(agendaWriteMemberships.map((m) => m.council_id)),
     [agendaWriteMemberships],
+  );
+  const secretaryCouncilIds = useMemo(
+    () => new Set(secretaryMemberships.map((m) => m.council_id)),
+    [secretaryMemberships],
   );
   const roleByCouncilId = useMemo(() => {
     const map = new Map<string, string>();
@@ -405,6 +414,7 @@ function FacultyAcademicCouncilsPage() {
                   isError={meetingsQuery.isError}
                   chairCouncilIds={chairCouncilIds}
                   agendaWriteCouncilIds={agendaWriteCouncilIds}
+                  secretaryCouncilIds={secretaryCouncilIds}
                   onManageAgenda={openAgenda}
                   onUpdated={() => void meetingsQuery.refetch()}
                 />
