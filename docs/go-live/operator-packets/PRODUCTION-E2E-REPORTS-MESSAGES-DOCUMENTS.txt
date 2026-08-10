@@ -4,7 +4,8 @@ MISSION: PORTAL-24H-REPORTS-DEPLOY-PUBLISH-PRODUCTION-E2E-CLOSURE-01
 PACKET ID: PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS-01
 ENVIRONMENT: PRODUCTION (quboolye.com)
 AUTHORIZATION: STANDING GLOBAL OWNER AUTHORIZATION (SOURCE-ONLY PREPARATION)
-DO NOT EXECUTE until DB_FULL_READY (C9 + GA1–GA3 verified) and Deploy/Publish grant.
+DB_FULL_READY=YES (Councils C0–C9 PASS; GA1–GA3 PASS).
+EXECUTE Deploy/Publish + this packet only after explicit owner Deploy/Publish grant.
 ===============================================================================
 
 1. PURPOSE & SCOPE

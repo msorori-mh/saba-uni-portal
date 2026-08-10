@@ -182,14 +182,16 @@ describe("operator packet + deployment package", () => {
     expect(packet).toContain("DB_FULL_READY");
   });
 
-  test("deployment package pins main SHA and wait condition", () => {
+  test("deployment package pins reconciled main tip and DB_FULL_READY=YES", () => {
     const pack = read(
       "docs/go-live/PORTAL-24H-REPORTS-DEPLOY-PUBLISH-PRODUCTION-PACKAGE-01.md",
     );
-    expect(pack).toContain("fab94705443264ae5fe768c5091e25c7c729be1a");
-    expect(pack).toContain("DB_FULL_READY");
-    expect(pack).toContain("HOLD_PORTAL_24H_PRODUCTION_DEPLOY_PUBLISH_E2E_WAITING_DB_FULL_READY");
+    expect(pack).toContain("8c944b57534dda435afc7b600f590e85567e5103");
+    expect(pack).toContain("DB_FULL_READY = YES");
+    expect(pack).toContain("PASS_PORTAL_PR335_FINAL_DEPLOY_SOURCE_RECONCILED_AND_MERGED");
+    expect(pack).not.toContain("fab94705443264ae5fe768c5091e25c7c729be1a");
+    expect(pack).not.toContain("HOLD_PORTAL_24H_PRODUCTION_DEPLOY_PUBLISH_E2E_WAITING_DB_FULL_READY");
     expect(pack).toContain("/version.json");
-    expect(pack).toContain("DO NOT DEPLOY EARLY");
+    expect(pack).toContain("FINAL_DEPLOY_SOURCE_SHA");
   });
 });

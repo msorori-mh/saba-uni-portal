@@ -1,31 +1,34 @@
 # PORTAL-24H-REPORTS-DEPLOY-PUBLISH-PRODUCTION-E2E-CLOSURE-01
-# Complete production deployment package (SOURCE-ONLY — DO NOT DEPLOY EARLY)
+# Final deploy source package (SOURCE reconciled — Deploy/Publish still owner-gated)
 
-**Mission:** `PORTAL-24H-REPORTS-DEPLOY-PUBLISH-PRODUCTION-E2E-CLOSURE-01`  
-**Branch:** `prep/24h-reports-deploy-publish-e2e-01`  
-**Exact main SHA (package base):** `fab94705443264ae5fe768c5091e25c7c729be1a`  
-**Mode:** SOURCE preparation only until `DB_FULL_READY` **and** explicit Deploy/Publish authorization.  
-**Decision (this package):** `HOLD_PORTAL_24H_PRODUCTION_DEPLOY_PUBLISH_E2E_WAITING_DB_FULL_READY`
+**Mission:** `PORTAL-PR335-FINAL-DEPLOY-SOURCE-RECONCILIATION-04`
+**Branch:** `prep/24h-reports-deploy-publish-e2e-01`
+**PR:** https://github.com/msorori-mh/saba-uni-portal/pull/335
+**Reconciled main tip (pre-merge base):** `8c944b57534dda435afc7b600f590e85567e5103`
+**Mode:** Final deploy SOURCE preparation. No Deploy / No Publish in this mission.
+**Decision:** `PASS_PORTAL_PR335_FINAL_DEPLOY_SOURCE_RECONCILED_AND_MERGED` (after merge)
 
 ---
 
-## 1. Wait condition — DB_FULL_READY
+## 1. DB_FULL_READY — CURRENT TRUTH
 
 ```
-DB_FULL_READY =
-  Councils C9 production post-verifier PASS
-  + GA1 foundation / GA2 completion / GA3 AUTH04 production post-verifiers PASS
+DB_FULL_READY = YES
+  Councils C0–C9 = PASS
+  GA1 foundation = PASS
+  GA2 completion = PASS
+  GA3 AUTH04 = PASS
 ```
 
-| Gate | Production status (last proven) | Evidence |
+| Gate | Status | Notes |
 |---|---|---|
-| Councils C9 | **ABSENT** (ledger tip at C4) | `docs/reviews/PORTAL-GO-LIVE-PRODUCTION-READONLY-REALITY-CHECK-LONGRUN-01.md` |
-| GA1–GA3 | **ABSENT** / PREPARED_NOT_EXECUTED | same + GA promotion package |
-| Deploy/Publish auth | **NOT GRANTED** for execution (SOURCE-ONLY standing prep only) | `AGENTS.md` + Independent R2 `DEPLOY_READY=NO` |
+| Councils C0–C9 | **PASS** | Stale “C9 absent” claim removed |
+| GA1–GA3 | **PASS** | Stale “GA absent” claim removed |
+| Deploy/Publish auth | Owner-gated | This package does **not** execute Deploy/Publish |
 
-**Do not Deploy or Publish while this table is red.**
+Stale pins removed: `DB_FULL_READY=false`, `C9 absent`, `GA absent`, deploy source `fab94705`.
 
-Operator apply chain (when separately authorized):  
+Operator apply chain reference:
 `docs/go-live/operator-packets/LOVABLE-C5V2-THROUGH-GA3-MASTER-SEQUENTIAL-EXECUTION.txt`
 
 ---
@@ -34,15 +37,23 @@ Operator apply chain (when separately authorized):
 
 | Item | Value |
 |---|---|
-| Frozen main SHA | `fab94705443264ae5fe768c5091e25c7c729be1a` |
+| Reconciled main tip | `8c944b57534dda435afc7b600f590e85567e5103` |
 | Package branch | `prep/24h-reports-deploy-publish-e2e-01` |
-| Deployed SHA proof | `GET /version.json` + `<meta name="build-sha">` must equal frozen SHA |
+| FINAL_DEPLOY_SOURCE_SHA | Set to exact `main` tip **after** PR335 merge |
+| Deployed SHA proof | `GET /version.json` + `<meta name="build-sha">` must equal FINAL_DEPLOY_SOURCE_SHA |
 | Host | `https://quboolye.com` only |
 | Reports hubs | `/student/reports`, `/faculty-portal/reports`, `/admin/department-reports`, `/admin/executive-reports`, `/admin/reports` |
 
+Preserved on reconciled tip:
+- reports security hotfix (ops residual fail-closed + department containment)
+- honest empty KPIs
+- logout/cache isolation
+- five canonical reporting hubs
+- GA activation/source deltas from main
+
 ---
 
-## 3. DB prerequisite matrix (before publish)
+## 3. DB prerequisite matrix (satisfied)
 
 | Step | Artifact | Required PASS token |
 |---|---|---|
@@ -58,11 +69,11 @@ Operator apply chain (when separately authorized):
 
 ---
 
-## 4. Deploy command (EXECUTE ONLY AFTER DB_FULL_READY + OWNER GRANT)
+## 4. Deploy command (EXECUTE ONLY AFTER OWNER GRANT)
 
 ```text
-# 1) Freeze SHA on clean tree
-git rev-parse HEAD          # must equal fab94705… or later owner-frozen tip
+# 1) Freeze SHA on clean tree (must equal FINAL_DEPLOY_SOURCE_SHA)
+git rev-parse HEAD
 git status --porcelain      # must be empty
 
 # 2) Lovable Deploy / build for that exact SHA
@@ -70,7 +81,7 @@ git status --porcelain      # must be empty
 #    Record Lovable deployment id + timestamp.
 ```
 
-**STOP** if SHA dirty, wrong branch, or DB_FULL_READY false.
+**STOP** if SHA dirty or wrong branch. DB_FULL_READY is YES.
 
 ---
 
@@ -81,10 +92,10 @@ Packet: `docs/go-live/operator-packets/LOVABLE-FINAL-PUBLISH-AND-SHA-PROOF.txt`
 ```text
 # Publish via Lovable for frozen SHA, then:
 curl -s -i https://quboolye.com/version.json
-# require: 200, Cache-Control: no-store, sha == $SOURCE_SHA
+# require: 200, Cache-Control: no-store, sha == $FINAL_DEPLOY_SOURCE_SHA
 
 curl -s https://quboolye.com/ | grep -o 'name="build-sha" content="[^"]*"'
-# require: content == $SOURCE_SHA
+# require: content == $FINAL_DEPLOY_SOURCE_SHA
 ```
 
 Abort on `STALE_BUILD_OR_UNVERIFIABLE_SHA_DETECTED` or `WRONG_ENVIRONMENT_ORIGIN`.
@@ -107,24 +118,24 @@ Never `db push`, never destructive reset, never delete production rows for rollb
 
 ## 7. Production smoke (post-publish)
 
-1. `/version.json` SHA match  
-2. Portal shells: `/portal-login`, `/admin`, `/student`, `/faculty-portal`, `/staff`  
-3. Five report hubs load RTL three-level workspace  
-4. Logout clears cache (admin/faculty/student)  
+1. `/version.json` SHA match
+2. Portal shells: `/portal-login`, `/admin`, `/student`, `/faculty-portal`, `/staff`
+3. Five report hubs load RTL three-level workspace
+4. Logout clears cache (admin/faculty/student)
 
 ---
 
 ## 8. Production browser E2E (post-publish)
 
-Master runner: `docs/go-live/operator-packets/POST-DEPLOY-PRODUCTION-E2E-MASTER.txt`  
+Master runner: `docs/go-live/operator-packets/POST-DEPLOY-PRODUCTION-E2E-MASTER.txt`
 
-Reports section: updated `PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS.txt` (five hubs).  
+Reports section: updated `PRODUCTION-E2E-REPORTS-MESSAGES-DOCUMENTS.txt` (five hubs).
 
-Also run: B1 five services, enrollment certificate, councils, GP, GA packets when DB_FULL_READY enables them.
+Also run: B1 five services, enrollment certificate, councils, GP, GA packets.
 
 ---
 
-## 9. Source work completed while waiting (this mission)
+## 9. Source work completed (PR335 + reconciliation)
 
 | Item | Change |
 |---|---|
@@ -132,16 +143,12 @@ Also run: B1 five services, enrollment certificate, councils, GP, GA packets whe
 | Logout/cache isolation | Admin/faculty/student logout clear RQ + `portal.reports.favorites.v1` |
 | E2E packet | Five-hub routes + viewport/a11y/refresh/denial matrix |
 | Tests | Five-hub readiness + logout/cache + empty KPI hierarchy contracts |
+| Main reconcile | Absorbed reports security hotfix PR336 + GA activation/source deltas + warroom docs |
+| Stale claims | Removed `DB_FULL_READY=false`, `C9 absent`, `GA absent`, `fab94705` deploy pin |
 
 ---
 
-## 10. Target token
+## 10. Target tokens
 
-Full target `PASS_PORTAL_24H_PRODUCTION_DEPLOY_PUBLISH_E2E_CLOSED` requires:
-
-1. This package merged  
-2. `DB_FULL_READY` proven on production ledger  
-3. Explicit Deploy + Publish authorization consumed  
-4. SHA proof + five hubs browser E2E + B1/GP/GA/councils packets green  
-
-Until then: **HOLD — package ready, waiting on DB lanes + owner grant.**
+- Source reconciliation: `PASS_PORTAL_PR335_FINAL_DEPLOY_SOURCE_RECONCILED_AND_MERGED`
+- Full deploy/publish E2E closed still requires explicit Deploy + Publish authorization + SHA proof + browser packets
