@@ -17,7 +17,7 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // hubs with GA + Academic Councils + five frozen GP routes (recomputed from
 // the merged routeTree.gen.ts — do not reuse either pre-merge SHA).
 const ROUTE_SEMANTIC_SHA256 =
-  "09be61de31425bb15294038bbea68a367f92af4f3b4d65f8ed3232781cc90a7c";
+  "a64201aebb8cd34aacf9884b18e860c9dfcbb9766d2b5668cba54e6fc502101c";
 
 const FROZEN_GP_FULL_PATHS = [
   "/student/graduation-projects",

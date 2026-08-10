@@ -12,8 +12,8 @@ describe("Graduates Affairs staff operational surface", () => {
   const functions = read("src/lib/graduates-affairs/graduates-affairs.functions.ts");
   const navigation = read("src/lib/admin-navigation-config.ts");
 
-  test("remains behind the existing disabled production gate", () => {
-    expect(portalFeatures.staffGraduatesAffairs).toBe(false);
+  test("is enabled for final product operational closure while keeping the reversible gate", () => {
+    expect(portalFeatures.staffGraduatesAffairs).toBe(true);
     expect(route).toContain("portalFeatures.staffGraduatesAffairs");
     expect(route).toContain("FeatureFrozenNotice");
     expect(route).toContain("GraduatesAffairsStaffWorkspace");

@@ -9,10 +9,10 @@ export const portalFeatures = {
   adminFinance: false,
   facultyCourseMaterials: false,
   studentCourseMaterials: false,
-  /** Graduate self-service portal — OFF until promotion + continuity policy. */
-  studentGraduatesAffairs: false,
-  /** Graduates-affairs staff surfaces — OFF until promotion + assignment seed. */
-  staffGraduatesAffairs: false,
+  /** Graduate self-service portal — ON for final product operational closure. */
+  studentGraduatesAffairs: true,
+  /** Graduates-affairs staff surfaces — ON for final product operational closure. */
+  staffGraduatesAffairs: true,
 } as const;
 
 export type PortalFeatureKey = keyof typeof portalFeatures;
