@@ -497,15 +497,15 @@ async function runChecks(): Promise<Section[]> {
   const aopsAuditTotal = (aopsYearAudit.count ?? 0) + (aopsSemAudit.count ?? 0);
   const academicOpsSection: Section = {
     id: "academic-ops",
-    title: "مركز العمليات الأكاديمية",
+    title: "مركز الشؤون الأكاديمية",
     checks: [
-      pass("صفحة مركز العمليات موجودة", "/admin/academic-operations"),
+      pass("صفحة مركز الشؤون الأكاديمية موجودة", "/admin/academic-operations"),
       currentYear.ok && currentYear.count >= 1
         ? pass("توجد سنة أكاديمية حالية", `العدد: ${currentYear.count}`)
-        : fail("لا توجد سنة أكاديمية حالية", "اضبطها من مركز العمليات"),
+        : fail("لا توجد سنة أكاديمية حالية", "اضبطها من مركز الشؤون الأكاديمية"),
       currentSem.ok && currentSem.count >= 1
         ? pass("يوجد فصل دراسي حالي", `العدد: ${currentSem.count}`)
-        : fail("لا يوجد فصل دراسي حالي", "اضبطه من مركز العمليات"),
+        : fail("لا يوجد فصل دراسي حالي", "اضبطه من مركز الشؤون الأكاديمية"),
       offerings.ok && sections.ok && enrollments.ok && receipts.ok
         ? pass("KPIs تعمل", `طرح:${offerings.count} · مجموعات:${sections.count} · تسجيلات:${enrollments.count} · إيصالات:${receipts.count}`)
         : warn("بعض مؤشرات KPI غير متاحة"),

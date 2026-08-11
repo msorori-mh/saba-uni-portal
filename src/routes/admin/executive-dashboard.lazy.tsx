@@ -359,7 +359,7 @@ function ExecutiveDashboardPage() {
           <div className="mt-2 text-sm font-bold text-primary">{core?.currentYearName ?? "—"}</div>
           <div className="text-xs text-muted-foreground">{core?.currentSemName ?? "—"}</div>
           <Link to="/admin/academic-operations" className="mt-3 inline-flex text-[11px] font-bold text-primary hover:underline">
-            مركز العمليات الأكاديمية ←
+            مركز الشؤون الأكاديمية ←
           </Link>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-card">
