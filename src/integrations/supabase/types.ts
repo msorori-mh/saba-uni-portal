@@ -10350,6 +10350,16 @@ export type Database = {
         Args: { p_department_id?: string }
         Returns: string
       }
+      ga_ops_authz_matrix_run: {
+        Args: never
+        Returns: {
+          actor: string
+          actual: string
+          expected: string
+          op: string
+          verdict: string
+        }[]
+      }
       ga_resolve_current_workflow_snapshot: {
         Args: { p_followup_type_id: string }
         Returns: Json
