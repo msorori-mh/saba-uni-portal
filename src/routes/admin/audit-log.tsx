@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listAuditLogs } from "@/lib/admin-audit-log.functions";
 import { Loader2, Search, X } from "lucide-react";
+import { LoadErrorNotice, isAuthorizationError } from "@/components/admin/AccessDeniedNotice";
+
 
 export const Route = createFileRoute("/admin/audit-log")({
   component: AuditLogPage,
