@@ -6359,6 +6359,7 @@ export type Database = {
           id: string
           is_default: boolean
           label_ar: string | null
+          priority: number
           to_step_id: string | null
           workflow_id: string
         }
@@ -6370,6 +6371,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           label_ar?: string | null
+          priority?: number
           to_step_id?: string | null
           workflow_id: string
         }
@@ -6381,6 +6383,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           label_ar?: string | null
+          priority?: number
           to_step_id?: string | null
           workflow_id?: string
         }
@@ -6573,6 +6576,69 @@ export type Database = {
           kind?: string
           name_ar?: string
           restricted_request_type_code?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      request_workflow_publish_validations: {
+        Row: {
+          checked_at: string
+          id: string
+          is_valid: boolean
+          message: string | null
+          request_type_code: string
+          workflow_id: string | null
+        }
+        Insert: {
+          checked_at?: string
+          id?: string
+          is_valid: boolean
+          message?: string | null
+          request_type_code: string
+          workflow_id?: string | null
+        }
+        Update: {
+          checked_at?: string
+          id?: string
+          is_valid?: boolean
+          message?: string | null
+          request_type_code?: string
+          workflow_id?: string | null
+        }
+        Relationships: []
+      }
+      request_workflow_transition_condition_catalog: {
+        Row: {
+          code: string
+          created_at: string
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          params_schema: Json
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          params_schema?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          params_schema?: Json
           sort_order?: number
           updated_at?: string
         }
@@ -9818,6 +9884,10 @@ export type Database = {
         Args: { p_context: Json; p_request_type_code: string }
         Returns: string[]
       }
+      evaluate_workflow_transition_condition: {
+        Args: { p_condition: Json; p_request_id: string }
+        Returns: boolean
+      }
       fail_enrollment_certificate_document_generation: {
         Args: {
           p_attempt_id: string
@@ -11042,6 +11112,15 @@ export type Database = {
         Args: { p_agenda_item_id: string; p_resolution?: string }
         Returns: Json
       }
+      resolve_b1_workflow_transition: {
+        Args: {
+          p_action_result: string
+          p_from_step_id: string
+          p_request_id: string
+          p_workflow_id: string
+        }
+        Returns: string
+      }
       respond_graduation_project_supervision: {
         Args: {
           p_correlation_id: string
@@ -11228,6 +11307,10 @@ export type Database = {
           _kind: string
           _student_fee_id?: string
         }
+        Returns: Json
+      }
+      validate_request_workflow_publish: {
+        Args: { p_workflow_id: string }
         Returns: Json
       }
       verify_document: { Args: { _query: string }; Returns: Json }
