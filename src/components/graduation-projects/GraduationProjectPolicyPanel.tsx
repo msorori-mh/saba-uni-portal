@@ -59,7 +59,8 @@ export function GraduationProjectPolicyPanel() {
     queryFn: () => listFn(),
   });
 
-  const errors = useMemo(() => validateGraduationProjectPolicy(draft), [draft]);
+  const draftErrors = useMemo(() => validateDraftPolicy(draft), [draft]);
+  const publishErrors = useMemo(() => validatePolicyForPublish(draft), [draft]);
 
   const departmentName = (id: string | null) =>
     query.data?.departments.find((d) => d.id === id)?.name_ar ?? null;
