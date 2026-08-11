@@ -12,6 +12,7 @@ import {
 import { OrgPositionDialog, type OrgPosition } from "@/components/admin/OrgPositionDialog";
 import { OrgPositionRolesDialog } from "@/components/admin/OrgPositionRolesDialog";
 import { OrgRoleDriftPanel } from "@/components/admin/OrgRoleDriftPanel";
+import { LoadErrorNotice, isAuthorizationError } from "@/components/admin/AccessDeniedNotice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,11 @@ function OrgStructurePage() {
   const qc = useQueryClient();
 
   const [openFor, setOpenFor] = useState<{ id: string; name: string } | null>(null);
-  const orgQ = useQuery({ queryKey: ["org-structure"], queryFn: () => listFn({ data: {} as any }) });
+  const orgQ = useQuery({
+    queryKey: ["org-structure"],
+    queryFn: () => listFn({ data: {} as any }),
+    retry: (count, err) => !isAuthorizationError(err) && count < 2,
+  });
   const [userSearch, setUserSearch] = useState("");
   const [userPage, setUserPage] = useState(1);
   const deferredUserSearch = useDeferredValue(userSearch);
@@ -123,14 +128,14 @@ function OrgStructurePage() {
   }
   if (orgQ.error || !data) {
     return (
-      <div className="p-6 space-y-3" dir="rtl">
-        <div className="text-destructive">تعذّر تحميل الهيكل التنظيمي: {(orgQ.error as Error)?.message}</div>
-        <Button variant="outline" onClick={() => orgQ.refetch()}>
-          <RefreshCw className="h-4 w-4 ml-1" /> إعادة المحاولة
-        </Button>
-      </div>
+      <LoadErrorNotice
+        error={orgQ.error}
+        title="تعذّر تحميل الهيكل التنظيمي"
+        onRetry={() => orgQ.refetch()}
+      />
     );
   }
+
 
   const mappingsByPos = new Map<string, any[]>();
   for (const m of data.mappings as any[]) {
@@ -278,7 +283,9 @@ function OrgStructurePage() {
               ) : usersQ.error ? (
                 <div className="space-y-2">
                   <div className="text-sm text-destructive">
-                    تعذّر تحميل المستخدمين: {(usersQ.error as Error).message}
+                    {isAuthorizationError(usersQ.error)
+                      ? "لا تملك صلاحية عرض حسابات المستخدمين. تواصل مع مدير النظام."
+                      : `تعذّر تحميل المستخدمين: ${(usersQ.error as Error).message}`}
                   </div>
                   <Button size="sm" variant="outline" onClick={() => usersQ.refetch()}>
                     <RefreshCw className="h-4 w-4 ml-1" /> إعادة المحاولة

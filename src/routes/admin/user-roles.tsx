@@ -3,6 +3,8 @@ import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Search, Plus, X, RefreshCw, Lock } from "lucide-react";
+import { AccessDeniedNotice, isAuthorizationError } from "@/components/admin/AccessDeniedNotice";
+
 import {
   listRoles, listUsersWithRoles, assignUserRole, unassignUserRole,
 } from "@/lib/roles-management.functions";
@@ -43,7 +45,9 @@ function UserRolesPage() {
     queryFn: () => listU({ data: {
       search: deferredSearch || undefined, onlyWithRoles, page, pageSize,
     } }),
+    retry: (count, err) => !isAuthorizationError(err) && count < 2,
   });
+
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["users-with-roles"] });
   const activeRoles = (roles ?? []).filter((r: any) => r.is_active);
@@ -56,7 +60,12 @@ function UserRolesPage() {
     finally { setBusy(null); }
   };
 
+  if (isAuthorizationError(usersQ.error)) {
+    return <AccessDeniedNotice error={usersQ.error} onRetry={() => usersQ.refetch()} />;
+  }
+
   return (
+
     <div className="space-y-6" dir="rtl">
       <div>
         <h1 className="text-2xl font-bold">ربط الأدوار بالمستخدمين</h1>

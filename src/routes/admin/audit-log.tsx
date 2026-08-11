@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listAuditLogs } from "@/lib/admin-audit-log.functions";
 import { Loader2, Search, X } from "lucide-react";
+import { LoadErrorNotice, isAuthorizationError } from "@/components/admin/AccessDeniedNotice";
+
 
 export const Route = createFileRoute("/admin/audit-log")({
   component: AuditLogPage,
@@ -64,7 +66,7 @@ function AuditLogPage() {
   const [userId, setUserId] = useState("");
   const [selected, setSelected] = useState<AuditRow | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const auditQ = useQuery({
     queryKey: ["audit-logs", from, to, entity, action, userId],
     queryFn: () => listFn({
       data: {
@@ -75,15 +77,23 @@ function AuditLogPage() {
         actorUserId: userId.trim() || undefined,
       },
     }),
+    retry: (count, err) => !isAuthorizationError(err) && count < 2,
   });
+  const { data, isLoading } = auditQ;
 
   const rows = data ?? [];
+
 
   const reset = () => {
     setFrom(""); setTo(""); setEntity(""); setAction(""); setUserId("");
   };
 
+  if (auditQ.error) {
+    return <LoadErrorNotice error={auditQ.error} title="تعذّر تحميل سجل التدقيق" onRetry={() => auditQ.refetch()} />;
+  }
+
   return (
+
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold text-primary">سجل التدقيق</h1>
