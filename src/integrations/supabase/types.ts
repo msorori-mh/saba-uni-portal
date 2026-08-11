@@ -9892,6 +9892,14 @@ export type Database = {
       }
       graduate_affairs_is_manager: { Args: never; Returns: boolean }
       graduate_affairs_is_specialist: { Args: never; Returns: boolean }
+      graduate_affairs_list_assignable_staff: {
+        Args: never
+        Returns: {
+          full_name: string
+          role_code: string
+          user_id: string
+        }[]
+      }
       graduate_affairs_lock_authorized_staff_profile_id: {
         Args: { p_role_code: string; p_user_id: string }
         Returns: string
