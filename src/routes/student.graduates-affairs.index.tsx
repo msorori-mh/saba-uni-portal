@@ -581,7 +581,7 @@ function EventsSection(props: {
                 variant="outline"
                 className="mt-2"
                 disabled={busy}
-                onClick={() => handleRegister(event.id)}
+                onClick={() => handleRegister(event)}
               >
                 تسجيل
               </Button>
