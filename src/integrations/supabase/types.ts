@@ -1785,6 +1785,56 @@ export type Database = {
         }
         Relationships: []
       }
+      b1_workflow_runtime_contract_snapshot: {
+        Row: {
+          action_code: string | null
+          action_type: string
+          id: string
+          pinned_at: string
+          request_type_code: string
+          role_code: string
+          step_key: string
+          step_order: number
+          unit_code: string
+          workflow_id: string
+          workflow_version: number
+        }
+        Insert: {
+          action_code?: string | null
+          action_type: string
+          id?: string
+          pinned_at?: string
+          request_type_code: string
+          role_code: string
+          step_key: string
+          step_order: number
+          unit_code: string
+          workflow_id: string
+          workflow_version: number
+        }
+        Update: {
+          action_code?: string | null
+          action_type?: string
+          id?: string
+          pinned_at?: string
+          request_type_code?: string
+          role_code?: string
+          step_key?: string
+          step_order?: number
+          unit_code?: string
+          workflow_id?: string
+          workflow_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b1_workflow_runtime_contract_snapshot_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       backup_verifications: {
         Row: {
           check_kind: string
@@ -6858,6 +6908,24 @@ export type Database = {
           },
         ]
       }
+      service_platform_runtime_flags: {
+        Row: {
+          legacy_fallback_enabled: boolean
+          service_code: string
+          updated_at: string
+        }
+        Insert: {
+          legacy_fallback_enabled?: boolean
+          service_code: string
+          updated_at?: string
+        }
+        Update: {
+          legacy_fallback_enabled?: boolean
+          service_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       site_pages: {
         Row: {
           content_ar: string | null
@@ -9260,6 +9328,10 @@ export type Database = {
         Returns: string
       }
       b1_is_five_service_type: { Args: { p_stored: string }; Returns: boolean }
+      b1_legacy_fallback_enabled: {
+        Args: { p_service_code: string }
+        Returns: boolean
+      }
       b1_list_attachment_metas_for_request: {
         Args: { p_request_id: string }
         Returns: Json
@@ -10705,6 +10777,16 @@ export type Database = {
       initialize_student_request_workflow: {
         Args: { p_request_id: string }
         Returns: Json
+      }
+      is_b1_runtime_step_contract_configured: {
+        Args: {
+          p_action_type: string
+          p_role_code: string
+          p_step_key: string
+          p_unit_code: string
+          p_workflow_id: string
+        }
+        Returns: boolean
       }
       is_b1_stored_request_type: {
         Args: { p_request_type: string }
