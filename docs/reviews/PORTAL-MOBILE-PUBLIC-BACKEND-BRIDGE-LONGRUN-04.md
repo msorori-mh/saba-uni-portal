@@ -11,7 +11,7 @@
 ```
 START_SHA=2bbf43378bf71497d7ebabbcd00671e271ef683c
 MAIN_SHA=2bbf43378bf71497d7ebabbcd00671e271ef683c
-FINAL_SHA=<filled after commit>
+FINAL_SHA=b1175ef2ad03e19332cee02aa6f6d6b48b045c02
 ```
 
 ---
