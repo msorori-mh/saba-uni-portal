@@ -350,16 +350,57 @@ export class GraduatesAffairsRpcClient {
   createFollowup(input: {
     graduateRecordId: string;
     assigneeUserId: string;
-    purposeCode: string;
+    followupTypeId: string;
     nextActionAt: string | null;
   }): Promise<string> {
     return this.call("graduate_affairs_create_followup", {
       p_graduate_record_id: input.graduateRecordId,
       p_assignee_user_id: input.assigneeUserId,
-      p_purpose_code: input.purposeCode,
+      p_followup_type_id: input.followupTypeId,
       p_next_action_at: input.nextActionAt,
     });
   }
+
+  // --- GA-1/2/3 Admin RPCs ---
+
+  adminListFollowupTypes(): Promise<unknown[]> {
+    return this.call("ga_admin_list_followup_types", {});
+  }
+
+  adminSaveFollowupType(input: {
+    id: string | null;
+    code: string;
+    labelAr: string;
+    descriptionAr: string | null;
+    isActive: boolean;
+  }): Promise<string> {
+    return this.call("ga_admin_save_followup_type", {
+      p_id: input.id,
+      p_code: input.code,
+      p_label_ar: input.labelAr,
+      p_description_ar: input.descriptionAr,
+      p_is_active: input.isActive,
+    });
+  }
+
+  adminListFollowupWorkflows(followupTypeId: string | null): Promise<unknown[]> {
+    return this.call("ga_admin_list_followup_workflows", {
+      p_followup_type_id: followupTypeId,
+    });
+  }
+
+  adminSaveWorkflowDraft(payload: Record<string, unknown>): Promise<string> {
+    return this.call("ga_admin_save_workflow_draft", {
+      p_payload: payload,
+    });
+  }
+
+  adminPublishWorkflow(workflowId: string): Promise<void> {
+    return this.call("ga_admin_publish_workflow", {
+      p_workflow_id: workflowId,
+    });
+  }
+
 
   transitionFollowup(input: {
     followupId: string;
