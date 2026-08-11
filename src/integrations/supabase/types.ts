@@ -4918,6 +4918,10 @@ export type Database = {
           id: string
           lifecycle_state: Database["public"]["Enums"]["graduation_project_state"]
           objectives: string | null
+          policy_id: string | null
+          policy_pin_source: string | null
+          policy_pinned_at: string | null
+          policy_snapshot: Json | null
           problem_statement: string | null
           program_id: string | null
           semester_id: string | null
@@ -4940,6 +4944,10 @@ export type Database = {
           id?: string
           lifecycle_state?: Database["public"]["Enums"]["graduation_project_state"]
           objectives?: string | null
+          policy_id?: string | null
+          policy_pin_source?: string | null
+          policy_pinned_at?: string | null
+          policy_snapshot?: Json | null
           problem_statement?: string | null
           program_id?: string | null
           semester_id?: string | null
@@ -4962,6 +4970,10 @@ export type Database = {
           id?: string
           lifecycle_state?: Database["public"]["Enums"]["graduation_project_state"]
           objectives?: string | null
+          policy_id?: string | null
+          policy_pin_source?: string | null
+          policy_pinned_at?: string | null
+          policy_snapshot?: Json | null
           problem_statement?: string | null
           program_id?: string | null
           semester_id?: string | null
@@ -4983,6 +4995,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_projects_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_project_policies"
             referencedColumns: ["id"]
           },
           {
@@ -10273,6 +10292,7 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      gp_academic_date: { Args: { p_at?: string }; Returns: string }
       gp_admin_list_policies: {
         Args: never
         Returns: {
@@ -10404,6 +10424,42 @@ export type Database = {
           p_project_id: string
         }
         Returns: boolean
+      }
+      gp_project_policy: {
+        Args: { p_project_id: string }
+        Returns: {
+          academic_year_id: string | null
+          allow_co_supervisor: boolean
+          created_at: string
+          created_by: string | null
+          defense_window_end: string | null
+          defense_window_start: string | null
+          department_id: string | null
+          id: string
+          max_committee_members: number
+          max_revision_rounds: number
+          max_supervisors: number
+          max_team_size: number
+          min_committee_members: number
+          min_team_size: number
+          notes: string | null
+          passing_score: number
+          proposal_window_end: string | null
+          proposal_window_start: string | null
+          published_at: string | null
+          published_by: string | null
+          required_progress_reports: number
+          status: string
+          superseded_at: string | null
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_policies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       gp_proposal_complete: {
         Args: { p: Database["public"]["Tables"]["graduation_projects"]["Row"] }

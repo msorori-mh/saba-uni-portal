@@ -28,13 +28,13 @@ import {
 const NUMBER_FIELDS = [
   "min_team_size",
   "max_team_size",
-  "max_supervisors",
   "required_progress_reports",
   "min_committee_members",
   "max_committee_members",
   "passing_score",
   "max_revision_rounds",
 ] as const;
+
 
 const DATE_FIELDS = [
   "proposal_window_start",
@@ -206,16 +206,18 @@ export function GraduationProjectPolicyPanel() {
               </div>
             ))}
 
-            <div className="flex items-center justify-between rounded-md border p-3 sm:col-span-2">
-              <Label htmlFor="allow_co_supervisor" className="cursor-pointer">
-                {GP_POLICY_FIELD_LABELS_AR["allow_co_supervisor"]}
-              </Label>
-              <Switch
-                id="allow_co_supervisor"
-                checked={draft.allow_co_supervisor}
-                onCheckedChange={(v) => setDraft((d) => ({ ...d, allow_co_supervisor: v }))}
-              />
+            <div className="flex items-center justify-between rounded-md border border-dashed p-3 sm:col-span-2">
+              <div>
+                <Label htmlFor="allow_co_supervisor" className="text-muted-foreground">
+                  {GP_POLICY_FIELD_LABELS_AR["allow_co_supervisor"]}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  مؤجّل: النظام يدعم مشرفًا واحدًا فقط، ولا يمكن نشر سياسة تسمح بأكثر من ذلك.
+                </p>
+              </div>
+              <Switch id="allow_co_supervisor" checked={false} disabled />
             </div>
+
 
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="notes">ملاحظات</Label>
