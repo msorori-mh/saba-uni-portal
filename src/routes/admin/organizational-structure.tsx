@@ -42,6 +42,7 @@ function OrgStructurePage() {
   const activeFn = useServerFn(setPositionActive);
   const qc = useQueryClient();
 
+  const [openFor, setOpenFor] = useState<{ id: string; name: string } | null>(null);
   const orgQ = useQuery({ queryKey: ["org-structure"], queryFn: () => listFn({ data: {} as any }) });
   const [userSearch, setUserSearch] = useState("");
   const [userPage, setUserPage] = useState(1);
@@ -52,7 +53,6 @@ function OrgStructurePage() {
     enabled: !!openFor,
   });
 
-  const [openFor, setOpenFor] = useState<{ id: string; name: string } | null>(null);
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [editPosition, setEditPosition] = useState<OrgPosition | null>(null);
