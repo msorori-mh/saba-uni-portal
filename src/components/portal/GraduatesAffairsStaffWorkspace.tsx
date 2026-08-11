@@ -85,6 +85,18 @@ export function GraduatesAffairsStaffWorkspace() {
     retry: 1,
   });
 
+  const academicScope = useServerFn(listGaAcademicScopeFn);
+  const scopeQuery = useQuery({
+    queryKey: ["ga-academic-scope"],
+    queryFn: () => academicScope({ data: {} }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const programName = (id: string) =>
+    scopeQuery.data?.programs.find((program) => program.id === id)?.name ?? "برنامج غير محدد";
+  const departmentName = (id: string) =>
+    scopeQuery.data?.departments.find((department) => department.id === id)?.name ?? "قسم غير محدد";
+
   const fileQuery = useQuery({
     queryKey: ["graduates-affairs", "staff-file", selectedId],
     queryFn: () => getFile({ data: { graduateRecordId: selectedId! } }),
@@ -104,13 +116,15 @@ export function GraduatesAffairsStaffWorkspace() {
       if (!needle) return true;
       return [
         record.id,
-        record.program_id,
-        record.department_id,
+        programName(record.program_id),
+        departmentName(record.department_id),
         String(record.graduation_year),
         STATE_LABELS[record.record_state],
       ].some((value) => value.toLowerCase().includes(needle));
     });
-  }, [query, records, state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, records, state, scopeQuery.data]);
+
 
   if (recordsQuery.isLoading) {
     return (
