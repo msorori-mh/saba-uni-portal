@@ -37,9 +37,12 @@ export type AdminGraduateRecordSummary = {
   graduationYear: number | null;
   effectiveGraduationDate: string;
   programId: string;
+  programName: string;
   departmentId: string;
+  departmentName: string;
   createdAt: string;
 };
+
 
 function extractYear(dateString: string | null): number | null {
   if (!dateString) return null;
