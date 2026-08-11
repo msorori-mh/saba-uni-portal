@@ -159,7 +159,7 @@ function ExecutiveDashboardPage() {
   const kpis = [
     { label: "إجمالي الطلاب", value: core?.students ?? "—", icon: GraduationCap, href: "/admin/students" },
     { label: "الطلاب النشطون", value: core?.activeStudents ?? "—", icon: Users, href: "/admin/students" },
-    { label: "المرشحون للتخرج", value: progress?.gradCandidates ?? "—", icon: FileBadge, href: "/admin/graduation-candidates" },
+    
     { label: "الطلاب المتعثرون", value: progress?.atRisk ?? "—", icon: AlertCircle, href: "/admin/at-risk-students" },
     { label: "أعضاء هيئة التدريس", value: core?.faculty ?? "—", icon: UserCog, href: "/admin/faculty-management" },
     { label: "المجموعات الدراسية", value: core?.sections ?? "—", icon: Layers, href: "/admin/course-offerings" },
