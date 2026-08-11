@@ -9074,6 +9074,10 @@ export type Database = {
         Args: { _profile_status: string; _request_audience: string }
         Returns: undefined
       }
+      assert_student_request_eligibility_rules: {
+        Args: { p_request_type_code: string; p_student_profile_id: string }
+        Returns: undefined
+      }
       assess_student_request_fee: {
         Args: { p_amount: number; p_notes?: string; p_request_id: string }
         Returns: Json
