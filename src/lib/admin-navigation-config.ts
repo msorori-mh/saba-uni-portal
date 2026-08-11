@@ -217,6 +217,7 @@ export const ADMIN_NAV_LEGACY_SIDEBAR_PATHS = [
   "/admin/graduation-projects",
 
   "/admin/graduates-affairs",
+  "/admin/graduates-affairs-workflows",
   "/admin/graduation-candidates",
   "/admin/students",
   "/admin/student-requests",
