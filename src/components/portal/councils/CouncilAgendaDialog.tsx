@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, ChevronDown, ChevronUp, Loader2, Plus } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Circle, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   finalizeMeetingAgenda,
   getAvailableTopicsForAgenda,
   reorderAgendaItems,
+  transitionCouncilMeeting,
   updateAgendaItem,
   type AvailableTopicForAgenda,
   type CouncilAgendaItem,
@@ -41,6 +42,7 @@ import {
   LoadingBlock,
   mapAgendaUiError,
   meetingStatusLabel,
+  topicStatusLabel,
 } from "./shared";
 
 function swapAgendaOrder(items: CouncilAgendaItem[], itemId: string, direction: "up" | "down") {
@@ -77,6 +79,7 @@ export function CouncilAgendaDialog({
   const updateItem = useServerFn(updateAgendaItem);
   const reorderItems = useServerFn(reorderAgendaItems);
   const finalizeAgenda = useServerFn(finalizeMeetingAgenda);
+  const transitionMeeting = useServerFn(transitionCouncilMeeting);
   const writeCouncilIds = useMemo(
     () => new Set(writeMemberships.map((membership) => membership.council_id)),
     [writeMemberships],
@@ -225,11 +228,26 @@ export function CouncilAgendaDialog({
   };
 
   const handleFinalize = async () => {
-    if (!meetingId || !canFinalize) return;
+    if (!meetingId || !canFinalize || !meeting) return;
     setFinalizeBusy(true);
     try {
       await finalizeAgenda({ data: { meetingId } });
-      toast.success("تم اعتماد جدول الأعمال.");
+      if (meeting.status !== "agenda_ready") {
+        try {
+          await transitionMeeting({
+            data: {
+              meetingId,
+              expectedStatus: meeting.status as never,
+              toStatus: "agenda_ready" as never,
+            },
+          });
+        } catch (transitionErr) {
+          toast.warning(
+            `تم اعتماد البنود، لكن تعذّر نقل الاجتماع إلى «جدول الأعمال جاهز»: ${extractErrorMessage(transitionErr)}`,
+          );
+        }
+      }
+      toast.success("تم اعتماد جدول الأعمال واعتماد موضوعاته.");
       refreshAgenda();
     } catch (err) {
       toast.error(mapAgendaUiError(extractErrorMessage(err), "finalize"));
@@ -237,6 +255,16 @@ export function CouncilAgendaDialog({
       setFinalizeBusy(false);
     }
   };
+
+  const approvedCount = agendaItems.filter((item) => item.is_approved).length;
+  const allApproved = agendaItems.length > 0 && approvedCount === agendaItems.length;
+  const agendaReady = meeting?.status === "agenda_ready";
+  const buildSteps = [
+    { label: "إضافة بنود/موضوعات إلى الجدول", done: agendaItems.length > 0 },
+    { label: "ترتيب البنود بالتسلسل المطلوب", done: agendaItems.length > 0 },
+    { label: "اعتماد بنود الجدول", done: allApproved },
+    { label: "اعتماد الجدول ونقل الاجتماع إلى «جدول الأعمال جاهز»", done: agendaReady },
+  ];
 
   const anyBusy = manualBusy || Boolean(addTopicBusyId) || reorderBusy || finalizeBusy || editBusy;
 
@@ -262,14 +290,31 @@ export function CouncilAgendaDialog({
               </p>
             </div>
             {!canWrite ? <ErrorBlock message={AGENDA_WRITE_DENIED_UI} /> : null}
+            <ol className="space-y-1.5 rounded-lg border border-border p-3 text-xs">
+              <li className="text-[11px] font-bold text-primary">خطوات بناء جدول الأعمال</li>
+              {buildSteps.map((step, index) => (
+                <li key={step.label} className="flex items-center gap-2">
+                  {step.done ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  ) : (
+                    <Circle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className={step.done ? "font-bold" : "text-muted-foreground"}>
+                    {index + 1}. {step.label}
+                  </span>
+                </li>
+              ))}
+            </ol>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">{agendaItems.length} بند</span>
+              <span className="text-xs text-muted-foreground">
+                {agendaItems.length} بند — المعتمد منها {approvedCount}
+              </span>
               {canFinalize ? (
                 <Button
                   type="button"
                   size="sm"
                   className="h-8 gap-1.5 text-xs"
-                  disabled={finalizeBusy || meeting.status === "agenda_ready"}
+                  disabled={finalizeBusy || agendaItems.length === 0 || agendaReady}
                   onClick={() => void handleFinalize()}
                 >
                   {finalizeBusy ? (
@@ -302,7 +347,12 @@ export function CouncilAgendaDialog({
                         <span className="font-bold">{item.title}</span>
                         {item.is_approved ? (
                           <Badge variant="secondary" className="ms-2 text-[9px]">
-                            معتمد
+                            بند معتمد
+                          </Badge>
+                        ) : null}
+                        {item.topic ? (
+                          <Badge variant="outline" className="ms-2 text-[9px]">
+                            حالة الموضوع: {topicStatusLabel(item.topic.status)}
                           </Badge>
                         ) : null}
                         {item.notes ? (
