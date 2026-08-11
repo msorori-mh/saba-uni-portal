@@ -32,6 +32,12 @@ export type GraduateSpecializationRelationship =
   | "partially_related"
   | "not_related";
 
+export interface GraduateAffairsAssignableStaff {
+  user_id: string;
+  full_name: string;
+  role_code: string;
+}
+
 export interface GraduateSelfConsent {
   id: string;
   purpose_code: string;
@@ -309,6 +315,10 @@ export class GraduatesAffairsRpcClient {
     return this.call("graduate_affairs_get_graduate_file", {
       p_graduate_record_id: graduateRecordId,
     });
+  }
+
+  listAssignableStaff(): Promise<GraduateAffairsAssignableStaff[]> {
+    return this.call("graduate_affairs_list_assignable_staff", {});
   }
 
   searchRecords(input: {
