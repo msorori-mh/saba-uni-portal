@@ -149,7 +149,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: FileBadge,
     items: [
       { to: "/admin/graduates-affairs", label: "شؤون الخريجين", icon: Briefcase },
-      
+      { to: "/admin/graduates-affairs-workflows", label: "متابعات الخريجين", icon: ShieldCheck },
     ],
   },
   {
@@ -217,6 +217,7 @@ export const ADMIN_NAV_LEGACY_SIDEBAR_PATHS = [
   "/admin/graduation-projects",
 
   "/admin/graduates-affairs",
+  "/admin/graduates-affairs-workflows",
   "/admin/graduation-candidates",
   "/admin/students",
   "/admin/student-requests",

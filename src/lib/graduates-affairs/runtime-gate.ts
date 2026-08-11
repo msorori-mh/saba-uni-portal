@@ -45,6 +45,12 @@ export const GRADUATES_AFFAIRS_AUTH04_RPCS = [
   "graduate_affairs_cohort_employment_report",
   "graduate_affairs_resolve_self_context",
   "graduate_affairs_resolve_staff_record_access",
+  // GA-1/2/3 admin configuration RPCs
+  "ga_admin_list_followup_types",
+  "ga_admin_save_followup_type",
+  "ga_admin_list_followup_workflows",
+  "ga_admin_save_workflow_draft",
+  "ga_admin_publish_workflow",
 ] as const;
 
 /** Direct table mutation paths are never authorized for this domain. */

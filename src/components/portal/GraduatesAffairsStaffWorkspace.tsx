@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import {
   createGraduateFollowupFn,
   getStaffGraduateFileFn,
+  listActiveFollowupTypesFn,
   listGraduateAffairsAssignableStaffFn,
   searchGraduateRecordsFn,
   transitionGraduateFollowupFn,
@@ -28,6 +29,13 @@ import type {
   GraduateAffairsRecordState,
   GraduateAffairsSearchRecord,
 } from "@/lib/graduates-affairs/rpc";
+
+interface FollowupType {
+  id: string;
+  code: string;
+  label_ar: string;
+  description_ar: string | null;
+}
 
 const STATE_LABELS: Record<GraduateAffairsRecordState, string> = {
   pending: "مرشح — بانتظار الاعتماد",
@@ -337,9 +345,10 @@ function GraduateCasePanel({
   const transitionFollowup = useServerFn(transitionGraduateFollowupFn);
   const createFollowup = useServerFn(createGraduateFollowupFn);
   const listAssignableStaff = useServerFn(listGraduateAffairsAssignableStaffFn);
+  const listFollowupTypes = useServerFn(listActiveFollowupTypesFn);
   const [followupBusy, setFollowupBusy] = useState<string | null>(null);
   const [assigneeUserId, setAssigneeUserId] = useState("");
-  const [purposeCode, setPurposeCode] = useState("communications");
+  const [followupTypeId, setFollowupTypeId] = useState("");
   const [nextActionAt, setNextActionAt] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
   const [genericError, setGenericError] = useState<string | null>(null);
@@ -348,9 +357,14 @@ function GraduateCasePanel({
     queryKey: ["graduates-affairs", "assignable-staff"],
     queryFn: () => listAssignableStaff({ data: undefined }),
   });
+  const typesQuery = useQuery({
+    queryKey: ["graduates-affairs", "active-followup-types"],
+    queryFn: () => listFollowupTypes({ data: undefined }),
+  });
   const assignableStaff: GraduateAffairsAssignableStaff[] = Array.isArray(staffQuery.data)
     ? staffQuery.data
     : [];
+  const followupTypes: FollowupType[] = Array.isArray(typesQuery.data) ? typesQuery.data : [];
   const staffNameByUserId = new Map(assignableStaff.map((s) => [s.user_id, s.full_name]));
 
 
@@ -377,18 +391,19 @@ function GraduateCasePanel({
   };
 
   const handleCreate = async () => {
-    if (!assigneeUserId.trim() || !selectedId) return;
+    if (!assigneeUserId.trim() || !selectedId || !followupTypeId) return;
     setCreateBusy(true);
     try {
       await createFollowup({
         data: {
           graduateRecordId: selectedId,
           assigneeUserId: assigneeUserId.trim(),
-          purposeCode,
+          followupTypeId,
           nextActionAt: nextActionAt || null,
         },
       });
       setAssigneeUserId("");
+      setFollowupTypeId("");
       setNextActionAt("");
       onInvalidate();
     } catch (err) {
@@ -538,14 +553,15 @@ function GraduateCasePanel({
           </select>
           <select
             className="h-10 rounded-md border bg-background px-3 text-sm"
-            value={purposeCode}
-            onChange={(e) => setPurposeCode(e.target.value)}
+            value={followupTypeId}
+            onChange={(e) => setFollowupTypeId(e.target.value)}
           >
-            <option value="communications">التواصل</option>
-            <option value="surveys">الاستبيانات</option>
-            <option value="events">الفعاليات</option>
-            <option value="career_followup">المتابعة المهنية</option>
-            <option value="employment_quality">جودة التوظيف</option>
+            <option value="">اختر نوع المتابعة…</option>
+            {followupTypes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label_ar}
+              </option>
+            ))}
           </select>
           <Input
             type="datetime-local"
@@ -555,7 +571,7 @@ function GraduateCasePanel({
           />
           <Button
             type="button"
-            disabled={createBusy || !assigneeUserId.trim()}
+            disabled={createBusy || !assigneeUserId.trim() || !followupTypeId}
             onClick={handleCreate}
           >
             إنشاء

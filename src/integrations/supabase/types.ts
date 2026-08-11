@@ -3777,10 +3777,106 @@ export type Database = {
         }
         Relationships: []
       }
+      graduate_followup_types: {
+        Row: {
+          code: string
+          created_at: string
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          label_ar: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          label_ar: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          label_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      graduate_followup_workflows: {
+        Row: {
+          created_at: string
+          followup_type_id: string
+          id: string
+          initial_state: string
+          is_current: boolean
+          max_active_per_graduate: number
+          notes: string | null
+          published_at: string | null
+          require_outcome_on_complete: boolean
+          states: Json
+          status: Database["public"]["Enums"]["graduate_followup_workflow_status"]
+          superseded_at: string | null
+          terminal_states: Json
+          transitions: Json
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          followup_type_id: string
+          id?: string
+          initial_state: string
+          is_current?: boolean
+          max_active_per_graduate?: number
+          notes?: string | null
+          published_at?: string | null
+          require_outcome_on_complete?: boolean
+          states: Json
+          status?: Database["public"]["Enums"]["graduate_followup_workflow_status"]
+          superseded_at?: string | null
+          terminal_states?: Json
+          transitions: Json
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          followup_type_id?: string
+          id?: string
+          initial_state?: string
+          is_current?: boolean
+          max_active_per_graduate?: number
+          notes?: string | null
+          published_at?: string | null
+          require_outcome_on_complete?: boolean
+          states?: Json
+          status?: Database["public"]["Enums"]["graduate_followup_workflow_status"]
+          superseded_at?: string | null
+          terminal_states?: Json
+          transitions?: Json
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduate_followup_workflows_followup_type_id_fkey"
+            columns: ["followup_type_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_followup_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       graduate_followups: {
         Row: {
           assignee_user_id: string
           created_at: string
+          followup_type_id: string | null
           graduate_record_id: string
           id: string
           next_action_at: string | null
@@ -3789,10 +3885,13 @@ export type Database = {
           purpose_code: string
           state: Database["public"]["Enums"]["graduate_followup_state"]
           updated_at: string
+          workflow_id: string | null
+          workflow_snapshot: Json
         }
         Insert: {
           assignee_user_id: string
           created_at?: string
+          followup_type_id?: string | null
           graduate_record_id: string
           id?: string
           next_action_at?: string | null
@@ -3801,10 +3900,13 @@ export type Database = {
           purpose_code: string
           state?: Database["public"]["Enums"]["graduate_followup_state"]
           updated_at?: string
+          workflow_id?: string | null
+          workflow_snapshot?: Json
         }
         Update: {
           assignee_user_id?: string
           created_at?: string
+          followup_type_id?: string | null
           graduate_record_id?: string
           id?: string
           next_action_at?: string | null
@@ -3813,13 +3915,29 @@ export type Database = {
           purpose_code?: string
           state?: Database["public"]["Enums"]["graduate_followup_state"]
           updated_at?: string
+          workflow_id?: string | null
+          workflow_snapshot?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "graduate_followups_followup_type_id_fkey"
+            columns: ["followup_type_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_followup_types"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "graduate_followups_graduate_record_id_fkey"
             columns: ["graduate_record_id"]
             isOneToOne: false
             referencedRelation: "graduate_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduate_followups_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "graduate_followup_workflows"
             referencedColumns: ["id"]
           },
         ]
@@ -8998,6 +9116,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      _ga_extract_state_values: { Args: { p_states: Json }; Returns: string[] }
       acknowledge_council_notification: {
         Args: { p_notification_id: string }
         Returns: Json
@@ -10021,6 +10140,65 @@ export type Database = {
         Returns: Json
       }
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
+      ga_admin_list_followup_types: {
+        Args: never
+        Returns: {
+          code: string
+          created_at: string
+          current_workflow_id: string
+          current_workflow_status: string
+          current_workflow_version: number
+          description_ar: string
+          id: string
+          is_active: boolean
+          label_ar: string
+          updated_at: string
+        }[]
+      }
+      ga_admin_list_followup_workflows: {
+        Args: { p_followup_type_id?: string }
+        Returns: {
+          created_at: string
+          followup_type_id: string
+          id: string
+          initial_state: string
+          is_current: boolean
+          max_active_per_graduate: number
+          notes: string
+          published_at: string
+          require_outcome_on_complete: boolean
+          states: Json
+          status: string
+          superseded_at: string
+          terminal_states: Json
+          transitions: Json
+          type_code: string
+          type_label_ar: string
+          version: number
+        }[]
+      }
+      ga_admin_publish_workflow: {
+        Args: { p_workflow_id: string }
+        Returns: undefined
+      }
+      ga_admin_save_followup_type: {
+        Args: {
+          p_code?: string
+          p_description_ar?: string
+          p_id?: string
+          p_is_active?: boolean
+          p_label_ar?: string
+        }
+        Returns: string
+      }
+      ga_admin_save_workflow_draft: {
+        Args: { p_payload: Json }
+        Returns: string
+      }
+      ga_resolve_current_workflow_snapshot: {
+        Args: { p_followup_type_id: string }
+        Returns: Json
+      }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
       get_active_workflow_for_request_type: {
@@ -10571,9 +10749,9 @@ export type Database = {
       graduate_affairs_create_followup: {
         Args: {
           p_assignee_user_id: string
+          p_followup_type_id: string
           p_graduate_record_id: string
           p_next_action_at?: string
-          p_purpose_code: string
         }
         Returns: string
       }
@@ -11604,6 +11782,7 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+      graduate_followup_workflow_status: "draft" | "published" | "superseded"
       graduate_opportunity_state:
         | "draft"
         | "in_review"
@@ -11897,6 +12076,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      graduate_followup_workflow_status: ["draft", "published", "superseded"],
       graduate_opportunity_state: [
         "draft",
         "in_review",

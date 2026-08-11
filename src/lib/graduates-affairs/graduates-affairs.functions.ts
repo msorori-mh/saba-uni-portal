@@ -32,6 +32,7 @@ import {
 import {
   GraduatesAffairsRpcClient,
   GraduatesAffairsRpcError,
+  mapGraduatesAffairsRpcError,
 } from "@/lib/graduates-affairs/rpc";
 
 export {
@@ -454,7 +455,7 @@ export const cancelGraduateEventRegistrationFn = createServerFn({ method: "POST"
 const createFollowupSchema = z.object({
   graduateRecordId: z.string().uuid(),
   assigneeUserId: z.string().uuid(),
-  purposeCode: z.string().min(1),
+  followupTypeId: z.string().uuid(),
   nextActionAt: z.string().nullable(),
 });
 
@@ -465,6 +466,103 @@ export const createGraduateFollowupFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     denyMutationWhenFlagOff("staffGraduatesAffairs");
     return rpcClient(context.supabase as SessionRpc).createFollowup(data);
+  });
+
+/** Staff-side read of active follow-up types for the creation dropdown. */
+export const listActiveFollowupTypesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!isPortalFeatureEnabled("staffGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    const { data, error } = await context.supabase
+      .from("graduate_followup_types")
+      .select("id, code, label_ar, description_ar")
+      .eq("is_active", true)
+      .order("code");
+    if (error) throw mapGraduatesAffairsRpcError(error);
+    return data ?? [];
+  });
+
+// --- GA-1/2/3 Admin server functions ---
+
+/** Admin: list all follow-up types with current workflow info. */
+export const adminListFollowupTypesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    return rpcClient(context.supabase as SessionRpc).adminListFollowupTypes();
+  });
+
+const adminSaveFollowupTypeSchema = z.object({
+  id: z.string().uuid().nullable(),
+  code: z.string().min(1),
+  labelAr: z.string().min(1),
+  descriptionAr: z.string().nullable(),
+  isActive: z.boolean(),
+});
+
+/** Admin: create or update a follow-up type. */
+export const adminSaveFollowupTypeFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminSaveFollowupTypeSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    return rpcClient(context.supabase as SessionRpc).adminSaveFollowupType(data);
+  });
+
+const adminListWorkflowsSchema = z.object({
+  followupTypeId: z.string().uuid().nullable().optional(),
+});
+
+/** Admin: list workflow versions for a type. */
+export const adminListFollowupWorkflowsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminListWorkflowsSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    return rpcClient(context.supabase as SessionRpc).adminListFollowupWorkflows(
+      data?.followupTypeId ?? null,
+    );
+  });
+
+const adminSaveWorkflowDraftSchema = z.object({
+  id: z.string().uuid().nullable().optional(),
+  followupTypeId: z.string().uuid(),
+  states: z.array(z.string()),
+  transitions: z.array(z.object({ from: z.string(), to: z.string() })),
+  initialState: z.string(),
+  terminalStates: z.array(z.string()),
+  requireOutcomeOnComplete: z.boolean(),
+  maxActivePerGraduate: z.number().int().min(1),
+  notes: z.string().nullable(),
+});
+
+/** Admin: save a draft workflow version. */
+export const adminSaveWorkflowDraftFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminSaveWorkflowDraftSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    return rpcClient(context.supabase as SessionRpc).adminSaveWorkflowDraft({
+      id: data.id ?? null,
+      followup_type_id: data.followupTypeId,
+      states: data.states,
+      transitions: data.transitions,
+      initial_state: data.initialState,
+      terminal_states: data.terminalStates,
+      require_outcome_on_complete: data.requireOutcomeOnComplete,
+      max_active_per_graduate: data.maxActivePerGraduate,
+      notes: data.notes,
+    });
+  });
+
+const adminPublishWorkflowSchema = z.object({
+  workflowId: z.string().uuid(),
+});
+
+/** Admin: publish a draft workflow. */
+export const adminPublishWorkflowFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminPublishWorkflowSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    return rpcClient(context.supabase as SessionRpc).adminPublishWorkflow(data.workflowId);
   });
 
 const transitionFollowupSchema = z.object({
