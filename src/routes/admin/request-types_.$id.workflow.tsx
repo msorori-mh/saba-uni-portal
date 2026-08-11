@@ -26,6 +26,8 @@ import { WORKFLOW_STATUS_LABEL } from "@/components/admin/request-workflow/const
 import { WorkflowStepsEditor } from "@/components/admin/request-workflow/WorkflowStepsEditor";
 import { WorkflowTransitionsEditor } from "@/components/admin/request-workflow/WorkflowTransitionsEditor";
 import { RequestWorkflowPreview } from "@/components/admin/RequestWorkflowPreview";
+import { ServiceDefinitionPanel } from "@/components/admin/request-workflow/ServiceDefinitionPanel";
+
 import {
   canonicalPreviewToSuggestedDraftSteps,
   getCanonicalDraftTransitionsForType,
@@ -417,12 +419,15 @@ function AdminRequestTypeWorkflowPage() {
         )}
       </div>
 
+      <ServiceDefinitionPanel requestTypeId={id} requestTypeCode={requestType.code} />
+
       <RequestWorkflowPreview
         requestTypeCode={requestType.code}
         draftSteps={draftSteps}
         draftTransitions={draftTransitions}
         schemaUnavailable={configUnavailable}
       />
+
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>

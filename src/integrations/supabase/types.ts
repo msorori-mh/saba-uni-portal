@@ -5786,6 +5786,42 @@ export type Database = {
         }
         Relationships: []
       }
+      request_eligibility_rule_catalog: {
+        Row: {
+          code: string
+          created_at: string
+          default_message_ar: string
+          description_ar: string | null
+          is_active: boolean
+          name_ar: string
+          param_schema: Json
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          default_message_ar: string
+          description_ar?: string | null
+          is_active?: boolean
+          name_ar: string
+          param_schema?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          default_message_ar?: string
+          description_ar?: string | null
+          is_active?: boolean
+          name_ar?: string
+          param_schema?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       request_processing_assignments: {
         Row: {
           assignment_type: string
@@ -5988,8 +6024,114 @@ export type Database = {
         }
         Relationships: []
       }
+      request_type_eligibility_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          message_ar: string
+          params: Json
+          request_type_id: string
+          rule_code: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          message_ar: string
+          params?: Json
+          request_type_id: string
+          rule_code: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          message_ar?: string
+          params?: Json
+          request_type_id?: string
+          rule_code?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_type_eligibility_rules_request_type_id_fkey"
+            columns: ["request_type_id"]
+            isOneToOne: false
+            referencedRelation: "request_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_type_eligibility_rules_rule_code_fkey"
+            columns: ["rule_code"]
+            isOneToOne: false
+            referencedRelation: "request_eligibility_rule_catalog"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      request_type_workflow_change_log: {
+        Row: {
+          change_kind: string
+          change_note: string | null
+          changed_by: string | null
+          created_at: string
+          id: string
+          request_type_id: string
+          snapshot: Json
+          version: number | null
+          workflow_id: string | null
+        }
+        Insert: {
+          change_kind: string
+          change_note?: string | null
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          request_type_id: string
+          snapshot?: Json
+          version?: number | null
+          workflow_id?: string | null
+        }
+        Update: {
+          change_kind?: string
+          change_note?: string | null
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          request_type_id?: string
+          snapshot?: Json
+          version?: number | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_type_workflow_change_log_request_type_id_fkey"
+            columns: ["request_type_id"]
+            isOneToOne: false
+            referencedRelation: "request_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_type_workflow_change_log_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_type_workflow_steps: {
         Row: {
+          action_code: string | null
           action_type: string
           assignment_strategy: string
           can_reject: boolean
@@ -6019,6 +6161,7 @@ export type Database = {
           workflow_id: string
         }
         Insert: {
+          action_code?: string | null
           action_type?: string
           assignment_strategy?: string
           can_reject?: boolean
@@ -6048,6 +6191,7 @@ export type Database = {
           workflow_id: string
         }
         Update: {
+          action_code?: string | null
           action_type?: string
           assignment_strategy?: string
           can_reject?: boolean
@@ -6077,6 +6221,13 @@ export type Database = {
           workflow_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "request_type_workflow_steps_action_code_fkey"
+            columns: ["action_code"]
+            isOneToOne: false
+            referencedRelation: "request_workflow_action_catalog"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "request_type_workflow_steps_processing_role_id_fkey"
             columns: ["processing_role_id"]
@@ -6160,6 +6311,7 @@ export type Database = {
       }
       request_type_workflows: {
         Row: {
+          change_note: string | null
           code: string
           created_at: string
           created_by: string | null
@@ -6168,12 +6320,15 @@ export type Database = {
           is_active: boolean
           name_ar: string
           name_en: string | null
+          published_at: string | null
           request_type_id: string
           status: string
+          superseded_at: string | null
           updated_at: string
           version: number
         }
         Insert: {
+          change_note?: string | null
           code: string
           created_at?: string
           created_by?: string | null
@@ -6182,12 +6337,15 @@ export type Database = {
           is_active?: boolean
           name_ar: string
           name_en?: string | null
+          published_at?: string | null
           request_type_id: string
           status?: string
+          superseded_at?: string | null
           updated_at?: string
           version?: number
         }
         Update: {
+          change_note?: string | null
           code?: string
           created_at?: string
           created_by?: string | null
@@ -6196,8 +6354,10 @@ export type Database = {
           is_active?: boolean
           name_ar?: string
           name_en?: string | null
+          published_at?: string | null
           request_type_id?: string
           status?: string
+          superseded_at?: string | null
           updated_at?: string
           version?: number
         }
@@ -6271,6 +6431,51 @@ export type Database = {
           title_en?: string | null
           updated_at?: string
           workflow_schema?: Json
+        }
+        Relationships: []
+      }
+      request_workflow_action_catalog: {
+        Row: {
+          action_type: string | null
+          code: string
+          created_at: string
+          description_ar: string | null
+          effect_function: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          name_ar: string
+          restricted_request_type_code: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          action_type?: string | null
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          effect_function?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          name_ar: string
+          restricted_request_type_code?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string | null
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          effect_function?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name_ar?: string
+          restricted_request_type_code?: string | null
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -7921,6 +8126,8 @@ export type Database = {
           submitted_at: string | null
           title: string
           updated_at: string
+          workflow_id: string | null
+          workflow_version: number | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -7944,6 +8151,8 @@ export type Database = {
           submitted_at?: string | null
           title: string
           updated_at?: string
+          workflow_id?: string | null
+          workflow_version?: number | null
         }
         Update: {
           cancelled_at?: string | null
@@ -7967,6 +8176,8 @@ export type Database = {
           submitted_at?: string | null
           title?: string
           updated_at?: string
+          workflow_id?: string | null
+          workflow_version?: number | null
         }
         Relationships: [
           {
@@ -7975,6 +8186,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "request_types"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "student_requests_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflows"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -8565,6 +8783,10 @@ export type Database = {
         Args: { p_request_type_id: string }
         Returns: Json
       }
+      admin_get_service_definition: {
+        Args: { p_request_type_id: string }
+        Returns: Json
+      }
       admin_mark_faculty_password_reset: {
         Args: { _profile_id: string }
         Returns: {
@@ -8589,6 +8811,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_save_request_type_eligibility_rules: {
+        Args: { p_request_type_id: string; p_rules: Json }
+        Returns: Json
+      }
       admin_save_request_workflow_config: {
         Args: {
           p_request_type_id: string
@@ -8609,6 +8835,10 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      admin_set_request_workflow_step_actions: {
+        Args: { p_step_actions: Json; p_workflow_id: string }
+        Returns: Json
       }
       admin_set_staff_status: {
         Args: { _active: boolean; _profile_id: string }
@@ -8653,6 +8883,10 @@ export type Database = {
       }
       apply_b1_final_chance_effect: {
         Args: { p_request_id: string }
+        Returns: undefined
+      }
+      apply_configured_action_effect: {
+        Args: { p_action_code: string; p_request_id: string }
         Returns: undefined
       }
       apply_student_discount: {
@@ -9005,10 +9239,15 @@ export type Database = {
         }
         Returns: Json
       }
-      check_student_request_basic_eligibility: {
-        Args: { p_request_type_code: string; p_student_profile_id: string }
-        Returns: Json
-      }
+      check_student_request_basic_eligibility:
+        | {
+            Args: { p_request_type_code: string; p_student_profile_id: string }
+            Returns: Json
+          }
+        | {
+            Args: { p_request_type_code: string; p_student_profile_id: string }
+            Returns: Json
+          }
       cleanup_b1_e2e_88_package: {
         Args: { p_correlation_id?: string; p_restore_assignees?: boolean }
         Returns: Json
@@ -9472,6 +9711,10 @@ export type Database = {
         Args: { p_at: string; p_capability: string; p_policy_code: string }
         Returns: boolean
       }
+      evaluate_request_eligibility_rules: {
+        Args: { p_context: Json; p_request_type_code: string }
+        Returns: string[]
+      }
       fail_enrollment_certificate_document_generation: {
         Args: {
           p_attempt_id: string
@@ -9502,6 +9745,7 @@ export type Database = {
       get_active_workflow_for_request_type: {
         Args: { p_request_type_id: string }
         Returns: {
+          change_note: string | null
           code: string
           created_at: string
           created_by: string | null
@@ -9510,8 +9754,10 @@ export type Database = {
           is_active: boolean
           name_ar: string
           name_en: string | null
+          published_at: string | null
           request_type_id: string
           status: string
+          superseded_at: string | null
           updated_at: string
           version: number
         }
@@ -10662,6 +10908,10 @@ export type Database = {
       }
       student_request_ineligible_status_message: {
         Args: never
+        Returns: string
+      }
+      student_request_pinned_workflow_id: {
+        Args: { p_request_id: string }
         Returns: string
       }
       student_request_type_is_eligible: {
