@@ -45,6 +45,7 @@ import {
   archiveCouncilMeetingFn,
   getCouncilDecisionFollowupDashboardFn,
   getCouncilHistoricalMinutesFn,
+  exportApprovedCouncilMinutesPdfFn,
 } from "@/lib/councils-c4-c8.functions";
 import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
 import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
