@@ -38,12 +38,24 @@ const NUMBER_FIELDS = [
 ] as const;
 
 
-const DATE_FIELDS = [
-  "proposal_window_start",
-  "proposal_window_end",
-  "defense_window_start",
-  "defense_window_end",
-] as const;
+const WINDOWS = [
+  {
+    flag: "enforce_proposal_window",
+    fields: ["proposal_window_start", "proposal_window_end"],
+  },
+  {
+    flag: "enforce_defense_window",
+    fields: ["defense_window_start", "defense_window_end"],
+  },
+] as const satisfies ReadonlyArray<{
+  flag: "enforce_proposal_window" | "enforce_defense_window";
+  fields: readonly (
+    | "proposal_window_start"
+    | "proposal_window_end"
+    | "defense_window_start"
+    | "defense_window_end"
+  )[];
+}>;
 
 export function GraduationProjectPolicyPanel() {
   const queryClient = useQueryClient();
