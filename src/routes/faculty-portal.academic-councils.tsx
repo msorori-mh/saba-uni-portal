@@ -264,8 +264,14 @@ function FacultyAcademicCouncilsPage() {
               <Link to="/faculty-portal/academic-councils/archive">الاجتماعات المؤرشفة</Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
+              <Link to="/faculty-portal/academic-councils/authorization-audit">
+                فحص الصلاحيات
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
               <Link to="/faculty-portal/academic-councils/reports">التقارير</Link>
             </Button>
+
           </div>
         </header>
 
