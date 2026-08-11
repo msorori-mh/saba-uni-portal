@@ -64,7 +64,7 @@ function AuditLogPage() {
   const [userId, setUserId] = useState("");
   const [selected, setSelected] = useState<AuditRow | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const auditQ = useQuery({
     queryKey: ["audit-logs", from, to, entity, action, userId],
     queryFn: () => listFn({
       data: {
@@ -75,9 +75,12 @@ function AuditLogPage() {
         actorUserId: userId.trim() || undefined,
       },
     }),
+    retry: (count, err) => !isAuthorizationError(err) && count < 2,
   });
+  const { data, isLoading } = auditQ;
 
   const rows = data ?? [];
+
 
   const reset = () => {
     setFrom(""); setTo(""); setEntity(""); setAction(""); setUserId("");
