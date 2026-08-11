@@ -234,15 +234,8 @@ function AdminDashboard() {
       detail: "من بيانات الاستيراد الحالية",
     });
   }
-  if (!loadingProgress && (progressKpis?.atRisk ?? 0) > 0) {
-    attentionItems.push({
-      id: "at-risk",
-      title: "الطلاب المتعثرون أكاديمياً",
-      value: progressKpis!.atRisk,
-      to: "/admin/at-risk-students",
-      detail: "متابعة أكاديمية معلوماتية",
-    });
-  }
+  // مخفي بناءً على طلب الإدارة — الطلاب المتعثرون أكاديمياً
+
   if (!loadingComm && (commStats?.unread_messages ?? 0) > 0) {
     attentionItems.push({
       id: "unread-messages",
