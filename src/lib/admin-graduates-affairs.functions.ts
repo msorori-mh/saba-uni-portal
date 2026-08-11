@@ -85,18 +85,37 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
       }
     };
 
+    /**
+     * Open follow-ups are workflow-driven: a follow-up is open when its current
+     * state is NOT listed in the terminal states of its pinned workflow snapshot.
+     * No hardcoded state vocabulary here.
+     */
+    const openFollowupsCount = async (): Promise<number | null> => {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from("graduate_followups")
+          .select("state, workflow_snapshot");
+        if (error) return null;
+        return (data ?? []).filter((row) => {
+          const snapshot = row.workflow_snapshot as { terminal_states?: unknown } | null;
+          const terminal = Array.isArray(snapshot?.terminal_states)
+            ? (snapshot.terminal_states as unknown[]).map((value) => String(value))
+            : [];
+          return !terminal.includes(String(row.state));
+        }).length;
+      } catch {
+        return null;
+      }
+    };
+
     const [totalCount, byState, openFollowups, activeEvents, activeOpportunities, publishedSurveys, recentRes] =
       await Promise.all([
         safeCount(() =>
           supabaseAdmin.from("graduate_records").select("id", { count: "exact", head: true }),
         ),
         countRecordsByState(states).catch(() => ({}) as Record<string, number>),
-        safeCount(() =>
-          supabaseAdmin
-            .from("graduate_followups")
-            .select("id", { count: "exact", head: true })
-            .in("state", ["open", "in_progress"]),
-        ),
+        openFollowupsCount(),
+
         safeCount(() =>
           supabaseAdmin
             .from("graduate_events")
