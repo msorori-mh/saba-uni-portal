@@ -210,6 +210,18 @@ export const searchGraduateRecordsFn = createServerFn({ method: "POST" })
     return rpcClient(context.supabase as SessionRpc).searchRecords(data);
   });
 
+/** Assignable Graduates Affairs staff — AUTH-04 RPC only; blocked when staff flag OFF. */
+export const listGraduateAffairsAssignableStaffFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!isPortalFeatureEnabled("staffGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).listAssignableStaff();
+  });
+
+
+
 const updateProfileSchema = z.object({
   graduateRecordId: z.string().uuid(),
   publicDisplayName: z.string().nullable(),
