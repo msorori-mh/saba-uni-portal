@@ -120,5 +120,11 @@ describe("admin viewer cannot gain mutation authority via title", () => {
       expect(slice).toContain("'administration_viewer'");
       expect(slice).toMatch(/allowedActors:\s*\['coordinator'\]/);
     }
+
+    const teamIdx = contracts.indexOf("rpc: 'add_graduation_project_team_member'");
+    expect(teamIdx).toBeGreaterThan(-1);
+    const teamSlice = contracts.slice(teamIdx, teamIdx + 700);
+    expect(teamSlice).toContain("'administration_viewer'");
+    expect(teamSlice).toMatch(/deniedActors:[\s\S]*'administration_viewer'/);
   });
 });

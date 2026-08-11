@@ -4,6 +4,42 @@
 
 `PASS_PORTAL_GP_ADMIN_READONLY_VIEWER_PRODUCTION_HOTFIX_01_SOURCE_READY`
 
+```
+ROOT_CAUSE=YES — overview RPC gated on active graduation_project_department_coordinators only
+VIEWER_CONTRACT=ADMINISTRATION VIEWER = READ-ONLY OVERVIEW ONLY (ADMIN_VIEWER OR ACTIVE_GP_COORDINATOR)
+ADMIN_VIEWER_ROLES=system_admin,admin,dean,registrar
+MIGRATION_FILENAME=supabase/migrations/20260811041600_de9e9a8e-741e-4415-9741-fd8a2e53d22d.sql
+MIGRATION_SHA256=7085df5b754103526287f510bf12983b916a6d15b446b68c77675cee68df769d
+PG17_BEFORE=PASS_REPRODUCED
+PG17_AFTER=PASS_FIXED
+OPERATIONAL_BYPASS=NO
+ADMIN_VIEWER_OVERVIEW=PASS
+ADMIN_VIEWER_OPERATIONAL_MUTATIONS=DENY_ZERO_MUTATION
+ADMIN_OVERVIEW_PII_EXPANSION=NO
+GP_TESTS=PASS (131/0)
+STUDENT_REQUESTS=PASS_WITH_KNOWN_UNRELATED_PIN_DRIFT (1065/1)
+TYPECHECK=PASS
+BUILD=PASS
+DIFF_CHECK=PASS
+PRODUCTION_WRITE=0
+MIGRATION_APPLY=0
+MERGE=NO
+DEPLOY=NO
+```
+
+---
+
+## STOP_CONDITIONS
+
+Stop / do not apply if any of the following is true:
+
+1. Production precheck shows overview function already uses `has_any_role` (hotfix already applied or diverged).
+2. Production precheck shows overview body no longer matches coordinator-only denial (unexpected drift).
+3. Any operational helper (`require_graduation_project_assignment`, team/defense/archive RPCs) would be modified by the apply packet.
+4. Apply packet would grant admin/dean/registrar coordinator mutation authority.
+5. Overview payload expands into student/faculty PII, evaluation notes, object keys, or signed URLs.
+6. Operator attempts production apply / deploy / main merge from this source-only mission.
+
 - `PRODUCTION_WRITE=0`
 - `MIGRATION_APPLY=0`
 - `DEPLOY=NO`
@@ -159,15 +195,18 @@ select has_function_privilege('authenticated', 'public.list_administration_gradu
 | `ADMIN_VIEWER_CAN_ASSIGN_SUPERVISOR` | `NO` |
 | `ADMIN_VIEWER_CAN_SCHEDULE_DEFENSE` | `NO` |
 | `ADMIN_VIEWER_CAN_ASSIGN_COMMITTEE` | `NO` |
+| `ADMIN_VIEWER_CAN_MARK_DEFENSE_HELD` | `NO` |
 | `ADMIN_VIEWER_CAN_CONCLUDE_RESULT` | `NO` |
 | `ADMIN_VIEWER_CAN_ARCHIVE` | `NO` |
+| `ADMIN_VIEWER_CAN_MUTATE_TEAM` | `NO` |
+| `ADMIN_VIEWER_OPERATIONAL_MUTATIONS` | `DENY_ZERO_MUTATION` |
 | `DIRECT_ASSIGNMENT_GUARDS` | `UNCHANGED` |
 | `DEPARTMENT_SCOPE` | `UNCHANGED` (coordinator overview remains dept-scoped; admin viewer is college-wide read-only) |
 | `L4_GUARD` | `UNCHANGED` (not touched) |
 | `SIGNED_DOWNLOAD_GUARD` | `UNCHANGED` (not touched) |
 | `EVALUATION_ROUND_GUARD` | `UNCHANGED` (not touched) |
 
-Denied mutation RPCs raise `exact direct processing assignment required` (zero mutation).
+Denied mutation RPCs raise assignment/team denial (zero mutation on project state/version/team rows).
 
 ---
 
@@ -199,7 +238,7 @@ Disposable Docker `postgres:17` harness:
 |---|---|
 | `PG17_BEFORE` | admin role **without** coordinator → exact denial reproduced (`PG17_BEFORE_ADMIN_VIEWER_DENIED`) |
 | Apply hotfix migration | PASS |
-| `PG17_AFTER` | admin/system_admin/dean overview PASS; coordinator overview PASS; student/faculty/supervisor/committee/anonymous DENY; mutation RPCs DENY; `ADMIN_OVERVIEW_PII_EXPANSION=NO`; `DIRECT_ASSIGNMENT_GUARDS=UNCHANGED` |
+| `PG17_AFTER` | admin/system_admin/dean/registrar overview PASS; coordinator overview PASS; student/faculty/supervisor/committee/anonymous DENY; mutation RPCs DENY + ZERO MUTATION; `ADMIN_OVERVIEW_PII_EXPANSION=NO`; `DIRECT_ASSIGNMENT_GUARDS=UNCHANGED` |
 
 ---
 
