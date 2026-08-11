@@ -13,11 +13,13 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Pinned after final go-live cutover integration of GP final product +
-// GA admin surface (/admin/graduates-affairs). Recomputed from the merged
-// routeTree.gen.ts — do not reuse pre-merge SHA.
+// Re-pinned after the academic-councils archive / authorization-audit routes
+// and /admin/graduation-project-policies were added. Drift verified: 125
+// fullPaths, all unique, no duplicate "/" claimants — every delta is an
+// intentionally added route. Recomputed from the current routeTree.gen.ts.
 const ROUTE_SEMANTIC_SHA256 =
-  "0ac44ee8dbe34a0701d069dc625c329bcbc96de0434e915c46bbe08d460a7d27";
+  "ab3d948c208316cdd333f3145c0939034fcaa07add54dfc04fb9d662b5f080de";
+
 
 const FROZEN_GP_FULL_PATHS = [
   "/student/graduation-projects",
