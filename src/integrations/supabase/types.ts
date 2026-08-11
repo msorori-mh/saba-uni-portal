@@ -4290,6 +4290,7 @@ export type Database = {
       }
       graduate_surveys: {
         Row: {
+          audience_scope: Json
           created_at: string
           id: string
           minimum_report_cell_size: number
@@ -4298,6 +4299,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          audience_scope?: Json
           created_at?: string
           id?: string
           minimum_report_cell_size?: number
@@ -4306,6 +4308,7 @@ export type Database = {
           title: string
         }
         Update: {
+          audience_scope?: Json
           created_at?: string
           id?: string
           minimum_report_cell_size?: number
@@ -10183,6 +10186,7 @@ export type Database = {
           version: number
         }[]
       }
+      ga_admin_open_followups_count: { Args: never; Returns: number }
       ga_admin_publish_workflow: {
         Args: { p_workflow_id: string }
         Returns: undefined
@@ -10203,10 +10207,12 @@ export type Database = {
       }
       ga_can_read_operational_catalog: { Args: never; Returns: boolean }
       ga_is_admin_fallback: { Args: never; Returns: boolean }
+      ga_is_specialist_only: { Args: never; Returns: boolean }
       ga_lock_operational_actor_mode: {
         Args: { p_department_id?: string }
         Returns: string
       }
+      ga_lock_scope_actor_mode: { Args: { p_scope: Json }; Returns: string }
       ga_op_close_survey: { Args: { p_survey_id: string }; Returns: undefined }
       ga_op_list_communications: {
         Args: { p_graduate_record_id: string }
@@ -10263,6 +10269,7 @@ export type Database = {
       ga_op_list_surveys: {
         Args: never
         Returns: {
+          audience_scope: Json
           minimum_report_cell_size: number
           notice_version: string
           published_at: string
@@ -10318,6 +10325,7 @@ export type Database = {
       }
       ga_op_save_survey: {
         Args: {
+          p_audience_scope?: Json
           p_id: string
           p_minimum_report_cell_size?: number
           p_purpose_code: string
@@ -10346,6 +10354,8 @@ export type Database = {
         Args: { p_followup_type_id: string }
         Returns: Json
       }
+      ga_scope_department_ids: { Args: { p_scope: Json }; Returns: string[] }
+      ga_scope_visible_to_caller: { Args: { p_scope: Json }; Returns: boolean }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
       get_active_workflow_for_request_type: {
@@ -10924,13 +10934,18 @@ export type Database = {
         Args: { p_role_code: string }
         Returns: string
       }
-      graduate_affairs_moderate_opportunity: {
-        Args: {
-          p_opportunity_id: string
-          p_target_state: Database["public"]["Enums"]["graduate_opportunity_state"]
-        }
-        Returns: undefined
-      }
+      graduate_affairs_moderate_opportunity:
+        | {
+            Args: {
+              p_opportunity_id: string
+              p_target_state: Database["public"]["Enums"]["graduate_opportunity_state"]
+            }
+            Returns: undefined
+          }
+        | {
+            Args: { p_opportunity_id: string; p_target_state: string }
+            Returns: undefined
+          }
       graduate_affairs_resolve_authorized_staff_profile_id: {
         Args: { p_role_code: string; p_user_id: string }
         Returns: string
