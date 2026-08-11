@@ -567,7 +567,8 @@ export const adminPublishWorkflowFn = createServerFn({ method: "POST" })
 
 const transitionFollowupSchema = z.object({
   followupId: z.string().uuid(),
-  targetState: z.enum(["open", "in_progress", "completed", "cancelled"]),
+  // Configurable workflow states: validated server-side against the pinned snapshot.
+  targetState: z.string().min(1).max(64),
   outcome: z.string().nullable(),
   nextActionAt: z.string().nullable(),
 });
