@@ -5,7 +5,7 @@ import {
   validateEligibilityRules,
   type EligibilityRuleCatalogItem,
   type ServiceActionCatalogItem,
-} from "../../src/lib/admin-service-definition";
+} from "@/lib/admin-service-definition";
 
 const catalogItem: EligibilityRuleCatalogItem = {
   code: "MAX_SUSPENSION_SEMESTERS",
