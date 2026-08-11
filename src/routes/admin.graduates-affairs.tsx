@@ -65,7 +65,12 @@ function AdminGraduatesAffairsPage() {
       ) : (
         <OverviewContent data={query.data} retry={() => void query.refetch()} />
       )}
+
+      <div className="border-t border-border pt-6">
+        <GraduatesAffairsAuthoringPanel />
+      </div>
     </main>
+
   );
 }
 
