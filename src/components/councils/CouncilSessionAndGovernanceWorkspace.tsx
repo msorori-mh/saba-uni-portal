@@ -175,6 +175,31 @@ export function CouncilSessionAndGovernanceWorkspace({
     }
   }
 
+  async function handleExportMinutesPdf() {
+    setLoadingAction("export_minutes_pdf");
+    try {
+      const res = await exportApprovedCouncilMinutesPdfFn({ data: { meeting_id: meetingId } });
+      const bin = atob(res.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("تم تصدير المحضر المعتمد بصيغة PDF");
+    } catch (err: any) {
+      toast.error(err?.message || "تعذر تصدير المحضر");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+
+
   async function handleIssueDecision() {
     if (!selectedAgendaItemId.trim()) {
       toast.error("اختر بند جدول الأعمال المرتبط بالقرار.");
