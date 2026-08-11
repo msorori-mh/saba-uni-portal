@@ -6581,6 +6581,33 @@ export type Database = {
         }
         Relationships: []
       }
+      request_workflow_publish_validations: {
+        Row: {
+          checked_at: string
+          id: string
+          is_valid: boolean
+          message: string | null
+          request_type_code: string
+          workflow_id: string | null
+        }
+        Insert: {
+          checked_at?: string
+          id?: string
+          is_valid: boolean
+          message?: string | null
+          request_type_code: string
+          workflow_id?: string | null
+        }
+        Update: {
+          checked_at?: string
+          id?: string
+          is_valid?: boolean
+          message?: string | null
+          request_type_code?: string
+          workflow_id?: string | null
+        }
+        Relationships: []
+      }
       request_workflow_transition_condition_catalog: {
         Row: {
           code: string
