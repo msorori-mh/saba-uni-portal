@@ -219,9 +219,11 @@ export const assignUserRole = createServerFn({ method: "POST" })
       user_id: data.user_id,
       role_code: data.role_code,
       assigned_by: context.userId,
+      source_type: "direct",
       notes: data.notes ?? null,
     } as any);
     if (error && !error.message.toLowerCase().includes("duplicate")) throw new Error(error.message);
+
 
     await logAudit({
       actor_user_id: context.userId,
