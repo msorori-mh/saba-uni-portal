@@ -27,6 +27,7 @@ export type AdminGraduatesAffairsOverviewDto = {
     activeEvents: number | null;
     activeOpportunities: number | null;
     publishedSurveyVersions: number | null;
+  };
   recentRecords: AdminGraduateRecordSummary[];
 };
 
