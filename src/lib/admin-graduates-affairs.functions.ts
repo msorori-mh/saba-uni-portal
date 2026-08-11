@@ -139,15 +139,15 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
 
     return {
       counts: {
-        totalRecords: totalRes.count ?? 0,
+        totalRecords: totalCount ?? 0,
         approvedRecords: byState.approved ?? 0,
         pendingRecords: byState.pending ?? 0,
         correctedRecords: byState.corrected ?? 0,
         revokedRecords: byState.revoked ?? 0,
-        openFollowups: openFollowupsRes.count ?? 0,
-        activeEvents: activeEventsRes.count ?? 0,
-        activeOpportunities: activeOpportunitiesRes.count ?? 0,
-        publishedSurveyVersions: publishedSurveysRes.count ?? 0,
+        openFollowups,
+        activeEvents,
+        activeOpportunities,
+        publishedSurveyVersions: publishedSurveys,
       },
       recentRecords,
     } satisfies AdminGraduatesAffairsOverviewDto;
