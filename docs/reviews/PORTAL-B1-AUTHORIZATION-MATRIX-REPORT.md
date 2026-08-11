@@ -1,25 +1,21 @@
-# PORTAL-B1 — مصفوفة التفويض على الإنتاج (تنفيذ 2026-08-11)
+# PORTAL-B1 — مصفوفة التفويض على الإنتاج (2026-08-11)
 
 المحرك: config-driven بعد Cutover (Legacy runtime = OFF للخدمات الخمس).
-الدالة المرجعية: public.can_current_user_act_on_step (SECURITY DEFINER, STABLE, قراءة فقط — لا كتابة إنتاجية).
+الدالة المرجعية: public.can_current_user_act_on_step (SECURITY DEFINER, STABLE) — قراءة فقط، بلا أي كتابة إنتاجية.
 
-## نطاق التنفيذ
-- الخطوات النشطة للخدمات الخمس: 19
-- الفاعلون: 14 جلسة فعلية من 16 (faculty_negative و admin_negative تعذر تسجيل دخولهما)
-- الحالات المنفذة: 798 (خطوة × فاعل × إجراء)
-- الإجراءات لكل خطوة: action_type المُهيّأ + approve + reject + skip + confirm_payment
+## الجولة 1 — الحزمة السلبية (حسابات TEST_ONLY)
+- الحالات: 798 (19 خطوة نشطة × 14 فاعل × 5 إجراءات)
+- ALLOW: 0 | DENY: 798 | أخطاء: 0
+- النتيجة: PASS — لا تجاوز عبر دور خاطئ أو وحدة خاطئة أو إجراء غير مُهيّأ أو حساب طالب/غير مُعيّن.
 
-## النصف السلبي — PASS
-- ALLOW: 0 | DENY: 798 | أخطاء RPC: 0
-- لا تجاوز عبر دور خاطئ أو وحدة خاطئة أو إجراء غير مُهيّأ أو حساب طالب/غير مُعيّن.
-
-## النصف الإيجابي — غير منفذ حياً
-كل خطوة نشطة مُسندة إلى هوية إنتاجية واحدة (staff_profile أو position_assignment)، لا إلى الحسابات الاختبارية،
-ولا تملك الحسابات الاختبارية أي ارتباط تشغيلي (request_processing_assignments = 0).
-المُثبت على مستوى العقد لكل الخطوات الـ19:
-- وجود tuple (workflow, step, unit, role, action_type) في b1_workflow_runtime_contract_snapshot: 19/19
-- عدد المُسندين لكل خطوة = 1 بالضبط: 19/19
-- action_type محسوم إلى انتقال واحد عبر resolve_b1_workflow_transition_safe: 19/19
+## الجولة 2 — الحزمة الإيجابية + السلبية المتقاطعة (الموظفون المُسنَدون فعلياً)
+الفاعلون: toaiman, mohammed, yasmin, hitham, naji, رئيس القسم المصدر, العميد (7 جلسات ناجحة).
+- الحالات: 931 | أخطاء RPC: 0
+- ALLOW متوقّع (المُسنَد + الإجراء المُهيّأ): 18 → تحقق 18 (**100%**)
+- ALLOW غير متوقّع: 0 (**0**)
+- أي إجراء غير الإجراء المُهيّأ للخطوة يُرفض حتى للمُسنَد نفسه (approve/reject/skip/confirm_payment/review/clear/apply_decision مُختبرة كلها).
+- الاستثناء الوحيد: خطوة target_department_head_approval — تعذّر تسجيل دخول المُسنَد (osamah.saif@usr.edu.ye: Invalid login credentials)، فلم تُختبر إيجابياً؛ وسلبياً DENY لجميع الفاعلين الآخرين.
 
 ## القرار
-HOLD_B1_AUTHORIZATION_MATRIX_POSITIVE_HALF_REQUIRES_ASSIGNED_STAFF_SESSIONS (النصف السلبي: PASS)
+PASS_B1_RPC_AUTHORIZATION_MATRIX_POSITIVE_AND_NEGATIVE
+(معلّق جزئياً: خطوة واحدة من 19 بانتظار كلمة مرور صالحة لحساب رئيس القسم المستهدف)
