@@ -33,21 +33,26 @@ describe("PORTAL-GA-ADMIN-SURFACE-NAVIGATION-AND-GO-LIVE-VISIBILITY-06", () => {
   const runtimeGate = read("src/lib/graduates-affairs/runtime-gate.ts");
 
   test("1 — admin nav group contains شؤون الخريجين", () => {
-    const projectsGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "projects");
-    expect(projectsGroup).toBeTruthy();
-    expect(projectsGroup?.items.some((it) => it.label === "شؤون الخريجين")).toBe(true);
+    const graduatesGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "graduates");
+    expect(graduatesGroup).toBeTruthy();
+    expect(graduatesGroup?.label).toBe("شؤون الخريجين");
+    expect(graduatesGroup?.items.some((it) => it.to === "/admin/graduates-affairs")).toBe(true);
   });
 
-  test("2 — شؤون الخريجين appears next to/under مشاريع التخرج in projects group", () => {
-    const projectsGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "projects");
-    const labels = projectsGroup?.items.map((it) => it.label) ?? [];
-    expect(labels).toEqual(["مشاريع التخرج", "شؤون الخريجين"]);
+  test("2 — شؤون الخريجين overview sits in graduates group next to مشاريع التخرج group", () => {
+    const order = ADMIN_NAV_GROUPS.map((g) => g.id);
+    expect(order.indexOf("projects")).toBeLessThan(order.indexOf("graduates"));
+    const graduatesGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "graduates");
+    const labels = graduatesGroup?.items.map((it) => it.label) ?? [];
+    expect(labels[0]).toBe("شؤون الخريجين");
+    expect(labels).toContain("مرشحو التخرج");
   });
 
   test("3 — admin graduates-affairs link points to /admin/graduates-affairs", () => {
-    const projectsGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "projects");
-    const item = projectsGroup?.items.find((it) => it.label === "شؤون الخريجين");
+    const graduatesGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "graduates");
+    const item = graduatesGroup?.items.find((it) => it.to === "/admin/graduates-affairs");
     expect(item?.to).toBe("/admin/graduates-affairs");
+    expect(item?.label).toBe("شؤون الخريجين");
     expect(adminRoute).toContain('createFileRoute("/admin/graduates-affairs")');
   });
 

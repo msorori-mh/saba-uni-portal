@@ -223,14 +223,14 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     expect(ADMIN_NAV_GROUPS.length).toBeLessThanOrEqual(10);
     expect(ADMIN_NAV_GROUPS.map((g) => g.label)).toEqual([
       "لوحة التحكم",
-      "القيادة والإدارة",
       "الشؤون الأكاديمية",
       "شؤون الطلاب",
-      "هيئة التدريس والموارد البشرية",
+      "الهيئة التدريسية والإدارية",
       "المجالس الأكاديمية",
-      "المشاريع والخريجون",
+      "مشاريع التخرج",
+      "شؤون الخريجين",
       "المالية والوثائق",
-      "الاتصالات والتقارير",
+      "التواصل والتقارير",
       "النظام والإعدادات",
     ]);
   });
@@ -238,7 +238,10 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
   it("legacy sidebar paths preserved; no duplicates; every path authorized", () => {
     expect(hasDuplicateNavPaths(ADMIN_NAV_GROUPS)).toBe(false);
     const current = new Set(collectAdminNavPaths(ADMIN_NAV_GROUPS));
+    // /admin/department-reports is intentionally hidden from the admin sidebar
+    // (feature not enabled); the route and its authorization stay untouched.
     for (const path of ADMIN_NAV_LEGACY_SIDEBAR_PATHS) {
+      if (path === "/admin/department-reports") continue;
       expect(current.has(path)).toBe(true);
     }
     for (const path of current) {

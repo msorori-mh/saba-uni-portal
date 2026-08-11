@@ -104,7 +104,9 @@ export const getBackupStatusOverview = createServerFn({ method: "GET" })
     );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: stats, error: statsError } = await supabaseAdmin.rpc(
+    // The RPC authorizes via auth.uid(), so it must be called with the signed-in
+    // user's client — the service-role client has no auth.uid() and always fails.
+    const { data: stats, error: statsError } = await context.supabase.rpc(
       "get_backup_infrastructure_stats",
     );
     if (statsError) throw new Error(statsError.message);

@@ -64,11 +64,6 @@ const PORTAL_CARDS: PortalCard[] = [
     short: "إدارة الخدمات الأكاديمية والإدارية.",
     cta: "دخول بوابة الموظفين", to: "/portal-login", search: { type: "staff" },
   },
-  {
-    Icon: ShieldCheck, emoji: "⚙️", title: "لوحة الإدارة", tone: "slate",
-    short: "إدارة النظام والتقارير والرقابة.",
-    cta: "دخول لوحة الإدارة", to: "/admin",
-  },
 ];
 
 const QUICK_ACCESS = [
@@ -164,7 +159,7 @@ function HomePage() {
 
       {/* ============ PORTAL CARDS ============ */}
       <section className="relative -mt-6 md:-mt-8 z-10 container mx-auto px-4 pb-8">
-        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PORTAL_CARDS.map((p) => <PortalAccessCard key={p.title} card={p} />)}
         </div>
       </section>
