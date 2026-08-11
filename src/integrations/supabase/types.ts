@@ -11121,6 +11121,15 @@ export type Database = {
         }
         Returns: string
       }
+      resolve_b1_workflow_transition_safe: {
+        Args: {
+          p_action_result: string
+          p_from_step_id: string
+          p_request_id: string
+          p_workflow_id: string
+        }
+        Returns: string
+      }
       respond_graduation_project_supervision: {
         Args: {
           p_correlation_id: string
