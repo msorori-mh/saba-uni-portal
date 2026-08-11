@@ -8270,6 +8270,8 @@ export type Database = {
           id: string
           notes: string | null
           role_code: string
+          source_position_assignment_id: string | null
+          source_type: string
           user_id: string
         }
         Insert: {
@@ -8278,6 +8280,8 @@ export type Database = {
           id?: string
           notes?: string | null
           role_code: string
+          source_position_assignment_id?: string | null
+          source_type?: string
           user_id: string
         }
         Update: {
@@ -8286,6 +8290,8 @@ export type Database = {
           id?: string
           notes?: string | null
           role_code?: string
+          source_position_assignment_id?: string | null
+          source_type?: string
           user_id?: string
         }
         Relationships: [
@@ -8295,6 +8301,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "roles_catalog"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_source_position_assignment_id_fkey"
+            columns: ["source_position_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "position_assignments"
+            referencedColumns: ["id"]
           },
         ]
       }
