@@ -110,9 +110,23 @@ function ArchivedMeetingsPage() {
     });
   }, [archived, q, council, decisionFrom, decisionTo, approvedFrom, approvedTo]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+
   const setSearch = (patch: Partial<ArchiveSearch>) => {
-    void navigate({ search: (prev) => ({ ...prev, ...patch }) });
+    // أي تغيير في الفلاتر يعيد الترقيم إلى الصفحة الأولى
+    const next: Partial<ArchiveSearch> = { page: 1, ...patch };
+    void navigate({ search: (prev) => ({ ...prev, ...next }) });
   };
+
+  const goToPage = (target: number) => {
+    void navigate({
+      search: (prev) => ({ ...prev, page: Math.min(Math.max(1, target), totalPages) }),
+    });
+  };
+
 
   const hasFilters =
     q !== "" ||
