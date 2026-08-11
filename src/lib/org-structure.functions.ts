@@ -170,16 +170,14 @@ export const listOrgStructure = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertOrgStructureRead(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { buildUserDirectory } = await import("@/lib/admin/auth-users-directory.server");
+    const { getProfileDirectoryUsers } = await import("@/lib/admin/auth-users-directory.server");
 
-    const [positionsRes, mappingsRes, assignmentsRes, rolesRes, departmentsRes, directory] =
-      await Promise.all([
+    const [positionsRes, mappingsRes, assignmentsRes, rolesRes, departmentsRes] = await Promise.all([
         supabaseAdmin.from("organizational_positions").select("*").order("sort_order"),
         supabaseAdmin.from("position_role_mapping").select("*, roles_catalog:role_code(name_ar, app_role_mapping)"),
         supabaseAdmin.from("position_assignments").select("*").order("assigned_from", { ascending: false }),
         supabaseAdmin.from("roles_catalog").select("code, name_ar, app_role_mapping, is_active").order("name_ar"),
         supabaseAdmin.from("departments").select("id, name_ar").order("name_ar"),
-        buildUserDirectory(),
       ]);
 
     if (positionsRes.error) throw new Error(`تعذّر تحميل المناصب: ${positionsRes.error.message}`);
@@ -187,7 +185,9 @@ export const listOrgStructure = createServerFn({ method: "GET" })
     if (assignmentsRes.error) throw new Error(`تعذّر تحميل التعيينات: ${assignmentsRes.error.message}`);
     if (rolesRes.error) throw new Error(`تعذّر تحميل كتالوج الأدوار: ${rolesRes.error.message}`);
 
-    const dir = new Map(directory.map((u) => [u.user_id, u]));
+    const dir = await getProfileDirectoryUsers(
+      Array.from(new Set((assignmentsRes.data ?? []).map((assignment: any) => assignment.user_id))),
+    );
 
     const assignments = (assignmentsRes.data ?? []).map((a: any) => ({
       ...a,
@@ -205,16 +205,33 @@ export const listOrgStructure = createServerFn({ method: "GET" })
     };
   });
 
-export const listAssignableUsers = createServerFn({ method: "GET" })
+export const listAssignableUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: { search?: string; page?: number; pageSize?: number } | undefined) =>
+    z.object({
+      search: z.string().max(120).optional(),
+      page: z.number().int().min(1).optional(),
+      pageSize: z.number().int().min(5).max(50).optional(),
+    }).parse(input ?? {}))
+  .handler(async ({ data, context }) => {
     await assertOrgStructureWrite(context.userId);
-    const { buildUserDirectory } = await import("@/lib/admin/auth-users-directory.server");
-    const directory = await buildUserDirectory();
-    return directory
-      .filter((u) => u.kind !== "student")
-      .map((u) => ({ id: u.user_id, email: u.email ?? "", name: u.name, kind: u.kind }))
-      .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+    const { listProfileDirectory } = await import("@/lib/admin/auth-users-directory.server");
+    const result = await listProfileDirectory({
+      search: data.search,
+      kinds: ["faculty", "staff"],
+      page: data.page,
+      pageSize: data.pageSize ?? 20,
+    });
+    return {
+      ...result,
+      rows: result.rows.map((user) => ({
+        id: user.user_id,
+        email: user.email ?? "",
+        name: user.name,
+        kind: user.kind,
+        identifier: user.identifier,
+      })),
+    };
   });
 
 /** Position ↔ operational role drift report. */
@@ -223,19 +240,21 @@ export const auditOrgRoleDrift = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertOrgStructureRead(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { buildUserDirectory } = await import("@/lib/admin/auth-users-directory.server");
+    const { getProfileDirectoryUsers } = await import("@/lib/admin/auth-users-directory.server");
 
-    const [positionsRes, mappingsRes, assignmentsRes, uraRes, directory] = await Promise.all([
+    const [positionsRes, mappingsRes, assignmentsRes, uraRes] = await Promise.all([
       supabaseAdmin.from("organizational_positions").select("id, code, name_ar, is_active"),
       supabaseAdmin.from("position_role_mapping").select("position_id, role_code, is_active"),
       supabaseAdmin.from("position_assignments").select("id, position_id, user_id").eq("is_active", true),
       supabaseAdmin.from("user_role_assignments").select("user_id, role_code, source_type, source_position_assignment_id"),
-      buildUserDirectory(),
     ]);
     if (positionsRes.error) throw new Error(positionsRes.error.message);
     if (uraRes.error) throw new Error(uraRes.error.message);
 
-    const dir = new Map(directory.map((u) => [u.user_id, u]));
+    const directoryUserIds = new Set<string>();
+    for (const assignment of assignmentsRes.data ?? []) directoryUserIds.add((assignment as any).user_id);
+    for (const assignment of uraRes.data ?? []) directoryUserIds.add((assignment as any).user_id);
+    const dir = await getProfileDirectoryUsers(Array.from(directoryUserIds));
     const posById = new Map((positionsRes.data ?? []).map((p: any) => [p.id, p]));
     const ura = uraRes.data ?? [];
 
