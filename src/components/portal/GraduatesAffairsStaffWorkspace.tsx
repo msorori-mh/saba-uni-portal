@@ -334,12 +334,23 @@ function GraduateCasePanel({
 }) {
   const transitionFollowup = useServerFn(transitionGraduateFollowupFn);
   const createFollowup = useServerFn(createGraduateFollowupFn);
+  const listAssignableStaff = useServerFn(listGraduateAffairsAssignableStaffFn);
   const [followupBusy, setFollowupBusy] = useState<string | null>(null);
   const [assigneeUserId, setAssigneeUserId] = useState("");
   const [purposeCode, setPurposeCode] = useState("communications");
   const [nextActionAt, setNextActionAt] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
   const [genericError, setGenericError] = useState<string | null>(null);
+
+  const staffQuery = useQuery({
+    queryKey: ["graduates-affairs", "assignable-staff"],
+    queryFn: () => listAssignableStaff({ data: undefined }),
+  });
+  const assignableStaff: GraduateAffairsAssignableStaff[] = Array.isArray(staffQuery.data)
+    ? staffQuery.data
+    : [];
+  const staffNameByUserId = new Map(assignableStaff.map((s) => [s.user_id, s.full_name]));
+
 
   const handleTransition = async (
     followupId: string,
