@@ -171,7 +171,7 @@ function ExecutiveDashboardPage() {
   ];
 
   const quickLinks = [
-    { to: "/admin/academic-operations", label: "العمليات الأكاديمية", icon: Activity },
+    { to: "/admin/academic-operations", label: "الشؤون الأكاديمية", icon: Activity },
     { to: "/admin/course-offerings", search: { tab: "schedule" }, label: "الجداول الدراسية", icon: CalendarClock },
     { to: "/admin/student-progress", label: "تقدم الطلاب", icon: TrendingUp },
     { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },

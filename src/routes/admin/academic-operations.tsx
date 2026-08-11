@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/admin/academic-operations")({
-  head: () => ({ meta: [{ title: "مركز العمليات الأكاديمية — لوحة الإدارة" }] }),
+  head: () => ({ meta: [{ title: "مركز الشؤون الأكاديمية — لوحة الإدارة" }] }),
   component: AcademicOpsPage,
 });
 
@@ -96,7 +96,7 @@ function AcademicOpsPage() {
             <Activity className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <h1 className="font-display text-xl font-extrabold text-primary">مركز العمليات الأكاديمية</h1>
+            <h1 className="font-display text-xl font-extrabold text-primary">مركز الشؤون الأكاديمية</h1>
           </div>
         </div>
         <div
@@ -105,7 +105,7 @@ function AcademicOpsPage() {
           data-testid="aops-context-error"
         >
           <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
-          <p className="text-sm font-bold text-amber-900">تعذّر تحميل بيانات مركز العمليات الأكاديمية</p>
+          <p className="text-sm font-bold text-amber-900">تعذّر تحميل بيانات مركز الشؤون الأكاديمية</p>
           <p className="text-xs text-amber-800">
             لم نتمكن من جلب السنة والفصل الحاليين. يمكنك إعادة المحاولة أو العودة إلى لوحة الإدارة.
           </p>
@@ -130,7 +130,7 @@ function AcademicOpsPage() {
           <Activity className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <h1 className="font-display text-xl font-extrabold text-primary">مركز العمليات الأكاديمية</h1>
+          <h1 className="font-display text-xl font-extrabold text-primary">مركز الشؤون الأكاديمية</h1>
           <p className="text-xs text-muted-foreground">
             لوحة موحّدة لمؤشرات الفصل الحالي مع روابط وإجراءات سريعة. لا يتم تكرار منطق التسجيل أو الدرجات — جميع الإجراءات تستخدم آليات النظام الموجودة.
           </p>
