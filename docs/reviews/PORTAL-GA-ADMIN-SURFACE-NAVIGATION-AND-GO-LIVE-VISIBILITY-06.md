@@ -11,7 +11,7 @@ Close the missing Go-Live visibility and administrative oversight surface for Gr
 | Branch | `fix/ga-admin-surface-go-live-01` |
 | Base | `origin/feat/ga-final-closure-20260811` |
 | START_SHA | `9298bc24d03c95becaf854d6b3b78aa347b1e53d` |
-| FINAL_SHA | `c98f04be94d15f81755dfea15cc652559f72c741` |
+| FINAL_SHA | `7b4e5a38e319b67c9cc0f7fa25b6c4adc04a149d` |
 | CURRENT_MAIN | `1b00c26446a32964f8a532ab3cb38877fa82bf65` |
 | SUB_PR_NUMBER | #343 |
 | PR URL | https://github.com/msorori-mh/saba-uni-portal/pull/343 |
