@@ -60,7 +60,12 @@ function UserRolesPage() {
     finally { setBusy(null); }
   };
 
+  if (isAuthorizationError(usersQ.error)) {
+    return <AccessDeniedNotice error={usersQ.error} onRetry={() => usersQ.refetch()} />;
+  }
+
   return (
+
     <div className="space-y-6" dir="rtl">
       <div>
         <h1 className="text-2xl font-bold">ربط الأدوار بالمستخدمين</h1>
