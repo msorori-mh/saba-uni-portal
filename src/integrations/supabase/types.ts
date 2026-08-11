@@ -4750,19 +4750,19 @@ export type Database = {
           defense_window_start: string | null
           department_id: string | null
           id: string
-          max_committee_members: number
-          max_revision_rounds: number
+          max_committee_members: number | null
+          max_revision_rounds: number | null
           max_supervisors: number
-          max_team_size: number
-          min_committee_members: number
-          min_team_size: number
+          max_team_size: number | null
+          min_committee_members: number | null
+          min_team_size: number | null
           notes: string | null
-          passing_score: number
+          passing_score: number | null
           proposal_window_end: string | null
           proposal_window_start: string | null
           published_at: string | null
           published_by: string | null
-          required_progress_reports: number
+          required_progress_reports: number | null
           status: string
           superseded_at: string | null
           updated_at: string
@@ -4777,19 +4777,19 @@ export type Database = {
           defense_window_start?: string | null
           department_id?: string | null
           id?: string
-          max_committee_members?: number
-          max_revision_rounds?: number
+          max_committee_members?: number | null
+          max_revision_rounds?: number | null
           max_supervisors?: number
-          max_team_size?: number
-          min_committee_members?: number
-          min_team_size?: number
+          max_team_size?: number | null
+          min_committee_members?: number | null
+          min_team_size?: number | null
           notes?: string | null
-          passing_score?: number
+          passing_score?: number | null
           proposal_window_end?: string | null
           proposal_window_start?: string | null
           published_at?: string | null
           published_by?: string | null
-          required_progress_reports?: number
+          required_progress_reports?: number | null
           status?: string
           superseded_at?: string | null
           updated_at?: string
@@ -4804,19 +4804,19 @@ export type Database = {
           defense_window_start?: string | null
           department_id?: string | null
           id?: string
-          max_committee_members?: number
-          max_revision_rounds?: number
+          max_committee_members?: number | null
+          max_revision_rounds?: number | null
           max_supervisors?: number
-          max_team_size?: number
-          min_committee_members?: number
-          min_team_size?: number
+          max_team_size?: number | null
+          min_committee_members?: number | null
+          min_team_size?: number | null
           notes?: string | null
-          passing_score?: number
+          passing_score?: number | null
           proposal_window_end?: string | null
           proposal_window_start?: string | null
           published_at?: string | null
           published_by?: string | null
-          required_progress_reports?: number
+          required_progress_reports?: number | null
           status?: string
           superseded_at?: string | null
           updated_at?: string
@@ -10304,19 +10304,19 @@ export type Database = {
           defense_window_start: string | null
           department_id: string | null
           id: string
-          max_committee_members: number
-          max_revision_rounds: number
+          max_committee_members: number | null
+          max_revision_rounds: number | null
           max_supervisors: number
-          max_team_size: number
-          min_committee_members: number
-          min_team_size: number
+          max_team_size: number | null
+          min_committee_members: number | null
+          min_team_size: number | null
           notes: string | null
-          passing_score: number
+          passing_score: number | null
           proposal_window_end: string | null
           proposal_window_start: string | null
           published_at: string | null
           published_by: string | null
-          required_progress_reports: number
+          required_progress_reports: number | null
           status: string
           superseded_at: string | null
           updated_at: string
@@ -10334,6 +10334,10 @@ export type Database = {
         Returns: string
       }
       gp_admin_save_policy_draft: { Args: { p_payload: Json }; Returns: string }
+      gp_admin_validate_policy: {
+        Args: { p_policy_id: string }
+        Returns: string[]
+      }
       gp_assert_version: {
         Args: {
           p: Database["public"]["Tables"]["graduation_projects"]["Row"]
@@ -10357,19 +10361,19 @@ export type Database = {
           defense_window_start: string | null
           department_id: string | null
           id: string
-          max_committee_members: number
-          max_revision_rounds: number
+          max_committee_members: number | null
+          max_revision_rounds: number | null
           max_supervisors: number
-          max_team_size: number
-          min_committee_members: number
-          min_team_size: number
+          max_team_size: number | null
+          min_committee_members: number | null
+          min_team_size: number | null
           notes: string | null
-          passing_score: number
+          passing_score: number | null
           proposal_window_end: string | null
           proposal_window_start: string | null
           published_at: string | null
           published_by: string | null
-          required_progress_reports: number
+          required_progress_reports: number | null
           status: string
           superseded_at: string | null
           updated_at: string
@@ -10393,19 +10397,19 @@ export type Database = {
           defense_window_start: string | null
           department_id: string | null
           id: string
-          max_committee_members: number
-          max_revision_rounds: number
+          max_committee_members: number | null
+          max_revision_rounds: number | null
           max_supervisors: number
-          max_team_size: number
-          min_committee_members: number
-          min_team_size: number
+          max_team_size: number | null
+          min_committee_members: number | null
+          min_team_size: number | null
           notes: string | null
-          passing_score: number
+          passing_score: number | null
           proposal_window_end: string | null
           proposal_window_start: string | null
           published_at: string | null
           published_by: string | null
-          required_progress_reports: number
+          required_progress_reports: number | null
           status: string
           superseded_at: string | null
           updated_at: string
@@ -10436,19 +10440,19 @@ export type Database = {
           defense_window_start: string | null
           department_id: string | null
           id: string
-          max_committee_members: number
-          max_revision_rounds: number
+          max_committee_members: number | null
+          max_revision_rounds: number | null
           max_supervisors: number
-          max_team_size: number
-          min_committee_members: number
-          min_team_size: number
+          max_team_size: number | null
+          min_committee_members: number | null
+          min_team_size: number | null
           notes: string | null
-          passing_score: number
+          passing_score: number | null
           proposal_window_end: string | null
           proposal_window_start: string | null
           published_at: string | null
           published_by: string | null
-          required_progress_reports: number
+          required_progress_reports: number | null
           status: string
           superseded_at: string | null
           updated_at: string
@@ -10512,6 +10516,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gp_validate_policy: { Args: { p_policy_id: string }; Returns: string[] }
       graduate_add_contact_point: {
         Args: {
           p_channel_type: string

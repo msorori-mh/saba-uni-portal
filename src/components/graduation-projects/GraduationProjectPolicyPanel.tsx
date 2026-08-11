@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldCheck, Save, Send, Loader2 } from "lucide-react";
 import {
-  GP_POLICY_DEFAULTS,
+  GP_POLICY_EMPTY_DRAFT,
   GP_POLICY_FIELD_LABELS_AR,
   GP_POLICY_STATUS_LABELS_AR,
   describePolicyScope,
@@ -19,6 +19,7 @@ import {
   type GraduationProjectPolicy,
   type GraduationProjectPolicyDraft,
 } from "@/lib/graduation-projects/policies";
+
 import {
   listGraduationProjectPolicies,
   publishGraduationProjectPolicy,
@@ -49,7 +50,7 @@ export function GraduationProjectPolicyPanel() {
   const saveFn = useServerFn(saveGraduationProjectPolicyDraft);
   const publishFn = useServerFn(publishGraduationProjectPolicy);
 
-  const [draft, setDraft] = useState<GraduationProjectPolicyDraft>({ ...GP_POLICY_DEFAULTS });
+  const [draft, setDraft] = useState<GraduationProjectPolicyDraft>({ ...GP_POLICY_EMPTY_DRAFT });
   const [message, setMessage] = useState<string | null>(null);
 
   const query = useQuery({
@@ -95,7 +96,7 @@ export function GraduationProjectPolicyPanel() {
       required_progress_reports: policy.required_progress_reports,
       min_committee_members: policy.min_committee_members,
       max_committee_members: policy.max_committee_members,
-      passing_score: Number(policy.passing_score),
+      passing_score: policy.passing_score === null ? null : Number(policy.passing_score),
       max_revision_rounds: policy.max_revision_rounds,
       proposal_window_start: policy.proposal_window_start,
       proposal_window_end: policy.proposal_window_end,
@@ -184,13 +185,18 @@ export function GraduationProjectPolicyPanel() {
                 <Input
                   id={field}
                   type="number"
-                  value={String(draft[field])}
+                  placeholder="مطلوب — لا يوجد افتراضي"
+                  value={draft[field] === null ? "" : String(draft[field])}
                   onChange={(e) =>
-                    setDraft((d) => ({ ...d, [field]: Number(e.target.value) }))
+                    setDraft((d) => ({
+                      ...d,
+                      [field]: e.target.value === "" ? null : Number(e.target.value),
+                    }))
                   }
                 />
               </div>
             ))}
+
 
             {DATE_FIELDS.map((field) => (
               <div key={field} className="space-y-1.5">
@@ -272,9 +278,11 @@ export function GraduationProjectPolicyPanel() {
         <CardContent className="space-y-2">
           {(query.data?.policies.length ?? 0) === 0 && (
             <p className="text-sm text-muted-foreground">
-              لا توجد سياسات مسجّلة بعد — النظام يعمل بالقيم الافتراضية المدمجة.
+              لا توجد سياسات مسجّلة بعد — ولا توجد قيم افتراضية مدمجة: لن يتمكّن النظام من إنشاء
+              مشاريع تخرج جديدة حتى تنشر الإدارة سياسة معتمدة.
             </p>
           )}
+
           {query.data?.policies.map((policy) => (
             <button
               key={policy.id}
