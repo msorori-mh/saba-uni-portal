@@ -37,9 +37,12 @@ export type AdminGraduateRecordSummary = {
   graduationYear: number | null;
   effectiveGraduationDate: string;
   programId: string;
+  programName: string;
   departmentId: string;
+  departmentName: string;
   createdAt: string;
 };
+
 
 function extractYear(dateString: string | null): number | null {
   if (!dateString) return null;
@@ -82,18 +85,37 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
       }
     };
 
+    /**
+     * Open follow-ups are workflow-driven: a follow-up is open when its current
+     * state is NOT listed in the terminal states of its pinned workflow snapshot.
+     * No hardcoded state vocabulary here.
+     */
+    const openFollowupsCount = async (): Promise<number | null> => {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from("graduate_followups")
+          .select("state, workflow_snapshot");
+        if (error) return null;
+        return (data ?? []).filter((row) => {
+          const snapshot = row.workflow_snapshot as { terminal_states?: unknown } | null;
+          const terminal = Array.isArray(snapshot?.terminal_states)
+            ? (snapshot.terminal_states as unknown[]).map((value) => String(value))
+            : [];
+          return !terminal.includes(String(row.state));
+        }).length;
+      } catch {
+        return null;
+      }
+    };
+
     const [totalCount, byState, openFollowups, activeEvents, activeOpportunities, publishedSurveys, recentRes] =
       await Promise.all([
         safeCount(() =>
           supabaseAdmin.from("graduate_records").select("id", { count: "exact", head: true }),
         ),
         countRecordsByState(states).catch(() => ({}) as Record<string, number>),
-        safeCount(() =>
-          supabaseAdmin
-            .from("graduate_followups")
-            .select("id", { count: "exact", head: true })
-            .in("state", ["open", "in_progress"]),
-        ),
+        openFollowupsCount(),
+
         safeCount(() =>
           supabaseAdmin
             .from("graduate_events")
@@ -125,6 +147,17 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
 
     if (recentRes.error) throw new Error(recentRes.error.message);
 
+    const [programsRes, departmentsRes] = await Promise.all([
+      supabaseAdmin.from("programs").select("id, name_ar"),
+      supabaseAdmin.from("departments").select("id, name_ar"),
+    ]);
+    const programNames = new Map<string, string>(
+      (programsRes.data ?? []).map((row) => [row.id as string, row.name_ar as string]),
+    );
+    const departmentNames = new Map<string, string>(
+      (departmentsRes.data ?? []).map((row) => [row.id as string, row.name_ar as string]),
+    );
+
     const recentRecords: AdminGraduateRecordSummary[] = (recentRes.data ?? []).map(
       (row) => ({
         recordId: row.id as string,
@@ -132,10 +165,13 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
         graduationYear: extractYear(row.effective_graduation_date as string | null),
         effectiveGraduationDate: (row.effective_graduation_date as string) ?? "",
         programId: row.program_id as string,
+        programName: programNames.get(row.program_id as string) ?? "برنامج غير محدد",
         departmentId: row.department_id as string,
+        departmentName: departmentNames.get(row.department_id as string) ?? "قسم غير محدد",
         createdAt: row.created_at as string,
       }),
     );
+
 
     return {
       counts: {

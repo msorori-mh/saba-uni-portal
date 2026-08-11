@@ -53,6 +53,7 @@ export interface GaSurveyRow {
   purpose_code: string;
   state: string;
   minimum_report_cell_size: number;
+  audience_scope: Record<string, unknown> | null;
   version_id: string | null;
   version: number | null;
   notice_version: string | null;
@@ -60,6 +61,12 @@ export interface GaSurveyRow {
   published_at: string | null;
   response_count: number | null;
 }
+
+export interface GaAcademicScopeDto {
+  departments: Array<{ id: string; name: string }>;
+  programs: Array<{ id: string; name: string; departmentId: string | null }>;
+}
+
 
 export interface GaEmployerRow {
   id: string;
@@ -194,6 +201,7 @@ export const saveGaSurveyFn = createServerFn({ method: "POST" })
         title: z.string().min(1).max(200),
         purposeCode: z.string().min(1).max(80),
         minimumReportCellSize: z.number().int().min(3).max(100).default(5),
+        audienceScope: z.record(z.string(), z.unknown()).default({}),
       })
       .parse(input),
   )
@@ -203,8 +211,40 @@ export const saveGaSurveyFn = createServerFn({ method: "POST" })
       p_title: data.title,
       p_purpose_code: data.purposeCode,
       p_minimum_report_cell_size: data.minimumReportCellSize,
+      p_audience_scope: data.audienceScope,
     }),
   );
+
+/**
+ * Academic scope catalogue for the authoring scope selector.
+ * Read-only reference data (departments and programs) used to compose the
+ * audience scope; the backend re-derives and enforces the scope on every write.
+ */
+export const listGaAcademicScopeFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const client = context.supabase as unknown as {
+      from: (table: string) => {
+        select: (columns: string) => Promise<{ data: Record<string, unknown>[] | null; error: unknown }>;
+      };
+    };
+    const [departments, programs] = await Promise.all([
+      client.from("departments").select("id, name_ar"),
+      client.from("programs").select("id, name_ar, department_id"),
+    ]);
+    return {
+      departments: (departments.data ?? []).map((row) => ({
+        id: row.id as string,
+        name: (row.name_ar as string) ?? "قسم غير محدد",
+      })),
+      programs: (programs.data ?? []).map((row) => ({
+        id: row.id as string,
+        name: (row.name_ar as string) ?? "برنامج غير محدد",
+        departmentId: (row.department_id as string | null) ?? null,
+      })),
+    } satisfies GaAcademicScopeDto;
+  });
+
 
 export const saveGaSurveyVersionDraftFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

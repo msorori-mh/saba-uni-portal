@@ -256,11 +256,12 @@ function OverviewContent({
                       {record.graduationYear ?? "—"}
                     </td>
                     <td className="p-3">
-                      <div title={record.programId}>برنامج {shortId(record.programId)}</div>
+                      <div title={record.programId}>{record.programName}</div>
                       <div className="text-xs text-muted-foreground" title={record.departmentId}>
-                        قسم {shortId(record.departmentId)}
+                        {record.departmentName}
                       </div>
                     </td>
+
                     <td className="p-3 tabular-nums">
                       {new Date(record.createdAt).toLocaleDateString("ar-SA")}
                     </td>
