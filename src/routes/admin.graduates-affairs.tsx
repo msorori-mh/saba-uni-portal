@@ -193,13 +193,13 @@ function OverviewContent({
             testId="admin-ga-kpi-followups"
           />
           <Kpi
-            label="فعاليات نشطة"
+            label="فعاليات قادمة/جارية"
             value={counts.activeEvents}
             icon={CalendarDays}
             testId="admin-ga-kpi-events"
           />
           <Kpi
-            label="فرص نشطة"
+            label="فرص منشورة"
             value={counts.activeOpportunities}
             icon={Megaphone}
             testId="admin-ga-kpi-opportunities"
@@ -285,7 +285,7 @@ function Kpi({
   testId,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   icon: typeof UsersRound;
   tone?: "primary" | "emerald" | "amber" | "rose";
   testId: string;
@@ -308,7 +308,11 @@ function Kpi({
       <div>
         <div className="text-xs text-muted-foreground font-semibold">{label}</div>
         <div className="text-xl font-extrabold text-primary">
-          {value.toLocaleString("ar-EG")}
+          {value === null ? (
+            <span className="text-muted-foreground" title="غير متاح حالياً">—</span>
+          ) : (
+            value.toLocaleString("ar-EG")
+          )}
         </div>
       </div>
     </div>

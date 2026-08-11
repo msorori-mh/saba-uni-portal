@@ -23,10 +23,10 @@ export type AdminGraduatesAffairsOverviewDto = {
     pendingRecords: number;
     correctedRecords: number;
     revokedRecords: number;
-    openFollowups: number;
-    activeEvents: number;
-    activeOpportunities: number;
-    publishedSurveyVersions: number;
+    openFollowups: number | null;
+    activeEvents: number | null;
+    activeOpportunities: number | null;
+    publishedSurveyVersions: number | null;
   };
   recentRecords: AdminGraduateRecordSummary[];
 };
@@ -68,28 +68,52 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
     await assertAdmin(context.userId);
 
     const states = ["approved", "pending", "corrected", "revoked"] as const;
-    const [totalRes, byState, openFollowupsRes, activeEventsRes, activeOpportunitiesRes, publishedSurveysRes, recentRes] =
+    const nowIso = new Date().toISOString();
+
+    const safeCount = async (
+      run: () => PromiseLike<{ count: number | null; error: { message: string } | null }>,
+    ): Promise<number | null> => {
+      try {
+        const { count, error } = await run();
+        if (error) return null;
+        return count ?? 0;
+      } catch {
+        return null;
+      }
+    };
+
+    const [totalCount, byState, openFollowups, activeEvents, activeOpportunities, publishedSurveys, recentRes] =
       await Promise.all([
-        supabaseAdmin
-          .from("graduate_records")
-          .select("id", { count: "exact", head: true }),
-        countRecordsByState(states),
-        supabaseAdmin
-          .from("graduate_followups")
-          .select("id", { count: "exact", head: true })
-          .in("state", ["open", "in_progress"]),
-        supabaseAdmin
-          .from("graduate_events")
-          .select("id", { count: "exact", head: true })
-          .eq("state", "active"),
-        supabaseAdmin
-          .from("graduate_opportunities")
-          .select("id", { count: "exact", head: true })
-          .eq("state", "active"),
-        supabaseAdmin
-          .from("graduate_survey_versions")
-          .select("id", { count: "exact", head: true })
-          .not("published_at", "is", null),
+        safeCount(() =>
+          supabaseAdmin.from("graduate_records").select("id", { count: "exact", head: true }),
+        ),
+        countRecordsByState(states).catch(() => ({}) as Record<string, number>),
+        safeCount(() =>
+          supabaseAdmin
+            .from("graduate_followups")
+            .select("id", { count: "exact", head: true })
+            .in("state", ["open", "in_progress"]),
+        ),
+        safeCount(() =>
+          supabaseAdmin
+            .from("graduate_events")
+            .select("id", { count: "exact", head: true })
+            .eq("state", "published")
+            .or(`ends_at.is.null,ends_at.gt.${nowIso}`),
+        ),
+        safeCount(() =>
+          supabaseAdmin
+            .from("graduate_opportunities")
+            .select("id", { count: "exact", head: true })
+            .eq("state", "published")
+            .or(`closes_at.is.null,closes_at.gt.${nowIso}`),
+        ),
+        safeCount(() =>
+          supabaseAdmin
+            .from("graduate_survey_versions")
+            .select("id", { count: "exact", head: true })
+            .not("published_at", "is", null),
+        ),
         supabaseAdmin
           .from("graduate_records")
           .select(
@@ -99,11 +123,6 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
           .limit(20),
       ]);
 
-    if (totalRes.error) throw new Error(totalRes.error.message);
-    if (openFollowupsRes.error) throw new Error(openFollowupsRes.error.message);
-    if (activeEventsRes.error) throw new Error(activeEventsRes.error.message);
-    if (activeOpportunitiesRes.error) throw new Error(activeOpportunitiesRes.error.message);
-    if (publishedSurveysRes.error) throw new Error(publishedSurveysRes.error.message);
     if (recentRes.error) throw new Error(recentRes.error.message);
 
     const recentRecords: AdminGraduateRecordSummary[] = (recentRes.data ?? []).map(
@@ -120,15 +139,15 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
 
     return {
       counts: {
-        totalRecords: totalRes.count ?? 0,
+        totalRecords: totalCount ?? 0,
         approvedRecords: byState.approved ?? 0,
         pendingRecords: byState.pending ?? 0,
         correctedRecords: byState.corrected ?? 0,
         revokedRecords: byState.revoked ?? 0,
-        openFollowups: openFollowupsRes.count ?? 0,
-        activeEvents: activeEventsRes.count ?? 0,
-        activeOpportunities: activeOpportunitiesRes.count ?? 0,
-        publishedSurveyVersions: publishedSurveysRes.count ?? 0,
+        openFollowups,
+        activeEvents,
+        activeOpportunities,
+        publishedSurveyVersions: publishedSurveys,
       },
       recentRecords,
     } satisfies AdminGraduatesAffairsOverviewDto;
