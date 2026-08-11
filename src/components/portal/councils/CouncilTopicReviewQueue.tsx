@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { reviewCouncilTopic } from "@/lib/admin-councils.functions";
+import { isAllowedTopicTransition } from "@/lib/council-topic-lifecycle";
 import {
   getCouncilTopicReviewQueue,
   type CouncilTopicReviewQueueItem,
@@ -28,7 +29,7 @@ const REVIEW_QUEUE_STATUS_TABS = [
   { value: "submitted", label: "مقدّم" },
   { value: "under_review", label: "قيد المراجعة" },
   { value: "needs_completion", label: "مطلوب استكمال" },
-  { value: "accepted_for_agenda", label: "مقبول للجدول" },
+  { value: "accepted_for_agenda", label: "الموضوعات المقبولة" },
   { value: "rejected", label: "مرفوض" },
 ] as const;
 
@@ -76,27 +77,51 @@ export function CouncilTopicReviewQueue({
 
     setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: true }));
     try {
-      await reviewTopic({
+      // Re-read the authoritative status right before acting: the cached queue can be
+      // stale, and a stale expectedStatus makes the RPC reject the transition.
+      let expectedStatus = topic.status;
+      try {
+        const fresh = await fetchQueue();
+        const freshTopic = fresh?.queue?.find((t) => t.topic_id === topic.topic_id);
+        if (freshTopic) expectedStatus = freshTopic.status;
+      } catch {
+        // fall back to the cached status
+      }
+
+      if (expectedStatus === status) {
+        toast.info("الموضوع بالفعل في هذه الحالة");
+        await qc.refetchQueries({ queryKey: ["faculty", "council-topic-review-queue"] });
+        return;
+      }
+
+      const result = await reviewTopic({
         data: {
           topicId: topic.topic_id,
           status,
-          expectedStatus: topic.status,
+          expectedStatus,
           reviewNote: reviewNotes[topic.topic_id]?.trim() || undefined,
         },
       });
-      toast.success("تم تحديث حالة الموضوع");
+
+      if (!result?.ok || result.status !== status) {
+        toast.error("لم يتم تحديث حالة الموضوع، يرجى إعادة المحاولة");
+      } else {
+        toast.success("تم تحديث حالة الموضوع");
+      }
       setReviewNotes((prev) => ({ ...prev, [topic.topic_id]: "" }));
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["faculty", "council-topic-review-queue"] }),
+        qc.refetchQueries({ queryKey: ["faculty", "council-topic-review-queue"] }),
         qc.invalidateQueries({ queryKey: ["faculty", "my-council-topics"] }),
       ]);
       onUpdated();
     } catch (err) {
       toast.error(mapReviewError(extractErrorMessage(err)));
+      await qc.refetchQueries({ queryKey: ["faculty", "council-topic-review-queue"] });
     } finally {
       setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: false }));
     }
   };
+
 
   return (
     <SectionShell
@@ -200,12 +225,14 @@ export function CouncilTopicReviewQueue({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {(isChair || isSecretary) && topic.status !== "under_review" ? (
+                      {(isChair || isSecretary) &&
+                      isAllowedTopicTransition(topic.status, "under_review") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-under-review-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "under_review")}
                         >
@@ -213,12 +240,14 @@ export function CouncilTopicReviewQueue({
                           تحت المراجعة
                         </Button>
                       ) : null}
-                      {(isChair || isSecretary) && topic.status !== "needs_completion" ? (
+                      {(isChair || isSecretary) &&
+                      isAllowedTopicTransition(topic.status, "needs_completion") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-needs-completion-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "needs_completion")}
                         >
@@ -226,12 +255,13 @@ export function CouncilTopicReviewQueue({
                           طلب استكمال
                         </Button>
                       ) : null}
-                      {isChair && topic.status !== "accepted_for_agenda" ? (
+                      {isChair && isAllowedTopicTransition(topic.status, "accepted_for_agenda") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="default"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-accept-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "accepted_for_agenda")}
                         >
@@ -239,12 +269,13 @@ export function CouncilTopicReviewQueue({
                           قبول للجدول
                         </Button>
                       ) : null}
-                      {isChair && topic.status !== "rejected" ? (
+                      {isChair && isAllowedTopicTransition(topic.status, "rejected") ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="destructive"
                           className="h-8 text-[11px]"
+                          data-testid={`topic-action-reject-${topic.topic_id}`}
                           disabled={busy}
                           onClick={() => void handleReview(topic, "rejected")}
                         >
@@ -253,6 +284,7 @@ export function CouncilTopicReviewQueue({
                         </Button>
                       ) : null}
                     </div>
+
                   </li>
                 );
               })}
