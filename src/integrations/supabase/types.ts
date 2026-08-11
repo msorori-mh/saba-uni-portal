@@ -11282,6 +11282,10 @@ export type Database = {
         }
         Returns: Json
       }
+      validate_request_workflow_publish: {
+        Args: { p_workflow_id: string }
+        Returns: Json
+      }
       verify_document: { Args: { _query: string }; Returns: Json }
       was_council_member_on: {
         Args: { _council: string; _date: string; _user: string }
