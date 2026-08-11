@@ -26,6 +26,8 @@ export const GRADUATES_AFFAIRS_AUTH04_RPCS = [
   "graduate_add_contact_point",
   "graduate_revoke_contact_point",
   "graduate_my_contact_points",
+  "graduate_my_consents",
+  "graduate_list_self_surveys",
   "graduate_report_employment",
   "graduate_submit_survey_response",
   "graduate_withdraw_survey_response",

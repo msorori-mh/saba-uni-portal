@@ -252,6 +252,18 @@ export class GraduatesAffairsRpcClient {
     });
   }
 
+  myConsents(graduateRecordId: string): Promise<GraduateSelfConsent[]> {
+    return this.call("graduate_my_consents", {
+      p_graduate_record_id: graduateRecordId,
+    });
+  }
+
+  listSelfSurveys(graduateRecordId: string): Promise<GraduateSelfSurvey[]> {
+    return this.call("graduate_list_self_surveys", {
+      p_graduate_record_id: graduateRecordId,
+    });
+  }
+
   listVisibleOpportunities(graduateRecordId: string): Promise<unknown> {
     return this.call("graduate_list_visible_opportunities", {
       p_graduate_record_id: graduateRecordId,
