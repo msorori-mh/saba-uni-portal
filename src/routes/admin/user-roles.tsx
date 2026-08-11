@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Search, Plus, X, RefreshCw, Lock } from "lucide-react";
@@ -30,14 +30,19 @@ function UserRolesPage() {
 
   const [search, setSearch] = useState("");
   const [onlyWithRoles, setOnlyWithRoles] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const deferredSearch = useDeferredValue(search);
   const [picker, setPicker] = useState<null | { user_id: string; name: string; roles: string[] }>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data: roles } = useQuery({ queryKey: ["roles-catalog"], queryFn: () => listR() });
   const usersQ = useQuery({
-    queryKey: ["users-with-roles", search, onlyWithRoles],
-    queryFn: () => listU({ data: { search: search || undefined, onlyWithRoles } }),
+    queryKey: ["users-with-roles", deferredSearch, onlyWithRoles, page, pageSize],
+    queryFn: () => listU({ data: {
+      search: deferredSearch || undefined, onlyWithRoles, page, pageSize,
+    } }),
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["users-with-roles"] });
@@ -64,13 +69,14 @@ function UserRolesPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
-            value={search} onChange={(e) => setSearch(e.target.value)}
+            value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="ابحث بالاسم أو البريد"
             className="w-full pr-9 pl-3 py-2 border rounded-lg"
           />
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={onlyWithRoles} onChange={(e) => setOnlyWithRoles(e.target.checked)} />
+          <input type="checkbox" checked={onlyWithRoles}
+            onChange={(e) => { setOnlyWithRoles(e.target.checked); setPage(1); }} />
           إظهار من لديهم أدوار فقط
         </label>
         {usersQ.data && (
@@ -78,7 +84,30 @@ function UserRolesPage() {
             المعروض {rows.length} من {usersQ.data.total} حساب
           </span>
         )}
+        <label className="flex items-center gap-2 text-sm">
+          <span>في الصفحة</span>
+          <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
+            className="rounded-md border border-input bg-background px-2 py-1.5">
+            {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
       </div>
+
+      {usersQ.data && usersQ.data.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <button type="button" disabled={usersQ.data.page <= 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            className="rounded-md border px-3 py-1.5 disabled:opacity-50 hover:bg-muted">
+            السابق
+          </button>
+          <span>الصفحة {usersQ.data.page} من {usersQ.data.totalPages}</span>
+          <button type="button" disabled={usersQ.data.page >= usersQ.data.totalPages}
+            onClick={() => setPage((value) => value + 1)}
+            className="rounded-md border px-3 py-1.5 disabled:opacity-50 hover:bg-muted">
+            التالي
+          </button>
+        </div>
+      )}
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">{error}</div>}
 

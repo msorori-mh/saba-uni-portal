@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -43,7 +43,14 @@ function OrgStructurePage() {
   const qc = useQueryClient();
 
   const orgQ = useQuery({ queryKey: ["org-structure"], queryFn: () => listFn({ data: {} as any }) });
-  const usersQ = useQuery({ queryKey: ["org-assignable-users"], queryFn: () => usersFn({ data: {} as any }) });
+  const [userSearch, setUserSearch] = useState("");
+  const [userPage, setUserPage] = useState(1);
+  const deferredUserSearch = useDeferredValue(userSearch);
+  const usersQ = useQuery({
+    queryKey: ["org-assignable-users", deferredUserSearch, userPage],
+    queryFn: () => usersFn({ data: { search: deferredUserSearch || undefined, page: userPage, pageSize: 20 } }),
+    enabled: !!openFor,
+  });
 
   const [openFor, setOpenFor] = useState<{ id: string; name: string } | null>(null);
   const [selectedUser, setSelectedUser] = useState<string>("");
@@ -214,7 +221,10 @@ function OrgStructurePage() {
                     <TableCell className="text-left">
                       <div className="flex flex-wrap gap-1 justify-end">
                         <Button size="sm" variant="outline" disabled={!p.is_active}
-                          onClick={() => { setOpenFor({ id: p.id, name: p.name_ar }); setSelectedUser(""); setNotes(""); }}>
+                          onClick={() => {
+                            setOpenFor({ id: p.id, name: p.name_ar });
+                            setSelectedUser(""); setNotes(""); setUserSearch(""); setUserPage(1);
+                          }}>
                           <UserPlus className="h-4 w-4 ml-1" /> تعيين
                         </Button>
                         {assignment && (
@@ -255,6 +265,12 @@ function OrgStructurePage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium block mb-1">المستخدم</label>
+              <input
+                value={userSearch}
+                onChange={(event) => { setUserSearch(event.target.value); setUserPage(1); setSelectedUser(""); }}
+                placeholder="ابحث بالاسم أو البريد أو الرقم الوظيفي"
+                className="mb-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
               {usersQ.isLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> جارٍ تحميل المستخدمين…
@@ -268,17 +284,36 @@ function OrgStructurePage() {
                     <RefreshCw className="h-4 w-4 ml-1" /> إعادة المحاولة
                   </Button>
                 </div>
-              ) : (usersQ.data ?? []).length === 0 ? (
+              ) : (usersQ.data?.rows ?? []).length === 0 ? (
                 <div className="text-sm text-amber-600">لا توجد حسابات موظفين أو أعضاء هيئة تدريس متاحة للتعيين.</div>
               ) : (
-                <Select value={selectedUser} onValueChange={setSelectedUser}>
-                  <SelectTrigger><SelectValue placeholder="اختر مستخدماً" /></SelectTrigger>
-                  <SelectContent>
-                    {(usersQ.data ?? []).map((u: any) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name} ({u.email})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Select value={selectedUser} onValueChange={setSelectedUser}>
+                    <SelectTrigger><SelectValue placeholder="اختر مستخدماً" /></SelectTrigger>
+                    <SelectContent>
+                      {(usersQ.data?.rows ?? []).map((u: any) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name}{u.identifier ? ` — ${u.identifier}` : ""}{u.email ? ` (${u.email})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>{usersQ.data?.total ?? 0} مستخدم متاح</span>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" size="sm" variant="outline" disabled={userPage <= 1}
+                        onClick={() => { setUserPage((page) => Math.max(1, page - 1)); setSelectedUser(""); }}>
+                        السابق
+                      </Button>
+                      <span>{usersQ.data?.page ?? userPage} / {usersQ.data?.totalPages ?? 1}</span>
+                      <Button type="button" size="sm" variant="outline"
+                        disabled={userPage >= (usersQ.data?.totalPages ?? 1)}
+                        onClick={() => { setUserPage((page) => page + 1); setSelectedUser(""); }}>
+                        التالي
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
                 سيتم إنهاء أي تعيين نشط سابق لهذا المنصب تلقائياً، مع سحب أدواره ومنحها للشاغل الجديد.
