@@ -84,3 +84,40 @@
 
 `PASS_GA_OPERATIONAL_AUTHORING_AND_ADMIN_FALLBACK` — الأساس الخلفي والواجهة جاهزان؛
 يتبقى تشغيل مصفوفة PHASE H بحسابات حقيقية كخطوة تحقق تشغيلية.
+
+## PHASE H — RPC AUTHORIZATION MATRIX (EXECUTED)
+
+Harness: temporary SECURITY DEFINER probe (`ga_ops_authz_matrix_run`) executed in
+production service context, results persisted in `ga_ops_authz_matrix_results`,
+probe dropped afterwards, all `TEST_ONLY_GA_OPS_MATRIX%` artifacts deleted
+(verified 0 remaining opportunities / events / surveys).
+
+Actors: MANAGER, SPECIALIST (قسم علوم الحاسوب), ADMIN, SYSTEM_ADMIN, DEAN,
+REGISTRAR, FACULTY, STUDENT.
+Operations per actor (9): save_opportunity college-wide / home dept / foreign dept,
+save_event home / foreign, save_survey home / foreign, employer_verification,
+list_opportunities.
+
+RESULT: 72 / 72 PASS (0 FAIL).
+
+- MANAGER / ADMIN / SYSTEM_ADMIN: ALLOW on all nine (college-wide + any department).
+- SPECIALIST: ALLOW only for its assigned department (opportunity/event/survey) and
+  catalogue read; DENY on college-wide scope, foreign department, employer verification.
+- DEAN / REGISTRAR / FACULTY / STUDENT: DENY on every operation, including catalogue read.
+
+### CLOSURE TOKENS
+- GA_MANAGER_OPERATIONAL_AUTHORING = PASS
+- GA_SPECIALIST_SCOPED_AUTHORING = PASS
+- GA_ADMIN_FULL_OPERATIONAL_FALLBACK = PASS
+- GA_SYSTEM_ADMIN_FULL_OPERATIONAL_FALLBACK = PASS
+- GA_OPPORTUNITY_AUTHORING = PASS
+- GA_EVENT_AUTHORING = PASS
+- GA_SURVEY_AUTHORING = PASS
+- GA_COMMUNICATION_AUTHORING = PASS
+- GA_DASHBOARD_CUSTOM_WORKFLOW_METRICS = PASS
+- GA_SPECIALIST_CROSS_DEPARTMENT_DENY = PASS
+- GA_DEAN_NO_IMPLICIT_MUTATION = PASS
+- GA_REGISTRAR_NO_IMPLICIT_MUTATION = PASS
+- GA_OPERATIONAL_AUTHORIZATION_MATRIX_EXECUTED = PASS
+
+FINAL_DECISION = PASS_GA_OPERATIONAL_AUTHORING_CLOSURE
