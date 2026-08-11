@@ -120,17 +120,31 @@ export const setRoleActive = createServerFn({ method: "POST" })
 
 export const listUsersWithRoles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { search?: string; onlyWithRoles?: boolean } | undefined) => input ?? {})
+  .inputValidator((input: { search?: string; onlyWithRoles?: boolean; page?: number; pageSize?: number } | undefined) =>
+    z.object({
+      search: z.string().max(120).optional(),
+      onlyWithRoles: z.boolean().optional(),
+      page: z.number().int().min(1).optional(),
+      pageSize: z.number().int().min(5).max(100).optional(),
+    }).parse(input ?? {}))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { buildUserDirectory } = await import("@/lib/admin/auth-users-directory.server");
+    const { listProfileDirectory } = await import("@/lib/admin/auth-users-directory.server");
+    const directoryPage = await listProfileDirectory({
+      search: data.search,
+      onlyWithRoles: data.onlyWithRoles,
+      page: data.page,
+      pageSize: data.pageSize,
+    });
+    const pageUserIds = directoryPage.rows.map((user) => user.user_id);
 
-    const [directory, assignments, operational, positions] = await Promise.all([
-      buildUserDirectory(),
+    const [assignments, operational, positions] = await Promise.all([
       supabaseAdmin
         .from("user_role_assignments")
-        .select("user_id, role_code, source_type, source_position_assignment_id"),
-      supabaseAdmin.from("user_roles").select("user_id, role"),
+        .select("user_id, role_code, source_type, source_position_assignment_id")
+        .in("user_id", pageUserIds.length ? pageUserIds : ["00000000-0000-0000-0000-000000000000"]),
+      supabaseAdmin.from("user_roles").select("user_id, role")
+        .in("user_id", pageUserIds.length ? pageUserIds : ["00000000-0000-0000-0000-000000000000"]),
       supabaseAdmin
         .from("position_assignments")
         .select("id, is_active, organizational_positions:position_id(name_ar)")
@@ -158,7 +172,7 @@ export const listUsersWithRoles = createServerFn({ method: "POST" })
     };
 
     const map = new Map<string, Row>();
-    for (const u of directory) {
+    for (const u of directoryPage.rows) {
       map.set(u.user_id, {
         user_id: u.user_id,
         email: u.email,
@@ -184,16 +198,7 @@ export const listUsersWithRoles = createServerFn({ method: "POST" })
       if (m) m.app_roles.push((r as any).role as string);
     }
 
-    let rows = Array.from(map.values());
-    if (data?.onlyWithRoles) rows = rows.filter((r) => r.roles.length > 0 || r.app_roles.length > 0);
-    const s = (data?.search ?? "").trim().toLowerCase();
-    if (s) {
-      rows = rows.filter((r) =>
-        r.name.toLowerCase().includes(s) || (r.email ?? "").toLowerCase().includes(s)
-      );
-    }
-    rows.sort((a, b) => a.name.localeCompare(b.name, "ar"));
-    return { rows: rows.slice(0, 500), total: map.size };
+    return { ...directoryPage, rows: Array.from(map.values()) };
   });
 
 
