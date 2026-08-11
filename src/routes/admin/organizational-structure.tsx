@@ -123,14 +123,14 @@ function OrgStructurePage() {
   }
   if (orgQ.error || !data) {
     return (
-      <div className="p-6 space-y-3" dir="rtl">
-        <div className="text-destructive">تعذّر تحميل الهيكل التنظيمي: {(orgQ.error as Error)?.message}</div>
-        <Button variant="outline" onClick={() => orgQ.refetch()}>
-          <RefreshCw className="h-4 w-4 ml-1" /> إعادة المحاولة
-        </Button>
-      </div>
+      <LoadErrorNotice
+        error={orgQ.error}
+        title="تعذّر تحميل الهيكل التنظيمي"
+        onRetry={() => orgQ.refetch()}
+      />
     );
   }
+
 
   const mappingsByPos = new Map<string, any[]>();
   for (const m of data.mappings as any[]) {
