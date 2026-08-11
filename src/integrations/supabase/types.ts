@@ -4749,6 +4749,8 @@ export type Database = {
           defense_window_end: string | null
           defense_window_start: string | null
           department_id: string | null
+          enforce_defense_window: boolean | null
+          enforce_proposal_window: boolean | null
           id: string
           max_committee_members: number | null
           max_revision_rounds: number | null
@@ -4776,6 +4778,8 @@ export type Database = {
           defense_window_end?: string | null
           defense_window_start?: string | null
           department_id?: string | null
+          enforce_defense_window?: boolean | null
+          enforce_proposal_window?: boolean | null
           id?: string
           max_committee_members?: number | null
           max_revision_rounds?: number | null
@@ -4803,6 +4807,8 @@ export type Database = {
           defense_window_end?: string | null
           defense_window_start?: string | null
           department_id?: string | null
+          enforce_defense_window?: boolean | null
+          enforce_proposal_window?: boolean | null
           id?: string
           max_committee_members?: number | null
           max_revision_rounds?: number | null
@@ -10303,6 +10309,8 @@ export type Database = {
           defense_window_end: string | null
           defense_window_start: string | null
           department_id: string | null
+          enforce_defense_window: boolean | null
+          enforce_proposal_window: boolean | null
           id: string
           max_committee_members: number | null
           max_revision_rounds: number | null
@@ -10360,6 +10368,8 @@ export type Database = {
           defense_window_end: string | null
           defense_window_start: string | null
           department_id: string | null
+          enforce_defense_window: boolean | null
+          enforce_proposal_window: boolean | null
           id: string
           max_committee_members: number | null
           max_revision_rounds: number | null
@@ -10396,6 +10406,8 @@ export type Database = {
           defense_window_end: string | null
           defense_window_start: string | null
           department_id: string | null
+          enforce_defense_window: boolean | null
+          enforce_proposal_window: boolean | null
           id: string
           max_committee_members: number | null
           max_revision_rounds: number | null
@@ -10439,6 +10451,8 @@ export type Database = {
           defense_window_end: string | null
           defense_window_start: string | null
           department_id: string | null
+          enforce_defense_window: boolean | null
+          enforce_proposal_window: boolean | null
           id: string
           max_committee_members: number | null
           max_revision_rounds: number | null
