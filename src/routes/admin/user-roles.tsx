@@ -43,7 +43,9 @@ function UserRolesPage() {
     queryFn: () => listU({ data: {
       search: deferredSearch || undefined, onlyWithRoles, page, pageSize,
     } }),
+    retry: (count, err) => !isAuthorizationError(err) && count < 2,
   });
+
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["users-with-roles"] });
   const activeRoles = (roles ?? []).filter((r: any) => r.is_active);
