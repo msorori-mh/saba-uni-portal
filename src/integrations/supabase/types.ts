@@ -10067,6 +10067,10 @@ export type Database = {
         }
         Returns: number
       }
+      graduate_validate_survey_answers: {
+        Args: { p_answers: Json; p_questions: Json }
+        Returns: undefined
+      }
       graduate_withdraw_consent: {
         Args: { p_consent_id: string }
         Returns: undefined
