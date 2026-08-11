@@ -283,7 +283,13 @@ describe("ENROLLMENT-CERTIFICATE-PDF-STORAGE-SAGA-COMPLETION-01", () => {
       "utf8",
     );
     expect(orch).toContain("supabaseAdmin.storage");
-    expect(orch).toContain("createSignedUrl");
+    // Signed URL mint lives in shared canonical service (web + mobile).
+    expect(orch).toContain("mintOfficialDocumentSignedUrl");
+    const mint = readFileSync(
+      join(ROOT, "src/lib/mobile-api/official-document-download.service.ts"),
+      "utf8",
+    );
+    expect(mint).toContain("createSignedUrl");
     expect(orch).toContain("93807768-a281-42de-bfb4-0c0c03786b20");
     expect(orch).not.toMatch(/upsert:\s*true/);
   });

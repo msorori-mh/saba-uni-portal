@@ -10,15 +10,13 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   OFFICIAL_DOCUMENTS_BUCKET,
   buildOfficialDocumentStoragePath,
-  evaluateDownloadAuthorization,
-  isDownloadableOfficialDocumentStatus,
-  CANCELLED_DOCUMENT_DOWNLOAD_ERROR_MESSAGE_AR,
-  NOT_DOWNLOADABLE_DOCUMENT_ERROR_MESSAGE_AR,
 } from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 import {
   buildEnrollmentCertificatePdfBytes,
   type EnrollmentCertificateSnapshot,
 } from "@/lib/documents/enrollment-certificate-pdf";
+import { mintOfficialDocumentSignedUrl } from "@/lib/mobile-api/official-document-download.service";
+import { MobileApiError } from "@/lib/mobile-api/errors";
 
 const BLOCKED_TRIAL_REQUEST_ID = "93807768-a281-42de-bfb4-0c0c03786b20";
 
@@ -248,87 +246,27 @@ export const getEnrollmentCertificateDocumentSignedUrl = createServerFn({
     z.object({ officialDocumentId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: doc, error } = await supabaseAdmin
-      .from("official_documents")
-      .select("id, pdf_url, student_profile_id, student_request_id, status")
-      .eq("id", data.officialDocumentId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!doc?.pdf_url) throw new Error("الوثيقة أو الملف غير موجود");
-
-    // Central status barrier — MUST run before any storage call and before
-    // leaking pdf_url / storage path via a Signed URL. Applies uniformly to
-    // owner / staff / admin. Error messages are generic and never surface
-    // pdf_url, storage path, or verification_code.
-    const status = String((doc as { status: string | null }).status ?? "");
-    if (!isDownloadableOfficialDocumentStatus(status)) {
-      if (status === "cancelled") {
-        throw new Error(CANCELLED_DOCUMENT_DOWNLOAD_ERROR_MESSAGE_AR);
+    // Shared canonical mint (web + mobile). Staff/admin paths preserved.
+    try {
+      const result = await mintOfficialDocumentSignedUrl({
+        officialDocumentId: data.officialDocumentId,
+        userId: context.userId,
+        sessionClient: context.supabase as {
+          rpc: (
+            fn: string,
+            args: Record<string, unknown>,
+          ) => Promise<{ data: unknown; error: { message: string } | null }>;
+        },
+        studentSelfOnly: false,
+      });
+      return {
+        signedUrl: result.signedUrl,
+        expiresInSeconds: result.expiresInSeconds,
+      };
+    } catch (err) {
+      if (err instanceof MobileApiError) {
+        throw new Error(err.messageAr ?? err.message);
       }
-      throw new Error(NOT_DOWNLOADABLE_DOCUMENT_ERROR_MESSAGE_AR);
+      throw err;
     }
-
-    const { data: roles } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId);
-    const roleKeys = (roles ?? []).map((r) => String((r as { role: string }).role));
-    const isAdmin = roleKeys.includes("admin") || roleKeys.includes("system_admin");
-
-    const { data: profile } = await supabaseAdmin
-      .from("student_profiles")
-      .select("user_id")
-      .eq("id", (doc as { student_profile_id: string }).student_profile_id)
-      .maybeSingle();
-    const isOwner = profile?.user_id === context.userId;
-
-    let isStaffAuthorized = false;
-    if (!isOwner && !isAdmin && doc.student_request_id) {
-      const { data: step } = await supabaseAdmin
-        .from("student_request_workflow_steps")
-        .select("id")
-        .eq("student_request_id", doc.student_request_id)
-        .eq("step_key", "document_issuance")
-        .maybeSingle();
-      if (step?.id) {
-        const { data: canAct } = await context.supabase.rpc("can_current_user_act_on_step", {
-          p_step_id: step.id,
-          p_action: "issue_document",
-        });
-        isStaffAuthorized = Boolean(canAct);
-      }
-      if (!isStaffAuthorized) {
-        const { data: archiveStep } = await supabaseAdmin
-          .from("student_request_workflow_steps")
-          .select("id")
-          .eq("student_request_id", doc.student_request_id)
-          .eq("step_key", "archive")
-          .maybeSingle();
-        if (archiveStep?.id) {
-          const { data: canArchive } = await context.supabase.rpc("can_current_user_act_on_step", {
-            p_step_id: archiveStep.id,
-            p_action: "archive",
-          });
-          isStaffAuthorized = Boolean(canArchive);
-        }
-      }
-    }
-
-    if (
-      !evaluateDownloadAuthorization({
-        isOwner,
-        isStaffAuthorized,
-        isAdmin,
-      })
-    ) {
-      throw new Error("غير مصرح بتنزيل هذه الوثيقة");
-    }
-
-    const signed = await supabaseAdmin.storage
-      .from(OFFICIAL_DOCUMENTS_BUCKET)
-      .createSignedUrl(String(doc.pdf_url), 180);
-    if (signed.error || !signed.data?.signedUrl) {
-      throw new Error(signed.error?.message ?? "تعذر إنشاء رابط التنزيل");
-    }
-    return { signedUrl: signed.data.signedUrl, expiresInSeconds: 180 };
   });

@@ -187,7 +187,8 @@ function enrollmentPercentages(
 
 /* ----------------------- core: compute one student ----------------------- */
 
-async function computeStudentProgress(studentProfileId: string): Promise<StudentProgressDTO> {
+/** Canonical progress DTO builder — shared by web createServerFn and mobile public API. */
+export async function computeStudentProgress(studentProfileId: string): Promise<StudentProgressDTO> {
   const { data: spRaw } = await supabaseAdmin
     .from("student_profiles")
     .select("id, academic_number, full_name_ar, status, program_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")

@@ -1,0 +1,168 @@
+{
+  "version": "v1",
+  "mission": "PORTAL-MOBILE-PUBLIC-BACKEND-BRIDGE-LONGRUN-04",
+  "auth": {
+    "type": "bearer_supabase_jwt",
+    "header": "Authorization: Bearer <access_token>",
+    "notes": "Use the student Supabase session access token. Never embed service_role or database secrets."
+  },
+  "error_families": [
+    "AUTH_REQUIRED",
+    "STUDENT_CONTEXT_REQUIRED",
+    "NOT_FOUND",
+    "NOT_ALLOWED",
+    "INVALID_STATE",
+    "VALIDATION_ERROR",
+    "SERVICE_UNAVAILABLE",
+    "RATE_LIMITED"
+  ],
+  "http_envelope": {
+    "success": { "ok": true, "data": {} },
+    "failure": {
+      "ok": false,
+      "error": {
+        "family": "AUTH_REQUIRED",
+        "code": "string",
+        "message": "string",
+        "message_ar": "string?"
+      }
+    }
+  },
+  "capabilities": {
+    "official_document_download": {
+      "name": "official_document_download",
+      "status": "READY_PUBLIC_API",
+      "transport": "http_authenticated",
+      "operation": "POST /api/mobile/v1/official-documents/download",
+      "auth": "bearer_supabase_jwt",
+      "input": {
+        "document_id": "uuid"
+      },
+      "output": {
+        "signed_url": "string",
+        "expires_in_seconds": 180,
+        "document_id": "uuid",
+        "status": "issued|archived"
+      },
+      "error_families": [
+        "AUTH_REQUIRED",
+        "STUDENT_CONTEXT_REQUIRED",
+        "NOT_FOUND",
+        "NOT_ALLOWED",
+        "INVALID_STATE",
+        "VALIDATION_ERROR",
+        "RATE_LIMITED",
+        "SERVICE_UNAVAILABLE"
+      ]
+    },
+    "certificate_pdf_generation": {
+      "name": "certificate_pdf_generation",
+      "status": "HOLD",
+      "transport": "hold",
+      "operation": null,
+      "auth": "bearer_supabase_jwt",
+      "input": null,
+      "output": null,
+      "hold_reason": "Staff-only document_issuance/issue_document saga. Mobile uses official_document_download after issuance.",
+      "error_families": []
+    },
+    "academic_progress": {
+      "name": "academic_progress",
+      "status": "READY_PUBLIC_API",
+      "transport": "http_authenticated",
+      "operation": "GET|POST /api/mobile/v1/academic-progress",
+      "auth": "bearer_supabase_jwt",
+      "input": {},
+      "output": {
+        "dto": "StudentProgressDTO",
+        "same_as": "getMyProgress"
+      },
+      "error_families": [
+        "AUTH_REQUIRED",
+        "STUDENT_CONTEXT_REQUIRED",
+        "SERVICE_UNAVAILABLE"
+      ]
+    },
+    "unofficial_transcript": {
+      "name": "unofficial_transcript",
+      "status": "READY_PUBLIC_API",
+      "transport": "http_authenticated",
+      "operation": "GET|POST /api/mobile/v1/unofficial-transcript",
+      "auth": "bearer_supabase_jwt",
+      "input": {},
+      "output": {
+        "student_profile_id": "uuid",
+        "rows": "student_unofficial_transcript[]",
+        "summary": "student_transcript_summary[]"
+      },
+      "error_families": [
+        "AUTH_REQUIRED",
+        "STUDENT_CONTEXT_REQUIRED",
+        "SERVICE_UNAVAILABLE"
+      ]
+    },
+    "course_materials": {
+      "name": "course_materials",
+      "status": "READY_PUBLIC_API",
+      "transport": "http_authenticated",
+      "operation": "GET|POST /api/mobile/v1/course-materials ; POST /api/mobile/v1/course-materials/download",
+      "auth": "bearer_supabase_jwt",
+      "input": {
+        "list": {},
+        "download": { "file_id": "uuid" }
+      },
+      "output": {
+        "list": { "sections": "array" },
+        "download": {
+          "signed_url": "string",
+          "expires_in_seconds": 60,
+          "file_id": "uuid"
+        }
+      },
+      "error_families": [
+        "AUTH_REQUIRED",
+        "STUDENT_CONTEXT_REQUIRED",
+        "NOT_FOUND",
+        "NOT_ALLOWED",
+        "INVALID_STATE",
+        "VALIDATION_ERROR",
+        "RATE_LIMITED",
+        "SERVICE_UNAVAILABLE"
+      ]
+    },
+    "push_token_registration": {
+      "name": "push_token_registration",
+      "status": "SOURCE_READY",
+      "transport": "postgres_rpc",
+      "operation": "register_mobile_push_token | revoke_mobile_push_token | touch_mobile_push_token",
+      "auth": "bearer_supabase_jwt",
+      "input": {
+        "register_mobile_push_token": {
+          "p_token": "string(16..4096)",
+          "p_platform": "android|ios|web",
+          "p_device_id": "string?",
+          "p_app_version": "string?"
+        },
+        "revoke_mobile_push_token": {
+          "p_token": "string?",
+          "p_device_id": "string?",
+          "p_all": "boolean?"
+        },
+        "touch_mobile_push_token": {
+          "p_token": "string"
+        }
+      },
+      "output": {
+        "register": { "ok": true, "id": "uuid", "is_active": true },
+        "revoke": { "ok": true, "revoked_count": "number" },
+        "touch": { "ok": true, "last_seen_at": "timestamptz" }
+      },
+      "error_families": [
+        "AUTH_REQUIRED",
+        "VALIDATION_ERROR",
+        "NOT_FOUND"
+      ],
+      "notes": "Migration source-only; outbound push delivery is a separate mission."
+    }
+  }
+}

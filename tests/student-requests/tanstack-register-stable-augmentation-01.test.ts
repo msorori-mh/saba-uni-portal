@@ -13,11 +13,10 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Pinned after final go-live cutover integration of GP final product +
-// GA admin surface (/admin/graduates-affairs). Recomputed from the merged
-// routeTree.gen.ts — do not reuse pre-merge SHA.
+// Pinned after mobile public API v1 routes (/api/mobile/v1/*) were registered
+// in routeTree.gen.ts for PORTAL-MOBILE-PUBLIC-BACKEND-BRIDGE-LONGRUN-04.
 const ROUTE_SEMANTIC_SHA256 =
-  "0ac44ee8dbe34a0701d069dc625c329bcbc96de0434e915c46bbe08d460a7d27";
+  "9863ddad0c87b116d8930fb056d4ee40e576eb25b1a3b4646c99af961aef79fc";
 
 const FROZEN_GP_FULL_PATHS = [
   "/student/graduation-projects",

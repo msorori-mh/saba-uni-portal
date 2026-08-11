@@ -125,7 +125,13 @@ import { Route as StudentRequestsIndexRouteImport } from './routes/student.reque
 import { Route as StudentRequestsIdRouteImport } from './routes/student.requests.$id'
 import { Route as StudentRequestsNewRouteImport } from './routes/student.requests.new'
 import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
+import { Route as ApiMobileV1AcademicProgressRouteImport } from './routes/api.mobile.v1.academic-progress'
+import { Route as ApiMobileV1CapabilitiesRouteImport } from './routes/api.mobile.v1.capabilities'
+import { Route as ApiMobileV1CourseMaterialsRouteImport } from './routes/api.mobile.v1.course-materials'
+import { Route as ApiMobileV1UnofficialTranscriptRouteImport } from './routes/api.mobile.v1.unofficial-transcript'
 import { Route as StudentRequestsB1ServiceRouteImport } from './routes/student.requests.b1.$service'
+import { Route as ApiMobileV1CourseMaterialsDownloadRouteImport } from './routes/api.mobile.v1.course-materials.download'
+import { Route as ApiMobileV1OfficialDocumentsDownloadRouteImport } from './routes/api.mobile.v1.official-documents.download'
 import { Route as StudentRequestsB1ViewRequestIdRouteImport } from './routes/student.requests.b1.view.$requestId'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
@@ -795,11 +801,46 @@ const AdminRequestTypesIdWorkflowRoute =
     path: '/request-types/$id/workflow',
     getParentRoute: () => AdminRoute,
   } as any)
+const ApiMobileV1AcademicProgressRoute =
+  ApiMobileV1AcademicProgressRouteImport.update({
+    id: '/api/mobile/v1/academic-progress',
+    path: '/api/mobile/v1/academic-progress',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileV1CapabilitiesRoute = ApiMobileV1CapabilitiesRouteImport.update({
+  id: '/api/mobile/v1/capabilities',
+  path: '/api/mobile/v1/capabilities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileV1CourseMaterialsRoute =
+  ApiMobileV1CourseMaterialsRouteImport.update({
+    id: '/api/mobile/v1/course-materials',
+    path: '/api/mobile/v1/course-materials',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileV1UnofficialTranscriptRoute =
+  ApiMobileV1UnofficialTranscriptRouteImport.update({
+    id: '/api/mobile/v1/unofficial-transcript',
+    path: '/api/mobile/v1/unofficial-transcript',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const StudentRequestsB1ServiceRoute =
   StudentRequestsB1ServiceRouteImport.update({
     id: '/b1/$service',
     path: '/b1/$service',
     getParentRoute: () => StudentRequestsRoute,
+  } as any)
+const ApiMobileV1CourseMaterialsDownloadRoute =
+  ApiMobileV1CourseMaterialsDownloadRouteImport.update({
+    id: '/download',
+    path: '/download',
+    getParentRoute: () => ApiMobileV1CourseMaterialsRoute,
+  } as any)
+const ApiMobileV1OfficialDocumentsDownloadRoute =
+  ApiMobileV1OfficialDocumentsDownloadRouteImport.update({
+    id: '/api/mobile/v1/official-documents/download',
+    path: '/api/mobile/v1/official-documents/download',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const StudentRequestsB1ViewRequestIdRoute =
   StudentRequestsB1ViewRequestIdRouteImport.update({
@@ -932,7 +973,13 @@ export interface FileRoutesByFullPath {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/api/mobile/v1/academic-progress': typeof ApiMobileV1AcademicProgressRoute
+  '/api/mobile/v1/capabilities': typeof ApiMobileV1CapabilitiesRoute
+  '/api/mobile/v1/course-materials': typeof ApiMobileV1CourseMaterialsRouteWithChildren
+  '/api/mobile/v1/unofficial-transcript': typeof ApiMobileV1UnofficialTranscriptRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/api/mobile/v1/course-materials/download': typeof ApiMobileV1CourseMaterialsDownloadRoute
+  '/api/mobile/v1/official-documents/download': typeof ApiMobileV1OfficialDocumentsDownloadRoute
   '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRoutesByTo {
@@ -1051,7 +1098,13 @@ export interface FileRoutesByTo {
   '/student/materials': typeof StudentMaterialsIndexRoute
   '/student/requests': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/api/mobile/v1/academic-progress': typeof ApiMobileV1AcademicProgressRoute
+  '/api/mobile/v1/capabilities': typeof ApiMobileV1CapabilitiesRoute
+  '/api/mobile/v1/course-materials': typeof ApiMobileV1CourseMaterialsRouteWithChildren
+  '/api/mobile/v1/unofficial-transcript': typeof ApiMobileV1UnofficialTranscriptRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/api/mobile/v1/course-materials/download': typeof ApiMobileV1CourseMaterialsDownloadRoute
+  '/api/mobile/v1/official-documents/download': typeof ApiMobileV1OfficialDocumentsDownloadRoute
   '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRoutesById {
@@ -1179,7 +1232,13 @@ export interface FileRoutesById {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types_/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/api/mobile/v1/academic-progress': typeof ApiMobileV1AcademicProgressRoute
+  '/api/mobile/v1/capabilities': typeof ApiMobileV1CapabilitiesRoute
+  '/api/mobile/v1/course-materials': typeof ApiMobileV1CourseMaterialsRouteWithChildren
+  '/api/mobile/v1/unofficial-transcript': typeof ApiMobileV1UnofficialTranscriptRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/api/mobile/v1/course-materials/download': typeof ApiMobileV1CourseMaterialsDownloadRoute
+  '/api/mobile/v1/official-documents/download': typeof ApiMobileV1OfficialDocumentsDownloadRoute
   '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRouteTypes {
@@ -1308,7 +1367,13 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types/$id/workflow'
+    | '/api/mobile/v1/academic-progress'
+    | '/api/mobile/v1/capabilities'
+    | '/api/mobile/v1/course-materials'
+    | '/api/mobile/v1/unofficial-transcript'
     | '/student/requests/b1/$service'
+    | '/api/mobile/v1/course-materials/download'
+    | '/api/mobile/v1/official-documents/download'
     | '/student/requests/b1/view/$requestId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1427,7 +1492,13 @@ export interface FileRouteTypes {
     | '/student/materials'
     | '/student/requests'
     | '/admin/request-types/$id/workflow'
+    | '/api/mobile/v1/academic-progress'
+    | '/api/mobile/v1/capabilities'
+    | '/api/mobile/v1/course-materials'
+    | '/api/mobile/v1/unofficial-transcript'
     | '/student/requests/b1/$service'
+    | '/api/mobile/v1/course-materials/download'
+    | '/api/mobile/v1/official-documents/download'
     | '/student/requests/b1/view/$requestId'
   id:
     | '__root__'
@@ -1554,7 +1625,13 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types_/$id/workflow'
+    | '/api/mobile/v1/academic-progress'
+    | '/api/mobile/v1/capabilities'
+    | '/api/mobile/v1/course-materials'
+    | '/api/mobile/v1/unofficial-transcript'
     | '/student/requests/b1/$service'
+    | '/api/mobile/v1/course-materials/download'
+    | '/api/mobile/v1/official-documents/download'
     | '/student/requests/b1/view/$requestId'
   fileRoutesById: FileRoutesById
 }
@@ -1581,6 +1658,11 @@ export interface RootRouteChildren {
   DocumentViewIdRoute: typeof DocumentViewIdRoute
   MobileStudentRoute: typeof MobileStudentRouteWithChildren
   MobileStudentLoginRoute: typeof MobileStudentLoginRoute
+  ApiMobileV1AcademicProgressRoute: typeof ApiMobileV1AcademicProgressRoute
+  ApiMobileV1CapabilitiesRoute: typeof ApiMobileV1CapabilitiesRoute
+  ApiMobileV1CourseMaterialsRoute: typeof ApiMobileV1CourseMaterialsRouteWithChildren
+  ApiMobileV1UnofficialTranscriptRoute: typeof ApiMobileV1UnofficialTranscriptRoute
+  ApiMobileV1OfficialDocumentsDownloadRoute: typeof ApiMobileV1OfficialDocumentsDownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -2446,12 +2528,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRequestTypesIdWorkflowRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/mobile/v1/academic-progress': {
+      id: '/api/mobile/v1/academic-progress'
+      path: '/api/mobile/v1/academic-progress'
+      fullPath: '/api/mobile/v1/academic-progress'
+      preLoaderRoute: typeof ApiMobileV1AcademicProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/v1/capabilities': {
+      id: '/api/mobile/v1/capabilities'
+      path: '/api/mobile/v1/capabilities'
+      fullPath: '/api/mobile/v1/capabilities'
+      preLoaderRoute: typeof ApiMobileV1CapabilitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/v1/course-materials': {
+      id: '/api/mobile/v1/course-materials'
+      path: '/api/mobile/v1/course-materials'
+      fullPath: '/api/mobile/v1/course-materials'
+      preLoaderRoute: typeof ApiMobileV1CourseMaterialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/v1/unofficial-transcript': {
+      id: '/api/mobile/v1/unofficial-transcript'
+      path: '/api/mobile/v1/unofficial-transcript'
+      fullPath: '/api/mobile/v1/unofficial-transcript'
+      preLoaderRoute: typeof ApiMobileV1UnofficialTranscriptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/student/requests/b1/$service': {
       id: '/student/requests/b1/$service'
       path: '/b1/$service'
       fullPath: '/student/requests/b1/$service'
       preLoaderRoute: typeof StudentRequestsB1ServiceRouteImport
       parentRoute: typeof StudentRequestsRoute
+    }
+    '/api/mobile/v1/course-materials/download': {
+      id: '/api/mobile/v1/course-materials/download'
+      path: '/download'
+      fullPath: '/api/mobile/v1/course-materials/download'
+      preLoaderRoute: typeof ApiMobileV1CourseMaterialsDownloadRouteImport
+      parentRoute: typeof ApiMobileV1CourseMaterialsRoute
+    }
+    '/api/mobile/v1/official-documents/download': {
+      id: '/api/mobile/v1/official-documents/download'
+      path: '/api/mobile/v1/official-documents/download'
+      fullPath: '/api/mobile/v1/official-documents/download'
+      preLoaderRoute: typeof ApiMobileV1OfficialDocumentsDownloadRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/student/requests/b1/view/$requestId': {
       id: '/student/requests/b1/view/$requestId'
@@ -2787,6 +2911,21 @@ const MobileStudentRouteWithChildren = MobileStudentRoute._addFileChildren(
   MobileStudentRouteChildren,
 )
 
+interface ApiMobileV1CourseMaterialsRouteChildren {
+  ApiMobileV1CourseMaterialsDownloadRoute: typeof ApiMobileV1CourseMaterialsDownloadRoute
+}
+
+const ApiMobileV1CourseMaterialsRouteChildren: ApiMobileV1CourseMaterialsRouteChildren =
+  {
+    ApiMobileV1CourseMaterialsDownloadRoute:
+      ApiMobileV1CourseMaterialsDownloadRoute,
+  }
+
+const ApiMobileV1CourseMaterialsRouteWithChildren =
+  ApiMobileV1CourseMaterialsRoute._addFileChildren(
+    ApiMobileV1CourseMaterialsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -2810,6 +2949,12 @@ const rootRouteChildren: RootRouteChildren = {
   DocumentViewIdRoute: DocumentViewIdRoute,
   MobileStudentRoute: MobileStudentRouteWithChildren,
   MobileStudentLoginRoute: MobileStudentLoginRoute,
+  ApiMobileV1AcademicProgressRoute: ApiMobileV1AcademicProgressRoute,
+  ApiMobileV1CapabilitiesRoute: ApiMobileV1CapabilitiesRoute,
+  ApiMobileV1CourseMaterialsRoute: ApiMobileV1CourseMaterialsRouteWithChildren,
+  ApiMobileV1UnofficialTranscriptRoute: ApiMobileV1UnofficialTranscriptRoute,
+  ApiMobileV1OfficialDocumentsDownloadRoute:
+    ApiMobileV1OfficialDocumentsDownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
