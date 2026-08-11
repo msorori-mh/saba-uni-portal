@@ -121,10 +121,13 @@ export function validateGraduationProjectPolicy(
   if (draft.max_committee_members > 9)
     errors.push("الحد الأعلى لأعضاء اللجنة لا يتجاوز 9.");
 
-  if (draft.max_supervisors < 1 || draft.max_supervisors > 3)
-    errors.push("عدد المشرفين بين 1 و3.");
-  if (!draft.allow_co_supervisor && draft.max_supervisors > 1)
-    errors.push("لا يمكن تجاوز مشرف واحد دون السماح بمشرف مشارك.");
+  // CO_SUPERVISOR = DEFERRED — the runtime kernel supports exactly one
+  // pending/accepted supervisor; the backend rejects any policy that enables
+  // co-supervision, so the panel must not offer it either.
+  if (draft.allow_co_supervisor || draft.max_supervisors > 1)
+    errors.push("المشرف المشارك غير مدعوم حاليًا؛ عدد المشرفين يبقى واحدًا.");
+  if (draft.max_supervisors < 1) errors.push("عدد المشرفين لا يقل عن 1.");
+
 
   if (draft.required_progress_reports < 0 || draft.required_progress_reports > 12)
     errors.push("عدد تقارير التقدم بين 0 و12.");
