@@ -201,20 +201,53 @@ export function GraduationProjectPolicyPanel() {
               </div>
             ))}
 
+            {WINDOWS.map((w) => {
+              const enforce = draft[w.flag];
+              return (
+                <div key={w.flag} className="space-y-3 rounded-md border p-3 sm:col-span-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={w.flag}>{GP_POLICY_FIELD_LABELS_AR[w.flag]}</Label>
+                    <select
+                      id={w.flag}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      value={enforce === null ? "" : enforce ? "true" : "false"}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          [w.flag]: e.target.value === "" ? null : e.target.value === "true",
+                        }))
+                      }
+                    >
+                      <option value="">بدون قرار بعد — مطلوب تحديده قبل النشر</option>
+                      <option value="true">مفعّلة — تُفرض التواريخ</option>
+                      <option value="false">غير مفعّلة — لا تُفرض فترة زمنية</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      {enforce === false
+                        ? "قرار إداري صريح: لا تُطبَّق أي فترة زمنية، وتُهمَل أي تواريخ مسجّلة."
+                        : "عند التفعيل تصبح تواريخ البداية والنهاية مطلوبة عند النشر."}
+                    </p>
+                  </div>
 
-            {DATE_FIELDS.map((field) => (
-              <div key={field} className="space-y-1.5">
-                <Label htmlFor={field}>{GP_POLICY_FIELD_LABELS_AR[field]}</Label>
-                <Input
-                  id={field}
-                  type="date"
-                  value={draft[field] ?? ""}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, [field]: e.target.value || null }))
-                  }
-                />
-              </div>
-            ))}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {w.fields.map((field) => (
+                      <div key={field} className="space-y-1.5">
+                        <Label htmlFor={field}>{GP_POLICY_FIELD_LABELS_AR[field]}</Label>
+                        <Input
+                          id={field}
+                          type="date"
+                          disabled={enforce === false}
+                          value={draft[field] ?? ""}
+                          onChange={(e) =>
+                            setDraft((d) => ({ ...d, [field]: e.target.value || null }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
 
             <div className="flex items-center justify-between rounded-md border border-dashed p-3 sm:col-span-2">
               <div>
@@ -240,13 +273,31 @@ export function GraduationProjectPolicyPanel() {
             </div>
           </div>
 
-          {errors.length > 0 && (
+          {draftErrors.length > 0 && (
             <Alert variant="destructive">
               <AlertDescription>
+                <p className="font-bold mb-1">يمنع حفظ المسودة (قيم غير صحيحة):</p>
                 <ul className="list-disc pr-4 space-y-1">
-                  {errors.map((err) => (
+                  {draftErrors.map((err) => (
                     <li key={err}>{err}</li>
                   ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {publishErrors.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                <p className="font-bold mb-1">
+                  المسودة قابلة للحفظ المرحلي، لكن النشر يتطلب استكمال ما يلي:
+                </p>
+                <ul className="list-disc pr-4 space-y-1">
+                  {publishErrors
+                    .filter((err) => !draftErrors.includes(err))
+                    .map((err) => (
+                      <li key={err}>{err}</li>
+                    ))}
                 </ul>
               </AlertDescription>
             </Alert>
@@ -255,14 +306,14 @@ export function GraduationProjectPolicyPanel() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => save.mutate()}
-              disabled={errors.length > 0 || save.isPending}
+              disabled={draftErrors.length > 0 || save.isPending}
             >
               <Save className="h-4 w-4 ms-1" />
               حفظ كمسودة
             </Button>
             <Button
               variant="secondary"
-              disabled={!draft.id || publish.isPending}
+              disabled={!draft.id || publishErrors.length > 0 || publish.isPending}
               onClick={() => draft.id && publish.mutate(draft.id)}
             >
               <Send className="h-4 w-4 ms-1" />
