@@ -31,12 +31,14 @@ describe("validateGraduationProjectPolicy", () => {
     ).toBe(1);
   });
 
-  it("blocks multiple supervisors when co-supervision is off", () => {
+  it("keeps co-supervision deferred (single supervisor only)", () => {
     expect(validateGraduationProjectPolicy(base({ max_supervisors: 2 })).length).toBe(1);
     expect(
-      validateGraduationProjectPolicy(base({ max_supervisors: 2, allow_co_supervisor: true })),
-    ).toEqual([]);
+      validateGraduationProjectPolicy(base({ max_supervisors: 2, allow_co_supervisor: true })).length,
+    ).toBe(1);
+    expect(validateGraduationProjectPolicy(base({ allow_co_supervisor: true })).length).toBe(1);
   });
+
 
   it("requires both ends of a window and a correct order", () => {
     expect(
