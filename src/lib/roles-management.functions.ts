@@ -120,40 +120,72 @@ export const setRoleActive = createServerFn({ method: "POST" })
 
 export const listUsersWithRoles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { search?: string }) => input ?? {})
+  .inputValidator((input: { search?: string; onlyWithRoles?: boolean } | undefined) => input ?? {})
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    const { buildUserDirectory } = await import("@/lib/admin/auth-users-directory.server");
 
-    // Pull profiles to get display name + email by user_id
-    const [students, faculty, staff, assignments, auth] = await Promise.all([
-      supabaseAdmin.from("student_profiles").select("user_id, full_name_ar, academic_number").not("user_id", "is", null),
-      supabaseAdmin.from("faculty_profiles").select("user_id, full_name_ar, employee_number").not("user_id", "is", null),
-      supabaseAdmin.from("staff_profiles").select("user_id, full_name_ar, employee_number, job_title").not("user_id", "is", null),
-      supabaseAdmin.from("user_role_assignments").select("user_id, role_code"),
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    const [directory, assignments, operational, positions] = await Promise.all([
+      buildUserDirectory(),
+      supabaseAdmin
+        .from("user_role_assignments")
+        .select("user_id, role_code, source_type, source_position_assignment_id"),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin
+        .from("position_assignments")
+        .select("id, is_active, organizational_positions:position_id(name_ar)")
+        .eq("is_active", true),
     ]);
 
-    const map = new Map<string, { user_id: string; email: string | null; name: string; kind: string; roles: string[] }>();
-    for (const u of (auth.data?.users ?? [])) {
-      map.set(u.id, { user_id: u.id, email: u.email ?? null, name: u.email ?? "", kind: "user", roles: [] });
+    if (assignments.error) throw new Error(`تعذّر تحميل إسنادات الأدوار: ${assignments.error.message}`);
+    if (operational.error) throw new Error(`تعذّر تحميل الأدوار التشغيلية: ${operational.error.message}`);
+
+    const positionNameByAssignment = new Map<string, string>();
+    for (const p of positions.data ?? []) {
+      positionNameByAssignment.set(
+        (p as any).id,
+        (p as any).organizational_positions?.name_ar ?? "منصب تنظيمي",
+      );
     }
-    for (const r of (students.data ?? [])) {
-      const m = map.get((r as any).user_id);
-      if (m) { m.name = (r as any).full_name_ar; m.kind = "student"; }
+
+    type Row = {
+      user_id: string;
+      email: string | null;
+      name: string;
+      kind: string;
+      roles: Array<{ role_code: string; source_type: string; position_name: string | null }>;
+      app_roles: string[];
+    };
+
+    const map = new Map<string, Row>();
+    for (const u of directory) {
+      map.set(u.user_id, {
+        user_id: u.user_id,
+        email: u.email,
+        name: u.name,
+        kind: u.kind,
+        roles: [],
+        app_roles: [],
+      });
     }
-    for (const r of (faculty.data ?? [])) {
-      const m = map.get((r as any).user_id);
-      if (m) { m.name = (r as any).full_name_ar; m.kind = "faculty"; }
-    }
-    for (const r of (staff.data ?? [])) {
-      const m = map.get((r as any).user_id);
-      if (m) { m.name = (r as any).full_name_ar; m.kind = "staff"; }
-    }
-    for (const a of (assignments.data ?? [])) {
+    for (const a of assignments.data ?? []) {
       const m = map.get((a as any).user_id);
-      if (m) m.roles.push((a as any).role_code);
+      if (!m) continue;
+      m.roles.push({
+        role_code: (a as any).role_code,
+        source_type: (a as any).source_type ?? "direct",
+        position_name: (a as any).source_position_assignment_id
+          ? positionNameByAssignment.get((a as any).source_position_assignment_id) ?? "منصب تنظيمي"
+          : null,
+      });
     }
-    let rows = Array.from(map.values()).filter((r) => r.kind !== "user" || r.roles.length > 0);
+    for (const r of operational.data ?? []) {
+      const m = map.get((r as any).user_id);
+      if (m) m.app_roles.push((r as any).role as string);
+    }
+
+    let rows = Array.from(map.values());
+    if (data?.onlyWithRoles) rows = rows.filter((r) => r.roles.length > 0 || r.app_roles.length > 0);
     const s = (data?.search ?? "").trim().toLowerCase();
     if (s) {
       rows = rows.filter((r) =>
@@ -161,8 +193,9 @@ export const listUsersWithRoles = createServerFn({ method: "POST" })
       );
     }
     rows.sort((a, b) => a.name.localeCompare(b.name, "ar"));
-    return rows.slice(0, 500);
+    return { rows: rows.slice(0, 500), total: map.size };
   });
+
 
 export const assignUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
