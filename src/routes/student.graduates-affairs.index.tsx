@@ -551,76 +551,145 @@ function SurveyEntrySection(props: {
   onSubmitted: () => void;
   onError: (message: string) => void;
 }) {
+  const listSurveys = useServerFn(listGraduateSelfSurveysFn);
   const submitResponse = useServerFn(submitGraduateSurveyResponseFn);
-  const [surveyVersionId, setSurveyVersionId] = useState("");
-  const [consentId, setConsentId] = useState("");
-  const [answersJson, setAnswersJson] = useState('{"q1":""}');
-  const [busy, setBusy] = useState(false);
+  const grantConsent = useServerFn(grantGraduateConsentFn);
+  const [answers, setAnswers] = useState<Record<string, Record<string, string>>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const handleSubmit = async (answers: Record<string, unknown>) => {
-    if (!surveyVersionId.trim() || !consentId.trim()) {
-      props.onError("يرجى إدخال معرّف إصدار الاستبيان ومعرّف الموافقة.");
+  const surveysQuery = useQuery({
+    queryKey: ["graduates-affairs", "self-surveys", props.graduateRecordId],
+    queryFn: () => listSurveys({ data: { graduateRecordId: props.graduateRecordId } }),
+  });
+
+  const surveys: GraduateSelfSurvey[] = Array.isArray(surveysQuery.data) ? surveysQuery.data : [];
+
+  const setAnswer = (surveyVersionId: string, key: string, value: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [surveyVersionId]: { ...(prev[surveyVersionId] ?? {}), [key]: value },
+    }));
+  };
+
+  const handleSubmit = async (survey: GraduateSelfSurvey) => {
+    const current = answers[survey.survey_version_id] ?? {};
+    const missing = (survey.questions ?? []).find(
+      (q) => q.required && !String(current[q.key] ?? "").trim(),
+    );
+    if (missing) {
+      props.onError("يرجى الإجابة على جميع الأسئلة الإلزامية.");
       return;
     }
-    setBusy(true);
+    setBusyId(survey.survey_version_id);
     try {
+      let consentId = survey.consent_id;
+      if (!consentId) {
+        consentId = (await grantConsent({
+          data: {
+            graduateRecordId: props.graduateRecordId,
+            purposeCode: survey.purpose_code,
+            noticeVersion: survey.notice_version,
+          },
+        })) as string;
+      }
+      const payload: Record<string, unknown> = {};
+      for (const question of survey.questions ?? []) {
+        const raw = String(current[question.key] ?? "").trim();
+        if (!raw) continue;
+        payload[question.key] = question.kind === "number" ? Number(raw) : raw;
+      }
       await submitResponse({
         data: {
-          surveyVersionId,
+          surveyVersionId: survey.survey_version_id,
           graduateRecordId: props.graduateRecordId,
           consentId,
-          answers,
+          answers: payload,
         },
       });
-      setSurveyVersionId("");
-      setConsentId("");
-      setAnswersJson('{"q1":""}');
+      setAnswers((prev) => ({ ...prev, [survey.survey_version_id]: {} }));
+      await surveysQuery.refetch();
       props.onSubmitted();
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر إرسال إجابة الاستبيان.");
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   };
 
   return (
     <section dir="rtl" className="rounded-lg border p-4">
-      <h3 className="font-semibold">المشاركة في استبيان</h3>
+      <h3 className="font-semibold">الاستبيانات المتاحة</h3>
       <p className="text-sm text-muted-foreground">
-        أدخل معرّف إصدار الاستبيان ومعرّف الموافقة المفعّلة، ثم أرسل إجاباتك.
+        مشاركتك اختيارية، وتُسجَّل موافقتك تلقائياً عند الإرسال.
       </p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <Input
-          value={surveyVersionId}
-          onChange={(e) => setSurveyVersionId(e.target.value)}
-          placeholder="معرّف إصدار الاستبيان"
-        />
-        <Input
-          value={consentId}
-          onChange={(e) => setConsentId(e.target.value)}
-          placeholder="معرّف الموافقة"
-        />
-      </div>
-      <textarea
-        className="mt-2 w-full rounded border p-2 text-sm"
-        rows={3}
-        value={answersJson}
-        onChange={(e) => setAnswersJson(e.target.value)}
-      />
-      <Button
-        type="button"
-        className="mt-2"
-        disabled={busy}
-        onClick={() => {
-          try {
-            handleSubmit(JSON.parse(answersJson));
-          } catch {
-            props.onError("صيغة JSON للإجابات غير صالحة.");
-          }
-        }}
-      >
-        إرسال الإجابة
-      </Button>
+      {surveysQuery.isLoading ? (
+        <p className="mt-2 text-sm text-muted-foreground">جارٍ تحميل الاستبيانات…</p>
+      ) : surveys.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">لا توجد استبيانات نشطة حالياً.</p>
+      ) : (
+        <ul className="mt-3 space-y-4">
+          {surveys.map((survey) => (
+            <li key={survey.survey_version_id} className="rounded border p-3">
+              <p className="font-medium">{survey.title}</p>
+              {survey.already_responded ? (
+                <p className="mt-1 text-sm text-muted-foreground">تم إرسال إجابتك على هذا الاستبيان.</p>
+              ) : (
+                <>
+                  <div className="mt-2 space-y-3">
+                    {(survey.questions ?? []).map((question) => {
+                      const value = answers[survey.survey_version_id]?.[question.key] ?? "";
+                      return (
+                        <div key={question.key} className="space-y-1">
+                          <label className="text-sm font-medium">
+                            {question.label ?? SURVEY_QUESTION_LABELS[question.key] ?? question.key}
+                            {question.required ? " *" : ""}
+                          </label>
+                          {question.kind === "single_choice" ? (
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                              value={value}
+                              onChange={(e) => setAnswer(survey.survey_version_id, question.key, e.target.value)}
+                            >
+                              <option value="">اختر…</option>
+                              {(question.options ?? []).map((option) => (
+                                <option key={option} value={option}>
+                                  {SURVEY_OPTION_LABELS[option] ?? option}
+                                </option>
+                              ))}
+                            </select>
+                          ) : question.kind === "free_text" ? (
+                            <textarea
+                              className="w-full rounded border p-2 text-sm"
+                              rows={2}
+                              maxLength={question.maxLength ?? 500}
+                              value={value}
+                              onChange={(e) => setAnswer(survey.survey_version_id, question.key, e.target.value)}
+                            />
+                          ) : (
+                            <Input
+                              type={question.kind === "number" ? "number" : "text"}
+                              value={value}
+                              onChange={(e) => setAnswer(survey.survey_version_id, question.key, e.target.value)}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="button"
+                    className="mt-3"
+                    disabled={busyId === survey.survey_version_id}
+                    onClick={() => handleSubmit(survey)}
+                  >
+                    إرسال الإجابة
+                  </Button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
