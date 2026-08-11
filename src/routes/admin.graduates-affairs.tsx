@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAdminGraduatesAffairsOverviewFn } from "@/lib/admin-graduates-affairs.functions";
+import { GraduatesAffairsAuthoringPanel } from "@/components/portal/GraduatesAffairsAuthoringPanel";
 
 export const Route = createFileRoute("/admin/graduates-affairs")({
   component: AdminGraduatesAffairsPage,
