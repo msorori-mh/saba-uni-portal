@@ -3,6 +3,8 @@ import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Search, Plus, X, RefreshCw, Lock } from "lucide-react";
+import { AccessDeniedNotice, isAuthorizationError } from "@/components/admin/AccessDeniedNotice";
+
 import {
   listRoles, listUsersWithRoles, assignUserRole, unassignUserRole,
 } from "@/lib/roles-management.functions";
