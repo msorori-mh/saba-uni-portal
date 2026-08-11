@@ -59,12 +59,12 @@ export const ADMIN_NAV_SEARCH_PLACEHOLDER = "ابحث عن خدمة أو نظا�
 /** Primary group order for the reorganized operational IA (~8–10 groups). */
 export const ADMIN_NAV_PRIMARY_GROUP_ORDER = [
   "dashboard",
-  "executive",
   "academic",
   "students",
   "hr",
   "governance",
   "projects",
+  "graduates",
   "finance_documents",
   "comms_reports",
   "system",
@@ -77,14 +77,9 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: "dashboard",
     label: "لوحة التحكم",
     icon: LayoutDashboard,
-    items: [{ to: "/admin", label: "الرئيسية", icon: LayoutDashboard, exact: true }],
-  },
-  {
-    id: "executive",
-    label: "القيادة والإدارة",
-    icon: BarChart3,
     items: [
-      { to: "/admin/executive-dashboard", label: "لوحة بيانات الإدارة العليا", icon: BarChart3 },
+      { to: "/admin", label: "الرئيسية", icon: LayoutDashboard, exact: true },
+      { to: "/admin/executive-dashboard", label: "البيانات الإدارية", icon: BarChart3 },
     ],
   },
   {
@@ -120,7 +115,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: "hr",
-    label: "هيئة التدريس والموارد البشرية",
+    label: "الهيئة التدريسية والإدارية",
     icon: UserCog,
     items: [
       { to: "/admin/faculty-management", label: "إدارة أعضاء هيئة التدريس", icon: Users },
@@ -138,11 +133,19 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: "projects",
-    label: "المشاريع والخريجون",
+    label: "مشاريع التخرج",
     icon: GraduationCap,
     items: [
-      // Existing Admin route only — do not invent Graduates Affairs links.
       { to: "/admin/graduation-projects", label: "مشاريع التخرج", icon: GraduationCap },
+    ],
+  },
+  {
+    id: "graduates",
+    label: "شؤون الخريجين",
+    icon: FileBadge,
+    items: [
+      // Existing Admin route only — do not invent Graduates Affairs links.
+      { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },
     ],
   },
   {
@@ -156,13 +159,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: "comms_reports",
-    label: "الاتصالات والتقارير",
+    label: "التواصل والتقارير",
     icon: Megaphone,
     items: [
-      { to: "/admin/communications", label: "مركز الاتصالات", icon: Megaphone },
+      { to: "/admin/communications", label: "مركز التواصل", icon: Megaphone },
       { to: "/messages", label: "صندوق الرسائل", icon: MessageSquare },
       { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
-      { to: "/admin/department-reports", label: "تقارير القسم", icon: BarChart3 },
       { to: "/admin/executive-reports", label: "التقارير الاستراتيجية", icon: TrendingUp },
       { to: "/admin/automation", label: "مركز الأتمتة الأكاديمية", icon: Activity },
     ],
@@ -184,8 +186,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { to: "/admin/audit-log", label: "سجل التدقيق", icon: ScrollText },
       { to: "/admin/organizational-structure", label: "الهيكل التنظيمي", icon: ListTree },
       { to: "/admin/processing-assignments", label: "ممثلو أدوار الطلبات", icon: UserCog },
-      { to: "/admin/security-status", label: "الأمن", icon: Lock },
-      { to: "/admin/operations", label: "العمليات", icon: Activity },
+      { to: "/admin/security-status", label: "أمن النظام", icon: Lock },
+      { to: "/admin/operations", label: "مركز العمليات", icon: Activity },
       { to: "/admin/backup-status", label: "النسخ الاحتياطي", icon: Database },
       { to: "/admin/system-readiness", label: "جاهزية النظام", icon: ShieldCheck },
       { to: "/admin/pilot-center", label: "التشغيل التجريبي", icon: Rocket },
