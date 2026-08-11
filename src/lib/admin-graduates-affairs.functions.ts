@@ -23,11 +23,10 @@ export type AdminGraduatesAffairsOverviewDto = {
     pendingRecords: number;
     correctedRecords: number;
     revokedRecords: number;
-    openFollowups: number;
-    activeEvents: number;
-    activeOpportunities: number;
-    publishedSurveyVersions: number;
-  };
+    openFollowups: number | null;
+    activeEvents: number | null;
+    activeOpportunities: number | null;
+    publishedSurveyVersions: number | null;
   recentRecords: AdminGraduateRecordSummary[];
 };
 
