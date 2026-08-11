@@ -167,6 +167,8 @@ interface GraduateEvent {
   event_type: string;
   starts_at: string;
   ends_at: string;
+  purpose_code?: string | null;
+  notice_version?: string | null;
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -514,32 +516,40 @@ function EventsSection(props: {
 
   const events: GraduateEvent[] = Array.isArray(query.data) ? query.data : [];
 
-  const handleRegister = async (eventId: string) => {
+  const handleRegister = async (event: GraduateEvent) => {
     setBusy(true);
     try {
+      const purposeCode = event.purpose_code ?? "event_participation";
+      const noticeVersion = event.notice_version ?? CONSENT_NOTICE_VERSION;
       const consents = (await listConsents({
         data: { graduateRecordId: props.graduateRecordId },
       })) as GraduateSelfConsent[];
       let consentId = Array.isArray(consents)
-        ? consents.find((c) => c.purpose_code === "events" && c.consent_state === "granted")?.id
+        ? consents.find(
+            (c) =>
+              c.purpose_code === purposeCode &&
+              c.notice_version === noticeVersion &&
+              c.consent_state === "granted",
+          )?.id
         : undefined;
       if (!consentId) {
         consentId = (await grantConsent({
           data: {
             graduateRecordId: props.graduateRecordId,
-            purposeCode: "events",
-            noticeVersion: CONSENT_NOTICE_VERSION,
+            purposeCode,
+            noticeVersion,
           },
         })) as string;
       }
       await registerForEvent({
         data: {
-          eventId,
+          eventId: event.id,
           graduateRecordId: props.graduateRecordId,
           consentId,
         },
       });
       props.onInvalidate();
+
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر التسجيل في الفعالية.");
     } finally {
@@ -571,7 +581,7 @@ function EventsSection(props: {
                 variant="outline"
                 className="mt-2"
                 disabled={busy}
-                onClick={() => handleRegister(event.id)}
+                onClick={() => handleRegister(event)}
               >
                 تسجيل
               </Button>
