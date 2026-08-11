@@ -47,32 +47,63 @@ function gpService(queryClient?: ReturnType<typeof useQueryClient>): GraduationP
 
 export const GP_UNAVAILABLE = "خدمة مشاريع التخرج قيد التجهيز حالياً. حاول مرة أخرى لاحقاً.";
 
+const GP_ADMIN_PERMISSION_MSG =
+  "عفواً، لا تملك الصلاحية الكافية لاستعراض النشرة الإدارية لمشاريع التخرج.";
+const GP_GENERIC_OPERATIONAL_MSG =
+  "تعذر تنفيذ العملية. حاول مرة أخرى أو راجع سجل التشغيل.";
+
 function mapError(error: unknown): Error {
   if (error instanceof GraduationProjectsRpcError) {
     if (error.unavailable || isGraduationProjectsRpcUnavailable(error)) {
       return new Error(GP_UNAVAILABLE);
     }
-    const msg = (error.message || "").toLowerCase();
+    const msg = error.message || "";
+    const lower = msg.toLowerCase();
+    // Exact administration-viewer contract (raw English SQL exception).
     if (
-      msg.includes("permission") ||
-      msg.includes("denied") ||
-      msg.includes("42501") ||
-      msg.includes("policy") ||
-      error.family === "authorization"
+      lower.includes("viewer capability required")
+      || lower.includes("administration graduation-project viewer")
+      || lower.includes("administration overview")
     ) {
-      return new Error("عفواً، لا تملك الصلاحية الكافية لاستعراض النشرة الإدارية لمشاريع التخرج.");
+      return new Error(GP_ADMIN_PERMISSION_MSG);
     }
-    return new Error(error.message || "تعذر تنفيذ العملية.");
+    if (
+      error.family === "authorization"
+      || error.authorizationDenied
+      || lower.includes("permission")
+      || lower.includes("denied")
+      || lower.includes("42501")
+      || lower.includes("policy")
+    ) {
+      // Keep specific Arabic assignment labels from ERROR_LABELS.
+      if (/[\u0600-\u06FF]/.test(msg)) return new Error(msg);
+      return new Error(GP_ADMIN_PERMISSION_MSG);
+    }
+    // Do not leak unexpected raw English SQL to end users.
+    if (/[A-Za-z]{4,}/.test(msg) && !/[\u0600-\u06FF]/.test(msg)) {
+      return new Error(GP_GENERIC_OPERATIONAL_MSG);
+    }
+    return new Error(msg || "تعذر تنفيذ العملية.");
   }
   if (error instanceof Error) {
-    const msg = error.message.toLowerCase();
+    const msg = error.message || "";
+    const lower = msg.toLowerCase();
     if (
-      msg.includes("permission") ||
-      msg.includes("denied") ||
-      msg.includes("42501") ||
-      msg.includes("policy")
+      lower.includes("viewer capability required")
+      || lower.includes("administration graduation-project viewer")
+      || lower.includes("administration overview")
+      || lower.includes("permission")
+      || lower.includes("denied")
+      || lower.includes("42501")
+      || lower.includes("policy")
     ) {
-      return new Error("عفواً، لا تملك الصلاحية الكافية لاستعراض النشرة الإدارية لمشاريع التخرج.");
+      if (/[\u0600-\u06FF]/.test(msg) && !lower.includes("viewer capability")) {
+        return error;
+      }
+      return new Error(GP_ADMIN_PERMISSION_MSG);
+    }
+    if (/[A-Za-z]{4,}/.test(msg) && !/[\u0600-\u06FF]/.test(msg)) {
+      return new Error(GP_GENERIC_OPERATIONAL_MSG);
     }
     return error;
   }

@@ -91,6 +91,8 @@ export const ERROR_LABELS: Record<string, string> = {
   "file registration state denied": "حالة المشروع لا تسمح بتسجيل الملفات",
   "signed download denied": "التحميل الموقّع غير مسموح لهذا الملف أو المستخدم",
   "administration overview denied": "عرض الإدارة غير مسموح دون تفويض صريح",
+  "administration graduation-project viewer capability required":
+    "عفواً، لا تملك الصلاحية الكافية لاستعراض النشرة الإدارية لمشاريع التخرج.",
   "stale project version": "تغيرت بيانات المشروع. حدّث الصفحة ثم أعد المحاولة",
   "version mismatch": "تغيرت بيانات المشروع. حدّث الصفحة ثم أعد المحاولة",
   "project title invalid": "عنوان المشروع غير صالح",
@@ -141,6 +143,8 @@ const AUTHORIZATION_MESSAGE_FRAGMENTS = [
   "leader assignment required",
   "signed download denied",
   "administration overview denied",
+  "administration graduation-project viewer capability required",
+  "viewer capability required",
   "direct archive assignment required",
   "department report assignment required",
   "supervision response denied",

@@ -363,10 +363,28 @@ export const AUTHORIZATION_MATRIX: AuthzRule[] = [
   },
   {
     rpc: 'list_administration_graduation_projects_overview',
-    allowedActors: ['administration_viewer'],
-    deniedActors: ['leader', 'member', 'unrelated_student', 'coordinator', 'pending_supervisor', 'accepted_supervisor', 'unrelated_supervisor', 'committee_member_1', 'committee_member_2', 'unauthorized_admin', 'unauthorized_dean', 'unauthorized_department_head', 'unauthorized_registrar', 'unauthorized_staff'],
+    allowedActors: [
+      'administration_viewer',
+      'coordinator',
+      'unauthorized_admin',
+      'unauthorized_dean',
+      'unauthorized_registrar',
+    ],
+    deniedActors: [
+      'leader',
+      'member',
+      'unrelated_student',
+      'pending_supervisor',
+      'accepted_supervisor',
+      'unrelated_supervisor',
+      'committee_member_1',
+      'committee_member_2',
+      'unauthorized_department_head',
+      'unauthorized_staff',
+    ],
     requiredState: ['any'],
-    denialReason: 'Read-only administrative overview reserved for explicitly authorized administration viewer'
+    denialReason:
+      'Read-only administrative overview for NAV administration viewers (system_admin|admin|dean|registrar) or active department coordinators; no operational mutation authority',
   }
 ];
 
