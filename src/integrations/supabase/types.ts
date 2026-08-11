@@ -1785,6 +1785,45 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_verifications: {
+        Row: {
+          check_kind: string
+          checklist_items: string[]
+          created_at: string
+          id: string
+          notes: string | null
+          observed_rpo_minutes: number | null
+          observed_rto_minutes: number | null
+          performed_by: string
+          result: string
+          verified_at: string
+        }
+        Insert: {
+          check_kind: string
+          checklist_items?: string[]
+          created_at?: string
+          id?: string
+          notes?: string | null
+          observed_rpo_minutes?: number | null
+          observed_rto_minutes?: number | null
+          performed_by?: string
+          result: string
+          verified_at?: string
+        }
+        Update: {
+          check_kind?: string
+          checklist_items?: string[]
+          created_at?: string
+          id?: string
+          notes?: string | null
+          observed_rpo_minutes?: number | null
+          observed_rto_minutes?: number | null
+          performed_by?: string
+          result?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
       buildings: {
         Row: {
           code: string
