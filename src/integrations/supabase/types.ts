@@ -9373,6 +9373,17 @@ export type Database = {
         }
       }
       b1_require_auth_uid: { Args: never; Returns: string }
+      b1_runtime_step_contract_ok: {
+        Args: {
+          p_action_type: string
+          p_role_code: string
+          p_service_code: string
+          p_step_key: string
+          p_unit_code: string
+          p_workflow_id: string
+        }
+        Returns: boolean
+      }
       b1_stored_to_canonical: { Args: { p_stored: string }; Returns: string }
       bind_b1_e2e_88_actor_to_runtime_step: {
         Args: {
