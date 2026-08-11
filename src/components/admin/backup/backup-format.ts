@@ -39,8 +39,8 @@ export function resultLabel(result: BackupResult | string): string {
 
 export function resultTone(result: BackupResult | string): string {
   if (result === "fail") return "border-destructive/40 bg-destructive/10 text-destructive";
-  if (result === "pass_with_notes") return "border-warning/40 bg-warning/10 text-warning-foreground";
-  return "border-primary/30 bg-primary/10 text-primary";
+  if (result === "pass_with_notes") return "border-warning/40 bg-warning/10 text-warning";
+  return "border-success/40 bg-success/10 text-success";
 }
 
 export function formatBytes(bytes: number): string {
