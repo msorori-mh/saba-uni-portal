@@ -24,6 +24,9 @@ export interface GraduationProjectPolicy {
   max_committee_members: number | null;
   passing_score: number | null;
   max_revision_rounds: number | null;
+  /** Explicit administrative decision; null = undecided (draft only). */
+  enforce_proposal_window: boolean | null;
+  enforce_defense_window: boolean | null;
   proposal_window_start: string | null;
   proposal_window_end: string | null;
   defense_window_start: string | null;
@@ -46,6 +49,8 @@ export type GraduationProjectPolicyDraft = Pick<
   | "max_committee_members"
   | "passing_score"
   | "max_revision_rounds"
+  | "enforce_proposal_window"
+  | "enforce_defense_window"
   | "proposal_window_start"
   | "proposal_window_end"
   | "defense_window_start"
@@ -73,6 +78,8 @@ export const GP_POLICY_EMPTY_DRAFT: GraduationProjectPolicyDraft = {
   max_committee_members: null,
   passing_score: null,
   max_revision_rounds: null,
+  enforce_proposal_window: null,
+  enforce_defense_window: null,
   proposal_window_start: null,
   proposal_window_end: null,
   defense_window_start: null,
@@ -94,6 +101,8 @@ export const GP_POLICY_FIELD_LABELS_AR: Record<string, string> = {
   ...GP_POLICY_REQUIRED_FIELD_LABELS_AR,
   allow_co_supervisor: "السماح بمشرف مشارك",
   max_supervisors: "عدد المشرفين",
+  enforce_proposal_window: "تفعيل فترة تقديم المقترحات",
+  enforce_defense_window: "تفعيل فترة المناقشات",
   proposal_window_start: "بداية فترة تقديم المقترحات",
   proposal_window_end: "نهاية فترة تقديم المقترحات",
   defense_window_start: "بداية فترة المناقشات",
@@ -107,20 +116,14 @@ export const GP_POLICY_STATUS_LABELS_AR: Record<string, string> = {
 };
 
 /**
- * Client-side guard rails, mirroring the backend `gp_validate_policy`.
- * The backend re-validates every one of these at publish time.
+ * DRAFT contract — `INCOMPLETE_DRAFT_SAVE = ALLOW`.
+ *
+ * A draft may be saved while academic values are still empty; only
+ * structurally invalid values are rejected. The administration completes the
+ * policy over several sittings and only the publish step is strict.
  */
-export function validateGraduationProjectPolicy(
-  draft: GraduationProjectPolicyDraft,
-): string[] {
+export function validateDraftPolicy(draft: GraduationProjectPolicyDraft): string[] {
   const errors: string[] = [];
-
-  for (const [field, label] of Object.entries(GP_POLICY_REQUIRED_FIELD_LABELS_AR)) {
-    const value = draft[field as keyof GraduationProjectPolicyDraft];
-    if (value === null || value === undefined || Number.isNaN(value as number)) {
-      errors.push(`${label}: قيمة مطلوبة — لا توجد قيم افتراضية مدمجة.`);
-    }
-  }
 
   if (draft.min_team_size !== null && draft.min_team_size < 1)
     errors.push("الحد الأدنى لأعضاء الفريق لا يقل عن 1.");
@@ -159,17 +162,69 @@ export function validateGraduationProjectPolicy(
   if (draft.max_revision_rounds !== null && (draft.max_revision_rounds < 0 || draft.max_revision_rounds > 5))
     errors.push("عدد دورات التعديل بين 0 و5.");
 
-  errors.push(...validateWindow(draft.proposal_window_start, draft.proposal_window_end, "فترة تقديم المقترحات"));
-  errors.push(...validateWindow(draft.defense_window_start, draft.defense_window_end, "فترة المناقشات"));
+  errors.push(...validateWindowOrder(draft.proposal_window_start, draft.proposal_window_end, "فترة تقديم المقترحات"));
+  errors.push(...validateWindowOrder(draft.defense_window_start, draft.defense_window_end, "فترة المناقشات"));
 
   return errors;
 }
 
+/**
+ * PUBLISH contract — local UX mirror only.
+ *
+ * The authoritative gate is backend-side: `gp_admin_validate_policy` /
+ * `gp_admin_publish_policy`. Windows are ADMIN_CONFIGURABLE: an explicit
+ * true/false decision is required, and dates are required only when enforced.
+ */
+export function validatePolicyForPublish(draft: GraduationProjectPolicyDraft): string[] {
+  const errors: string[] = [];
 
-function validateWindow(start: string | null, end: string | null, label: string): string[] {
-  if (!start && !end) return [];
-  if (!start || !end) return [`${label}: يجب تحديد البداية والنهاية معًا.`];
-  if (start > end) return [`${label}: تاريخ البداية بعد تاريخ النهاية.`];
+  for (const [field, label] of Object.entries(GP_POLICY_REQUIRED_FIELD_LABELS_AR)) {
+    const value = draft[field as keyof GraduationProjectPolicyDraft];
+    if (value === null || value === undefined || Number.isNaN(value as number)) {
+      errors.push(`${label}: قيمة مطلوبة — لا توجد قيم افتراضية مدمجة.`);
+    }
+  }
+
+  errors.push(...validateDraftPolicy(draft));
+
+  errors.push(
+    ...validateWindowDecision(
+      draft.enforce_proposal_window,
+      draft.proposal_window_start,
+      draft.proposal_window_end,
+      "فترة تقديم المقترحات",
+    ),
+  );
+  errors.push(
+    ...validateWindowDecision(
+      draft.enforce_defense_window,
+      draft.defense_window_start,
+      draft.defense_window_end,
+      "فترة المناقشات",
+    ),
+  );
+
+  return errors;
+}
+
+/** @deprecated use validateDraftPolicy / validatePolicyForPublish */
+export const validateGraduationProjectPolicy = validatePolicyForPublish;
+
+function validateWindowOrder(start: string | null, end: string | null, label: string): string[] {
+  if (start && end && start > end) return [`${label}: تاريخ البداية بعد تاريخ النهاية.`];
+  return [];
+}
+
+function validateWindowDecision(
+  enforce: boolean | null,
+  start: string | null,
+  end: string | null,
+  label: string,
+): string[] {
+  if (enforce === null || enforce === undefined)
+    return [`${label}: يجب اختيار قرار صريح (مفعّلة أو غير مفعّلة) قبل النشر.`];
+  if (!enforce) return [];
+  if (!start || !end) return [`${label} مفعّلة: تاريخا البداية والنهاية مطلوبان.`];
   return [];
 }
 
