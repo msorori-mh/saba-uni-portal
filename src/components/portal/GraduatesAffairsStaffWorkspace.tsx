@@ -23,6 +23,8 @@ import {
   searchGraduateRecordsFn,
   transitionGraduateFollowupFn,
 } from "@/lib/graduates-affairs/graduates-affairs.functions";
+import { listGaAcademicScopeFn } from "@/lib/graduates-affairs/ga-authoring.functions";
+
 import type {
   GraduateAffairsAssignableStaff,
   GraduateAffairsFileProjection,
