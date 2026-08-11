@@ -44,6 +44,7 @@ export function MvpProjectWorkspace({
     [summary, setSummary] = useState(detail.proposal.summary);
   const [comments, setComments] = useState(""),
     [progressText, setProgressText] = useState(""),
+    [progressFileId, setProgressFileId] = useState<string | undefined>(),
     [selectedStudent, setSelectedStudent] = useState(""),
     [selectedSupervisor, setSelectedSupervisor] = useState("");
   const [startsAt, setStartsAt] = useState(""),
@@ -59,8 +60,14 @@ export function MvpProjectWorkspace({
   const confirmAction = (message: string, action: UiAction) => {
     if (window.confirm(message)) onAction(action);
   };
-  const upload = (category: "proposal" | "progress" | "final") => (file: File) =>
+  const resolveUserId = (profileId: string, options: { id: string; userId?: string }[]) => {
+    const hit = options.find((o) => o.id === profileId);
+    return hit?.userId ?? profileId;
+  };
+  const upload = (category: "proposal" | "progress" | "final") => (file: File) => {
+    if (category === "progress") setProgressFileId("pending");
     onAction({ type: "upload", category, file });
+  };
   return (
     <div dir="rtl" className="space-y-4" data-actor={detail.viewer}>
       <Card>
@@ -160,10 +167,20 @@ export function MvpProjectWorkspace({
                     value={selectedStudent}
                     onChange={setSelectedStudent}
                     options={detail.coordinatorOptions.students}
+                    emptyHint="لا يوجد طلاب مستوى رابع متاحون في دليل القسم لهذا المشروع."
                   />
                   <Button
                     disabled={busy || !selectedStudent}
-                    onClick={() => onAction({ type: "member_add", studentId: selectedStudent })}
+                    onClick={() =>
+                      onAction({
+                        type: "member_add",
+                        studentId: selectedStudent,
+                        userId: resolveUserId(
+                          selectedStudent,
+                          detail.coordinatorOptions.students,
+                        ),
+                      })
+                    }
                   >
                     إضافة عضو
                   </Button>
@@ -351,7 +368,18 @@ export function MvpProjectWorkspace({
                   />
                   <Button
                     disabled={busy || !progressText.trim()}
-                    onClick={() => onAction({ type: "progress_submit", text: progressText.trim() })}
+                    onClick={() => {
+                      onAction({
+                        type: "progress_submit",
+                        text: progressText.trim(),
+                        fileId:
+                          progressFileId && progressFileId !== "pending"
+                            ? progressFileId
+                            : undefined,
+                      });
+                      setProgressText("");
+                      setProgressFileId(undefined);
+                    }}
                   >
                     إرسال التحديث
                   </Button>
@@ -469,7 +497,19 @@ export function MvpProjectWorkspace({
                   />
                   <Button
                     disabled={committeeIds.length < 2}
-                    onClick={() => onAction({ type: "committee_assign", facultyIds: committeeIds })}
+                    onClick={() =>
+                      onAction({
+                        type: "committee_assign",
+                        facultyIds: committeeIds,
+                        members: committeeIds.map((facultyId) => ({
+                          facultyId,
+                          userId: resolveUserId(
+                            facultyId,
+                            detail.coordinatorOptions.committee,
+                          ),
+                        })),
+                      })
+                    }
                   >
                     تعيين اللجنة ({committeeIds.length})
                   </Button>
@@ -539,8 +579,20 @@ export function MvpProjectWorkspace({
                     : ` — المتوسط: ${detail.evaluation.average.toFixed(2)}`}
                 </p>
               ) : null}
-              {detail.finalDecision ? <p>القرار: {DECISION_LABELS[detail.finalDecision]}</p> : null}
-              {detail.revisions ? <p>التعديلات المطلوبة: {detail.revisions}</p> : null}
+              {detail.finalDecision ? (
+                <p data-testid="final-decision-label">
+                  القرار: {DECISION_LABELS[detail.finalDecision]}
+                </p>
+              ) : null}
+              {detail.finalDecision === "revisions_required" ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm" data-testid="revisions-visibility">
+                  المشروع غير مؤرشف وبانتظار إعادة التسليم النهائي والمراجعة.
+                  {detail.revisions ? ` وصف التعديلات: ${detail.revisions}` : ""}
+                </p>
+              ) : null}
+              {detail.revisions && detail.finalDecision !== "revisions_required" ? (
+                <p>التعديلات المطلوبة: {detail.revisions}</p>
+              ) : null}
               {coordinator &&
               detail.state === "evaluating" &&
               detail.evaluation?.submittedCount === detail.evaluation?.requiredCount ? (
@@ -620,10 +672,20 @@ export function MvpProjectWorkspace({
               value={selectedSupervisor}
               onChange={setSelectedSupervisor}
               options={detail.coordinatorOptions.supervisors}
+              emptyHint="لا يوجد أعضاء هيئة تدريس متاحون في دليل القسم. طبّق ترحيل خيارات الهوية أو حدّث الدليل."
             />
             <Button
               disabled={!selectedSupervisor}
-              onClick={() => onAction({ type: "supervisor_assign", facultyId: selectedSupervisor })}
+              onClick={() =>
+                onAction({
+                  type: "supervisor_assign",
+                  facultyId: selectedSupervisor,
+                  userId: resolveUserId(
+                    selectedSupervisor,
+                    detail.coordinatorOptions.supervisors,
+                  ),
+                })
+              }
             >
               تعيين المشرف
             </Button>
@@ -657,12 +719,21 @@ function IdentitySelect({
   value,
   onChange,
   options,
+  emptyHint,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: { id: string; name: string; secondary?: string }[];
+  emptyHint?: string;
 }) {
+  if (!options.length) {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="identity-options-empty">
+        {emptyHint ?? "دليل الهويات غير متاح لهذا الإجراء حالياً."}
+      </p>
+    );
+  }
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="min-w-56">
@@ -688,6 +759,13 @@ function CommitteeSelect({
   selected: string[];
   setSelected: (ids: string[]) => void;
 }) {
+  if (!options.length) {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="committee-options-empty">
+        لا يوجد مرشحون للجنة في دليل القسم. لا يمكن التعيين بمعرّفات خام.
+      </p>
+    );
+  }
   return (
     <fieldset className="space-y-2">
       <legend className="font-semibold">أعضاء اللجنة (عضوان على الأقل)</legend>

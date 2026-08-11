@@ -191,10 +191,31 @@ describe("Package C routed UI contracts", () => {
     expect(source).not.toContain("get_my_graduation_project_workspace");
     expect(source).not.toMatch(/\.from\s*\(\s*["']graduation_project/);
   });
-  it("uses identity selectors and never raw UUID inputs", () => {
+  it("uses identity selectors and never raw UUID inputs in the workspace", () => {
     const source = read("src/components/graduation-projects/MvpProjectWorkspace.tsx");
     expect(source).toContain("IdentitySelect");
     expect(source).toContain("CommitteeSelect");
+    expect(source).toContain("identity-options-empty");
     expect(source).not.toMatch(/placeholder=.*UUID|placeholder=.*معرّف/);
+  });
+  it("wires create-team panel on faculty index and progress file linkage in adapter", () => {
+    expect(read("src/routes/faculty-portal.graduation-projects.index.tsx")).toContain(
+      "CreateTeamPanel",
+    );
+    expect(read("src/routes/faculty-portal.graduation-projects.index.tsx")).toContain(
+      "useCreateGraduationProjectTeam",
+    );
+    const adapter = read("src/routes/-graduation-projects-adapter.ts");
+    expect(adapter).toContain("lastProgressFileByProject");
+    expect(adapter).toContain("mapIdentityOptions");
+    expect(adapter).toContain("notes: action.revisions");
+    expect(adapter).toContain("revisions_notes");
+  });
+  it("admin overview filters use canonical lifecycle states only", () => {
+    const source = read("src/routes/admin/graduation-projects.tsx");
+    expect(source).toContain("STATE_LABELS");
+    expect(source).not.toContain("proposal_accepted");
+    expect(source).not.toContain("in_progress");
+    expect(source).not.toContain("defense_held");
   });
 });

@@ -78,6 +78,13 @@ export const ERROR_LABELS: Record<string, string> = {
   "archive precondition failed": "الأرشفة تتطلب نتيجة نهائية ناجح أو راسب ومشروعاً غير مؤرشف",
   "project not archive-ready": "المشروع ليس جاهزاً للأرشفة",
   "direct archive assignment required": "الأرشفة تتطلب تعييناً مباشراً كمنسق",
+  "program department mismatch": "البرنامج لا ينتمي إلى القسم المحدد أو غير نشط",
+  "all committee evaluations required": "يلزم اكتمال تقييمات اللجنة للجولة الحالية",
+  "corrected final readiness required before final decision":
+    "يلزم تسليم النسخة النهائية المصححة واعتماد جاهزيتها قبل القرار النهائي",
+  "corrected final readiness required before evaluation":
+    "يلزم اعتماد جاهزية النسخة النهائية المصححة قبل التقييم",
+  "revision notes required": "ملاحظات التعديل مطلوبة عند طلب التعديلات",
   "file object key outside project scope": "مفتاح الملف خارج نطاق المشروع",
   "file metadata invalid": "بيانات الملف الوصفية غير مكتملة أو غير صالحة",
   "file object key already registered": "مفتاح الملف مسجَّل مسبقاً",

@@ -24,6 +24,8 @@ import type {
 } from "@/components/graduation-projects/mvp-ui";
 
 let configured = false;
+/** Last successfully uploaded progress file id per project (adapter-side linkage). */
+const lastProgressFileByProject = new Map<string, string>();
 
 function ensureConfigured(): void {
   if (configured) return;
@@ -139,24 +141,60 @@ function fileFromRaw(
   };
 }
 
-function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
+function mapIdentityOptions(raw: unknown): {
+  supervisors: { id: string; userId?: string; name: string; secondary?: string }[];
+  committee: { id: string; userId?: string; name: string; secondary?: string }[];
+  students: { id: string; userId?: string; name: string; secondary?: string }[];
+} {
+  const src = (raw ?? {}) as Record<string, unknown>;
+  const mapList = (key: string) => {
+    const list = Array.isArray(src[key]) ? src[key] : [];
+    return list
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as Record<string, unknown>;
+        const id = String(row.profile_id ?? row.id ?? "");
+        if (!id) return null;
+        return {
+          id,
+          userId: row.user_id ? String(row.user_id) : undefined,
+          name: String(row.name ?? row.full_name_ar ?? id),
+          secondary: row.secondary
+            ? String(row.secondary)
+            : row.academic_number
+              ? String(row.academic_number)
+              : row.employee_number
+                ? String(row.employee_number)
+                : undefined,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+  };
+  return {
+    supervisors: mapList("supervisors"),
+    committee: mapList("committee"),
+    students: mapList("students"),
+  };
+}
+
+/** Exported for unit tests — maps RPC detail payload to MVP UI model. */
+export function mapGraduationProjectDetail(
+  raw: Record<string, unknown>,
+): GraduationProjectDetail {
   const roles = mapRoles(raw.viewer_roles ?? raw.roles);
   const team = Array.isArray(raw.team) ? raw.team : [];
-  const viewerUserRoles = roles;
-  const isLeader = team.some(
-    (m) =>
-      typeof m === "object"
-      && m
-      && (m as { is_leader?: boolean }).is_leader === true
-      && viewerUserRoles.includes("member"),
-  );
-  // Prefer explicit leader role when assignment says so
-  let viewer = pickViewer(roles, false);
-  if (roles.includes("member") || roles.includes("leader")) {
-    const leaderRow = team.find(
-      (m) => typeof m === "object" && m && (m as { is_leader?: boolean }).is_leader,
-    ) as { is_leader?: boolean; user_id?: string } | undefined;
-    viewer = leaderRow?.is_leader ? "leader" : roles.includes("leader") ? "leader" : "member";
+
+  // L-01: leader capability from exact active student assignment (backend viewer_is_leader),
+  // never from "project contains any leader".
+  const viewerIsLeader =
+    raw.viewer_is_leader === true
+    || raw.is_leader === true
+    || roles.includes("leader");
+
+  let viewer = pickViewer(roles, viewerIsLeader);
+  if (roles.includes("member") || roles.includes("leader") || viewerIsLeader) {
+    if (viewerIsLeader) viewer = "leader";
+    else if (roles.includes("member") || roles.includes("leader")) viewer = "member";
     if (roles.includes("coordinator")) viewer = "coordinator";
     if (roles.includes("committee")) viewer = "committee";
     if (roles.includes("supervisor")) {
@@ -164,13 +202,13 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
       viewer = sup?.status === "pending" ? "supervisor_pending" : "supervisor";
     }
   }
-  if (isLeader && viewer === "member") viewer = "leader";
 
   const progress = Array.isArray(raw.progress) ? raw.progress : [];
   const defense = raw.defense as Record<string, unknown> | null | undefined;
   const ownEval = raw.own_evaluation as Record<string, unknown> | null | undefined;
   const agg = raw.evaluation_aggregate as Record<string, unknown> | null | undefined;
   const supervisor = raw.supervisor as { user_id?: string; status?: string } | null | undefined;
+  const archiveRaw = raw.archive as Record<string, unknown> | null | undefined;
 
   const summary = mapSummary({
     project_id: raw.project_id,
@@ -180,6 +218,7 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
     roles: raw.viewer_roles,
     version: raw.version,
     updated_at: raw.updated_at,
+    is_leader: viewerIsLeader,
   });
 
   return {
@@ -246,15 +285,42 @@ function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
       ownNotes: ownEval?.notes != null ? String(ownEval.notes) : undefined,
       submitted: Boolean(ownEval?.state === "submitted" || ownEval?.score != null),
       submittedCount: Number(agg?.submitted_count ?? 0),
-      requiredCount: Number(agg?.required_count ?? 2),
+      // Authoritative backend count only — no hardcoded committee floor fallback
+      requiredCount: Number(
+        agg?.required_count
+          ?? defense?.committee_count
+          ?? 0,
+      ),
       average: agg?.average_score != null ? Number(agg.average_score) : undefined,
     },
-    coordinatorOptions: {
-      supervisors: [],
-      committee: [],
-      students: [],
-    },
+    revisions: raw.revisions_notes
+      ? String(raw.revisions_notes)
+      : raw.revision_notes
+        ? String(raw.revision_notes)
+        : undefined,
+    archive: archiveRaw
+      ? {
+          archivedAt: String(archiveRaw.archived_at ?? ""),
+          summary: String(archiveRaw.summary ?? "مشروع مؤرشف"),
+          file: archiveRaw.final_file_id
+            ? {
+                id: String(archiveRaw.final_file_id),
+                name: "final-archived.pdf",
+                category: "final" as const,
+                state: "ready" as const,
+                downloadable: true,
+              }
+            : undefined,
+        }
+      : undefined,
+    coordinatorOptions: mapIdentityOptions(
+      raw.identity_options ?? raw.coordinator_options ?? {},
+    ),
   };
+}
+
+function mapDetail(raw: Record<string, unknown>): GraduationProjectDetail {
+  return mapGraduationProjectDetail(raw);
 }
 
 async function sha256Hex(file: File): Promise<string> {
@@ -343,7 +409,7 @@ async function runAction(
       await service.addTeamMember({
         projectId,
         studentProfileId: action.studentId,
-        studentUserId: action.studentId,
+        studentUserId: action.userId || action.studentId,
       });
       return;
     case "member_remove":
@@ -385,7 +451,7 @@ async function runAction(
       await service.assignSupervisor({
         projectId,
         facultyProfileId: action.facultyId,
-        userId: action.facultyId,
+        userId: action.userId || action.facultyId,
       });
       return;
     case "supervisor_respond":
@@ -395,9 +461,19 @@ async function runAction(
         expectedVersion: version,
       });
       return;
-    case "progress_submit":
-      await service.submitProgress({ projectId, summary: action.text });
+    case "progress_submit": {
+      const linkedFileId =
+        action.fileId
+        ?? lastProgressFileByProject.get(projectId)
+        ?? undefined;
+      await service.submitProgress({
+        projectId,
+        summary: action.text,
+        fileId: linkedFileId ?? null,
+      });
+      lastProgressFileByProject.delete(projectId);
       return;
+    }
     case "progress_review":
       await service.reviewProgress({
         projectId,
@@ -422,15 +498,20 @@ async function runAction(
         expectedVersion: version,
       });
       return;
-    case "committee_assign":
-      for (const facultyId of action.facultyIds) {
+    case "committee_assign": {
+      const members =
+        action.members?.length
+          ? action.members
+          : action.facultyIds.map((facultyId) => ({ facultyId, userId: facultyId }));
+      for (const member of members) {
         await service.assignCommitteeMember({
           projectId,
-          facultyProfileId: facultyId,
-          userId: facultyId,
+          facultyProfileId: member.facultyId,
+          userId: member.userId,
         });
       }
       return;
+    }
     case "defense_held":
       await service.markDefenseHeld({ projectId, expectedVersion: version });
       return;
@@ -446,6 +527,7 @@ async function runAction(
         projectId,
         outcome: action.decision,
         expectedVersion: version,
+        notes: action.revisions ?? null,
       });
       return;
     case "archive":
@@ -460,6 +542,9 @@ async function runAction(
         originalName: action.file.name,
         sha256,
       });
+      if (action.category === "progress") {
+        lastProgressFileByProject.set(projectId, fileId);
+      }
       if (action.category === "final") {
         await service.submitFinal({
           projectId,
@@ -498,6 +583,30 @@ export function useGraduationProjectAction(projectId: string) {
         );
         const mapped = mapDetail(raw);
         await runAction(service, projectId, action, version, mapped);
+      } catch (error) {
+        throw mapError(error);
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["graduation-projects"] });
+    },
+  });
+}
+
+export function useCreateGraduationProjectTeam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      departmentId: string;
+      programId: string;
+      academicYearId: string;
+      semesterId: string;
+      leaderStudentProfileId: string;
+      leaderUserId: string;
+    }) => {
+      try {
+        const service = gpService(queryClient);
+        return await service.createTeam(input);
       } catch (error) {
         throw mapError(error);
       }
