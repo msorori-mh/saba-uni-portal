@@ -10,6 +10,7 @@ import {
   FileText,
   Loader2,
   Send,
+  Download,
   Sparkles,
   ShieldCheck,
   Building,
@@ -45,6 +46,7 @@ import {
   archiveCouncilMeetingFn,
   getCouncilDecisionFollowupDashboardFn,
   getCouncilHistoricalMinutesFn,
+  exportApprovedCouncilMinutesPdfFn,
 } from "@/lib/councils-c4-c8.functions";
 import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
 import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
@@ -173,6 +175,31 @@ export function CouncilSessionAndGovernanceWorkspace({
       setLoadingAction(null);
     }
   }
+
+  async function handleExportMinutesPdf() {
+    setLoadingAction("export_minutes_pdf");
+    try {
+      const res = await exportApprovedCouncilMinutesPdfFn({ data: { meeting_id: meetingId } });
+      const bin = atob(res.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("تم تصدير المحضر المعتمد بصيغة PDF");
+    } catch (err: any) {
+      toast.error(err?.message || "تعذر تصدير المحضر");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+
 
   async function handleIssueDecision() {
     if (!selectedAgendaItemId.trim()) {
@@ -506,6 +533,22 @@ export function CouncilSessionAndGovernanceWorkspace({
                 </span>
               </div>
             )}
+            <div className="flex justify-end pt-1">
+              <Button
+                onClick={handleExportMinutesPdf}
+                disabled={loadingAction === "export_minutes_pdf"}
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+              >
+                {loadingAction === "export_minutes_pdf" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                تصدير المحضر المعتمد (PDF)
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

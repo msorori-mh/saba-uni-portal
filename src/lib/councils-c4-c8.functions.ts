@@ -282,3 +282,56 @@ export const getCouncilAttendanceQuorumSummaryFn = createServerFn({ method: "GET
     if (error) throw new Error(error.message);
     return res;
   });
+
+export const exportApprovedCouncilMinutesPdfFn = createServerFn({ method: "POST" })
+  .validator((d: { meeting_id: string }) => d)
+  .handler(async ({ data, request }) => {
+    const { supabase } = await requireSupabaseAuth(request);
+
+    const { data: minutes, error: minutesError } = await supabase
+      .from("academic_council_minutes")
+      .select("body, status, is_locked, locked_at, approved_at, fingerprint")
+      .eq("meeting_id", data.meeting_id)
+      .maybeSingle();
+    if (minutesError) throw new Error(minutesError.message);
+    if (!minutes) throw new Error("COUNCIL_MINUTES_NOT_FOUND");
+    if (!minutes.is_locked && minutes.status !== "minutes_locked") {
+      throw new Error("COUNCIL_MINUTES_NOT_APPROVED");
+    }
+
+    const { data: meeting, error: meetingError } = await supabase
+      .from("academic_council_meetings")
+      .select("meeting_number, title, scheduled_at, location, council_id")
+      .eq("id", data.meeting_id)
+      .maybeSingle();
+    if (meetingError) throw new Error(meetingError.message);
+    if (!meeting) throw new Error("COUNCIL_MEETING_NOT_FOUND");
+
+    const { data: council } = await supabase
+      .from("academic_councils")
+      .select("name")
+      .eq("id", meeting.council_id)
+      .maybeSingle();
+
+    const { buildCouncilMinutesPdf } = await import(
+      "@/lib/documents/council-minutes-pdf.server"
+    );
+    const pdfBytes = await buildCouncilMinutesPdf({
+      councilName: council?.name ?? "—",
+      meetingTitle: meeting.title,
+      meetingNumber: meeting.meeting_number,
+      scheduledAt: meeting.scheduled_at,
+      location: meeting.location,
+      approvedAt: minutes.approved_at,
+      lockedAt: minutes.locked_at,
+      body: minutes.body ?? "",
+      fingerprint: minutes.fingerprint,
+    });
+
+    let binary = "";
+    for (let i = 0; i < pdfBytes.length; i++) binary += String.fromCharCode(pdfBytes[i]!);
+    return {
+      fileName: `council-minutes-${meeting.meeting_number}-${data.meeting_id.slice(0, 8)}.pdf`,
+      base64: btoa(binary),
+    };
+  });
