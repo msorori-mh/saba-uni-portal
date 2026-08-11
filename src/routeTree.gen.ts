@@ -99,6 +99,7 @@ import { Route as StudentReportsRouteImport } from './routes/student.reports'
 import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
+import { Route as FacultyPortalAcademicCouncilsArchiveRouteImport } from './routes/faculty-portal.academic-councils.archive'
 import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './routes/faculty-portal.academic-councils.reports'
 import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './routes/faculty-portal.graduation-projects.index'
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
@@ -646,6 +647,12 @@ const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
   path: '/study-plan',
   getParentRoute: () => StudentRoute,
 } as any)
+const FacultyPortalAcademicCouncilsArchiveRoute =
+  FacultyPortalAcademicCouncilsArchiveRouteImport.update({
+    id: '/archive',
+    path: '/archive',
+    getParentRoute: () => FacultyPortalAcademicCouncilsRoute,
+  } as any)
 const FacultyPortalAcademicCouncilsReportsRoute =
   FacultyPortalAcademicCouncilsReportsRouteImport.update({
     id: '/reports',
@@ -879,6 +886,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
+  '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
@@ -994,6 +1002,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/admin': typeof AdminIndexLazyRoute
+  '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
@@ -1118,6 +1127,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
+  '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
@@ -1243,6 +1253,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
+    | '/faculty-portal/academic-councils/archive'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
@@ -1358,6 +1369,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/admin'
+    | '/faculty-portal/academic-councils/archive'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
@@ -1481,6 +1493,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
+    | '/faculty-portal/academic-councils/archive'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
@@ -2213,6 +2226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentStudyPlanRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/faculty-portal/academic-councils/archive': {
+      id: '/faculty-portal/academic-councils/archive'
+      path: '/archive'
+      fullPath: '/faculty-portal/academic-councils/archive'
+      preLoaderRoute: typeof FacultyPortalAcademicCouncilsArchiveRouteImport
+      parentRoute: typeof FacultyPortalAcademicCouncilsRoute
+    }
     '/faculty-portal/academic-councils/reports': {
       id: '/faculty-portal/academic-councils/reports'
       path: '/reports'
@@ -2507,11 +2527,14 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 )
 
 interface FacultyPortalAcademicCouncilsRouteChildren {
+  FacultyPortalAcademicCouncilsArchiveRoute: typeof FacultyPortalAcademicCouncilsArchiveRoute
   FacultyPortalAcademicCouncilsReportsRoute: typeof FacultyPortalAcademicCouncilsReportsRoute
 }
 
 const FacultyPortalAcademicCouncilsRouteChildren: FacultyPortalAcademicCouncilsRouteChildren =
   {
+    FacultyPortalAcademicCouncilsArchiveRoute:
+      FacultyPortalAcademicCouncilsArchiveRoute,
     FacultyPortalAcademicCouncilsReportsRoute:
       FacultyPortalAcademicCouncilsReportsRoute,
   }
@@ -2725,13 +2748,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
