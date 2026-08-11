@@ -9526,6 +9526,7 @@ export type Database = {
         Args: { p_step_id: string }
         Returns: Json
       }
+      get_backup_infrastructure_stats: { Args: never; Returns: Json }
       get_council_archive_summary: {
         Args: { p_council_id: string }
         Returns: Json
