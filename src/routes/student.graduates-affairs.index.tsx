@@ -13,9 +13,11 @@ import {
   cancelGraduateEventRegistrationFn,
   getGraduateSelfFileFn,
   grantGraduateConsentFn,
+  listGraduateSelfConsentsFn,
   listGraduateSelfContactPointsFn,
   listGraduateSelfEventsFn,
   listGraduateSelfOpportunitiesFn,
+  listGraduateSelfSurveysFn,
   registerGraduateForEventFn,
   reportGraduateEmploymentFn,
   resolveGraduateSelfSurfaceFn,
@@ -23,6 +25,10 @@ import {
   submitGraduateSurveyResponseFn,
   withdrawGraduateConsentFn,
 } from "@/lib/graduates-affairs/graduates-affairs.functions";
+import type {
+  GraduateSelfConsent,
+  GraduateSelfSurvey,
+} from "@/lib/graduates-affairs/rpc";
 import { ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE } from "@/lib/graduates-affairs/account-continuity";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -180,6 +186,20 @@ const OPPORTUNITY_TYPE_LABELS: Record<string, string> = {
   job: "وظيفة",
   internship: "تدريب مهني",
   training: "دورة تدريبية",
+};
+
+const SURVEY_QUESTION_LABELS: Record<string, string> = {
+  employment_status: "الحالة الوظيفية",
+  comments: "ملاحظات إضافية",
+};
+
+const SURVEY_OPTION_LABELS: Record<string, string> = {
+  employed: "موظف",
+  self_employed: "عمل حر",
+  seeking_work: "أبحث عن عمل",
+  continuing_education: "مواصلة تعليم",
+  not_seeking: "لا أبحث عن عمل",
+  not_disclosed: "غير مصرّح",
 };
 
 function GraduateSelfServiceDashboard(props: GraduateSelfServiceDashboardProps) {
@@ -482,6 +502,8 @@ function EventsSection(props: {
   onError: (message: string) => void;
 }) {
   const listEvents = useServerFn(listGraduateSelfEventsFn);
+  const listConsents = useServerFn(listGraduateSelfConsentsFn);
+  const grantConsent = useServerFn(grantGraduateConsentFn);
   const registerForEvent = useServerFn(registerGraduateForEventFn);
   const [busy, setBusy] = useState(false);
 
@@ -495,11 +517,26 @@ function EventsSection(props: {
   const handleRegister = async (eventId: string) => {
     setBusy(true);
     try {
+      const consents = (await listConsents({
+        data: { graduateRecordId: props.graduateRecordId },
+      })) as GraduateSelfConsent[];
+      let consentId = Array.isArray(consents)
+        ? consents.find((c) => c.purpose_code === "events" && c.consent_state === "granted")?.id
+        : undefined;
+      if (!consentId) {
+        consentId = (await grantConsent({
+          data: {
+            graduateRecordId: props.graduateRecordId,
+            purposeCode: "events",
+            noticeVersion: CONSENT_NOTICE_VERSION,
+          },
+        })) as string;
+      }
       await registerForEvent({
         data: {
           eventId,
           graduateRecordId: props.graduateRecordId,
-          consentId: "00000000-0000-0000-0000-000000000000",
+          consentId,
         },
       });
       props.onInvalidate();
@@ -551,76 +588,145 @@ function SurveyEntrySection(props: {
   onSubmitted: () => void;
   onError: (message: string) => void;
 }) {
+  const listSurveys = useServerFn(listGraduateSelfSurveysFn);
   const submitResponse = useServerFn(submitGraduateSurveyResponseFn);
-  const [surveyVersionId, setSurveyVersionId] = useState("");
-  const [consentId, setConsentId] = useState("");
-  const [answersJson, setAnswersJson] = useState('{"q1":""}');
-  const [busy, setBusy] = useState(false);
+  const grantConsent = useServerFn(grantGraduateConsentFn);
+  const [answers, setAnswers] = useState<Record<string, Record<string, string>>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const handleSubmit = async (answers: Record<string, unknown>) => {
-    if (!surveyVersionId.trim() || !consentId.trim()) {
-      props.onError("يرجى إدخال معرّف إصدار الاستبيان ومعرّف الموافقة.");
+  const surveysQuery = useQuery({
+    queryKey: ["graduates-affairs", "self-surveys", props.graduateRecordId],
+    queryFn: () => listSurveys({ data: { graduateRecordId: props.graduateRecordId } }),
+  });
+
+  const surveys: GraduateSelfSurvey[] = Array.isArray(surveysQuery.data) ? surveysQuery.data : [];
+
+  const setAnswer = (surveyVersionId: string, key: string, value: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [surveyVersionId]: { ...(prev[surveyVersionId] ?? {}), [key]: value },
+    }));
+  };
+
+  const handleSubmit = async (survey: GraduateSelfSurvey) => {
+    const current = answers[survey.survey_version_id] ?? {};
+    const missing = (survey.questions ?? []).find(
+      (q) => q.required && !String(current[q.key] ?? "").trim(),
+    );
+    if (missing) {
+      props.onError("يرجى الإجابة على جميع الأسئلة الإلزامية.");
       return;
     }
-    setBusy(true);
+    setBusyId(survey.survey_version_id);
     try {
+      let consentId = survey.consent_id;
+      if (!consentId) {
+        consentId = (await grantConsent({
+          data: {
+            graduateRecordId: props.graduateRecordId,
+            purposeCode: survey.purpose_code,
+            noticeVersion: survey.notice_version,
+          },
+        })) as string;
+      }
+      const payload: Record<string, unknown> = {};
+      for (const question of survey.questions ?? []) {
+        const raw = String(current[question.key] ?? "").trim();
+        if (!raw) continue;
+        payload[question.key] = question.kind === "number" ? Number(raw) : raw;
+      }
       await submitResponse({
         data: {
-          surveyVersionId,
+          surveyVersionId: survey.survey_version_id,
           graduateRecordId: props.graduateRecordId,
           consentId,
-          answers,
+          answers: payload,
         },
       });
-      setSurveyVersionId("");
-      setConsentId("");
-      setAnswersJson('{"q1":""}');
+      setAnswers((prev) => ({ ...prev, [survey.survey_version_id]: {} }));
+      await surveysQuery.refetch();
       props.onSubmitted();
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر إرسال إجابة الاستبيان.");
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   };
 
   return (
     <section dir="rtl" className="rounded-lg border p-4">
-      <h3 className="font-semibold">المشاركة في استبيان</h3>
+      <h3 className="font-semibold">الاستبيانات المتاحة</h3>
       <p className="text-sm text-muted-foreground">
-        أدخل معرّف إصدار الاستبيان ومعرّف الموافقة المفعّلة، ثم أرسل إجاباتك.
+        مشاركتك اختيارية، وتُسجَّل موافقتك تلقائياً عند الإرسال.
       </p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <Input
-          value={surveyVersionId}
-          onChange={(e) => setSurveyVersionId(e.target.value)}
-          placeholder="معرّف إصدار الاستبيان"
-        />
-        <Input
-          value={consentId}
-          onChange={(e) => setConsentId(e.target.value)}
-          placeholder="معرّف الموافقة"
-        />
-      </div>
-      <textarea
-        className="mt-2 w-full rounded border p-2 text-sm"
-        rows={3}
-        value={answersJson}
-        onChange={(e) => setAnswersJson(e.target.value)}
-      />
-      <Button
-        type="button"
-        className="mt-2"
-        disabled={busy}
-        onClick={() => {
-          try {
-            handleSubmit(JSON.parse(answersJson));
-          } catch {
-            props.onError("صيغة JSON للإجابات غير صالحة.");
-          }
-        }}
-      >
-        إرسال الإجابة
-      </Button>
+      {surveysQuery.isLoading ? (
+        <p className="mt-2 text-sm text-muted-foreground">جارٍ تحميل الاستبيانات…</p>
+      ) : surveys.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">لا توجد استبيانات نشطة حالياً.</p>
+      ) : (
+        <ul className="mt-3 space-y-4">
+          {surveys.map((survey) => (
+            <li key={survey.survey_version_id} className="rounded border p-3">
+              <p className="font-medium">{survey.title}</p>
+              {survey.already_responded ? (
+                <p className="mt-1 text-sm text-muted-foreground">تم إرسال إجابتك على هذا الاستبيان.</p>
+              ) : (
+                <>
+                  <div className="mt-2 space-y-3">
+                    {(survey.questions ?? []).map((question) => {
+                      const value = answers[survey.survey_version_id]?.[question.key] ?? "";
+                      return (
+                        <div key={question.key} className="space-y-1">
+                          <label className="text-sm font-medium">
+                            {question.label ?? SURVEY_QUESTION_LABELS[question.key] ?? question.key}
+                            {question.required ? " *" : ""}
+                          </label>
+                          {question.kind === "single_choice" ? (
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                              value={value}
+                              onChange={(e) => setAnswer(survey.survey_version_id, question.key, e.target.value)}
+                            >
+                              <option value="">اختر…</option>
+                              {(question.options ?? []).map((option) => (
+                                <option key={option} value={option}>
+                                  {SURVEY_OPTION_LABELS[option] ?? option}
+                                </option>
+                              ))}
+                            </select>
+                          ) : question.kind === "free_text" ? (
+                            <textarea
+                              className="w-full rounded border p-2 text-sm"
+                              rows={2}
+                              maxLength={question.maxLength ?? 500}
+                              value={value}
+                              onChange={(e) => setAnswer(survey.survey_version_id, question.key, e.target.value)}
+                            />
+                          ) : (
+                            <Input
+                              type={question.kind === "number" ? "number" : "text"}
+                              value={value}
+                              onChange={(e) => setAnswer(survey.survey_version_id, question.key, e.target.value)}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="button"
+                    className="mt-3"
+                    disabled={busyId === survey.survey_version_id}
+                    onClick={() => handleSubmit(survey)}
+                  >
+                    إرسال الإجابة
+                  </Button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -715,29 +821,47 @@ function EmploymentReportSection(props: {
   );
 }
 
+const CONSENT_PURPOSES = [
+  "communications",
+  "surveys",
+  "events",
+  "career_followup",
+  "employment_quality",
+] as const;
+
+const CONSENT_NOTICE_VERSION = "v1";
+
 function ConsentManagementSection(props: {
   graduateRecordId: string;
   onSubmitted: () => void;
   onError: (message: string) => void;
 }) {
+  const listConsents = useServerFn(listGraduateSelfConsentsFn);
   const grantConsent = useServerFn(grantGraduateConsentFn);
   const withdrawConsent = useServerFn(withdrawGraduateConsentFn);
-  const [purpose, setPurpose] = useState("communications");
-  const [noticeVersion, setNoticeVersion] = useState("v1");
-  const [consentId, setConsentId] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const handleGrant = async () => {
+  const consentsQuery = useQuery({
+    queryKey: ["graduates-affairs", "self-consents", props.graduateRecordId],
+    queryFn: () => listConsents({ data: { graduateRecordId: props.graduateRecordId } }),
+  });
+
+  const consents: GraduateSelfConsent[] = Array.isArray(consentsQuery.data) ? consentsQuery.data : [];
+  const activeByPurpose = new Map(
+    consents.filter((c) => c.consent_state === "granted").map((c) => [c.purpose_code, c]),
+  );
+
+  const handleGrant = async (purposeCode: string) => {
     setBusy(true);
     try {
       await grantConsent({
         data: {
           graduateRecordId: props.graduateRecordId,
-          purposeCode: purpose,
-          noticeVersion,
+          purposeCode,
+          noticeVersion: CONSENT_NOTICE_VERSION,
         },
       });
-      setNoticeVersion("v1");
+      await consentsQuery.refetch();
       props.onSubmitted();
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر منح الموافقة.");
@@ -746,12 +870,11 @@ function ConsentManagementSection(props: {
     }
   };
 
-  const handleWithdraw = async () => {
-    if (!consentId.trim()) return;
+  const handleWithdraw = async (consentId: string) => {
     setBusy(true);
     try {
       await withdrawConsent({ data: { consentId } });
-      setConsentId("");
+      await consentsQuery.refetch();
       props.onSubmitted();
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر سحب الموافقة.");
@@ -763,37 +886,46 @@ function ConsentManagementSection(props: {
   return (
     <section dir="rtl" className="rounded-lg border p-4">
       <h3 className="font-semibold">إدارة الموافقات</h3>
-      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_120px_auto]">
-        <select
-          className="h-10 rounded-md border bg-background px-3 text-sm"
-          value={purpose}
-          onChange={(e) => setPurpose(e.target.value)}
-        >
-          <option value="communications">التواصل</option>
-          <option value="surveys">الاستبيانات</option>
-          <option value="events">الفعاليات</option>
-          <option value="career_followup">المتابعة المهنية</option>
-          <option value="employment_quality">جودة التوظيف</option>
-        </select>
-        <Input
-          value={noticeVersion}
-          onChange={(e) => setNoticeVersion(e.target.value)}
-          placeholder="إصدار الإشعار"
-        />
-        <Button type="button" disabled={busy} onClick={handleGrant}>
-          منح موافقة
-        </Button>
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-        <Input
-          value={consentId}
-          onChange={(e) => setConsentId(e.target.value)}
-          placeholder="معرّف الموافقة للسحب"
-        />
-        <Button type="button" variant="outline" disabled={busy || !consentId.trim()} onClick={handleWithdraw}>
-          سحب موافقة
-        </Button>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        يمكنك منح الموافقة لكل غرض أو سحبها في أي وقت.
+      </p>
+      {consentsQuery.isLoading ? (
+        <p className="mt-2 text-sm text-muted-foreground">جارٍ تحميل الموافقات…</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm">
+          {CONSENT_PURPOSES.map((purpose) => {
+            const active = activeByPurpose.get(purpose);
+            return (
+              <li
+                key={purpose}
+                className="flex flex-wrap items-center justify-between gap-2 rounded border p-2"
+              >
+                <span>
+                  <span className="font-medium">{gaPurposeLabelAr(purpose)}</span>
+                  <span className="mr-2 text-xs text-muted-foreground">
+                    {active ? "ممنوحة" : "غير ممنوحة"}
+                  </span>
+                </span>
+                {active ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => handleWithdraw(active.id)}
+                  >
+                    سحب الموافقة
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" disabled={busy} onClick={() => handleGrant(purpose)}>
+                    منح الموافقة
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

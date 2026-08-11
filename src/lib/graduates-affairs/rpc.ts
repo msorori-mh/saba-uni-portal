@@ -32,6 +32,41 @@ export type GraduateSpecializationRelationship =
   | "partially_related"
   | "not_related";
 
+export interface GraduateAffairsAssignableStaff {
+  user_id: string;
+  full_name: string;
+  role_code: string;
+}
+
+export interface GraduateSelfConsent {
+  id: string;
+  purpose_code: string;
+  notice_version: string;
+  consent_state: "granted" | "withdrawn";
+  affirmative_action_at: string;
+  withdrawn_at: string | null;
+}
+
+export interface GraduateSurveyQuestion {
+  key: string;
+  kind: "single_choice" | "multi_choice" | "free_text" | "number";
+  required?: boolean;
+  options?: string[];
+  maxLength?: number;
+  label?: string;
+}
+
+export interface GraduateSelfSurvey {
+  survey_version_id: string;
+  survey_id: string;
+  title: string;
+  purpose_code: string;
+  notice_version: string;
+  questions: GraduateSurveyQuestion[];
+  consent_id: string | null;
+  already_responded: boolean;
+}
+
 export interface GraduateAffairsSearchRecord {
   id: string;
   program_id: string;
@@ -252,6 +287,18 @@ export class GraduatesAffairsRpcClient {
     });
   }
 
+  myConsents(graduateRecordId: string): Promise<GraduateSelfConsent[]> {
+    return this.call("graduate_my_consents", {
+      p_graduate_record_id: graduateRecordId,
+    });
+  }
+
+  listSelfSurveys(graduateRecordId: string): Promise<GraduateSelfSurvey[]> {
+    return this.call("graduate_list_self_surveys", {
+      p_graduate_record_id: graduateRecordId,
+    });
+  }
+
   listVisibleOpportunities(graduateRecordId: string): Promise<unknown> {
     return this.call("graduate_list_visible_opportunities", {
       p_graduate_record_id: graduateRecordId,
@@ -268,6 +315,10 @@ export class GraduatesAffairsRpcClient {
     return this.call("graduate_affairs_get_graduate_file", {
       p_graduate_record_id: graduateRecordId,
     });
+  }
+
+  listAssignableStaff(): Promise<GraduateAffairsAssignableStaff[]> {
+    return this.call("graduate_affairs_list_assignable_staff", {});
   }
 
   searchRecords(input: {

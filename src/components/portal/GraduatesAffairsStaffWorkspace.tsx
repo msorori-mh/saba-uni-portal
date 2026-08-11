@@ -18,10 +18,12 @@ import { Input } from "@/components/ui/input";
 import {
   createGraduateFollowupFn,
   getStaffGraduateFileFn,
+  listGraduateAffairsAssignableStaffFn,
   searchGraduateRecordsFn,
   transitionGraduateFollowupFn,
 } from "@/lib/graduates-affairs/graduates-affairs.functions";
 import type {
+  GraduateAffairsAssignableStaff,
   GraduateAffairsFileProjection,
   GraduateAffairsRecordState,
   GraduateAffairsSearchRecord,
@@ -334,12 +336,23 @@ function GraduateCasePanel({
 }) {
   const transitionFollowup = useServerFn(transitionGraduateFollowupFn);
   const createFollowup = useServerFn(createGraduateFollowupFn);
+  const listAssignableStaff = useServerFn(listGraduateAffairsAssignableStaffFn);
   const [followupBusy, setFollowupBusy] = useState<string | null>(null);
   const [assigneeUserId, setAssigneeUserId] = useState("");
   const [purposeCode, setPurposeCode] = useState("communications");
   const [nextActionAt, setNextActionAt] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
   const [genericError, setGenericError] = useState<string | null>(null);
+
+  const staffQuery = useQuery({
+    queryKey: ["graduates-affairs", "assignable-staff"],
+    queryFn: () => listAssignableStaff({ data: undefined }),
+  });
+  const assignableStaff: GraduateAffairsAssignableStaff[] = Array.isArray(staffQuery.data)
+    ? staffQuery.data
+    : [];
+  const staffNameByUserId = new Map(assignableStaff.map((s) => [s.user_id, s.full_name]));
+
 
   const handleTransition = async (
     followupId: string,
@@ -500,7 +513,8 @@ function GraduateCasePanel({
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  الغرض: {item.purpose_code} · المسؤول: {shortId(item.assignee_user_id)}
+                  الغرض: {item.purpose_code} · المسؤول:{" "}
+                  {staffNameByUserId.get(item.assignee_user_id) ?? shortId(item.assignee_user_id)}
                 </p>
               </li>
             ))}
@@ -510,11 +524,18 @@ function GraduateCasePanel({
       <div className="mt-5 rounded-lg border p-3">
         <h3 className="text-sm font-bold">إنشاء متابعة جديدة</h3>
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_140px_160px_auto]">
-          <Input
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
             value={assigneeUserId}
             onChange={(e) => setAssigneeUserId(e.target.value)}
-            placeholder="معرّف المستخدم المسؤول (UUID)"
-          />
+          >
+            <option value="">اختر الموظف المسؤول…</option>
+            {assignableStaff.map((staff) => (
+              <option key={staff.user_id} value={staff.user_id}>
+                {staff.full_name}
+              </option>
+            ))}
+          </select>
           <select
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={purposeCode}

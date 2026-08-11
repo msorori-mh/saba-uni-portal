@@ -210,6 +210,18 @@ export const searchGraduateRecordsFn = createServerFn({ method: "POST" })
     return rpcClient(context.supabase as SessionRpc).searchRecords(data);
   });
 
+/** Assignable Graduates Affairs staff — AUTH-04 RPC only; blocked when staff flag OFF. */
+export const listGraduateAffairsAssignableStaffFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!isPortalFeatureEnabled("staffGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).listAssignableStaff();
+  });
+
+
+
 const updateProfileSchema = z.object({
   graduateRecordId: z.string().uuid(),
   publicDisplayName: z.string().nullable(),
@@ -239,6 +251,28 @@ export const listGraduateSelfContactPointsFn = createServerFn({ method: "POST" }
       throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
     }
     return rpcClient(context.supabase as SessionRpc).myContactPoints(data.graduateRecordId);
+  });
+
+/** Self consents listing — AUTH-04 RPC only; blocked when student flag OFF. */
+export const listGraduateSelfConsentsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => graduateRecordIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (!isPortalFeatureEnabled("studentGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).myConsents(data.graduateRecordId);
+  });
+
+/** Active surveys for the graduate — AUTH-04 RPC only; blocked when student flag OFF. */
+export const listGraduateSelfSurveysFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => graduateRecordIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (!isPortalFeatureEnabled("studentGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).listSelfSurveys(data.graduateRecordId);
   });
 
 /** Self visible opportunities listing — AUTH-04 RPC only; blocked when student flag OFF. */

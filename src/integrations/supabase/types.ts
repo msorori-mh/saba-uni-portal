@@ -3137,6 +3137,39 @@ export type Database = {
           },
         ]
       }
+      ga_e2e_matrix_results: {
+        Row: {
+          case_name: string
+          case_no: number
+          created_at: string
+          detail: string | null
+          expectation: string
+          id: string
+          outcome: string
+          run_tag: string
+        }
+        Insert: {
+          case_name: string
+          case_no: number
+          created_at?: string
+          detail?: string | null
+          expectation: string
+          id?: string
+          outcome: string
+          run_tag: string
+        }
+        Update: {
+          case_name?: string
+          case_no?: number
+          created_at?: string
+          detail?: string | null
+          expectation?: string
+          id?: string
+          outcome?: string
+          run_tag?: string
+        }
+        Relationships: []
+      }
       grade_appeal_details: {
         Row: {
           academic_year_id: string
@@ -9859,6 +9892,14 @@ export type Database = {
       }
       graduate_affairs_is_manager: { Args: never; Returns: boolean }
       graduate_affairs_is_specialist: { Args: never; Returns: boolean }
+      graduate_affairs_list_assignable_staff: {
+        Args: never
+        Returns: {
+          full_name: string
+          role_code: string
+          user_id: string
+        }[]
+      }
       graduate_affairs_lock_authorized_staff_profile_id: {
         Args: { p_role_code: string; p_user_id: string }
         Returns: string
@@ -9968,6 +10009,19 @@ export type Database = {
         Args: { p_graduate_record_id: string }
         Returns: boolean
       }
+      graduate_list_self_surveys: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          already_responded: boolean
+          consent_id: string
+          notice_version: string
+          purpose_code: string
+          questions: Json
+          survey_id: string
+          survey_version_id: string
+          title: string
+        }[]
+      }
       graduate_list_visible_events: {
         Args: { p_graduate_record_id: string }
         Returns: {
@@ -9988,6 +10042,17 @@ export type Database = {
           opportunity_type: string
           published_at: string
           title: string
+        }[]
+      }
+      graduate_my_consents: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          affirmative_action_at: string
+          consent_state: string
+          id: string
+          notice_version: string
+          purpose_code: string
+          withdrawn_at: string
         }[]
       }
       graduate_my_contact_points: {
@@ -10066,6 +10131,10 @@ export type Database = {
           p_public_display_name: string
         }
         Returns: number
+      }
+      graduate_validate_survey_answers: {
+        Args: { p_answers: Json; p_questions: Json }
+        Returns: undefined
       }
       graduate_withdraw_consent: {
         Args: { p_consent_id: string }
