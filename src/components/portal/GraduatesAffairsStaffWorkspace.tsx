@@ -446,9 +446,13 @@ function GraduateCasePanel({
         }
       />
     );
-  const active = file.followups.filter(
-    (item) => item.state === "open" || item.state === "in_progress",
-  );
+  const isTerminalState = (item: (typeof file.followups)[number], state: string) =>
+    (item.terminal_states ?? ["completed", "cancelled"]).includes(state);
+  const nextStates = (item: (typeof file.followups)[number]) =>
+    (item.transitions ?? [])
+      .filter((t) => t.from === item.state)
+      .map((t) => t.to);
+  const active = file.followups.filter((item) => !isTerminalState(item, item.state));
   return (
     <section className="rounded-2xl border bg-card p-4" aria-labelledby="ga-case-title">
       {genericError && (
@@ -486,7 +490,9 @@ function GraduateCasePanel({
               <li key={item.id} className="rounded-lg border p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <strong>{FOLLOWUP_LABELS[item.state] ?? "متابعة"}</strong>
+                    <strong>{item.type_label_ar ?? FOLLOWUP_LABELS[item.state] ?? "متابعة"}</strong>
+                    <span className="mx-2 text-muted-foreground">·</span>
+                    <span>{FOLLOWUP_LABELS[item.state] ?? item.state}</span>
                     <span className="mx-2 text-muted-foreground">·</span>
                     <span>
                       {item.next_action_at
@@ -495,42 +501,33 @@ function GraduateCasePanel({
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {item.state === "open" && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={followupBusy === item.id}
-                        onClick={() => handleTransition(item.id, "in_progress")}
-                      >
-                        بدء المعالجة
-                      </Button>
+                    {nextStates(item).length === 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        لا توجد انتقالات متاحة في النسخة المثبتة
+                      </span>
+                    ) : (
+                      nextStates(item).map((target) => (
+                        <Button
+                          key={target}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={followupBusy === item.id}
+                          onClick={() =>
+                            handleTransition(item.id, target, isTerminalState(item, target))
+                          }
+                        >
+                          {FOLLOWUP_LABELS[target] ?? target}
+                        </Button>
+                      ))
                     )}
-                    {item.state === "in_progress" && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={followupBusy === item.id}
-                        onClick={() => handleTransition(item.id, "completed")}
-                      >
-                        إكمال
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={followupBusy === item.id}
-                      onClick={() => handleTransition(item.id, "cancelled")}
-                    >
-                      إلغاء
-                    </Button>
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  الغرض: {item.purpose_code} · المسؤول:{" "}
+                  المسؤول:{" "}
                   {staffNameByUserId.get(item.assignee_user_id) ?? shortId(item.assignee_user_id)}
+                  {item.workflow_version ? ` · نسخة سير العمل ${item.workflow_version}` : ""}
+                  {item.workflow_pin_source ? ` · ${item.workflow_pin_source}` : ""}
                 </p>
               </li>
             ))}
