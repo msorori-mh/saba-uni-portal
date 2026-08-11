@@ -300,12 +300,93 @@ function ArchivedMeetingsPage() {
           </div>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground">
-              عدد النتائج: {filtered.length} من {archived.length}
-            </p>
-            <CouncilArchivedMeetingsList meetings={filtered} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                عدد النتائج: {filtered.length} من {archived.length} · عرض{" "}
+                {startIndex + 1}–{startIndex + pageItems.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <label
+                  className="text-xs text-muted-foreground"
+                  htmlFor="archive-page-size"
+                >
+                  عدد العناصر في كل صفحة
+                </label>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => setSearch({ pageSize: Number(value) })}
+                  dir="rtl"
+                >
+                  <SelectTrigger id="archive-page-size" className="h-8 w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {PAGE_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <CouncilArchivedMeetingsList meetings={pageItems} />
+
+            <nav
+              className="flex flex-wrap items-center justify-between gap-3"
+              aria-label="ترقيم الصفحات"
+            >
+              <span className="text-xs text-muted-foreground">
+                الصفحة {currentPage} من {totalPages}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                  السابق
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(
+                    (p) =>
+                      p === 1 ||
+                      p === totalPages ||
+                      Math.abs(p - currentPage) <= 1,
+                  )
+                  .map((p, idx, arr) => (
+                    <span key={p} className="flex items-center gap-1">
+                      {idx > 0 && p - arr[idx - 1]! > 1 ? (
+                        <span className="px-1 text-xs text-muted-foreground">…</span>
+                      ) : null}
+                      <Button
+                        variant={p === currentPage ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 min-w-8 px-2"
+                        aria-current={p === currentPage ? "page" : undefined}
+                        onClick={() => goToPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    </span>
+                  ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                >
+                  التالي
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                </Button>
+              </div>
+            </nav>
           </>
         )}
+
       </main>
     </FacultyPortalShell>
   );
