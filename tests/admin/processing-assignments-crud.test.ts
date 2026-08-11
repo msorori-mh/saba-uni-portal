@@ -46,9 +46,10 @@ describe("processing assignments admin — policy contracts", () => {
     );
   });
 
-  it("duplicate active assignment for the same role is blocked", () => {
+  it("duplicate active assignment for the same user+role is blocked; managerial stays singleton", () => {
     expect(SRC).toContain('.eq("role_id", data.role_id)');
     expect(SRC).toContain('.eq("is_active", true)');
+    expect(SRC).toContain("allowsMultipleActiveAssignees(role)");
     expect(SRC).toContain(
       "يوجد إسناد نشط آخر لهذا الدور. عطّله أولاً قبل إضافة إسناد جديد.",
     );
@@ -84,7 +85,9 @@ describe("processing assignments admin — policy contracts", () => {
     expect(SHELL).toContain("ADMIN_NAV_GROUPS");
   });
 
-  it("UI disables the assign button when an active assignee already exists", () => {
-    expect(ROUTE).toContain("disabled={!role.is_active || !!cur || !unit?.is_active}");
+  it("UI disables assign for managerial roles when an active assignee already exists", () => {
+    expect(ROUTE).toContain("allowsMultipleActiveAssignees(role)");
+    expect(ROUTE).toContain("multi || active.length === 0");
+    expect(ROUTE).not.toContain("disabled={!role.is_active || !!cur || !unit?.is_active}");
   });
 });

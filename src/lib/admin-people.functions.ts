@@ -287,11 +287,16 @@ function normalizeStaffDepartmentInput(input: {
   department_id?: string | null;
 }): { scope: StaffDepartmentScope; ids: string[] } {
   const scope: StaffDepartmentScope = input.department_scope === "all" ? "all" : "specific";
-  let ids = [...new Set(input.department_ids ?? [])];
+  let ids = dedupeDepartmentIds(input.department_ids ?? []);
   if (scope === "specific" && ids.length === 0 && input.department_id) {
     ids = [input.department_id];
   }
   return { scope, ids };
+}
+
+/** Stable unique department id list for staffing scope writes. */
+export function dedupeDepartmentIds(departmentIds: readonly string[]): string[] {
+  return [...new Set(departmentIds.filter(Boolean))].toSorted();
 }
 
 async function syncStaffDepartmentScope(
@@ -312,7 +317,7 @@ async function syncStaffDepartmentScope(
     return;
   }
 
-  const ids = [...new Set(departmentIds)];
+  const ids = dedupeDepartmentIds(departmentIds);
   await supabaseAdmin
     .from("staff_profile_departments")
     .delete()
@@ -563,6 +568,88 @@ export const getStaffMember = createServerFn({ method: "POST" })
       ...row,
       department_scope: ((row as any).department_scope as StaffDepartmentScope) ?? "specific",
       department_ids,
+    };
+  });
+
+/**
+ * Generic staffing department-scope write contract.
+ * Synchronizes staff_profile_departments to the exact selected set.
+ * Does NOT grant Graduate Affairs (or any) operational capability by itself —
+ * CONFIGURATION AUTHORITY != OPERATIONAL AUTHORITY.
+ *
+ * Always writes department_scope='specific'. GA specialist auth reads only SPD
+ * rows and never interprets department_scope='all' as college-wide specialist
+ * access (fail-closed / no silent inheritance of future departments).
+ */
+export const setStaffDepartmentScope = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        staffProfileId: z.string().uuid(),
+        departmentIds: z.array(z.string().uuid()).default([]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.userId, STAFF_ROLES);
+
+    const desiredIds = dedupeDepartmentIds(data.departmentIds);
+
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id, user_id, status, full_name_ar, employee_number")
+      .eq("id", data.staffProfileId)
+      .maybeSingle();
+    if (profileErr) throw new Error(profileErr.message);
+    if (!profile) throw new Error("ملف الموظف غير موجود");
+    if ((profile as any).status !== "active") {
+      throw new Error("لا يمكن ضبط نطاق الأقسام لموظف غير نشط");
+    }
+
+    // No self-elevation / specialist editing own authority.
+    if ((profile as any).user_id && (profile as any).user_id === context.userId) {
+      throw new Error("لا يمكنك تعديل نطاق أقسام ملفك التشغيلي بنفسك");
+    }
+
+    if (desiredIds.length > 0) {
+      const { data: activeDepts, error: deptErr } = await supabaseAdmin
+        .from("departments")
+        .select("id")
+        .in("id", desiredIds)
+        .eq("is_active", true);
+      if (deptErr) throw new Error(deptErr.message);
+      const activeSet = new Set((activeDepts ?? []).map((d) => d.id));
+      const invalid = desiredIds.filter((id) => !activeSet.has(id));
+      if (invalid.length > 0) {
+        throw new Error("أحد معرفات الأقسام غير موجود أو غير نشط");
+      }
+    }
+
+    const { data: oldLinks, error: oldErr } = await supabaseAdmin
+      .from("staff_profile_departments")
+      .select("department_id")
+      .eq("staff_profile_id", data.staffProfileId);
+    if (oldErr) throw new Error(oldErr.message);
+    const oldIds = dedupeDepartmentIds((oldLinks ?? []).map((l) => l.department_id));
+
+    await syncStaffDepartmentScope(data.staffProfileId, "specific", desiredIds);
+
+    await logAudit({
+      actor_user_id: context.userId,
+      entity_type: "staff",
+      entity_id: data.staffProfileId,
+      action_type: "staff_department_scope_set",
+      notes: `مزامنة نطاق أقسام الموظف ${(profile as any).employee_number}`,
+      old_values: { department_ids: oldIds },
+      new_values: { department_ids: desiredIds, department_scope: "specific" },
+    });
+
+    return {
+      ok: true as const,
+      staffProfileId: data.staffProfileId,
+      departmentIds: desiredIds,
+      previousDepartmentIds: oldIds,
     };
   });
 

@@ -167,7 +167,7 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
   });
 
   it("17 — system health occurs lower than operational/academic priority areas", () => {
-    const opsIdx = DASHBOARD.indexOf('"العمليات الأكاديمية"');
+    const opsIdx = DASHBOARD.indexOf('"الشؤون الأكاديمية"');
     const schedulesIdx = DASHBOARD.indexOf('"عمليات اليوم / الجداول"');
     const progressIdx = DASHBOARD.indexOf('"التقدم الأكاديمي"');
     const healthIdx = DASHBOARD.indexOf('"صحة النظام"');
@@ -224,10 +224,10 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     expect(ADMIN_NAV_GROUPS.map((g) => g.label)).toEqual([
       "لوحة التحكم",
       "القيادة والإدارة",
-      "العمليات الأكاديمية",
+      "الشؤون الأكاديمية",
       "شؤون الطلاب",
       "هيئة التدريس والموارد البشرية",
-      "المجالس والحوكمة",
+      "المجالس الأكاديمية",
       "المشاريع والخريجون",
       "المالية والوثائق",
       "الاتصالات والتقارير",

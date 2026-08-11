@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, UserMinus, UserPlus } from "lucide-react";
 import {
+  allowsMultipleActiveAssignees,
   createProcessingAssignment,
   deactivateProcessingAssignment,
   isFacultyOnlyRoleCode,
@@ -48,7 +49,13 @@ export const Route = createFileRoute("/admin/processing-assignments")({
   component: ProcessingAssignmentsPage,
 });
 
-type OpenState = { role_id: string; role_code: string; role_name: string; unit_name: string } | null;
+type OpenState = {
+  role_id: string;
+  role_code: string;
+  role_name: string;
+  unit_name: string;
+  is_managerial: boolean;
+} | null;
 
 function ProcessingAssignmentsPage() {
   const listFn = useServerFn(listProcessingAssignments);
@@ -140,8 +147,13 @@ function ProcessingAssignmentsPage() {
       <div>
         <h1 className="text-2xl font-bold">ممثلو أدوار الطلبات</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          إسناد المستخدمين إلى مسميات المعالجة لكل جهة. لا يُسمح بأكثر من إسناد نشط
-          واحد لنفس الدور، وأدوار مثل «العميد» يجب اختيارها من أعضاء هيئة التدريس.
+          إسناد المستخدمين إلى مسميات المعالجة لكل جهة. الأدوار الإدارية تحتفظ
+          بإسناد نشط واحد، بينما أدوار المختصين تدعم عدة ممثلين متزامنين. نطاق
+          أقسام المختص يُضبط من{" "}
+          <Link to="/admin/staff-management" className="underline text-primary">
+            إدارة الموظفين
+          </Link>{" "}
+          عبر ربط صريح بأقسام نشطة (وليس «كل أقسام الكلية»).
         </p>
       </div>
 
@@ -153,16 +165,21 @@ function ProcessingAssignmentsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>الجهة</TableHead>
-                <TableHead>الدور</TableHead>
-                <TableHead>الممثل النشط</TableHead>
+                <TableHead>الوحدة التشغيلية</TableHead>
+                <TableHead>الدور التشغيلي</TableHead>
+                <TableHead>الموظف</TableHead>
+                <TableHead>الأقسام المخولة</TableHead>
                 <TableHead>الحالة</TableHead>
                 <TableHead className="text-left">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(grouped ?? []).map(({ role, unit, active }) => {
-                const cur = active[0];
+                const multi = allowsMultipleActiveAssignees(role);
+                const canAssign =
+                  !!role.is_active &&
+                  !!unit?.is_active &&
+                  (multi || active.length === 0);
                 return (
                   <TableRow key={role.id}>
                     <TableCell className="font-medium">
@@ -172,21 +189,66 @@ function ProcessingAssignmentsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span>{role.name_ar}</span>
+                        {role.is_managerial ? (
+                          <Badge variant="outline" className="text-xs">إداري</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">مختص</Badge>
+                        )}
                         {isFacultyOnlyRoleCode(role.code) && (
                           <Badge variant="outline" className="text-xs">هيئة تدريس</Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {cur ? (
-                        <div className="text-sm">
-                          <div>{cur.user_name ?? "—"}</div>
-                          <div className="text-xs text-muted-foreground">{cur.user_email ?? cur.user_id?.slice(0, 8)}</div>
-                        </div>
-                      ) : (
+                      {active.length === 0 ? (
                         <span className="text-xs text-muted-foreground">— لا يوجد —</span>
+                      ) : (
+                        <ul className="space-y-2 text-sm">
+                          {active.map((cur) => (
+                            <li key={cur.id} className="flex items-start justify-between gap-2">
+                              <div>
+                                <div>{cur.user_name ?? "—"}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {cur.user_email ?? cur.user_id?.slice(0, 8)}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive shrink-0"
+                                onClick={() => deactivateMut.mutate(cur.id)}
+                                disabled={deactivateMut.isPending}
+                              >
+                                <UserMinus className="h-4 w-4 ml-1" /> تعطيل
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {active.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <ul className="space-y-2 text-xs">
+                          {active.map((cur) => (
+                            <li key={`${cur.id}-depts`}>
+                              {role.is_managerial ? (
+                                <span className="text-muted-foreground">نطاق الكلية</span>
+                              ) : (cur.department_names?.length ?? 0) > 0 ? (
+                                <span title={(cur.department_names ?? []).join("، ")}>
+                                  {(cur.department_names ?? []).join("، ")}
+                                </span>
+                              ) : (
+                                <span className="text-destructive">
+                                  لا أقسام مخولة — يُرفض التشغيل
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </TableCell>
                     <TableCell>
@@ -195,36 +257,24 @@ function ProcessingAssignmentsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-left">
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!role.is_active || !!cur || !unit?.is_active}
-                          onClick={() => {
-                            setOpenFor({
-                              role_id: role.id,
-                              role_code: role.code,
-                              role_name: role.name_ar,
-                              unit_name: unit?.name_ar ?? "",
-                            });
-                            setSelectedUser("");
-                            setNotes("");
-                          }}
-                        >
-                          <UserPlus className="h-4 w-4 ml-1" /> إسناد
-                        </Button>
-                        {cur && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => deactivateMut.mutate(cur.id)}
-                            disabled={deactivateMut.isPending}
-                          >
-                            <UserMinus className="h-4 w-4 ml-1" /> تعطيل
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canAssign}
+                        onClick={() => {
+                          setOpenFor({
+                            role_id: role.id,
+                            role_code: role.code,
+                            role_name: role.name_ar,
+                            unit_name: unit?.name_ar ?? "",
+                            is_managerial: !!role.is_managerial,
+                          });
+                          setSelectedUser("");
+                          setNotes("");
+                        }}
+                      >
+                        <UserPlus className="h-4 w-4 ml-1" /> إسناد
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -247,7 +297,7 @@ function ProcessingAssignmentsPage() {
               <label className="text-sm font-medium block mb-1">
                 {openFor && isFacultyOnlyRoleCode(openFor.role_code)
                   ? "عضو هيئة التدريس"
-                  : "المستخدم"}
+                  : "الموظف"}
               </label>
               <Select value={selectedUser} onValueChange={setSelectedUser} disabled={candQ.isLoading}>
                 <SelectTrigger>
@@ -266,6 +316,12 @@ function ProcessingAssignmentsPage() {
               {openFor && isFacultyOnlyRoleCode(openFor.role_code) && (
                 <p className="text-xs text-muted-foreground mt-1">
                   هذا الدور محصور بأعضاء هيئة التدريس فقط.
+                </p>
+              )}
+              {openFor && !openFor.is_managerial && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  بعد الإسناد، اضبط الأقسام المخولة من إدارة الموظفين. نطاق
+                  المختص صريح fail-closed ولا يرث الأقسام الجديدة تلقائياً.
                 </p>
               )}
             </div>

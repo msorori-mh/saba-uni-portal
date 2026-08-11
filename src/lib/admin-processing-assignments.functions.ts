@@ -21,6 +21,17 @@ export function isFacultyOnlyRoleCode(code: string | null | undefined): boolean 
   return (FACULTY_ONLY_ROLE_CODES as readonly string[]).includes(code);
 }
 
+/**
+ * Managerial roles keep a single active assignee (historical singleton contract).
+ * Non-managerial roles (e.g. graduate_affairs_specialist) allow concurrent
+ * many-to-many staffing — AUTH-04 scopes each specialist via SPD rows.
+ */
+export function allowsMultipleActiveAssignees(role: {
+  is_managerial?: boolean | null;
+}): boolean {
+  return role.is_managerial !== true;
+}
+
 async function logAssignmentAudit(input: {
   actor_user_id: string;
   entity_id: string | null;
@@ -51,21 +62,29 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
     await assertProcessingAssignmentAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [unitsRes, rolesRes, assignRes, facultyRes, staffRes, authRes] = await Promise.all([
-      supabaseAdmin.from("request_processing_units").select("id, code, name_ar, is_active, sort_order").order("sort_order"),
-      supabaseAdmin.from("request_processing_roles").select("id, unit_id, code, name_ar, is_active, sort_order").order("sort_order"),
-      supabaseAdmin
-        .from("request_processing_assignments")
-        .select("id, unit_id, role_id, assignment_type, user_id, faculty_profile_id, staff_profile_id, is_active, starts_at, ends_at, created_at")
-        .eq("is_active", true),
-      supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
-      supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
-      buildProfileDirectory(),
-    ]);
+    const [unitsRes, rolesRes, assignRes, facultyRes, staffRes, authRes, deptLinksRes, deptsRes] =
+      await Promise.all([
+        supabaseAdmin.from("request_processing_units").select("id, code, name_ar, is_active, sort_order").order("sort_order"),
+        supabaseAdmin
+          .from("request_processing_roles")
+          .select("id, unit_id, code, name_ar, is_active, is_managerial, sort_order")
+          .order("sort_order"),
+        supabaseAdmin
+          .from("request_processing_assignments")
+          .select("id, unit_id, role_id, assignment_type, user_id, faculty_profile_id, staff_profile_id, is_active, starts_at, ends_at, created_at")
+          .eq("is_active", true),
+        supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
+        supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
+        buildProfileDirectory(),
+        supabaseAdmin.from("staff_profile_departments").select("staff_profile_id, department_id"),
+        supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true),
+      ]);
 
     if (unitsRes.error) throw new Error(unitsRes.error.message);
     if (rolesRes.error) throw new Error(rolesRes.error.message);
     if (assignRes.error) throw new Error(assignRes.error.message);
+    if (deptLinksRes.error) throw new Error(deptLinksRes.error.message);
+    if (deptsRes.error) throw new Error(deptsRes.error.message);
 
     const emailByUser = new Map<string, string>();
     for (const u of authRes) if (u.email) emailByUser.set(u.user_id, u.email);
@@ -73,14 +92,33 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
     for (const r of facultyRes.data ?? []) if (r.user_id) nameByUser.set(r.user_id, r.full_name_ar);
     for (const r of staffRes.data ?? []) if (r.user_id) nameByUser.set(r.user_id, r.full_name_ar);
 
+    const deptNameById = new Map<string, string>();
+    for (const d of deptsRes.data ?? []) deptNameById.set(d.id, d.name_ar);
+
+    const deptIdsByStaff = new Map<string, string[]>();
+    for (const link of deptLinksRes.data ?? []) {
+      const arr = deptIdsByStaff.get(link.staff_profile_id) ?? [];
+      arr.push(link.department_id);
+      deptIdsByStaff.set(link.staff_profile_id, arr);
+    }
+
     return {
       units: unitsRes.data ?? [],
       roles: rolesRes.data ?? [],
-      assignments: (assignRes.data ?? []).map((a) => ({
-        ...a,
-        user_email: a.user_id ? emailByUser.get(a.user_id) ?? null : null,
-        user_name: a.user_id ? nameByUser.get(a.user_id) ?? null : null,
-      })),
+      assignments: (assignRes.data ?? []).map((a) => {
+        const departmentIds = a.staff_profile_id
+          ? [...new Set(deptIdsByStaff.get(a.staff_profile_id) ?? [])].toSorted()
+          : [];
+        return {
+          ...a,
+          user_email: a.user_id ? emailByUser.get(a.user_id) ?? null : null,
+          user_name: a.user_id ? nameByUser.get(a.user_id) ?? null : null,
+          department_ids: departmentIds,
+          department_names: departmentIds
+            .map((id) => deptNameById.get(id))
+            .filter((name): name is string => Boolean(name)),
+        };
+      }),
     };
   });
 
@@ -156,7 +194,7 @@ export const createProcessingAssignment = createServerFn({ method: "POST" })
 
     const { data: role, error: roleErr } = await supabaseAdmin
       .from("request_processing_roles")
-      .select("id, code, unit_id, is_active, request_processing_units!inner(id, code, is_active)")
+      .select("id, code, unit_id, is_active, is_managerial, request_processing_units!inner(id, code, is_active)")
       .eq("id", data.role_id)
       .maybeSingle();
     if (roleErr) throw new Error(roleErr.message);
@@ -165,7 +203,8 @@ export const createProcessingAssignment = createServerFn({ method: "POST" })
     const unit = role.request_processing_units as unknown as { id: string; code: string; is_active: boolean };
     if (!unit?.is_active) throw new Error("جهة المعالجة غير مفعّلة.");
 
-    // Duplicate active assignment for the same role is forbidden.
+    // Same user may not hold two active rows for the same role.
+    // Managerial roles stay singleton; specialist/non-managerial roles allow many.
     const { data: dup, error: dupErr } = await supabaseAdmin
       .from("request_processing_assignments")
       .select("id, user_id")
@@ -175,7 +214,7 @@ export const createProcessingAssignment = createServerFn({ method: "POST" })
     if ((dup ?? []).some((row) => row.user_id === data.user_id)) {
       throw new Error("يوجد بالفعل إسناد نشط لهذا المستخدم على نفس الدور.");
     }
-    if ((dup ?? []).length > 0) {
+    if (!allowsMultipleActiveAssignees(role) && (dup ?? []).length > 0) {
       throw new Error("يوجد إسناد نشط آخر لهذا الدور. عطّله أولاً قبل إضافة إسناد جديد.");
     }
 
