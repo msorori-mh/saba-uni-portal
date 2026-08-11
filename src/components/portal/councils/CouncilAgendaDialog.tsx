@@ -42,6 +42,7 @@ import {
   LoadingBlock,
   mapAgendaUiError,
   meetingStatusLabel,
+  topicStatusLabel,
 } from "./shared";
 
 function swapAgendaOrder(items: CouncilAgendaItem[], itemId: string, direction: "up" | "down") {
