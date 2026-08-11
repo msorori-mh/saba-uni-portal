@@ -23,6 +23,9 @@ const policyDraftSchema = z.object({
   max_committee_members: z.number().int().nullable(),
   passing_score: z.number().nullable(),
   max_revision_rounds: z.number().int().nullable(),
+  enforce_proposal_window: z.boolean().nullable(),
+  enforce_defense_window: z.boolean().nullable(),
+
 
   proposal_window_start: z.string().nullable(),
   proposal_window_end: z.string().nullable(),
