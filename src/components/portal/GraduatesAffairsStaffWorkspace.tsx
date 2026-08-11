@@ -258,11 +258,12 @@ export function GraduatesAffairsStaffWorkspace() {
                     </td>
                     <td className="p-3 tabular-nums">{record.graduation_year}</td>
                     <td className="p-3">
-                      <div title={record.program_id}>برنامج {shortId(record.program_id)}</div>
+                      <div title={record.program_id}>{programName(record.program_id)}</div>
                       <div className="text-xs text-muted-foreground" title={record.department_id}>
-                        قسم {shortId(record.department_id)}
+                        {departmentName(record.department_id)}
                       </div>
                     </td>
+
                     <td className="p-3">
                       <Button
                         type="button"
