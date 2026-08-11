@@ -100,6 +100,7 @@ import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
 import { Route as FacultyPortalAcademicCouncilsArchiveRouteImport } from './routes/faculty-portal.academic-councils.archive'
+import { Route as FacultyPortalAcademicCouncilsAuthorizationAuditRouteImport } from './routes/faculty-portal.academic-councils.authorization-audit'
 import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './routes/faculty-portal.academic-councils.reports'
 import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './routes/faculty-portal.graduation-projects.index'
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
@@ -653,6 +654,12 @@ const FacultyPortalAcademicCouncilsArchiveRoute =
     path: '/archive',
     getParentRoute: () => FacultyPortalAcademicCouncilsRoute,
   } as any)
+const FacultyPortalAcademicCouncilsAuthorizationAuditRoute =
+  FacultyPortalAcademicCouncilsAuthorizationAuditRouteImport.update({
+    id: '/authorization-audit',
+    path: '/authorization-audit',
+    getParentRoute: () => FacultyPortalAcademicCouncilsRoute,
+  } as any)
 const FacultyPortalAcademicCouncilsReportsRoute =
   FacultyPortalAcademicCouncilsReportsRouteImport.update({
     id: '/reports',
@@ -887,6 +894,7 @@ export interface FileRoutesByFullPath {
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
   '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
+  '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
@@ -1003,6 +1011,7 @@ export interface FileRoutesByTo {
   '/student': typeof StudentIndexRoute
   '/admin': typeof AdminIndexLazyRoute
   '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
+  '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
@@ -1128,6 +1137,7 @@ export interface FileRoutesById {
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
   '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
+  '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
@@ -1254,6 +1264,7 @@ export interface FileRouteTypes {
     | '/student/'
     | '/admin/'
     | '/faculty-portal/academic-councils/archive'
+    | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
@@ -1370,6 +1381,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/admin'
     | '/faculty-portal/academic-councils/archive'
+    | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
@@ -1494,6 +1506,7 @@ export interface FileRouteTypes {
     | '/student/'
     | '/admin/'
     | '/faculty-portal/academic-councils/archive'
+    | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
@@ -2233,6 +2246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalAcademicCouncilsArchiveRouteImport
       parentRoute: typeof FacultyPortalAcademicCouncilsRoute
     }
+    '/faculty-portal/academic-councils/authorization-audit': {
+      id: '/faculty-portal/academic-councils/authorization-audit'
+      path: '/authorization-audit'
+      fullPath: '/faculty-portal/academic-councils/authorization-audit'
+      preLoaderRoute: typeof FacultyPortalAcademicCouncilsAuthorizationAuditRouteImport
+      parentRoute: typeof FacultyPortalAcademicCouncilsRoute
+    }
     '/faculty-portal/academic-councils/reports': {
       id: '/faculty-portal/academic-councils/reports'
       path: '/reports'
@@ -2528,6 +2548,7 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 
 interface FacultyPortalAcademicCouncilsRouteChildren {
   FacultyPortalAcademicCouncilsArchiveRoute: typeof FacultyPortalAcademicCouncilsArchiveRoute
+  FacultyPortalAcademicCouncilsAuthorizationAuditRoute: typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   FacultyPortalAcademicCouncilsReportsRoute: typeof FacultyPortalAcademicCouncilsReportsRoute
 }
 
@@ -2535,6 +2556,8 @@ const FacultyPortalAcademicCouncilsRouteChildren: FacultyPortalAcademicCouncilsR
   {
     FacultyPortalAcademicCouncilsArchiveRoute:
       FacultyPortalAcademicCouncilsArchiveRoute,
+    FacultyPortalAcademicCouncilsAuthorizationAuditRoute:
+      FacultyPortalAcademicCouncilsAuthorizationAuditRoute,
     FacultyPortalAcademicCouncilsReportsRoute:
       FacultyPortalAcademicCouncilsReportsRoute,
   }
