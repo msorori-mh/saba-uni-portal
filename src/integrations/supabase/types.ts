@@ -3137,6 +3137,39 @@ export type Database = {
           },
         ]
       }
+      ga_e2e_matrix_results: {
+        Row: {
+          case_name: string
+          case_no: number
+          created_at: string
+          detail: string | null
+          expectation: string
+          id: string
+          outcome: string
+          run_tag: string
+        }
+        Insert: {
+          case_name: string
+          case_no: number
+          created_at?: string
+          detail?: string | null
+          expectation: string
+          id?: string
+          outcome: string
+          run_tag: string
+        }
+        Update: {
+          case_name?: string
+          case_no?: number
+          created_at?: string
+          detail?: string | null
+          expectation?: string
+          id?: string
+          outcome?: string
+          run_tag?: string
+        }
+        Relationships: []
+      }
       grade_appeal_details: {
         Row: {
           academic_year_id: string
