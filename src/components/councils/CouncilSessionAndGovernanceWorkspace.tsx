@@ -10,6 +10,7 @@ import {
   FileText,
   Loader2,
   Send,
+  Download,
   Sparkles,
   ShieldCheck,
   Building,
