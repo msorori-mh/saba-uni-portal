@@ -136,6 +136,14 @@ begin
   if jsonb_typeof(o) <> 'array' then raise exception 'dean overview failed'; end if;
 end $$;
 
+select pg_temp.set_uid('10000000-0000-0000-0000-000000000084');
+do $$
+declare o jsonb;
+begin
+  o := public.list_administration_graduation_projects_overview();
+  if jsonb_typeof(o) <> 'array' then raise exception 'registrar overview failed'; end if;
+end $$;
+
 --------------------------------------------------------------------------------
 -- POST: coordinator still allowed (department-scoped)
 --------------------------------------------------------------------------------
@@ -201,67 +209,141 @@ select pg_temp.expect_fail(
 );
 
 --------------------------------------------------------------------------------
--- POST: admin viewer cannot mutate via coordinator RPCs
+-- POST: admin viewer cannot mutate via coordinator/team RPCs (DENY + ZERO MUTATION)
 --------------------------------------------------------------------------------
 select pg_temp.set_uid('10000000-0000-0000-0000-000000000080');
 
-select pg_temp.expect_fail(
-  format(
-    $q$select public.review_graduation_project_proposal(%L::uuid,'accept',null,1,%L::uuid)$q$,
-    (select v from pg_temp.gp_hotfix_ids where k = 'project'),
-    'd1000000-0000-0000-0000-00000000a001'
-  ),
-  'exact direct processing assignment required'
-);
+do $$
+declare
+  pid uuid := (select v from pg_temp.gp_hotfix_ids where k = 'project');
+  before_state text;
+  before_version bigint;
+  before_team int;
+  after_state text;
+  after_version bigint;
+  after_team int;
+begin
+  select lifecycle_state::text, version
+  into before_state, before_version
+  from public.graduation_projects
+  where id = pid;
 
-select pg_temp.expect_fail(
-  format(
-    $q$select public.assign_graduation_project_supervisor(%L::uuid,%L::uuid,%L::uuid,%L::uuid)$q$,
-    (select v from pg_temp.gp_hotfix_ids where k = 'project'),
-    '40000000-0000-0000-0000-000000000012',
-    '10000000-0000-0000-0000-000000000012',
-    'd1000000-0000-0000-0000-00000000a002'
-  ),
-  'exact direct processing assignment required'
-);
+  select count(*)::int into before_team
+  from public.graduation_project_assignments
+  where project_id = pid and ended_at is null;
 
-select pg_temp.expect_fail(
-  format(
-    $q$select public.schedule_graduation_project_defense(%L::uuid, now() + interval '1 day', 'hall', 1, %L::uuid)$q$,
-    (select v from pg_temp.gp_hotfix_ids where k = 'project'),
-    'd1000000-0000-0000-0000-00000000a003'
-  ),
-  'exact direct processing assignment required'
-);
+  begin
+    perform public.review_graduation_project_proposal(pid, 'accept', null, 1, 'd1000000-0000-0000-0000-00000000a001');
+    raise exception 'ADMIN_VIEWER unexpectedly reviewed proposal';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'review denial unexpected: %', sqlerrm;
+    end if;
+  end;
 
-select pg_temp.expect_fail(
-  format(
-    $q$select public.assign_graduation_project_committee_member(%L::uuid,%L::uuid,%L::uuid,%L::uuid)$q$,
-    (select v from pg_temp.gp_hotfix_ids where k = 'project'),
-    '40000000-0000-0000-0000-000000000014',
-    '10000000-0000-0000-0000-000000000014',
-    'd1000000-0000-0000-0000-00000000a004'
-  ),
-  'exact direct processing assignment required'
-);
+  begin
+    perform public.assign_graduation_project_supervisor(
+      pid,
+      '40000000-0000-0000-0000-000000000012',
+      '10000000-0000-0000-0000-000000000012',
+      'd1000000-0000-0000-0000-00000000a002'
+    );
+    raise exception 'ADMIN_VIEWER unexpectedly assigned supervisor';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'assign supervisor denial unexpected: %', sqlerrm;
+    end if;
+  end;
 
-select pg_temp.expect_fail(
-  format(
-    $q$select public.conclude_graduation_project_result(%L::uuid,'failed',1,%L::uuid)$q$,
-    (select v from pg_temp.gp_hotfix_ids where k = 'project'),
-    'd1000000-0000-0000-0000-00000000a005'
-  ),
-  'exact direct processing assignment required'
-);
+  begin
+    perform public.schedule_graduation_project_defense(
+      pid, now() + interval '1 day', 'hall', 1, 'd1000000-0000-0000-0000-00000000a003'
+    );
+    raise exception 'ADMIN_VIEWER unexpectedly scheduled defense';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'schedule denial unexpected: %', sqlerrm;
+    end if;
+  end;
 
-select pg_temp.expect_fail(
-  format(
-    $q$select public.archive_graduation_project(%L::uuid,1,%L::uuid)$q$,
-    (select v from pg_temp.gp_hotfix_ids where k = 'project'),
-    'd1000000-0000-0000-0000-00000000a006'
-  ),
-  'exact direct processing assignment required'
-);
+  begin
+    perform public.assign_graduation_project_committee_member(
+      pid,
+      '40000000-0000-0000-0000-000000000014',
+      '10000000-0000-0000-0000-000000000014',
+      'd1000000-0000-0000-0000-00000000a004'
+    );
+    raise exception 'ADMIN_VIEWER unexpectedly assigned committee';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'committee denial unexpected: %', sqlerrm;
+    end if;
+  end;
+
+  begin
+    perform public.mark_graduation_project_defense_held(pid, 1, 'd1000000-0000-0000-0000-00000000a007');
+    raise exception 'ADMIN_VIEWER unexpectedly marked defense held';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'mark held denial unexpected: %', sqlerrm;
+    end if;
+  end;
+
+  begin
+    perform public.conclude_graduation_project_result(pid, 'failed', 1, 'd1000000-0000-0000-0000-00000000a005');
+    raise exception 'ADMIN_VIEWER unexpectedly concluded result';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'conclude denial unexpected: %', sqlerrm;
+    end if;
+  end;
+
+  begin
+    perform public.archive_graduation_project(pid, 1, 'd1000000-0000-0000-0000-00000000a006');
+    raise exception 'ADMIN_VIEWER unexpectedly archived project';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0 then
+      raise exception 'archive denial unexpected: %', sqlerrm;
+    end if;
+  end;
+
+  begin
+    perform public.add_graduation_project_team_member(
+      pid,
+      '30000000-0000-0000-0000-000000000002',
+      '10000000-0000-0000-0000-000000000002',
+      'd1000000-0000-0000-0000-00000000a008'
+    );
+    raise exception 'ADMIN_VIEWER unexpectedly mutated team';
+  exception when others then
+    if position('exact direct processing assignment required' in sqlerrm) = 0
+       and position('leader assignment required' in sqlerrm) = 0
+       and position('project creation assignment required' in sqlerrm) = 0
+       and position('member mutation denied' in sqlerrm) = 0
+    then
+      raise exception 'team mutate denial unexpected: %', sqlerrm;
+    end if;
+  end;
+
+  select lifecycle_state::text, version
+  into after_state, after_version
+  from public.graduation_projects
+  where id = pid;
+
+  select count(*)::int into after_team
+  from public.graduation_project_assignments
+  where project_id = pid and ended_at is null;
+
+  if after_state is distinct from before_state
+     or after_version is distinct from before_version
+     or after_team is distinct from before_team
+  then
+    raise exception 'ZERO_MUTATION failed state=%->% version=%->% team=%->%',
+      before_state, after_state, before_version, after_version, before_team, after_team;
+  end if;
+
+  raise notice 'ADMIN_VIEWER_OPERATIONAL_MUTATIONS=DENY_ZERO_MUTATION';
+end $$;
 
 -- Prove require_graduation_project_assignment source unchanged (still coordinator-gated)
 do $$
@@ -282,8 +364,10 @@ do $$ begin
   raise notice 'ADMIN_VIEWER_CAN_ASSIGN_SUPERVISOR=NO';
   raise notice 'ADMIN_VIEWER_CAN_SCHEDULE_DEFENSE=NO';
   raise notice 'ADMIN_VIEWER_CAN_ASSIGN_COMMITTEE=NO';
+  raise notice 'ADMIN_VIEWER_CAN_MARK_DEFENSE_HELD=NO';
   raise notice 'ADMIN_VIEWER_CAN_CONCLUDE_RESULT=NO';
   raise notice 'ADMIN_VIEWER_CAN_ARCHIVE=NO';
+  raise notice 'ADMIN_VIEWER_CAN_MUTATE_TEAM=NO';
   raise notice 'ADMIN_OVERVIEW_PII_EXPANSION=NO';
 end $$;
 

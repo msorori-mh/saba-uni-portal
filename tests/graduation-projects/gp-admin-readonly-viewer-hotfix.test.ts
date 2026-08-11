@@ -318,6 +318,9 @@ select pg_get_functiondef('public.list_administration_graduation_projects_overvi
       expect(after.out).toContain("PG17_AFTER_ADMIN_OVERVIEW_PASS");
       expect(after.out).toContain("GP_ADMIN_READONLY_VIEWER_HOTFIX_VERIFIER_PASS");
       expect(after.out).toContain("ADMIN_VIEWER_CAN_REVIEW_PROPOSAL=NO");
+      expect(after.out).toContain("ADMIN_VIEWER_CAN_MARK_DEFENSE_HELD=NO");
+      expect(after.out).toContain("ADMIN_VIEWER_CAN_MUTATE_TEAM=NO");
+      expect(after.out).toContain("ADMIN_VIEWER_OPERATIONAL_MUTATIONS=DENY_ZERO_MUTATION");
       expect(after.out).toContain("ADMIN_OVERVIEW_PII_EXPANSION=NO");
       expect(after.out).toContain("DIRECT_ASSIGNMENT_GUARDS=UNCHANGED");
     } finally {
