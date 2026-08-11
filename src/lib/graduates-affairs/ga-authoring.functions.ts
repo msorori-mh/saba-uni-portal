@@ -53,6 +53,7 @@ export interface GaSurveyRow {
   purpose_code: string;
   state: string;
   minimum_report_cell_size: number;
+  audience_scope: Record<string, unknown> | null;
   version_id: string | null;
   version: number | null;
   notice_version: string | null;
@@ -60,6 +61,12 @@ export interface GaSurveyRow {
   published_at: string | null;
   response_count: number | null;
 }
+
+export interface GaAcademicScopeDto {
+  departments: Array<{ id: string; name: string }>;
+  programs: Array<{ id: string; name: string; departmentId: string | null }>;
+}
+
 
 export interface GaEmployerRow {
   id: string;
