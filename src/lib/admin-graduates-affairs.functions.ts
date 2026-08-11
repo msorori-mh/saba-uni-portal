@@ -147,6 +147,17 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
 
     if (recentRes.error) throw new Error(recentRes.error.message);
 
+    const [programsRes, departmentsRes] = await Promise.all([
+      supabaseAdmin.from("programs").select("id, name_ar"),
+      supabaseAdmin.from("departments").select("id, name_ar"),
+    ]);
+    const programNames = new Map<string, string>(
+      (programsRes.data ?? []).map((row) => [row.id as string, row.name_ar as string]),
+    );
+    const departmentNames = new Map<string, string>(
+      (departmentsRes.data ?? []).map((row) => [row.id as string, row.name_ar as string]),
+    );
+
     const recentRecords: AdminGraduateRecordSummary[] = (recentRes.data ?? []).map(
       (row) => ({
         recordId: row.id as string,
@@ -154,10 +165,13 @@ export const getAdminGraduatesAffairsOverviewFn = createServerFn({ method: "POST
         graduationYear: extractYear(row.effective_graduation_date as string | null),
         effectiveGraduationDate: (row.effective_graduation_date as string) ?? "",
         programId: row.program_id as string,
+        programName: programNames.get(row.program_id as string) ?? "برنامج غير محدد",
         departmentId: row.department_id as string,
+        departmentName: departmentNames.get(row.department_id as string) ?? "قسم غير محدد",
         createdAt: row.created_at as string,
       }),
     );
+
 
     return {
       counts: {
