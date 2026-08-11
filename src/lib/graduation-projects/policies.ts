@@ -24,6 +24,9 @@ export interface GraduationProjectPolicy {
   max_committee_members: number | null;
   passing_score: number | null;
   max_revision_rounds: number | null;
+  /** Explicit administrative decision; null = undecided (draft only). */
+  enforce_proposal_window: boolean | null;
+  enforce_defense_window: boolean | null;
   proposal_window_start: string | null;
   proposal_window_end: string | null;
   defense_window_start: string | null;
@@ -46,6 +49,8 @@ export type GraduationProjectPolicyDraft = Pick<
   | "max_committee_members"
   | "passing_score"
   | "max_revision_rounds"
+  | "enforce_proposal_window"
+  | "enforce_defense_window"
   | "proposal_window_start"
   | "proposal_window_end"
   | "defense_window_start"
