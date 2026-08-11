@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Archive, Loader2, Search, X } from "lucide-react";
+import { Archive, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { CouncilArchivedMeetingsList } from "@/components/councils/CouncilArchivedMeetingsList";
 import { getMyArchivedCouncilMeetings } from "@/lib/faculty-councils.functions";
@@ -23,9 +23,17 @@ type ArchiveSearch = {
   decisionTo: string;
   approvedFrom: string;
   approvedTo: string;
+  page: number;
+  pageSize: number;
 };
 
+const PAGE_SIZES = [5, 10, 20, 50] as const;
+
 const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
+const num = (v: unknown, fallback: number, min: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
+};
 
 export const Route = createFileRoute("/faculty-portal/academic-councils/archive")({
   validateSearch: (search: Record<string, unknown>): ArchiveSearch => ({
@@ -35,6 +43,10 @@ export const Route = createFileRoute("/faculty-portal/academic-councils/archive"
     decisionTo: str(search.decisionTo),
     approvedFrom: str(search.approvedFrom),
     approvedTo: str(search.approvedTo),
+    page: num(search.page, 1, 1),
+    pageSize: PAGE_SIZES.includes(num(search.pageSize, 10, 1) as (typeof PAGE_SIZES)[number])
+      ? num(search.pageSize, 10, 1)
+      : 10,
   }),
   head: () => ({
     meta: [
@@ -44,6 +56,7 @@ export const Route = createFileRoute("/faculty-portal/academic-councils/archive"
   }),
   component: ArchivedMeetingsPage,
 });
+
 
 /** Compares an ISO timestamp against an inclusive yyyy-mm-dd range. */
 function inDateRange(iso: string | null, from: string, to: string) {
