@@ -2,10 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Archive, Loader2, Search } from "lucide-react";
+import { Archive, Loader2, Search, X } from "lucide-react";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { CouncilArchivedMeetingsList } from "@/components/councils/CouncilArchivedMeetingsList";
-import { getMyCouncilMeetingsV2 } from "@/lib/faculty-councils.functions";
+import { getMyArchivedCouncilMeetings } from "@/lib/faculty-councils.functions";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -15,12 +16,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type ArchiveSearch = { q: string; council: string };
+type ArchiveSearch = {
+  q: string;
+  council: string;
+  decisionFrom: string;
+  decisionTo: string;
+  approvedFrom: string;
+  approvedTo: string;
+};
+
+const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
 
 export const Route = createFileRoute("/faculty-portal/academic-councils/archive")({
   validateSearch: (search: Record<string, unknown>): ArchiveSearch => ({
-    q: typeof search.q === "string" ? search.q : "",
-    council: typeof search.council === "string" ? search.council : "all",
+    q: str(search.q),
+    council: str(search.council, "all") || "all",
+    decisionFrom: str(search.decisionFrom),
+    decisionTo: str(search.decisionTo),
+    approvedFrom: str(search.approvedFrom),
+    approvedTo: str(search.approvedTo),
   }),
   head: () => ({
     meta: [
@@ -31,25 +45,30 @@ export const Route = createFileRoute("/faculty-portal/academic-councils/archive"
   component: ArchivedMeetingsPage,
 });
 
+/** Compares an ISO timestamp against an inclusive yyyy-mm-dd range. */
+function inDateRange(iso: string | null, from: string, to: string) {
+  if (!from && !to) return true;
+  if (!iso) return false;
+  const day = iso.slice(0, 10);
+  if (from && day < from) return false;
+  if (to && day > to) return false;
+  return true;
+}
+
 function ArchivedMeetingsPage() {
-  const { q, council } = Route.useSearch();
+  const search = Route.useSearch();
+  const { q, council, decisionFrom, decisionTo, approvedFrom, approvedTo } = search;
   const navigate = useNavigate({ from: "/faculty-portal/academic-councils/archive" });
 
-  const fetchMeetings = useServerFn(getMyCouncilMeetingsV2);
-  const meetingsQuery = useQuery({
-    queryKey: ["faculty", "my-council-meetings-v2"],
-    queryFn: () => fetchMeetings(),
+  const fetchArchived = useServerFn(getMyArchivedCouncilMeetings);
+  const archivedQuery = useQuery({
+    queryKey: ["faculty", "archived-council-meetings"],
+    queryFn: () => fetchArchived(),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
-  const archived = useMemo(() => {
-    const data = meetingsQuery.data;
-    const all = [...(data?.upcomingMeetings ?? []), ...(data?.previousMeetings ?? [])];
-    return all
-      .filter((m) => m.status === "archived")
-      .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
-  }, [meetingsQuery.data]);
+  const archived = archivedQuery.data?.meetings ?? [];
 
   const councils = useMemo(() => {
     const map = new Map<string, string>();
@@ -61,6 +80,8 @@ function ArchivedMeetingsPage() {
     const needle = q.trim().toLowerCase();
     return archived.filter((m) => {
       if (council !== "all" && m.council_id !== council) return false;
+      if (!inDateRange(m.last_decision_at, decisionFrom, decisionTo)) return false;
+      if (!inDateRange(m.minutes_approved_at, approvedFrom, approvedTo)) return false;
       if (!needle) return true;
       const haystack = [
         String(m.meeting_number ?? ""),
@@ -72,11 +93,19 @@ function ArchivedMeetingsPage() {
         .toLowerCase();
       return haystack.includes(needle);
     });
-  }, [archived, q, council]);
+  }, [archived, q, council, decisionFrom, decisionTo, approvedFrom, approvedTo]);
 
   const setSearch = (patch: Partial<ArchiveSearch>) => {
     void navigate({ search: (prev) => ({ ...prev, ...patch }) });
   };
+
+  const hasFilters =
+    q !== "" ||
+    council !== "all" ||
+    decisionFrom !== "" ||
+    decisionTo !== "" ||
+    approvedFrom !== "" ||
+    approvedTo !== "";
 
   return (
     <FacultyPortalShell
@@ -96,31 +125,34 @@ function ArchivedMeetingsPage() {
               الاجتماعات المؤرشفة
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              جميع اجتماعات المجالس التي أُغلقت وأُرشفت، مع بحث سريع.
+              جميع اجتماعات المجالس التي أُغلقت وأُرشفت، مع بحث سريع وفلترة.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="archive-search">
-              بحث سريع
-            </label>
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                id="archive-search"
-                value={q}
-                onChange={(e) => setSearch({ q: e.target.value })}
-                placeholder="رقم الاجتماع أو العنوان أو المجلس أو المكان"
-                className="pe-9"
-              />
+        <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <label
+                className="text-xs text-muted-foreground block mb-1.5"
+                htmlFor="archive-search"
+              >
+                بحث سريع
+              </label>
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
+                <Input
+                  id="archive-search"
+                  value={q}
+                  onChange={(e) => setSearch({ q: e.target.value })}
+                  placeholder="رقم الاجتماع أو العنوان أو المجلس أو المكان"
+                  className="pe-9"
+                />
+              </div>
             </div>
-          </div>
-          {councils.length > 1 ? (
             <div className="sm:w-64">
               <label className="text-xs text-muted-foreground block mb-1.5">المجلس</label>
               <Select
@@ -141,10 +173,91 @@ function ArchivedMeetingsPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label
+                className="text-xs text-muted-foreground block mb-1.5"
+                htmlFor="decision-from"
+              >
+                تاريخ القرار — من
+              </label>
+              <Input
+                id="decision-from"
+                type="date"
+                value={decisionFrom}
+                onChange={(e) => setSearch({ decisionFrom: e.target.value })}
+              />
+            </div>
+            <div>
+              <label
+                className="text-xs text-muted-foreground block mb-1.5"
+                htmlFor="decision-to"
+              >
+                تاريخ القرار — إلى
+              </label>
+              <Input
+                id="decision-to"
+                type="date"
+                value={decisionTo}
+                onChange={(e) => setSearch({ decisionTo: e.target.value })}
+              />
+            </div>
+            <div>
+              <label
+                className="text-xs text-muted-foreground block mb-1.5"
+                htmlFor="approved-from"
+              >
+                تاريخ الاعتماد — من
+              </label>
+              <Input
+                id="approved-from"
+                type="date"
+                value={approvedFrom}
+                onChange={(e) => setSearch({ approvedFrom: e.target.value })}
+              />
+            </div>
+            <div>
+              <label
+                className="text-xs text-muted-foreground block mb-1.5"
+                htmlFor="approved-to"
+              >
+                تاريخ الاعتماد — إلى
+              </label>
+              <Input
+                id="approved-to"
+                type="date"
+                value={approvedTo}
+                onChange={(e) => setSearch({ approvedTo: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {hasFilters ? (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setSearch({
+                    q: "",
+                    council: "all",
+                    decisionFrom: "",
+                    decisionTo: "",
+                    approvedFrom: "",
+                    approvedTo: "",
+                  })
+                }
+              >
+                <X className="h-4 w-4" aria-hidden />
+                مسح الفلاتر
+              </Button>
+            </div>
           ) : null}
         </div>
 
-        {meetingsQuery.isLoading ? (
+        {archivedQuery.isLoading ? (
           <div className="grid place-items-center py-16" role="status" aria-label="جاري التحميل">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
@@ -154,7 +267,7 @@ function ArchivedMeetingsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-            لا نتائج مطابقة للبحث.
+            لا نتائج مطابقة للفلاتر المحددة.
           </div>
         ) : (
           <>
