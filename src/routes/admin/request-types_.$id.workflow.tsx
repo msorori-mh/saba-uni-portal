@@ -417,12 +417,15 @@ function AdminRequestTypeWorkflowPage() {
         )}
       </div>
 
+      <ServiceDefinitionPanel requestTypeId={id} requestTypeCode={requestType.code} />
+
       <RequestWorkflowPreview
         requestTypeCode={requestType.code}
         draftSteps={draftSteps}
         draftTransitions={draftTransitions}
         schemaUnavailable={configUnavailable}
       />
+
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
