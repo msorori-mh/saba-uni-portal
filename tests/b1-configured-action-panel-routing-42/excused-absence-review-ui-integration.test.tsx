@@ -58,8 +58,11 @@ function createFakeAdapter(gate?: Promise<void>) {
   };
 }
 
-function render(node: ReactNode): string {
+function render(node: ReactNode, stepId: string = PROPS.stepId): string {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // Static SSR cannot await the real readiness probe; seed a ready result so the
+  // configured action panel (not the loading banner) is what we assert on.
+  client.setQueryData(["b1-details-readiness", stepId], { ready: true });
   return renderToStaticMarkup(
     createElement(QueryClientProvider, { client }, node) as never,
   );

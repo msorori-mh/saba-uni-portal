@@ -45,8 +45,11 @@ function createFakeAdapter(gate?: Promise<void>) {
   };
 }
 
-function render(node: ReactNode): string {
+function render(node: ReactNode, stepId: string): string {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // Static SSR cannot await the real readiness probe; seed a ready result so the
+  // configured action panel (not the loading banner) is what we assert on.
+  client.setQueryData(["b1-details-readiness", stepId], { ready: true });
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, node) as never);
 }
 
@@ -126,7 +129,10 @@ for (const c of CASES) {
 
     it(`renders exactly one «${c.labelAr}» button and no generic actions`, () => {
       const fake = createFakeAdapter();
-      const html = render(createElement(B1StaffStepActionSection, { ...PROPS, adapter: fake }));
+      const html = render(
+        createElement(B1StaffStepActionSection, { ...PROPS, adapter: fake }),
+        PROPS.stepId,
+      );
 
       expect(html).toContain(`data-b1-action="${c.action}"`);
       expect(html).toContain('data-testid="b1-employee-action-panel"');
@@ -183,6 +189,7 @@ for (const c of CASES) {
           isActionable: false,
           adapter: fake,
         }),
+        PROPS.stepId,
       );
       expect(html).toContain("b1-staff-action-blocked");
       expect(html).toContain('data-failure-code="NOT_ACTIONABLE"');
