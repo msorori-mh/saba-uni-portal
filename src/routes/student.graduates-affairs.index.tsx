@@ -13,9 +13,11 @@ import {
   cancelGraduateEventRegistrationFn,
   getGraduateSelfFileFn,
   grantGraduateConsentFn,
+  listGraduateSelfConsentsFn,
   listGraduateSelfContactPointsFn,
   listGraduateSelfEventsFn,
   listGraduateSelfOpportunitiesFn,
+  listGraduateSelfSurveysFn,
   registerGraduateForEventFn,
   reportGraduateEmploymentFn,
   resolveGraduateSelfSurfaceFn,
@@ -23,6 +25,10 @@ import {
   submitGraduateSurveyResponseFn,
   withdrawGraduateConsentFn,
 } from "@/lib/graduates-affairs/graduates-affairs.functions";
+import type {
+  GraduateSelfConsent,
+  GraduateSelfSurvey,
+} from "@/lib/graduates-affairs/rpc";
 import { ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE } from "@/lib/graduates-affairs/account-continuity";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -180,6 +186,20 @@ const OPPORTUNITY_TYPE_LABELS: Record<string, string> = {
   job: "وظيفة",
   internship: "تدريب مهني",
   training: "دورة تدريبية",
+};
+
+const SURVEY_QUESTION_LABELS: Record<string, string> = {
+  employment_status: "الحالة الوظيفية",
+  comments: "ملاحظات إضافية",
+};
+
+const SURVEY_OPTION_LABELS: Record<string, string> = {
+  employed: "موظف",
+  self_employed: "عمل حر",
+  seeking_work: "أبحث عن عمل",
+  continuing_education: "مواصلة تعليم",
+  not_seeking: "لا أبحث عن عمل",
+  not_disclosed: "غير مصرّح",
 };
 
 function GraduateSelfServiceDashboard(props: GraduateSelfServiceDashboardProps) {
