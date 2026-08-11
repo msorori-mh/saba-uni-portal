@@ -10001,6 +10001,19 @@ export type Database = {
         Args: { p_graduate_record_id: string }
         Returns: boolean
       }
+      graduate_list_self_surveys: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          already_responded: boolean
+          consent_id: string
+          notice_version: string
+          purpose_code: string
+          questions: Json
+          survey_id: string
+          survey_version_id: string
+          title: string
+        }[]
+      }
       graduate_list_visible_events: {
         Args: { p_graduate_record_id: string }
         Returns: {
@@ -10021,6 +10034,17 @@ export type Database = {
           opportunity_type: string
           published_at: string
           title: string
+        }[]
+      }
+      graduate_my_consents: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          affirmative_action_at: string
+          consent_state: string
+          id: string
+          notice_version: string
+          purpose_code: string
+          withdrawn_at: string
         }[]
       }
       graduate_my_contact_points: {
