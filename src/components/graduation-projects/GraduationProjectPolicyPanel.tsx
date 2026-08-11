@@ -15,7 +15,8 @@ import {
   GP_POLICY_FIELD_LABELS_AR,
   GP_POLICY_STATUS_LABELS_AR,
   describePolicyScope,
-  validateGraduationProjectPolicy,
+  validateDraftPolicy,
+  validatePolicyForPublish,
   type GraduationProjectPolicy,
   type GraduationProjectPolicyDraft,
 } from "@/lib/graduation-projects/policies";
