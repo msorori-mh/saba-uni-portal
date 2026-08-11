@@ -171,7 +171,7 @@ function ExecutiveDashboardPage() {
     { to: "/admin/academic-operations", label: "الشؤون الأكاديمية", icon: Activity },
     { to: "/admin/course-offerings", search: { tab: "schedule" }, label: "الجداول الدراسية", icon: CalendarClock },
     { to: "/admin/student-progress", label: "تقدم الطلاب", icon: TrendingUp },
-    { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },
+    
     { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
     { to: "/admin/operations", label: "مركز العمليات", icon: ShieldCheck },
   ];
