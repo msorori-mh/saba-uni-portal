@@ -101,7 +101,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
       { to: "/admin/imports", label: "الاستيراد الجماعي", icon: Upload },
       { to: "/admin/student-progress", label: "تقدم الطلاب الأكاديمي", icon: TrendingUp },
-      { to: "/admin/at-risk-students", label: "الطلاب المتعثرون أكاديمياً", icon: AlertCircle },
+      // مخفي بناءً على طلب الإدارة — الصفحة تبقى متاحة عبر الرابط المباشر
+      // { to: "/admin/at-risk-students", label: "الطلاب المتعثرون أكاديمياً", icon: AlertCircle },
     ],
   },
   {
