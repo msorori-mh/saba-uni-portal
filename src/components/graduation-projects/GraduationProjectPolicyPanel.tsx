@@ -100,6 +100,8 @@ export function GraduationProjectPolicyPanel() {
       max_committee_members: policy.max_committee_members,
       passing_score: policy.passing_score === null ? null : Number(policy.passing_score),
       max_revision_rounds: policy.max_revision_rounds,
+      enforce_proposal_window: policy.enforce_proposal_window ?? null,
+      enforce_defense_window: policy.enforce_defense_window ?? null,
       proposal_window_start: policy.proposal_window_start,
       proposal_window_end: policy.proposal_window_end,
       defense_window_start: policy.defense_window_start,
