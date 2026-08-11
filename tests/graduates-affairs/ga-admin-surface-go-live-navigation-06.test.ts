@@ -45,7 +45,9 @@ describe("PORTAL-GA-ADMIN-SURFACE-NAVIGATION-AND-GO-LIVE-VISIBILITY-06", () => {
     const graduatesGroup = ADMIN_NAV_GROUPS.find((g) => g.id === "graduates");
     const labels = graduatesGroup?.items.map((it) => it.label) ?? [];
     expect(labels[0]).toBe("شؤون الخريجين");
-    expect(labels).toContain("مرشحو التخرج");
+    // "مرشحو التخرج" is intentionally hidden from the admin sidebar as part of
+    // the graduation-projects closure; the route/authorization stay untouched.
+    expect(labels).not.toContain("مرشحو التخرج");
   });
 
   test("3 — admin graduates-affairs link points to /admin/graduates-affairs", () => {

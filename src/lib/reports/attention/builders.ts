@@ -304,26 +304,15 @@ export type AlumniAttentionInput = {
 export function buildAlumniQualityAttention(
   input: AlumniAttentionInput,
 ): ReportAttentionItem[] {
-  const items: ReportAttentionItem[] = [];
   // Never invent alerts from blocked GA reporting families.
   void input.blockedFamilies;
-  const pending = positiveValue(input.pendingGraduationCandidates);
-  if (pending != null) {
-    items.push({
-      id: "alumni-pending-candidates",
-      severity: "info",
-      titleAr: "مرشحو تخرج بانتظار المعالجة",
-      count: pending,
-      actionLabelAr: "مرشحو التخرج",
-      actionTo: "/admin/graduation-candidates",
-      sourceCode: "kpis.pendingGraduationCandidates",
-    });
-  }
-  return filterAttentionActions(
-    items,
-    input.allowedActionTos ?? ["/admin/graduation-candidates"],
-  );
+  // "مرشحو التخرج" is intentionally hidden as part of the graduation-projects
+  // closure, so no attention item may link to it any more.
+  void input.pendingGraduationCandidates;
+  void input.allowedActionTos;
+  return [];
 }
+
 
 // ─── Dean (COLLEGE — fail-closed) ───────────────────────────────────────────
 

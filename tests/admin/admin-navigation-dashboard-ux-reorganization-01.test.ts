@@ -239,9 +239,15 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     expect(hasDuplicateNavPaths(ADMIN_NAV_GROUPS)).toBe(false);
     const current = new Set(collectAdminNavPaths(ADMIN_NAV_GROUPS));
     // /admin/department-reports is intentionally hidden from the admin sidebar
-    // (feature not enabled); the route and its authorization stay untouched.
+    // (feature not enabled); /admin/graduation-candidates is intentionally
+    // hidden as part of the graduation-projects closure. Both routes and their
+    // authorization stay untouched.
+    const INTENTIONALLY_HIDDEN_LEGACY_PATHS = new Set([
+      "/admin/department-reports",
+      "/admin/graduation-candidates",
+    ]);
     for (const path of ADMIN_NAV_LEGACY_SIDEBAR_PATHS) {
-      if (path === "/admin/department-reports") continue;
+      if (INTENTIONALLY_HIDDEN_LEGACY_PATHS.has(path)) continue;
       expect(current.has(path)).toBe(true);
     }
     for (const path of current) {
