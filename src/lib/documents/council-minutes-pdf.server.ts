@@ -152,7 +152,7 @@ export async function buildCouncilMinutesPdf(
   y -= 18;
   line("هذا المحضر معتمد ومقفل رقمياً ولا يجوز تعديله.", 10, rgb(0.3, 0.35, 0.45));
   if (input.fingerprint) {
-    line(`بصمة التوثيق (SHA-256): ${input.fingerprint}`, 9, rgb(0.3, 0.35, 0.45));
+    line(`بصمة التوثيق SHA-256: ${input.fingerprint}`, 9, rgb(0.3, 0.35, 0.45));
   }
 
   return await pdfDoc.save();
