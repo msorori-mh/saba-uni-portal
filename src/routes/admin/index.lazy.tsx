@@ -291,15 +291,8 @@ function AdminDashboard() {
         { label: "إجمالي القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/course-offerings?tab=schedule" },
       ],
     },
-    {
-      title: "التقدم الأكاديمي",
-      cards: [
-        { label: "متوسط المعدل التراكمي", value: progressKpis?.avgGpa ?? 0, icon: TrendingUp, to: "/admin/student-progress" },
-        { label: "الطلاب المتعثرون أكاديمياً", value: progressKpis?.atRisk ?? 0, icon: AlertCircle, to: "/admin/at-risk-students" },
-        
-        { label: "قريبون من الإكمال (>80%)", value: progressKpis?.nearCompletion ?? 0, icon: ClipboardCheck, to: "/admin/student-progress" },
-      ],
-    },
+    // قسم «التقدم الأكاديمي» مخفي حالياً بناءً على طلب الإدارة.
+
     {
       title: "الموارد البشرية",
       cards: [

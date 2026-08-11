@@ -251,12 +251,8 @@ const SERVICE_LINKS = [
     desc: "تصفح الخطة حسب المستوى والفصل.",
     Icon: BookOpen,
   },
-  {
-    to: "/student/progress" as const,
-    title: "تقدمي الأكاديمي",
-    desc: "الإنجاز، المعدل، وأهلية التخرج.",
-    Icon: GraduationCap,
-  },
+  // بطاقة «تقدمي الأكاديمي» مخفية حالياً بناءً على طلب الإدارة.
+
   {
     to: "/student/requests" as const,
     title: "طلبات شؤون الطلاب",
