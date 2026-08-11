@@ -96,6 +96,16 @@ export interface GraduateAffairsFileProjection {
     assignee_user_id: string;
     purpose_code: string;
     next_action_at: string | null;
+    followup_type_id?: string | null;
+    type_label_ar?: string | null;
+    workflow_id?: string | null;
+    workflow_version?: number | null;
+    workflow_pinned_at?: string | null;
+    workflow_pin_source?: string | null;
+    states?: string[];
+    transitions?: Array<{ from: string; to: string }>;
+    terminal_states?: string[];
+    require_outcome_on_complete?: boolean;
   }>;
 }
 
@@ -404,7 +414,8 @@ export class GraduatesAffairsRpcClient {
 
   transitionFollowup(input: {
     followupId: string;
-    targetState: "open" | "in_progress" | "completed" | "cancelled";
+    /** Configurable state — validated against the pinned workflow snapshot. */
+    targetState: string;
     outcome: string | null;
     nextActionAt: string | null;
   }): Promise<void> {
