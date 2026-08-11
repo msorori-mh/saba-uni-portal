@@ -167,6 +167,8 @@ interface GraduateEvent {
   event_type: string;
   starts_at: string;
   ends_at: string;
+  purpose_code?: string | null;
+  notice_version?: string | null;
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
