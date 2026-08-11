@@ -16,7 +16,7 @@ async function assertAcademicOpsAdmin(userId: string) {
   await assertAnyRole(
     userId,
     ACADEMIC_OPS_ADMIN_ROLES,
-    "ليس لديك صلاحية إدارة العمليات الأكاديمية",
+    "ليس لديك صلاحية إدارة الشؤون الأكاديمية",
   );
 }
 

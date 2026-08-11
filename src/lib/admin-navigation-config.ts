@@ -89,10 +89,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: "academic",
-    label: "العمليات الأكاديمية",
+    label: "الشؤون الأكاديمية",
     icon: GraduationCap,
     items: [
-      { to: "/admin/academic-operations", label: "مركز العمليات الأكاديمية", icon: Activity },
+      { to: "/admin/academic-operations", label: "مركز الشؤون الأكاديمية", icon: Activity },
       { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
       { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
       {
@@ -130,7 +130,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: "governance",
-    label: "المجالس والحوكمة",
+    label: "المجالس الأكاديمية",
     icon: ScrollText,
     items: [
       { to: "/admin/academic-councils", label: "بوابة إدارة المجالس الأكاديمية", icon: ScrollText },

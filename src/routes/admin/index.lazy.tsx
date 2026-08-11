@@ -272,7 +272,7 @@ function AdminDashboard() {
     }>;
   }> = [
     {
-      title: "العمليات الأكاديمية",
+      title: "الشؤون الأكاديمية",
       cards: [
         { label: "المقررات المطروحة", value: aops?.activeOfferings ?? 0, icon: CalendarDays, to: "/admin/academic-operations" },
         { label: "المجموعات الدراسية النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
@@ -423,7 +423,7 @@ function AdminDashboard() {
 
   const sectionOrderIndex = (title: string) => {
     const order = [
-      "العمليات الأكاديمية",
+      "الشؤون الأكاديمية",
       "عمليات اليوم / الجداول",
       "التقدم الأكاديمي",
       "الموارد البشرية",
