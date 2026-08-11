@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Archive, Loader2, Search, X } from "lucide-react";
+import { Archive, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { CouncilArchivedMeetingsList } from "@/components/councils/CouncilArchivedMeetingsList";
 import { getMyArchivedCouncilMeetings } from "@/lib/faculty-councils.functions";
@@ -23,9 +23,17 @@ type ArchiveSearch = {
   decisionTo: string;
   approvedFrom: string;
   approvedTo: string;
+  page: number;
+  pageSize: number;
 };
 
+const PAGE_SIZES = [5, 10, 20, 50] as const;
+
 const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
+const num = (v: unknown, fallback: number, min: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
+};
 
 export const Route = createFileRoute("/faculty-portal/academic-councils/archive")({
   validateSearch: (search: Record<string, unknown>): ArchiveSearch => ({
@@ -35,6 +43,10 @@ export const Route = createFileRoute("/faculty-portal/academic-councils/archive"
     decisionTo: str(search.decisionTo),
     approvedFrom: str(search.approvedFrom),
     approvedTo: str(search.approvedTo),
+    page: num(search.page, 1, 1),
+    pageSize: PAGE_SIZES.includes(num(search.pageSize, 10, 1) as (typeof PAGE_SIZES)[number])
+      ? num(search.pageSize, 10, 1)
+      : 10,
   }),
   head: () => ({
     meta: [
@@ -44,6 +56,7 @@ export const Route = createFileRoute("/faculty-portal/academic-councils/archive"
   }),
   component: ArchivedMeetingsPage,
 });
+
 
 /** Compares an ISO timestamp against an inclusive yyyy-mm-dd range. */
 function inDateRange(iso: string | null, from: string, to: string) {
@@ -57,7 +70,9 @@ function inDateRange(iso: string | null, from: string, to: string) {
 
 function ArchivedMeetingsPage() {
   const search = Route.useSearch();
-  const { q, council, decisionFrom, decisionTo, approvedFrom, approvedTo } = search;
+  const { q, council, decisionFrom, decisionTo, approvedFrom, approvedTo, page, pageSize } =
+    search;
+
   const navigate = useNavigate({ from: "/faculty-portal/academic-councils/archive" });
 
   const fetchArchived = useServerFn(getMyArchivedCouncilMeetings);
@@ -95,9 +110,23 @@ function ArchivedMeetingsPage() {
     });
   }, [archived, q, council, decisionFrom, decisionTo, approvedFrom, approvedTo]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+
   const setSearch = (patch: Partial<ArchiveSearch>) => {
-    void navigate({ search: (prev) => ({ ...prev, ...patch }) });
+    // أي تغيير في الفلاتر يعيد الترقيم إلى الصفحة الأولى
+    const next: Partial<ArchiveSearch> = { page: 1, ...patch };
+    void navigate({ search: (prev) => ({ ...prev, ...next }) });
   };
+
+  const goToPage = (target: number) => {
+    void navigate({
+      search: (prev) => ({ ...prev, page: Math.min(Math.max(1, target), totalPages) }),
+    });
+  };
+
 
   const hasFilters =
     q !== "" ||
@@ -271,12 +300,93 @@ function ArchivedMeetingsPage() {
           </div>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground">
-              عدد النتائج: {filtered.length} من {archived.length}
-            </p>
-            <CouncilArchivedMeetingsList meetings={filtered} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                عدد النتائج: {filtered.length} من {archived.length} · عرض{" "}
+                {startIndex + 1}–{startIndex + pageItems.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <label
+                  className="text-xs text-muted-foreground"
+                  htmlFor="archive-page-size"
+                >
+                  عدد العناصر في كل صفحة
+                </label>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => setSearch({ pageSize: Number(value) })}
+                  dir="rtl"
+                >
+                  <SelectTrigger id="archive-page-size" className="h-8 w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {PAGE_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <CouncilArchivedMeetingsList meetings={pageItems} />
+
+            <nav
+              className="flex flex-wrap items-center justify-between gap-3"
+              aria-label="ترقيم الصفحات"
+            >
+              <span className="text-xs text-muted-foreground">
+                الصفحة {currentPage} من {totalPages}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                  السابق
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(
+                    (p) =>
+                      p === 1 ||
+                      p === totalPages ||
+                      Math.abs(p - currentPage) <= 1,
+                  )
+                  .map((p, idx, arr) => (
+                    <span key={p} className="flex items-center gap-1">
+                      {idx > 0 && p - arr[idx - 1]! > 1 ? (
+                        <span className="px-1 text-xs text-muted-foreground">…</span>
+                      ) : null}
+                      <Button
+                        variant={p === currentPage ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 min-w-8 px-2"
+                        aria-current={p === currentPage ? "page" : undefined}
+                        onClick={() => goToPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    </span>
+                  ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                >
+                  التالي
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                </Button>
+              </div>
+            </nav>
           </>
         )}
+
       </main>
     </FacultyPortalShell>
   );
