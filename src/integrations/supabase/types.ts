@@ -10292,6 +10292,7 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      gp_academic_date: { Args: { p_at?: string }; Returns: string }
       gp_admin_list_policies: {
         Args: never
         Returns: {
