@@ -784,29 +784,47 @@ function EmploymentReportSection(props: {
   );
 }
 
+const CONSENT_PURPOSES = [
+  "communications",
+  "surveys",
+  "events",
+  "career_followup",
+  "employment_quality",
+] as const;
+
+const CONSENT_NOTICE_VERSION = "v1";
+
 function ConsentManagementSection(props: {
   graduateRecordId: string;
   onSubmitted: () => void;
   onError: (message: string) => void;
 }) {
+  const listConsents = useServerFn(listGraduateSelfConsentsFn);
   const grantConsent = useServerFn(grantGraduateConsentFn);
   const withdrawConsent = useServerFn(withdrawGraduateConsentFn);
-  const [purpose, setPurpose] = useState("communications");
-  const [noticeVersion, setNoticeVersion] = useState("v1");
-  const [consentId, setConsentId] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const handleGrant = async () => {
+  const consentsQuery = useQuery({
+    queryKey: ["graduates-affairs", "self-consents", props.graduateRecordId],
+    queryFn: () => listConsents({ data: { graduateRecordId: props.graduateRecordId } }),
+  });
+
+  const consents: GraduateSelfConsent[] = Array.isArray(consentsQuery.data) ? consentsQuery.data : [];
+  const activeByPurpose = new Map(
+    consents.filter((c) => c.consent_state === "granted").map((c) => [c.purpose_code, c]),
+  );
+
+  const handleGrant = async (purposeCode: string) => {
     setBusy(true);
     try {
       await grantConsent({
         data: {
           graduateRecordId: props.graduateRecordId,
-          purposeCode: purpose,
-          noticeVersion,
+          purposeCode,
+          noticeVersion: CONSENT_NOTICE_VERSION,
         },
       });
-      setNoticeVersion("v1");
+      await consentsQuery.refetch();
       props.onSubmitted();
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر منح الموافقة.");
@@ -815,12 +833,11 @@ function ConsentManagementSection(props: {
     }
   };
 
-  const handleWithdraw = async () => {
-    if (!consentId.trim()) return;
+  const handleWithdraw = async (consentId: string) => {
     setBusy(true);
     try {
       await withdrawConsent({ data: { consentId } });
-      setConsentId("");
+      await consentsQuery.refetch();
       props.onSubmitted();
     } catch (err) {
       props.onError(err instanceof Error ? err.message : "تعذّر سحب الموافقة.");
@@ -832,37 +849,46 @@ function ConsentManagementSection(props: {
   return (
     <section dir="rtl" className="rounded-lg border p-4">
       <h3 className="font-semibold">إدارة الموافقات</h3>
-      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_120px_auto]">
-        <select
-          className="h-10 rounded-md border bg-background px-3 text-sm"
-          value={purpose}
-          onChange={(e) => setPurpose(e.target.value)}
-        >
-          <option value="communications">التواصل</option>
-          <option value="surveys">الاستبيانات</option>
-          <option value="events">الفعاليات</option>
-          <option value="career_followup">المتابعة المهنية</option>
-          <option value="employment_quality">جودة التوظيف</option>
-        </select>
-        <Input
-          value={noticeVersion}
-          onChange={(e) => setNoticeVersion(e.target.value)}
-          placeholder="إصدار الإشعار"
-        />
-        <Button type="button" disabled={busy} onClick={handleGrant}>
-          منح موافقة
-        </Button>
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-        <Input
-          value={consentId}
-          onChange={(e) => setConsentId(e.target.value)}
-          placeholder="معرّف الموافقة للسحب"
-        />
-        <Button type="button" variant="outline" disabled={busy || !consentId.trim()} onClick={handleWithdraw}>
-          سحب موافقة
-        </Button>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        يمكنك منح الموافقة لكل غرض أو سحبها في أي وقت.
+      </p>
+      {consentsQuery.isLoading ? (
+        <p className="mt-2 text-sm text-muted-foreground">جارٍ تحميل الموافقات…</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm">
+          {CONSENT_PURPOSES.map((purpose) => {
+            const active = activeByPurpose.get(purpose);
+            return (
+              <li
+                key={purpose}
+                className="flex flex-wrap items-center justify-between gap-2 rounded border p-2"
+              >
+                <span>
+                  <span className="font-medium">{gaPurposeLabelAr(purpose)}</span>
+                  <span className="mr-2 text-xs text-muted-foreground">
+                    {active ? "ممنوحة" : "غير ممنوحة"}
+                  </span>
+                </span>
+                {active ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => handleWithdraw(active.id)}
+                  >
+                    سحب الموافقة
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" disabled={busy} onClick={() => handleGrant(purpose)}>
+                    منح الموافقة
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }
