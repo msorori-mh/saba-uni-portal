@@ -86,7 +86,12 @@ function AuditLogPage() {
     setFrom(""); setTo(""); setEntity(""); setAction(""); setUserId("");
   };
 
+  if (auditQ.error) {
+    return <LoadErrorNotice error={auditQ.error} title="تعذّر تحميل سجل التدقيق" onRetry={() => auditQ.refetch()} />;
+  }
+
   return (
+
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold text-primary">سجل التدقيق</h1>
