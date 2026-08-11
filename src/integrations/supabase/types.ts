@@ -3883,9 +3883,11 @@ export type Database = {
           notes_protected: string | null
           outcome: string | null
           purpose_code: string
-          state: Database["public"]["Enums"]["graduate_followup_state"]
+          state: string
           updated_at: string
           workflow_id: string | null
+          workflow_pin_source: string
+          workflow_pinned_at: string
           workflow_snapshot: Json
         }
         Insert: {
@@ -3898,9 +3900,11 @@ export type Database = {
           notes_protected?: string | null
           outcome?: string | null
           purpose_code: string
-          state?: Database["public"]["Enums"]["graduate_followup_state"]
+          state?: string
           updated_at?: string
           workflow_id?: string | null
+          workflow_pin_source: string
+          workflow_pinned_at?: string
           workflow_snapshot?: Json
         }
         Update: {
@@ -3913,9 +3917,11 @@ export type Database = {
           notes_protected?: string | null
           outcome?: string | null
           purpose_code?: string
-          state?: Database["public"]["Enums"]["graduate_followup_state"]
+          state?: string
           updated_at?: string
           workflow_id?: string | null
+          workflow_pin_source?: string
+          workflow_pinned_at?: string
           workflow_snapshot?: Json
         }
         Relationships: [
@@ -10828,7 +10834,7 @@ export type Database = {
           p_followup_id: string
           p_next_action_at?: string
           p_outcome?: string
-          p_target_state: Database["public"]["Enums"]["graduate_followup_state"]
+          p_target_state: string
         }
         Returns: undefined
       }
