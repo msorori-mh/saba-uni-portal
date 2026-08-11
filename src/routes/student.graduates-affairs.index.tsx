@@ -502,6 +502,8 @@ function EventsSection(props: {
   onError: (message: string) => void;
 }) {
   const listEvents = useServerFn(listGraduateSelfEventsFn);
+  const listConsents = useServerFn(listGraduateSelfConsentsFn);
+  const grantConsent = useServerFn(grantGraduateConsentFn);
   const registerForEvent = useServerFn(registerGraduateForEventFn);
   const [busy, setBusy] = useState(false);
 
@@ -515,11 +517,26 @@ function EventsSection(props: {
   const handleRegister = async (eventId: string) => {
     setBusy(true);
     try {
+      const consents = (await listConsents({
+        data: { graduateRecordId: props.graduateRecordId },
+      })) as GraduateSelfConsent[];
+      let consentId = Array.isArray(consents)
+        ? consents.find((c) => c.purpose_code === "events" && c.consent_state === "granted")?.id
+        : undefined;
+      if (!consentId) {
+        consentId = (await grantConsent({
+          data: {
+            graduateRecordId: props.graduateRecordId,
+            purposeCode: "events",
+            noticeVersion: CONSENT_NOTICE_VERSION,
+          },
+        })) as string;
+      }
       await registerForEvent({
         data: {
           eventId,
           graduateRecordId: props.graduateRecordId,
-          consentId: "00000000-0000-0000-0000-000000000000",
+          consentId,
         },
       });
       props.onInvalidate();
