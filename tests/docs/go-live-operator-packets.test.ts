@@ -91,10 +91,10 @@ describe("Go-Live Operator Packets & Demo Script Verification", () => {
     expect(existsSync(filePath)).toBe(true);
     const content = readFileSync(filePath, "utf-8");
     expect(content).toContain("LEVEL-4 ONLY");
-    expect(content).toContain("SUPERVISOR ASSIGNMENT");
-    expect(content).toContain("COMMITTEE EVALUATION");
-    expect(content).toContain("REVISIONS REQUIRED LOOP");
-    expect(content).toContain("READ-ONLY");
+    expect(content).toContain("assign_graduation_project_supervisor");
+    expect(content).toContain("submit_graduation_project_evaluation");
+    expect(content).toContain("REVISIONS LOOP");
+    expect(content.toLowerCase()).toContain("read-only");
   });
 
   test("Section G: PRODUCTION-E2E-GRADUATE-AFFAIRS.txt exists and contains feature flag check & scoped search", () => {

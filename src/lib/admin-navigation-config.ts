@@ -37,6 +37,7 @@ import {
   AlertCircle,
   Megaphone,
   Rocket,
+  Briefcase,
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -144,7 +145,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "شؤون الخريجين",
     icon: FileBadge,
     items: [
-      // Existing Admin route only — do not invent Graduates Affairs links.
+      { to: "/admin/graduates-affairs", label: "شؤون الخريجين", icon: Briefcase },
       { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },
     ],
   },
@@ -211,6 +212,8 @@ export const ADMIN_NAV_LEGACY_SIDEBAR_PATHS = [
   "/admin/at-risk-students",
   "/admin/academic-councils",
   "/admin/graduation-projects",
+  "/admin/graduates-affairs",
+  "/admin/graduation-candidates",
   "/admin/students",
   "/admin/student-requests",
   "/admin/request-types",

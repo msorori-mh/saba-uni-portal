@@ -704,11 +704,13 @@ export class GraduationProjectsRpcClient {
     outcome: ResultOutcomeInput;
     expectedVersion: number;
     correlationId?: string;
+    /** Optional revision notes — requires GP identity/revision notes migration. */
+    notes?: string | null;
     /** @deprecated draft corrections payload — ignored by MVP conclude RPC */
     corrections?: CorrectionInput[];
   }): Promise<string> {
     const decision = toCanonicalResultOutcome(input.outcome);
-    return this.call<string>("conclude_graduation_project_result", {
+    const args: Record<string, unknown> = {
       p_project_id: input.projectId,
       p_decision: decision,
       p_expected_version: input.expectedVersion,
@@ -718,7 +720,11 @@ export class GraduationProjectsRpcClient {
         projectId: input.projectId,
         entityId: decision,
       }),
-    });
+    };
+    if (input.notes != null && String(input.notes).trim() !== "") {
+      args.p_notes = String(input.notes).trim();
+    }
+    return this.call<string>("conclude_graduation_project_result", args);
   }
 
   async archiveProject(input: {

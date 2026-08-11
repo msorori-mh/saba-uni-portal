@@ -27,12 +27,15 @@ export function StaffDepartmentScopeFields({
   departmentIds,
   onScopeChange,
   onDepartmentIdsChange,
+  operationalScopeHint = false,
 }: {
   departments: Array<{ id: string; name_ar: string }>;
   scope: StaffDepartmentScope;
   departmentIds: string[];
   onScopeChange: (scope: StaffDepartmentScope) => void;
   onDepartmentIdsChange: (ids: string[]) => void;
+  /** When true, warn that college-wide "all" does not grant GA specialist ops. */
+  operationalScopeHint?: boolean;
 }) {
   const toggleDepartment = (id: string) => {
     if (departmentIds.includes(id)) {
@@ -55,6 +58,14 @@ export function StaffDepartmentScopeFields({
           <option value="specific">أقسام محددة</option>
         </select>
       </label>
+
+      {operationalScopeHint && scope === "all" && (
+        <p className="text-xs text-amber-800 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
+          تنبيه تشغيلي: خيار «كل أقسام الكلية» يمسح ربط الأقسام الصريح ولا يمنح
+          صلاحية مختص شؤون الخريجين. صلاحية المختص تعتمد فقط على صفوف
+          staff_profile_departments الصريحة (fail-closed).
+        </p>
+      )}
 
       {scope === "specific" && (
         <div className="rounded-lg border border-border bg-secondary/20 p-3 space-y-2">

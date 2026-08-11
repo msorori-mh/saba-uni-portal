@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
@@ -16,8 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  createGraduateFollowupFn,
   getStaffGraduateFileFn,
   searchGraduateRecordsFn,
+  transitionGraduateFollowupFn,
 } from "@/lib/graduates-affairs/graduates-affairs.functions";
 import type {
   GraduateAffairsFileProjection,
@@ -51,6 +53,7 @@ function metric(
 }
 
 export function GraduatesAffairsStaffWorkspace() {
+  const queryClient = useQueryClient();
   const searchRecords = useServerFn(searchGraduateRecordsFn);
   const getFile = useServerFn(getStaffGraduateFileFn);
   const [query, setQuery] = useState("");
@@ -78,6 +81,10 @@ export function GraduatesAffairsStaffWorkspace() {
     enabled: Boolean(selectedId),
     retry: 1,
   });
+
+  const invalidateFile = () => {
+    queryClient.invalidateQueries({ queryKey: ["graduates-affairs", "staff-file", selectedId] });
+  };
 
   const records = recordsQuery.data ?? [];
   const filtered = useMemo(() => {
@@ -270,6 +277,7 @@ export function GraduatesAffairsStaffWorkspace() {
         loading={fileQuery.isLoading}
         error={fileQuery.error}
         retry={() => fileQuery.refetch()}
+        onInvalidate={invalidateFile}
       />
     </div>
   );
@@ -315,13 +323,68 @@ function GraduateCasePanel({
   loading,
   error,
   retry,
+  onInvalidate,
 }: {
   selectedId: string | null;
   file: GraduateAffairsFileProjection | null;
   loading: boolean;
   error: unknown;
   retry: () => void;
+  onInvalidate: () => void;
 }) {
+  const transitionFollowup = useServerFn(transitionGraduateFollowupFn);
+  const createFollowup = useServerFn(createGraduateFollowupFn);
+  const [followupBusy, setFollowupBusy] = useState<string | null>(null);
+  const [assigneeUserId, setAssigneeUserId] = useState("");
+  const [purposeCode, setPurposeCode] = useState("communications");
+  const [nextActionAt, setNextActionAt] = useState("");
+  const [createBusy, setCreateBusy] = useState(false);
+  const [genericError, setGenericError] = useState<string | null>(null);
+
+  const handleTransition = async (
+    followupId: string,
+    targetState: "open" | "in_progress" | "completed" | "cancelled",
+  ) => {
+    setFollowupBusy(followupId);
+    try {
+      await transitionFollowup({
+        data: {
+          followupId,
+          targetState,
+          outcome: targetState === "completed" ? "تمّت المتابعة" : null,
+          nextActionAt: null,
+        },
+      });
+      onInvalidate();
+    } catch (err) {
+      setGenericError(err instanceof Error ? err.message : "تعذّر تحديث حالة المتابعة.");
+    } finally {
+      setFollowupBusy(null);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!assigneeUserId.trim() || !selectedId) return;
+    setCreateBusy(true);
+    try {
+      await createFollowup({
+        data: {
+          graduateRecordId: selectedId,
+          assigneeUserId: assigneeUserId.trim(),
+          purposeCode,
+          nextActionAt: nextActionAt || null,
+        },
+      });
+      setAssigneeUserId("");
+      setNextActionAt("");
+      onInvalidate();
+    } catch (err) {
+      setGenericError(err instanceof Error ? err.message : "تعذّر إنشاء المتابعة.");
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   if (!selectedId)
     return (
       <WorkspaceState
@@ -359,6 +422,11 @@ function GraduateCasePanel({
   );
   return (
     <section className="rounded-2xl border bg-card p-4" aria-labelledby="ga-case-title">
+      {genericError && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900" role="alert">
+          {genericError}
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="ga-case-title" className="font-bold text-primary">
@@ -387,13 +455,49 @@ function GraduateCasePanel({
           <ul className="mt-2 grid gap-2">
             {active.map((item) => (
               <li key={item.id} className="rounded-lg border p-3 text-sm">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <strong>{FOLLOWUP_LABELS[item.state] ?? "متابعة"}</strong>
-                  <span>
-                    {item.next_action_at
-                      ? new Date(item.next_action_at).toLocaleDateString("ar-SA")
-                      : "دون موعد تالٍ"}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <strong>{FOLLOWUP_LABELS[item.state] ?? "متابعة"}</strong>
+                    <span className="mx-2 text-muted-foreground">·</span>
+                    <span>
+                      {item.next_action_at
+                        ? new Date(item.next_action_at).toLocaleDateString("ar-SA")
+                        : "دون موعد تالٍ"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {item.state === "open" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={followupBusy === item.id}
+                        onClick={() => handleTransition(item.id, "in_progress")}
+                      >
+                        بدء المعالجة
+                      </Button>
+                    )}
+                    {item.state === "in_progress" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={followupBusy === item.id}
+                        onClick={() => handleTransition(item.id, "completed")}
+                      >
+                        إكمال
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={followupBusy === item.id}
+                      onClick={() => handleTransition(item.id, "cancelled")}
+                    >
+                      إلغاء
+                    </Button>
+                  </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   الغرض: {item.purpose_code} · المسؤول: {shortId(item.assignee_user_id)}
@@ -403,10 +507,40 @@ function GraduateCasePanel({
           </ul>
         )}
       </div>
-      <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
-        هذا السطح للقراءة التشغيلية فقط؛ عقد GA الحالي لا يوفّر انتقالات حالات آمنة من هذه الشاشة
-        دون مدخلات إضافية، لذلك لا توجد إجراءات كتابة أو بيانات افتراضية.
-      </p>
+      <div className="mt-5 rounded-lg border p-3">
+        <h3 className="text-sm font-bold">إنشاء متابعة جديدة</h3>
+        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_140px_160px_auto]">
+          <Input
+            value={assigneeUserId}
+            onChange={(e) => setAssigneeUserId(e.target.value)}
+            placeholder="معرّف المستخدم المسؤول (UUID)"
+          />
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={purposeCode}
+            onChange={(e) => setPurposeCode(e.target.value)}
+          >
+            <option value="communications">التواصل</option>
+            <option value="surveys">الاستبيانات</option>
+            <option value="events">الفعاليات</option>
+            <option value="career_followup">المتابعة المهنية</option>
+            <option value="employment_quality">جودة التوظيف</option>
+          </select>
+          <Input
+            type="datetime-local"
+            value={nextActionAt}
+            onChange={(e) => setNextActionAt(e.target.value)}
+            placeholder="الموعد التالي"
+          />
+          <Button
+            type="button"
+            disabled={createBusy || !assigneeUserId.trim()}
+            onClick={handleCreate}
+          >
+            إنشاء
+          </Button>
+        </div>
+      </div>
     </section>
   );
 }

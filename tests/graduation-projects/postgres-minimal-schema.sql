@@ -9,19 +9,48 @@ create or replace function auth.uid() returns uuid language sql stable as $$
 $$;
 
 create table if not exists public.departments(id uuid primary key);
-create table if not exists public.programs(id uuid primary key);
+create table if not exists public.programs(
+  id uuid primary key,
+  department_id uuid references public.departments(id),
+  is_active boolean not null default true
+);
 create table if not exists public.academic_years(id uuid primary key);
 create table if not exists public.semesters(id uuid primary key);
 create table if not exists public.student_profiles(
   id uuid primary key,
   user_id uuid references auth.users(id),
-  department_id uuid references public.departments(id)
+  department_id uuid references public.departments(id),
+  program_id uuid references public.programs(id),
+  status text not null default 'active',
+  full_name_ar text,
+  full_name_en text,
+  academic_number text
 );
 create table if not exists public.faculty_profiles(
   id uuid primary key,
   user_id uuid references auth.users(id),
-  department_id uuid references public.departments(id)
+  department_id uuid references public.departments(id),
+  program_id uuid references public.programs(id),
+  faculty_id uuid,
+  status text not null default 'active',
+  full_name_ar text,
+  full_name_en text,
+  employee_number text
 );
+-- Harness forward-compat when an older programs stub already exists
+alter table public.programs add column if not exists department_id uuid;
+alter table public.programs add column if not exists is_active boolean not null default true;
+alter table public.student_profiles add column if not exists status text not null default 'active';
+alter table public.student_profiles add column if not exists full_name_ar text;
+alter table public.student_profiles add column if not exists full_name_en text;
+alter table public.student_profiles add column if not exists academic_number text;
+alter table public.student_profiles add column if not exists program_id uuid;
+alter table public.faculty_profiles add column if not exists status text not null default 'active';
+alter table public.faculty_profiles add column if not exists full_name_ar text;
+alter table public.faculty_profiles add column if not exists full_name_en text;
+alter table public.faculty_profiles add column if not exists employee_number text;
+alter table public.faculty_profiles add column if not exists program_id uuid;
+alter table public.faculty_profiles add column if not exists faculty_id uuid;
 
 -- Canonical academic-level identity used by GP student L4 eligibility guard.
 create table if not exists public.academic_levels(
@@ -92,8 +121,16 @@ insert into auth.users(id) values
  ('10000000-0000-0000-0000-000000000024')  -- unknown-level student (no status row)
 on conflict do nothing;
 
-insert into public.departments(id) values ('20000000-0000-0000-0000-000000000001') on conflict do nothing;
-insert into public.programs(id) values ('21000000-0000-0000-0000-000000000001') on conflict do nothing;
+insert into public.departments(id) values
+  ('20000000-0000-0000-0000-000000000001'),
+  ('20000000-0000-0000-0000-000000000002')
+on conflict do nothing;
+insert into public.programs(id, department_id, is_active) values
+  ('21000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', true),
+  ('21000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', true)
+on conflict (id) do update
+set department_id = excluded.department_id,
+    is_active = excluded.is_active;
 insert into public.academic_years(id) values ('22000000-0000-0000-0000-000000000001') on conflict do nothing;
 insert into public.semesters(id) values ('23000000-0000-0000-0000-000000000001') on conflict do nothing;
 

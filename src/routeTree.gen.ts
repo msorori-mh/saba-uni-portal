@@ -48,6 +48,7 @@ import { Route as AdminExecutiveReportsRouteImport } from './routes/admin/execut
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
 import { Route as AdminFacultyAccountsRouteImport } from './routes/admin/faculty-accounts'
 import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
+import { Route as AdminGraduatesAffairsRouteImport } from './routes/admin.graduates-affairs'
 import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/graduation-candidates'
 import { Route as AdminGraduationProjectsRouteImport } from './routes/admin/graduation-projects'
 import { Route as AdminImportsRouteImport } from './routes/admin/imports'
@@ -355,6 +356,11 @@ const AdminGradesLazyRoute = AdminGradesLazyRouteImport.update({
   path: '/grades',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin/grades.lazy').then((d) => d.Route))
+const AdminGraduatesAffairsRoute = AdminGraduatesAffairsRouteImport.update({
+  id: '/graduates-affairs',
+  path: '/graduates-affairs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminGraduationCandidatesRoute =
   AdminGraduationCandidatesRouteImport.update({
     id: '/graduation-candidates',
@@ -833,6 +839,7 @@ export interface FileRoutesByFullPath {
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-accounts': typeof AdminFacultyAccountsRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
+  '/admin/graduates-affairs': typeof AdminGraduatesAffairsRoute
   '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/graduation-projects': typeof AdminGraduationProjectsRoute
   '/admin/imports': typeof AdminImportsRoute
@@ -954,6 +961,7 @@ export interface FileRoutesByTo {
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-accounts': typeof AdminFacultyAccountsRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
+  '/admin/graduates-affairs': typeof AdminGraduatesAffairsRoute
   '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/graduation-projects': typeof AdminGraduationProjectsRoute
   '/admin/imports': typeof AdminImportsRoute
@@ -1076,6 +1084,7 @@ export interface FileRoutesById {
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-accounts': typeof AdminFacultyAccountsRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
+  '/admin/graduates-affairs': typeof AdminGraduatesAffairsRoute
   '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/graduation-projects': typeof AdminGraduationProjectsRoute
   '/admin/imports': typeof AdminImportsRoute
@@ -1203,6 +1212,7 @@ export interface FileRouteTypes {
     | '/admin/faculty'
     | '/admin/faculty-accounts'
     | '/admin/faculty-management'
+    | '/admin/graduates-affairs'
     | '/admin/graduation-candidates'
     | '/admin/graduation-projects'
     | '/admin/imports'
@@ -1324,6 +1334,7 @@ export interface FileRouteTypes {
     | '/admin/faculty'
     | '/admin/faculty-accounts'
     | '/admin/faculty-management'
+    | '/admin/graduates-affairs'
     | '/admin/graduation-candidates'
     | '/admin/graduation-projects'
     | '/admin/imports'
@@ -1445,6 +1456,7 @@ export interface FileRouteTypes {
     | '/admin/faculty'
     | '/admin/faculty-accounts'
     | '/admin/faculty-management'
+    | '/admin/graduates-affairs'
     | '/admin/graduation-candidates'
     | '/admin/graduation-projects'
     | '/admin/imports'
@@ -1852,6 +1864,13 @@ declare module '@tanstack/react-router' {
       path: '/grades'
       fullPath: '/admin/grades'
       preLoaderRoute: typeof AdminGradesLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/graduates-affairs': {
+      id: '/admin/graduates-affairs'
+      path: '/graduates-affairs'
+      fullPath: '/admin/graduates-affairs'
+      preLoaderRoute: typeof AdminGraduatesAffairsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/graduation-candidates': {
@@ -2443,6 +2462,7 @@ interface AdminRouteChildren {
   AdminFacultyRoute: typeof AdminFacultyRoute
   AdminFacultyAccountsRoute: typeof AdminFacultyAccountsRoute
   AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
+  AdminGraduatesAffairsRoute: typeof AdminGraduatesAffairsRoute
   AdminGraduationCandidatesRoute: typeof AdminGraduationCandidatesRoute
   AdminGraduationProjectsRoute: typeof AdminGraduationProjectsRoute
   AdminImportsRoute: typeof AdminImportsRoute
@@ -2497,6 +2517,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFacultyRoute: AdminFacultyRoute,
   AdminFacultyAccountsRoute: AdminFacultyAccountsRoute,
   AdminFacultyManagementRoute: AdminFacultyManagementRoute,
+  AdminGraduatesAffairsRoute: AdminGraduatesAffairsRoute,
   AdminGraduationCandidatesRoute: AdminGraduationCandidatesRoute,
   AdminGraduationProjectsRoute: AdminGraduationProjectsRoute,
   AdminImportsRoute: AdminImportsRoute,

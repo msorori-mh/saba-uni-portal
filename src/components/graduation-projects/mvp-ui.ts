@@ -19,7 +19,10 @@ export type GraduationProjectState =
 export type FinalDecision = "passed" | "revisions_required" | "failed" | null;
 
 export interface IdentityOption {
+  /** Profile id (student_profiles.id or faculty_profiles.id). */
   id: string;
+  /** Auth principal; defaults to id when directory omits it. */
+  userId?: string;
   name: string;
   secondary?: string;
 }
@@ -88,14 +91,14 @@ export interface GraduationProjectDetail extends GraduationProjectSummary {
 }
 
 export type UiAction =
-  | { type: "member_add"; studentId: string }
+  | { type: "member_add"; studentId: string; userId: string }
   | { type: "member_remove"; memberId: string }
   | { type: "proposal_save"; problemStatement: string; objectives: string; summary: string }
   | { type: "proposal_submit" }
   | { type: "proposal_decide"; decision: "accepted" | "returned" | "rejected"; comments?: string }
-  | { type: "supervisor_assign"; facultyId: string }
+  | { type: "supervisor_assign"; facultyId: string; userId: string }
   | { type: "supervisor_respond"; response: "accepted" | "declined" }
-  | { type: "progress_submit"; text: string }
+  | { type: "progress_submit"; text: string; fileId?: string }
   | {
       type: "progress_review";
       updateId: string;
@@ -104,7 +107,11 @@ export type UiAction =
     }
   | { type: "final_review"; decision: "ready" | "returned"; comments?: string }
   | { type: "defense_schedule"; startsAt: string; venue: string }
-  | { type: "committee_assign"; facultyIds: string[] }
+  | {
+      type: "committee_assign";
+      facultyIds: string[];
+      members?: Array<{ facultyId: string; userId: string }>;
+    }
   | { type: "defense_held" }
   | { type: "evaluation_submit"; score: number; notes: string }
   | { type: "result_record"; decision: Exclude<FinalDecision, null>; revisions?: string }

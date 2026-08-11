@@ -22,6 +22,16 @@ type RpcClient = {
 
 export type GraduateAffairsRecordState = "pending" | "approved" | "corrected" | "revoked";
 
+export type GraduateEmploymentStatus =
+  | "employed"
+  | "self_employed"
+  | "seeking_work";
+
+export type GraduateSpecializationRelationship =
+  | "directly_related"
+  | "partially_related"
+  | "not_related";
+
 export interface GraduateAffairsSearchRecord {
   id: string;
   program_id: string;
@@ -140,6 +150,102 @@ export class GraduatesAffairsRpcClient {
     });
   }
 
+  grantConsent(input: {
+    graduateRecordId: string;
+    purposeCode: string;
+    noticeVersion: string;
+  }): Promise<string> {
+    return this.call("graduate_grant_consent", {
+      p_graduate_record_id: input.graduateRecordId,
+      p_purpose_code: input.purposeCode,
+      p_notice_version: input.noticeVersion,
+    });
+  }
+
+  withdrawConsent(consentId: string): Promise<void> {
+    return this.call("graduate_withdraw_consent", {
+      p_consent_id: consentId,
+    });
+  }
+
+  addContactPoint(input: {
+    graduateRecordId: string;
+    channelType: string;
+    value: string;
+    purposeCode: string;
+  }): Promise<string> {
+    return this.call("graduate_add_contact_point", {
+      p_graduate_record_id: input.graduateRecordId,
+      p_channel_type: input.channelType,
+      p_value: input.value,
+      p_purpose_code: input.purposeCode,
+    });
+  }
+
+  revokeContactPoint(contactPointId: string): Promise<void> {
+    return this.call("graduate_revoke_contact_point", {
+      p_contact_point_id: contactPointId,
+    });
+  }
+
+  reportEmployment(input: {
+    graduateRecordId: string;
+    employmentStatus: GraduateEmploymentStatus;
+    employerNameReported: string | null;
+    occupationTitle: string | null;
+    specializationRelationship: GraduateSpecializationRelationship;
+    startedOn: string | null;
+    endedOn: string | null;
+  }): Promise<string> {
+    return this.call("graduate_report_employment", {
+      p_graduate_record_id: input.graduateRecordId,
+      p_employment_status: input.employmentStatus,
+      p_employer_name_reported: input.employerNameReported,
+      p_occupation_title: input.occupationTitle,
+      p_specialization_relationship: input.specializationRelationship,
+      p_started_on: input.startedOn,
+      p_ended_on: input.endedOn,
+    });
+  }
+
+  submitSurveyResponse(input: {
+    surveyVersionId: string;
+    graduateRecordId: string;
+    consentId: string;
+    answers: Record<string, unknown>;
+  }): Promise<string> {
+    return this.call("graduate_submit_survey_response", {
+      p_survey_version_id: input.surveyVersionId,
+      p_graduate_record_id: input.graduateRecordId,
+      p_consent_id: input.consentId,
+      p_answers: input.answers,
+    });
+  }
+
+  withdrawSurveyResponse(responseId: string): Promise<void> {
+    return this.call("graduate_withdraw_survey_response", {
+      p_response_id: responseId,
+    });
+  }
+
+  registerForEvent(input: {
+    eventId: string;
+    graduateRecordId: string;
+    consentId: string;
+  }): Promise<string> {
+    return this.call("graduate_register_for_event", {
+      p_event_id: input.eventId,
+      p_graduate_record_id: input.graduateRecordId,
+      p_consent_id: input.consentId,
+    });
+  }
+
+  cancelEventRegistration(registrationId: string): Promise<void> {
+    return this.call("graduate_cancel_event_registration", {
+      p_registration_id: registrationId,
+    });
+  }
+
   myContactPoints(graduateRecordId: string): Promise<unknown> {
     return this.call("graduate_my_contact_points", {
       p_graduate_record_id: graduateRecordId,
@@ -187,6 +293,34 @@ export class GraduatesAffairsRpcClient {
       p_program_id: input.programId,
       p_graduation_year: input.graduationYear,
       p_minimum_cell_size: input.minimumCellSize,
+    });
+  }
+
+  createFollowup(input: {
+    graduateRecordId: string;
+    assigneeUserId: string;
+    purposeCode: string;
+    nextActionAt: string | null;
+  }): Promise<string> {
+    return this.call("graduate_affairs_create_followup", {
+      p_graduate_record_id: input.graduateRecordId,
+      p_assignee_user_id: input.assigneeUserId,
+      p_purpose_code: input.purposeCode,
+      p_next_action_at: input.nextActionAt,
+    });
+  }
+
+  transitionFollowup(input: {
+    followupId: string;
+    targetState: "open" | "in_progress" | "completed" | "cancelled";
+    outcome: string | null;
+    nextActionAt: string | null;
+  }): Promise<void> {
+    return this.call("graduate_affairs_transition_followup", {
+      p_followup_id: input.followupId,
+      p_target_state: input.targetState,
+      p_outcome: input.outcome,
+      p_next_action_at: input.nextActionAt,
     });
   }
 

@@ -444,6 +444,7 @@ function AddStaffModal({
                 departmentIds={form.department_ids}
                 onScopeChange={(scope) => update("department_scope", scope)}
                 onDepartmentIdsChange={(ids) => update("department_ids", ids)}
+                operationalScopeHint
               />
               <Field label="الإيميل الجامعي">
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} dir="ltr"
@@ -597,6 +598,7 @@ function EditStaffModal({
                     departmentIds={form.department_ids}
                     onScopeChange={(scope) => update("department_scope", scope)}
                     onDepartmentIdsChange={(ids) => update("department_ids", ids)}
+                    operationalScopeHint
                   />
                 )}
                 <Field label="الحالة">

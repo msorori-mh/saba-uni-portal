@@ -34,7 +34,7 @@ const COUNCILS_UI_SRC = COUNCILS_UI_FILES.map((f) => readFileSync(f, "utf-8")).j
 const ALL_COUNCILS_SURFACE = `${ROUTE_SRC}\n${COUNCILS_UI_SRC}`;
 
 const ROUTE_SEMANTIC_SHA256 =
-  "a64201aebb8cd34aacf9884b18e860c9dfcbb9766d2b5668cba54e6fc502101c";
+  "0ac44ee8dbe34a0701d069dc625c329bcbc96de0434e915c46bbe08d460a7d27";
 
 function routeSemanticHash(routeTree: string): string {
   const semanticLines = routeTree

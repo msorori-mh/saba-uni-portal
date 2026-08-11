@@ -332,10 +332,10 @@ describe("staff runtime surface", () => {
 
 describe("feature flag and AUTH-04-only path", () => {
   test("17. feature flag OFF → runtime hidden/blocked", () => {
-    expect(portalFeatures.studentGraduatesAffairs).toBe(false);
-    expect(portalFeatures.staffGraduatesAffairs).toBe(false);
+    // Gate-level test: a false featureEnabled parameter blocks even an
+    // otherwise qualified caller. Product flags are ON for operational closure.
     const self = evaluateGraduateSelfRuntimeAccess({
-      featureEnabled: portalFeatures.studentGraduatesAffairs,
+      featureEnabled: false,
       authenticated: true,
       studentProfileStatus: "graduated",
       isGraduationCandidate: false,
@@ -510,7 +510,7 @@ describe("feature flag and AUTH-04-only path", () => {
     if (!decision.allowed) expect(decision.reason).toBe("account_continuity_policy_undecided");
   });
 
-  test("routes and flags stay source-wired with flags OFF", () => {
+  test("routes and flags stay source-wired with flags ON for operational closure", () => {
     const studentRoute = read("src/routes/student.graduates-affairs.index.tsx");
     const staffRoute = read("src/routes/staff.graduates-affairs.tsx");
     const studentIndex = read("src/routes/student.index.tsx");
@@ -519,7 +519,7 @@ describe("feature flag and AUTH-04-only path", () => {
     expect(staffRoute).toContain("portalFeatures.staffGraduatesAffairs");
     expect(studentIndex).toContain("studentGraduatesAffairs");
     expect(staffIndex).toContain("staffGraduatesAffairs");
-    expect(portalFeatures.studentGraduatesAffairs).toBe(false);
-    expect(portalFeatures.staffGraduatesAffairs).toBe(false);
+    expect(portalFeatures.studentGraduatesAffairs).toBe(true);
+    expect(portalFeatures.staffGraduatesAffairs).toBe(true);
   });
 });
