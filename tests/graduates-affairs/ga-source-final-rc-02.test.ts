@@ -71,14 +71,14 @@ describe("GA source final RC-02 readiness", () => {
     expect(dryRun).not.toMatch(/^\s*INSERT\b/m);
   });
 
-  test("staff workspace remains present and feature flags stay OFF", () => {
+  test("staff workspace remains present and feature flags are ON for operational closure", () => {
     const workspace = read("src/components/portal/GraduatesAffairsStaffWorkspace.tsx");
     const features = read("src/lib/portal-features.ts");
     const route = read("src/routes/staff.graduates-affairs.tsx");
     expect(workspace).toContain("searchGraduateRecordsFn");
     expect(workspace).toContain("getStaffGraduateFileFn");
-    expect(features).toMatch(/staffGraduatesAffairs:\s*false/);
-    expect(features).toMatch(/studentGraduatesAffairs:\s*false/);
+    expect(features).toMatch(/staffGraduatesAffairs:\s*true/);
+    expect(features).toMatch(/studentGraduatesAffairs:\s*true/);
     expect(route).toContain("portalFeatures.staffGraduatesAffairs");
   });
 });

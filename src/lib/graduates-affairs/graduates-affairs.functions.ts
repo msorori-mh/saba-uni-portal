@@ -219,6 +219,50 @@ const updateProfileSchema = z.object({
   rowVersion: z.number().int(),
 });
 
+/** Self file read — AUTH-04 RPC only; blocked when student flag OFF. */
+export const getGraduateSelfFileFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => graduateRecordIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (!isPortalFeatureEnabled("studentGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).getGraduateFile(data.graduateRecordId);
+  });
+
+/** Self contact points listing — AUTH-04 RPC only; blocked when student flag OFF. */
+export const listGraduateSelfContactPointsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => graduateRecordIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (!isPortalFeatureEnabled("studentGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).myContactPoints(data.graduateRecordId);
+  });
+
+/** Self visible opportunities listing — AUTH-04 RPC only; blocked when student flag OFF. */
+export const listGraduateSelfOpportunitiesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => graduateRecordIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (!isPortalFeatureEnabled("studentGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).listVisibleOpportunities(data.graduateRecordId);
+  });
+
+/** Self visible events listing — AUTH-04 RPC only; blocked when student flag OFF. */
+export const listGraduateSelfEventsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => graduateRecordIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    if (!isPortalFeatureEnabled("studentGraduatesAffairs")) {
+      throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
+    }
+    return rpcClient(context.supabase as SessionRpc).listVisibleEvents(data.graduateRecordId);
+  });
+
 /** Self profile mutation — AUTH-04 RPC only; blocked when student flag OFF. */
 export const updateGraduateOwnProfileFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -226,4 +270,181 @@ export const updateGraduateOwnProfileFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     denyMutationWhenFlagOff("studentGraduatesAffairs");
     return rpcClient(context.supabase as SessionRpc).updateOwnProfile(data);
+  });
+
+const grantConsentSchema = z.object({
+  graduateRecordId: z.string().uuid(),
+  purposeCode: z.string().min(1),
+  noticeVersion: z.string().min(1),
+});
+
+/** Self consent grant — AUTH-04 RPC only; blocked when student flag OFF. */
+export const grantGraduateConsentFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => grantConsentSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).grantConsent(data);
+  });
+
+const consentIdSchema = z.object({
+  consentId: z.string().uuid(),
+});
+
+/** Self consent withdrawal — AUTH-04 RPC only; blocked when student flag OFF. */
+export const withdrawGraduateConsentFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => consentIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).withdrawConsent(data.consentId);
+  });
+
+const addContactPointSchema = z.object({
+  graduateRecordId: z.string().uuid(),
+  channelType: z.enum(["email", "phone"]),
+  value: z.string().min(1),
+  purposeCode: z.string().min(1),
+});
+
+/** Self contact point addition — AUTH-04 RPC only; blocked when student flag OFF. */
+export const addGraduateContactPointFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => addContactPointSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).addContactPoint(data);
+  });
+
+const contactPointIdSchema = z.object({
+  contactPointId: z.string().uuid(),
+});
+
+/** Self contact point revocation — AUTH-04 RPC only; blocked when student flag OFF. */
+export const revokeGraduateContactPointFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => contactPointIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).revokeContactPoint(data.contactPointId);
+  });
+
+const reportEmploymentSchema = z.object({
+  graduateRecordId: z.string().uuid(),
+  employmentStatus: z.enum([
+    "employed",
+    "self_employed",
+    "seeking_work",
+    "continuing_education",
+    "not_seeking",
+    "not_disclosed",
+  ]),
+  employerNameReported: z.string().nullable(),
+  occupationTitle: z.string().nullable(),
+  specializationRelationship: z.enum([
+    "directly_related",
+    "partially_related",
+    "not_related",
+    "not_assessed",
+  ]),
+  startedOn: z.string().nullable(),
+  endedOn: z.string().nullable(),
+});
+
+/** Self employment report — AUTH-04 RPC only; blocked when student flag OFF. */
+export const reportGraduateEmploymentFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => reportEmploymentSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).reportEmployment(data);
+  });
+
+const submitSurveyResponseSchema = z.object({
+  surveyVersionId: z.string().uuid(),
+  graduateRecordId: z.string().uuid(),
+  consentId: z.string().uuid(),
+  answers: z.record(z.unknown()),
+});
+
+/** Self survey response submission — AUTH-04 RPC only; blocked when student flag OFF. */
+export const submitGraduateSurveyResponseFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => submitSurveyResponseSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).submitSurveyResponse(data);
+  });
+
+const responseIdSchema = z.object({
+  responseId: z.string().uuid(),
+});
+
+/** Self survey response withdrawal — AUTH-04 RPC only; blocked when student flag OFF. */
+export const withdrawGraduateSurveyResponseFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => responseIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).withdrawSurveyResponse(data.responseId);
+  });
+
+const registerForEventSchema = z.object({
+  eventId: z.string().uuid(),
+  graduateRecordId: z.string().uuid(),
+  consentId: z.string().uuid(),
+});
+
+/** Self event registration — AUTH-04 RPC only; blocked when student flag OFF. */
+export const registerGraduateForEventFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => registerForEventSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).registerForEvent(data);
+  });
+
+const registrationIdSchema = z.object({
+  registrationId: z.string().uuid(),
+});
+
+/** Self event registration cancellation — AUTH-04 RPC only; blocked when student flag OFF. */
+export const cancelGraduateEventRegistrationFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => registrationIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("studentGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).cancelEventRegistration(data.registrationId);
+  });
+
+const createFollowupSchema = z.object({
+  graduateRecordId: z.string().uuid(),
+  assigneeUserId: z.string().uuid(),
+  purposeCode: z.string().min(1),
+  nextActionAt: z.string().nullable(),
+});
+
+/** Staff follow-up creation — AUTH-04 RPC only; blocked when staff flag OFF. */
+export const createGraduateFollowupFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => createFollowupSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("staffGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).createFollowup(data);
+  });
+
+const transitionFollowupSchema = z.object({
+  followupId: z.string().uuid(),
+  targetState: z.enum(["open", "in_progress", "completed", "cancelled"]),
+  outcome: z.string().nullable(),
+  nextActionAt: z.string().nullable(),
+});
+
+/** Staff follow-up transition — AUTH-04 RPC only; blocked when staff flag OFF. */
+export const transitionGraduateFollowupFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => transitionFollowupSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    denyMutationWhenFlagOff("staffGraduatesAffairs");
+    return rpcClient(context.supabase as SessionRpc).transitionFollowup(data);
   });
