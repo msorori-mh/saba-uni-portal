@@ -70,7 +70,9 @@ function inDateRange(iso: string | null, from: string, to: string) {
 
 function ArchivedMeetingsPage() {
   const search = Route.useSearch();
-  const { q, council, decisionFrom, decisionTo, approvedFrom, approvedTo } = search;
+  const { q, council, decisionFrom, decisionTo, approvedFrom, approvedTo, page, pageSize } =
+    search;
+
   const navigate = useNavigate({ from: "/faculty-portal/academic-councils/archive" });
 
   const fetchArchived = useServerFn(getMyArchivedCouncilMeetings);
