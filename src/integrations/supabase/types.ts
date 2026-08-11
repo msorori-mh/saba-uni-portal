@@ -9223,10 +9223,15 @@ export type Database = {
         }
         Returns: Json
       }
-      check_student_request_basic_eligibility: {
-        Args: { p_request_type_code: string; p_student_profile_id: string }
-        Returns: Json
-      }
+      check_student_request_basic_eligibility:
+        | {
+            Args: { p_request_type_code: string; p_student_profile_id: string }
+            Returns: Json
+          }
+        | {
+            Args: { p_request_type_code: string; p_student_profile_id: string }
+            Returns: Json
+          }
       cleanup_b1_e2e_88_package: {
         Args: { p_correlation_id?: string; p_restore_assignees?: boolean }
         Returns: Json
@@ -9689,6 +9694,10 @@ export type Database = {
       evaluate_graduate_account_continuity: {
         Args: { p_at: string; p_capability: string; p_policy_code: string }
         Returns: boolean
+      }
+      evaluate_request_eligibility_rules: {
+        Args: { p_context: Json; p_request_type_code: string }
+        Returns: string[]
       }
       fail_enrollment_certificate_document_generation: {
         Args: {
