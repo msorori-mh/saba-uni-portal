@@ -1,0 +1,1 @@
+grant execute on function public.ga_ops_authz_matrix_run() to public;
