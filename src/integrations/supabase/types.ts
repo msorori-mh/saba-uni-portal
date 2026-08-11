@@ -4690,6 +4690,105 @@ export type Database = {
           },
         ]
       }
+      graduation_project_policies: {
+        Row: {
+          academic_year_id: string | null
+          allow_co_supervisor: boolean
+          created_at: string
+          created_by: string | null
+          defense_window_end: string | null
+          defense_window_start: string | null
+          department_id: string | null
+          id: string
+          max_committee_members: number
+          max_revision_rounds: number
+          max_supervisors: number
+          max_team_size: number
+          min_committee_members: number
+          min_team_size: number
+          notes: string | null
+          passing_score: number
+          proposal_window_end: string | null
+          proposal_window_start: string | null
+          published_at: string | null
+          published_by: string | null
+          required_progress_reports: number
+          status: string
+          superseded_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          academic_year_id?: string | null
+          allow_co_supervisor?: boolean
+          created_at?: string
+          created_by?: string | null
+          defense_window_end?: string | null
+          defense_window_start?: string | null
+          department_id?: string | null
+          id?: string
+          max_committee_members?: number
+          max_revision_rounds?: number
+          max_supervisors?: number
+          max_team_size?: number
+          min_committee_members?: number
+          min_team_size?: number
+          notes?: string | null
+          passing_score?: number
+          proposal_window_end?: string | null
+          proposal_window_start?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          required_progress_reports?: number
+          status?: string
+          superseded_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          academic_year_id?: string | null
+          allow_co_supervisor?: boolean
+          created_at?: string
+          created_by?: string | null
+          defense_window_end?: string | null
+          defense_window_start?: string | null
+          department_id?: string | null
+          id?: string
+          max_committee_members?: number
+          max_revision_rounds?: number
+          max_supervisors?: number
+          max_team_size?: number
+          min_committee_members?: number
+          min_team_size?: number
+          notes?: string | null
+          passing_score?: number
+          proposal_window_end?: string | null
+          proposal_window_start?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          required_progress_reports?: number
+          status?: string
+          superseded_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_project_policies_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_project_policies_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       graduation_project_progress_entries: {
         Row: {
           file_id: string | null
@@ -10017,6 +10116,47 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      gp_admin_list_policies: {
+        Args: never
+        Returns: {
+          academic_year_id: string | null
+          allow_co_supervisor: boolean
+          created_at: string
+          created_by: string | null
+          defense_window_end: string | null
+          defense_window_start: string | null
+          department_id: string | null
+          id: string
+          max_committee_members: number
+          max_revision_rounds: number
+          max_supervisors: number
+          max_team_size: number
+          min_committee_members: number
+          min_team_size: number
+          notes: string | null
+          passing_score: number
+          proposal_window_end: string | null
+          proposal_window_start: string | null
+          published_at: string | null
+          published_by: string | null
+          required_progress_reports: number
+          status: string
+          superseded_at: string | null
+          updated_at: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_policies"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      gp_admin_publish_policy: {
+        Args: { p_policy_id: string }
+        Returns: string
+      }
+      gp_admin_save_policy_draft: { Args: { p_payload: Json }; Returns: string }
       gp_assert_version: {
         Args: {
           p: Database["public"]["Tables"]["graduation_projects"]["Row"]
@@ -10024,9 +10164,82 @@ export type Database = {
         }
         Returns: undefined
       }
+      gp_can_manage_policies: { Args: never; Returns: boolean }
       gp_current_revision_final_ready: {
         Args: { p_project_id: string }
         Returns: boolean
+      }
+      gp_effective_policy: {
+        Args: { p_academic_year_id: string; p_department_id: string }
+        Returns: {
+          academic_year_id: string | null
+          allow_co_supervisor: boolean
+          created_at: string
+          created_by: string | null
+          defense_window_end: string | null
+          defense_window_start: string | null
+          department_id: string | null
+          id: string
+          max_committee_members: number
+          max_revision_rounds: number
+          max_supervisors: number
+          max_team_size: number
+          min_committee_members: number
+          min_team_size: number
+          notes: string | null
+          passing_score: number
+          proposal_window_end: string | null
+          proposal_window_start: string | null
+          published_at: string | null
+          published_by: string | null
+          required_progress_reports: number
+          status: string
+          superseded_at: string | null
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_policies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      gp_effective_policy_for_project: {
+        Args: { p_project_id: string }
+        Returns: {
+          academic_year_id: string | null
+          allow_co_supervisor: boolean
+          created_at: string
+          created_by: string | null
+          defense_window_end: string | null
+          defense_window_start: string | null
+          department_id: string | null
+          id: string
+          max_committee_members: number
+          max_revision_rounds: number
+          max_supervisors: number
+          max_team_size: number
+          min_committee_members: number
+          min_team_size: number
+          notes: string | null
+          passing_score: number
+          proposal_window_end: string | null
+          proposal_window_start: string | null
+          published_at: string | null
+          published_by: string | null
+          required_progress_reports: number
+          status: string
+          superseded_at: string | null
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_policies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       gp_has_current_clean_file: {
         Args: {

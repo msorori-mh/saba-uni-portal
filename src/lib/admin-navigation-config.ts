@@ -139,6 +139,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: GraduationCap,
     items: [
       { to: "/admin/graduation-projects", label: "مشاريع التخرج", icon: GraduationCap },
+      { to: "/admin/graduation-project-policies", label: "سياسات مشاريع التخرج", icon: ShieldCheck },
+
     ],
   },
   {
@@ -213,6 +215,7 @@ export const ADMIN_NAV_LEGACY_SIDEBAR_PATHS = [
   "/admin/at-risk-students",
   "/admin/academic-councils",
   "/admin/graduation-projects",
+
   "/admin/graduates-affairs",
   "/admin/graduation-candidates",
   "/admin/students",
