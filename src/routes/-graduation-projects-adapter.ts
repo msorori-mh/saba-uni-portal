@@ -228,17 +228,20 @@ export function mapGraduationProjectDetail(
     else if (roles.includes("member") || roles.includes("leader")) viewer = "member";
     if (roles.includes("coordinator")) viewer = "coordinator";
     if (roles.includes("committee")) viewer = "committee";
-    if (roles.includes("supervisor")) {
-      const sup = raw.supervisor as { status?: string } | null | undefined;
-      viewer = sup?.status === "pending" ? "supervisor_pending" : "supervisor";
-    }
+  }
+  if (viewer === "supervisor" || (roles.includes("supervisor") && viewer !== "coordinator" && viewer !== "committee")) {
+    const sup = raw.supervisor as { status?: string } | null | undefined;
+    viewer = sup?.status === "pending" ? "supervisor_pending" : "supervisor";
   }
 
   const progress = Array.isArray(raw.progress) ? raw.progress : [];
   const defense = raw.defense as Record<string, unknown> | null | undefined;
   const ownEval = raw.own_evaluation as Record<string, unknown> | null | undefined;
   const agg = raw.evaluation_aggregate as Record<string, unknown> | null | undefined;
-  const supervisor = raw.supervisor as { user_id?: string; status?: string } | null | undefined;
+  const supervisor = raw.supervisor as
+    | { user_id?: string; status?: string; name?: string }
+    | null
+    | undefined;
   const archiveRaw = raw.archive as Record<string, unknown> | null | undefined;
 
   const summary = mapSummary({
@@ -277,7 +280,11 @@ export function mapGraduationProjectDetail(
     },
     supervisor: supervisor
       ? {
-          name: String(supervisor.user_id ?? "مشرف"),
+          name: String(
+            (typeof supervisor.name === "string" && supervisor.name.trim()) ||
+              supervisor.user_id ||
+              "مشرف",
+          ),
           acceptance:
             supervisor.status === "accepted"
               ? "accepted"
