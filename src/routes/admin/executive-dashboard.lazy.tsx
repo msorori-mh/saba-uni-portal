@@ -151,9 +151,6 @@ function ExecutiveDashboardPage() {
     if (core.newRequestsPending > 0) alerts.push({ id: "req", severity: "info", title: "طلبات طلابية بانتظار المراجعة", detail: `${core.newRequestsPending}`, href: "/admin/student-requests" });
     if (core.newDocsToday > 0) alerts.push({ id: "docs", severity: "info", title: "وثائق صادرة اليوم", detail: `${core.newDocsToday}`, href: "/admin/documents" });
   }
-  if (progress && progress.gradCandidates > 0) {
-    alerts.push({ id: "grads", severity: "info", title: "مرشحون للتخرج", detail: `${progress.gradCandidates}`, href: "/admin/graduation-candidates" });
-  }
   if (adminCounts) {
     if ((adminCounts.admin ?? 0) < 2) alerts.push({ id: "admin-low", severity: "critical", title: "عدد المدراء أقل من 2", detail: `الحالي: ${adminCounts.admin ?? 0}`, href: "/admin/users" });
     if ((adminCounts.system_admin ?? 0) === 0) alerts.push({ id: "sa-zero", severity: "critical", title: "لا يوجد مدير نظام", href: "/admin/users" });
@@ -162,7 +159,7 @@ function ExecutiveDashboardPage() {
   const kpis = [
     { label: "إجمالي الطلاب", value: core?.students ?? "—", icon: GraduationCap, href: "/admin/students" },
     { label: "الطلاب النشطون", value: core?.activeStudents ?? "—", icon: Users, href: "/admin/students" },
-    { label: "المرشحون للتخرج", value: progress?.gradCandidates ?? "—", icon: FileBadge, href: "/admin/graduation-candidates" },
+    
     { label: "الطلاب المتعثرون", value: progress?.atRisk ?? "—", icon: AlertCircle, href: "/admin/at-risk-students" },
     { label: "أعضاء هيئة التدريس", value: core?.faculty ?? "—", icon: UserCog, href: "/admin/faculty-management" },
     { label: "المجموعات الدراسية", value: core?.sections ?? "—", icon: Layers, href: "/admin/course-offerings" },
@@ -174,7 +171,7 @@ function ExecutiveDashboardPage() {
     { to: "/admin/academic-operations", label: "الشؤون الأكاديمية", icon: Activity },
     { to: "/admin/course-offerings", search: { tab: "schedule" }, label: "الجداول الدراسية", icon: CalendarClock },
     { to: "/admin/student-progress", label: "تقدم الطلاب", icon: TrendingUp },
-    { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },
+    
     { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
     { to: "/admin/operations", label: "مركز العمليات", icon: ShieldCheck },
   ];

@@ -146,7 +146,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: FileBadge,
     items: [
       { to: "/admin/graduates-affairs", label: "شؤون الخريجين", icon: Briefcase },
-      { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },
+      
     ],
   },
   {
