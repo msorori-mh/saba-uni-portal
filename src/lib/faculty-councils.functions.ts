@@ -1976,3 +1976,109 @@ export const transitionMyCouncilMeeting = createServerFn({ method: "POST" })
       to_status: String(payload.to_status ?? data.toStatus),
     };
   });
+
+// ============================================================================
+// ARCHIVED MEETINGS — archive page with council/decision-date/approval filters
+// ============================================================================
+
+export type ArchivedCouncilMeetingItem = CouncilMeetingV2Item & {
+  minutes_approved_at: string | null;
+  last_decision_at: string | null;
+  decisions_count: number;
+};
+
+export const getMyArchivedCouncilMeetings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ meetings: ArchivedCouncilMeetingItem[] }> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const [membershipRows, meetingsRes] = await Promise.all([
+      loadMembershipRoleRows(sb, context.userId),
+      sb
+        .from("academic_council_meetings")
+        .select(
+          "id, council_id, meeting_number, title, scheduled_at, status, location, intake_opens_at, intake_closes_at, notes, created_at, updated_at, council:academic_councils(name)",
+        )
+        .eq("status", "archived")
+        .order("scheduled_at", { ascending: false }),
+    ]);
+
+    if (meetingsRes.error) throwMeetingsLoadError(meetingsRes.error);
+
+    const meetings = (meetingsRes.data ?? []) as MeetingRow[];
+    const meetingIds = meetings.map((m) => m.id);
+
+    const [{ agendaByMeeting, minutesByMeeting }, minutesMetaRes, decisionsRes] =
+      await Promise.all([
+        loadMeetingAgendaAndMinutes(sb, meetingIds),
+        meetingIds.length
+          ? sb
+              .from("academic_council_minutes")
+              .select("meeting_id, approved_at, locked_at")
+              .in("meeting_id", meetingIds)
+          : Promise.resolve({ data: [], error: null } as const),
+        meetingIds.length
+          ? sb
+              .from("academic_council_decisions")
+              .select("meeting_id, created_at")
+              .in("meeting_id", meetingIds)
+          : Promise.resolve({ data: [], error: null } as const),
+      ]);
+
+    if (minutesMetaRes.error) throwMeetingsLoadError(minutesMetaRes.error);
+    if (decisionsRes.error) throwMeetingsLoadError(decisionsRes.error);
+
+    const approvedByMeeting = new Map<string, string>();
+    for (const row of minutesMetaRes.data ?? []) {
+      const at = (row.approved_at as string | null) ?? (row.locked_at as string | null);
+      if (!at) continue;
+      const mid = row.meeting_id as string;
+      const current = approvedByMeeting.get(mid);
+      if (!current || at > current) approvedByMeeting.set(mid, at);
+    }
+
+    const decisionStats = new Map<string, { count: number; last: string }>();
+    for (const row of decisionsRes.data ?? []) {
+      const mid = row.meeting_id as string | null;
+      if (!mid) continue;
+      const at = row.created_at as string;
+      const prev = decisionStats.get(mid);
+      decisionStats.set(mid, {
+        count: (prev?.count ?? 0) + 1,
+        last: prev && prev.last > at ? prev.last : at,
+      });
+    }
+
+    const items: ArchivedCouncilMeetingItem[] = meetings.map((row) => {
+      const council = unwrapCouncil(row.council);
+      const stats = decisionStats.get(row.id);
+      return {
+        meeting_id: row.id,
+        council_id: row.council_id,
+        council_name: council?.name ?? "",
+        meeting_number: row.meeting_number,
+        meeting_title: row.title,
+        scheduled_at: row.scheduled_at,
+        status: row.status,
+        location: row.location,
+        intake_opens_at: row.intake_opens_at,
+        intake_closes_at: row.intake_closes_at,
+        notes: row.notes,
+        agenda_summary: buildAgendaSummary(agendaByMeeting.get(row.id) ?? []),
+        minutes_summary: minutesByMeeting.get(row.id) ?? null,
+        user_membership_role: membershipRoleAt(
+          membershipRows,
+          row.council_id,
+          row.scheduled_at,
+        ),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        minutes_approved_at: approvedByMeeting.get(row.id) ?? null,
+        last_decision_at: stats?.last ?? null,
+        decisions_count: stats?.count ?? 0,
+      };
+    });
+
+    return { meetings: items };
+  });
