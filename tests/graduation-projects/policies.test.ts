@@ -1,19 +1,43 @@
 import { describe, expect, it } from "bun:test";
 import {
-  GP_POLICY_DEFAULTS,
+  GP_POLICY_EMPTY_DRAFT,
   describePolicyScope,
   validateGraduationProjectPolicy,
   type GraduationProjectPolicyDraft,
 } from "@/lib/graduation-projects/policies";
 
+/** A fully filled administrative draft — the platform ships no academic defaults. */
+const COMPLETE: GraduationProjectPolicyDraft = {
+  ...GP_POLICY_EMPTY_DRAFT,
+  min_team_size: 1,
+  max_team_size: 5,
+  required_progress_reports: 1,
+  min_committee_members: 2,
+  max_committee_members: 5,
+  passing_score: 60,
+  max_revision_rounds: 2,
+};
+
 const base = (over: Partial<GraduationProjectPolicyDraft> = {}): GraduationProjectPolicyDraft => ({
-  ...GP_POLICY_DEFAULTS,
+  ...COMPLETE,
   ...over,
 });
 
 describe("validateGraduationProjectPolicy", () => {
-  it("accepts the built-in defaults (they mirror kernel behaviour)", () => {
+  it("accepts a fully filled administrative draft", () => {
     expect(validateGraduationProjectPolicy(base())).toEqual([]);
+  });
+
+  it("fails closed on an empty draft: every academic value is required", () => {
+    const errors = validateGraduationProjectPolicy({ ...GP_POLICY_EMPTY_DRAFT });
+    expect(errors.length).toBe(7);
+    expect(errors.every((e) => e.includes("قيمة مطلوبة"))).toBe(true);
+  });
+
+  it("requires each missing academic value individually", () => {
+    const errors = validateGraduationProjectPolicy(base({ passing_score: null }));
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("درجة النجاح");
   });
 
   it("never lets configuration drop the committee below two members", () => {
@@ -38,7 +62,6 @@ describe("validateGraduationProjectPolicy", () => {
     ).toBe(1);
     expect(validateGraduationProjectPolicy(base({ allow_co_supervisor: true })).length).toBe(1);
   });
-
 
   it("requires both ends of a window and a correct order", () => {
     expect(
