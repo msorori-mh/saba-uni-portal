@@ -3,6 +3,7 @@ import { ArrowRight, Briefcase } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
 import { GraduatesAffairsStaffWorkspace } from "@/components/portal/GraduatesAffairsStaffWorkspace";
+import { GraduatesAffairsAuthoringPanel } from "@/components/portal/GraduatesAffairsAuthoringPanel";
 import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures, STAFF_GRADUATES_AFFAIRS_FROZEN_MSG } from "@/lib/portal-features";
 
@@ -45,7 +46,10 @@ function StaffGraduatesAffairsPage() {
             homeLabel="العودة لبوابة الموظف"
           />
         ) : (
-          <GraduatesAffairsStaffWorkspace />
+          <div className="space-y-8">
+            <GraduatesAffairsStaffWorkspace />
+            <GraduatesAffairsAuthoringPanel />
+          </div>
         )}
       </main>
     </PortalShell>

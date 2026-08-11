@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAdminGraduatesAffairsOverviewFn } from "@/lib/admin-graduates-affairs.functions";
+import { GraduatesAffairsAuthoringPanel } from "@/components/portal/GraduatesAffairsAuthoringPanel";
 
 export const Route = createFileRoute("/admin/graduates-affairs")({
   component: AdminGraduatesAffairsPage,
@@ -51,7 +52,7 @@ function AdminGraduatesAffairsPage() {
             نظرة إدارية على شؤون الخريجين
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            عرض إداري رصين للحالات والأرقام المجمّعة فقط — لا إجراءات تشغيلية.
+            عرض إداري للأرقام المجمّعة، مع صلاحية تشغيلية احتياطية موثّقة في سجل الأحداث.
           </p>
         </div>
       </div>
@@ -65,7 +66,12 @@ function AdminGraduatesAffairsPage() {
       ) : (
         <OverviewContent data={query.data} retry={() => void query.refetch()} />
       )}
+
+      <div className="border-t border-border pt-6">
+        <GraduatesAffairsAuthoringPanel />
+      </div>
     </main>
+
   );
 }
 

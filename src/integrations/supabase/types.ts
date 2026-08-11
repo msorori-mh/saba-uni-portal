@@ -10201,6 +10201,147 @@ export type Database = {
         Args: { p_payload: Json }
         Returns: string
       }
+      ga_can_read_operational_catalog: { Args: never; Returns: boolean }
+      ga_is_admin_fallback: { Args: never; Returns: boolean }
+      ga_lock_operational_actor_mode: {
+        Args: { p_department_id?: string }
+        Returns: string
+      }
+      ga_op_close_survey: { Args: { p_survey_id: string }; Returns: undefined }
+      ga_op_list_communications: {
+        Args: { p_graduate_record_id: string }
+        Returns: {
+          channel: string
+          id: string
+          notice_version: string
+          purpose_code: string
+          sent_at: string
+          sent_by: string
+          template_code: string
+        }[]
+      }
+      ga_op_list_employers: {
+        Args: never
+        Returns: {
+          id: string
+          legal_name: string
+          sector_code: string
+          verification_state: string
+          verified_at: string
+        }[]
+      }
+      ga_op_list_events: {
+        Args: never
+        Returns: {
+          audience_scope: Json
+          ends_at: string
+          event_type: string
+          id: string
+          notice_version: string
+          purpose_code: string
+          registrations_count: number
+          starts_at: string
+          state: string
+          title: string
+        }[]
+      }
+      ga_op_list_opportunities: {
+        Args: never
+        Returns: {
+          audience_scope: Json
+          closes_at: string
+          created_at: string
+          description: string
+          employer_id: string
+          id: string
+          opportunity_type: string
+          published_at: string
+          state: string
+          title: string
+        }[]
+      }
+      ga_op_list_surveys: {
+        Args: never
+        Returns: {
+          minimum_report_cell_size: number
+          notice_version: string
+          published_at: string
+          purpose_code: string
+          questions: Json
+          response_count: number
+          state: string
+          survey_id: string
+          title: string
+          version: number
+          version_id: string
+        }[]
+      }
+      ga_op_log_communication: {
+        Args: {
+          p_channel: string
+          p_contact_point_id: string
+          p_graduate_record_id: string
+          p_payload_meta?: Json
+          p_purpose_code: string
+          p_template_code: string
+        }
+        Returns: string
+      }
+      ga_op_publish_survey_version: {
+        Args: { p_version_id: string }
+        Returns: undefined
+      }
+      ga_op_save_event: {
+        Args: {
+          p_audience_scope?: Json
+          p_ends_at: string
+          p_event_type: string
+          p_id: string
+          p_notice_version: string
+          p_purpose_code: string
+          p_starts_at: string
+          p_title: string
+        }
+        Returns: string
+      }
+      ga_op_save_opportunity: {
+        Args: {
+          p_audience_scope?: Json
+          p_closes_at?: string
+          p_description: string
+          p_employer_id?: string
+          p_id: string
+          p_opportunity_type: string
+          p_title: string
+        }
+        Returns: string
+      }
+      ga_op_save_survey: {
+        Args: {
+          p_id: string
+          p_minimum_report_cell_size?: number
+          p_purpose_code: string
+          p_title: string
+        }
+        Returns: string
+      }
+      ga_op_save_survey_version_draft: {
+        Args: {
+          p_notice_version: string
+          p_questions: Json
+          p_survey_id: string
+          p_version_id: string
+        }
+        Returns: string
+      }
+      ga_op_transition_event: {
+        Args: { p_event_id: string; p_target_state: string }
+        Returns: undefined
+      }
+      ga_operational_actor_mode: {
+        Args: { p_department_id?: string }
+        Returns: string
+      }
       ga_resolve_current_workflow_snapshot: {
         Args: { p_followup_type_id: string }
         Returns: Json
