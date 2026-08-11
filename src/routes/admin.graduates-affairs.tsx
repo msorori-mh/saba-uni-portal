@@ -193,13 +193,13 @@ function OverviewContent({
             testId="admin-ga-kpi-followups"
           />
           <Kpi
-            label="فعاليات نشطة"
+            label="فعاليات قادمة/جارية"
             value={counts.activeEvents}
             icon={CalendarDays}
             testId="admin-ga-kpi-events"
           />
           <Kpi
-            label="فرص نشطة"
+            label="فرص منشورة"
             value={counts.activeOpportunities}
             icon={Megaphone}
             testId="admin-ga-kpi-opportunities"
