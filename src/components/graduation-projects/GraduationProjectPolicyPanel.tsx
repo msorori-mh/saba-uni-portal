@@ -28,13 +28,13 @@ import {
 const NUMBER_FIELDS = [
   "min_team_size",
   "max_team_size",
-  "max_supervisors",
   "required_progress_reports",
   "min_committee_members",
   "max_committee_members",
   "passing_score",
   "max_revision_rounds",
 ] as const;
+
 
 const DATE_FIELDS = [
   "proposal_window_start",
