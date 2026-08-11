@@ -10028,6 +10028,8 @@ export type Database = {
           ends_at: string
           event_type: string
           id: string
+          notice_version: string
+          purpose_code: string
           starts_at: string
           title: string
         }[]
