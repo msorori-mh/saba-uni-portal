@@ -167,7 +167,7 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
   });
 
   it("17 — system health occurs lower than operational/academic priority areas", () => {
-    const opsIdx = DASHBOARD.indexOf('"العمليات الأكاديمية"');
+    const opsIdx = DASHBOARD.indexOf('"الشؤون الأكاديمية"');
     const schedulesIdx = DASHBOARD.indexOf('"عمليات اليوم / الجداول"');
     const progressIdx = DASHBOARD.indexOf('"التقدم الأكاديمي"');
     const healthIdx = DASHBOARD.indexOf('"صحة النظام"');
@@ -223,14 +223,14 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     expect(ADMIN_NAV_GROUPS.length).toBeLessThanOrEqual(10);
     expect(ADMIN_NAV_GROUPS.map((g) => g.label)).toEqual([
       "لوحة التحكم",
-      "القيادة والإدارة",
-      "العمليات الأكاديمية",
+      "الشؤون الأكاديمية",
       "شؤون الطلاب",
-      "هيئة التدريس والموارد البشرية",
-      "المجالس والحوكمة",
-      "المشاريع والخريجون",
+      "الهيئة التدريسية والإدارية",
+      "المجالس الأكاديمية",
+      "مشاريع التخرج",
+      "شؤون الخريجين",
       "المالية والوثائق",
-      "الاتصالات والتقارير",
+      "التواصل والتقارير",
       "النظام والإعدادات",
     ]);
   });
@@ -238,7 +238,10 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
   it("legacy sidebar paths preserved; no duplicates; every path authorized", () => {
     expect(hasDuplicateNavPaths(ADMIN_NAV_GROUPS)).toBe(false);
     const current = new Set(collectAdminNavPaths(ADMIN_NAV_GROUPS));
+    // /admin/department-reports is intentionally hidden from the admin sidebar
+    // (feature not enabled); the route and its authorization stay untouched.
     for (const path of ADMIN_NAV_LEGACY_SIDEBAR_PATHS) {
+      if (path === "/admin/department-reports") continue;
       expect(current.has(path)).toBe(true);
     }
     for (const path of current) {
