@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { listAuthUsersPaged } from "@/lib/admin/auth-users-directory.server";
 import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 
 const PROCESSING_ASSIGNMENT_ADMIN_ROLES = ["admin", "system_admin"] as const;
@@ -59,7 +60,7 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
         .eq("is_active", true),
       supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
       supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      listAuthUsersPaged(),
     ]);
 
     if (unitsRes.error) throw new Error(unitsRes.error.message);
@@ -67,7 +68,7 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
     if (assignRes.error) throw new Error(assignRes.error.message);
 
     const emailByUser = new Map<string, string>();
-    for (const u of authRes.data?.users ?? []) if (u.email) emailByUser.set(u.id, u.email);
+    for (const u of authRes) if (u.email) emailByUser.set(u.id, u.email);
     const nameByUser = new Map<string, string>();
     for (const r of facultyRes.data ?? []) if (r.user_id) nameByUser.set(r.user_id, r.full_name_ar);
     for (const r of staffRes.data ?? []) if (r.user_id) nameByUser.set(r.user_id, r.full_name_ar);
@@ -98,11 +99,11 @@ export const listAssignmentCandidates = createServerFn({ method: "GET" })
       facultyOnly
         ? Promise.resolve({ data: [] as Array<{ id: string; user_id: string | null; full_name_ar: string; employee_number: string | null }>, error: null })
         : supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      listAuthUsersPaged(),
     ]);
 
     const emailByUser = new Map<string, string>();
-    for (const u of auth.data?.users ?? []) if (u.email) emailByUser.set(u.id, u.email);
+    for (const u of auth) if (u.email) emailByUser.set(u.id, u.email);
 
     const rows: Array<{
       user_id: string;
