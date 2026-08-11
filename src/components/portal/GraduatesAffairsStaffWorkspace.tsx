@@ -370,7 +370,8 @@ function GraduateCasePanel({
 
   const handleTransition = async (
     followupId: string,
-    targetState: "open" | "in_progress" | "completed" | "cancelled",
+    targetState: string,
+    isTerminal: boolean,
   ) => {
     setFollowupBusy(followupId);
     try {
@@ -378,7 +379,7 @@ function GraduateCasePanel({
         data: {
           followupId,
           targetState,
-          outcome: targetState === "completed" ? "تمّت المتابعة" : null,
+          outcome: isTerminal ? "تمّت المتابعة" : null,
           nextActionAt: null,
         },
       });
