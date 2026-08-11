@@ -268,6 +268,19 @@ export const unassignUserRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
 
+    // Derived roles are owned by the organizational structure, not by this page.
+    const { data: current } = await supabaseAdmin
+      .from("user_role_assignments")
+      .select("source_type")
+      .eq("user_id", data.user_id)
+      .eq("role_code", data.role_code)
+      .maybeSingle();
+    if ((current as any)?.source_type === "position") {
+      throw new Error(
+        "هذا الدور مشتق من منصب تنظيمي ولا يمكن حذفه من هنا. أنهِ تعيين المنصب من صفحة الهيكل التنظيمي.",
+      );
+    }
+
     // Get mapping of role being removed
     const { data: cat } = await supabaseAdmin
       .from("roles_catalog")
@@ -275,6 +288,7 @@ export const unassignUserRole = createServerFn({ method: "POST" })
       .eq("code", data.role_code)
       .maybeSingle();
     const mapped = (cat as any)?.app_role_mapping as string | null;
+
 
     const { error } = await supabaseAdmin
       .from("user_role_assignments")
