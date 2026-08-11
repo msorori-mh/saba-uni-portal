@@ -32,6 +32,35 @@ export type GraduateSpecializationRelationship =
   | "partially_related"
   | "not_related";
 
+export interface GraduateSelfConsent {
+  id: string;
+  purpose_code: string;
+  notice_version: string;
+  consent_state: "granted" | "withdrawn";
+  affirmative_action_at: string;
+  withdrawn_at: string | null;
+}
+
+export interface GraduateSurveyQuestion {
+  key: string;
+  kind: "single_choice" | "multi_choice" | "free_text" | "number";
+  required?: boolean;
+  options?: string[];
+  maxLength?: number;
+  label?: string;
+}
+
+export interface GraduateSelfSurvey {
+  survey_version_id: string;
+  survey_id: string;
+  title: string;
+  purpose_code: string;
+  notice_version: string;
+  questions: GraduateSurveyQuestion[];
+  consent_id: string | null;
+  already_responded: boolean;
+}
+
 export interface GraduateAffairsSearchRecord {
   id: string;
   program_id: string;
