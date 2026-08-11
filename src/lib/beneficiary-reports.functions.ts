@@ -237,7 +237,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
       recentRequests: requests.data ?? [],
       recentDocuments: docs.data ?? [],
       links: [
-        { to: "/student/progress", label: "التقدم الأكاديمي" },
+        // «التقدم الأكاديمي» مخفي حالياً بناءً على طلب الإدارة.
         { to: "/student/study-plan", label: "الخطة الدراسية" },
         { to: "/student/schedule", label: "الجدول الأسبوعي" },
         { to: "/student/requests", label: "طلباتي" },

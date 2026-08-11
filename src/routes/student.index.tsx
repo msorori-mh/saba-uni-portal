@@ -420,6 +420,11 @@ function StudentDashboard() {
 
             <div className="mt-4 grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
               {SERVICE_LINKS.filter((link) => {
+                if (link.to === "/student/graduates-affairs") {
+                  // Presentation only — backend graduate-self RPC remains authoritative.
+                  // The graduate surface belongs to graduates only (status = graduated).
+                  return profile.status === "graduated";
+                }
                 if (link.to !== "/student/graduation-projects") return true;
                 // Presentation only — backend L4 predicate remains authoritative.
                 // Hide while loading / ambiguous / non-L4 (no transient GP link).
@@ -429,6 +434,7 @@ function StudentDashboard() {
                   ).eligible,
                 );
               }).map(({ to, title, desc, Icon }) => (
+
                 <Link
                   key={to}
                   to={to}
