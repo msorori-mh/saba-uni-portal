@@ -8783,6 +8783,10 @@ export type Database = {
         Args: { p_request_type_id: string }
         Returns: Json
       }
+      admin_get_service_definition: {
+        Args: { p_request_type_id: string }
+        Returns: Json
+      }
       admin_mark_faculty_password_reset: {
         Args: { _profile_id: string }
         Returns: {
@@ -8807,6 +8811,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_save_request_type_eligibility_rules: {
+        Args: { p_request_type_id: string; p_rules: Json }
+        Returns: Json
+      }
       admin_save_request_workflow_config: {
         Args: {
           p_request_type_id: string
@@ -8827,6 +8835,10 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      admin_set_request_workflow_step_actions: {
+        Args: { p_step_actions: Json; p_workflow_id: string }
+        Returns: Json
       }
       admin_set_staff_status: {
         Args: { _active: boolean; _profile_id: string }
@@ -8871,6 +8883,10 @@ export type Database = {
       }
       apply_b1_final_chance_effect: {
         Args: { p_request_id: string }
+        Returns: undefined
+      }
+      apply_configured_action_effect: {
+        Args: { p_action_code: string; p_request_id: string }
         Returns: undefined
       }
       apply_student_discount: {
