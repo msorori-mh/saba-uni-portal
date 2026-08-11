@@ -532,6 +532,22 @@ export function CouncilSessionAndGovernanceWorkspace({
                 </span>
               </div>
             )}
+            <div className="flex justify-end pt-1">
+              <Button
+                onClick={handleExportMinutesPdf}
+                disabled={loadingAction === "export_minutes_pdf"}
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+              >
+                {loadingAction === "export_minutes_pdf" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                تصدير المحضر المعتمد (PDF)
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
