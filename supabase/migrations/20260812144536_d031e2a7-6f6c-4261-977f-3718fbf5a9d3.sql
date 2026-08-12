@@ -1,0 +1,1 @@
+REVOKE UPDATE (request_type, updated_at) ON public.student_requests FROM authenticated;
