@@ -2053,7 +2053,9 @@ export type Database = {
           planned_title: string
           planned_topics: string | null
           session_number: number
+          syllabus_session_id: string | null
           updated_at: string
+          week_number: number | null
         }
         Insert: {
           created_at?: string
@@ -2062,7 +2064,9 @@ export type Database = {
           planned_title: string
           planned_topics?: string | null
           session_number: number
+          syllabus_session_id?: string | null
           updated_at?: string
+          week_number?: number | null
         }
         Update: {
           created_at?: string
@@ -2071,7 +2075,9 @@ export type Database = {
           planned_title?: string
           planned_topics?: string | null
           session_number?: number
+          syllabus_session_id?: string | null
           updated_at?: string
+          week_number?: number | null
         }
         Relationships: [
           {
@@ -2079,6 +2085,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "course_delivery_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_delivery_plan_sessions_syllabus_session_id_fkey"
+            columns: ["syllabus_session_id"]
+            isOneToOne: false
+            referencedRelation: "course_syllabus_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -2089,9 +2102,15 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_current: boolean
           planned_session_count: number
           published_at: string | null
+          source: string
           status: string
+          superseded_at: string | null
+          superseded_by: string | null
+          syllabus_id: string | null
+          syllabus_version: number | null
           updated_at: string
         }
         Insert: {
@@ -2099,9 +2118,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_current?: boolean
           planned_session_count: number
           published_at?: string | null
+          source?: string
           status?: string
+          superseded_at?: string | null
+          superseded_by?: string | null
+          syllabus_id?: string | null
+          syllabus_version?: number | null
           updated_at?: string
         }
         Update: {
@@ -2109,25 +2134,45 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_current?: boolean
           planned_session_count?: number
           published_at?: string | null
+          source?: string
           status?: string
+          superseded_at?: string | null
+          superseded_by?: string | null
+          syllabus_id?: string | null
+          syllabus_version?: number | null
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "course_delivery_plans_course_section_id_fkey"
             columns: ["course_section_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "course_sections"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "course_delivery_plans_course_section_id_fkey"
             columns: ["course_section_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "student_course_grade_summary"
             referencedColumns: ["course_section_id"]
+          },
+          {
+            foreignKeyName: "course_delivery_plans_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "course_delivery_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_delivery_plans_syllabus_id_fkey"
+            columns: ["syllabus_id"]
+            isOneToOne: false
+            referencedRelation: "course_syllabi"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2221,6 +2266,8 @@ export type Database = {
           faculty_profile_id: string
           id: string
           lecture_number: number | null
+          material_scope: string
+          plan_session_id: string | null
           published_at: string | null
           status: string
           study_system: string
@@ -2235,6 +2282,8 @@ export type Database = {
           faculty_profile_id: string
           id?: string
           lecture_number?: number | null
+          material_scope?: string
+          plan_session_id?: string | null
           published_at?: string | null
           status?: string
           study_system: string
@@ -2249,6 +2298,8 @@ export type Database = {
           faculty_profile_id?: string
           id?: string
           lecture_number?: number | null
+          material_scope?: string
+          plan_session_id?: string | null
           published_at?: string | null
           status?: string
           study_system?: string
@@ -2276,6 +2327,13 @@ export type Database = {
             columns: ["faculty_profile_id"]
             isOneToOne: false
             referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_materials_plan_session_id_fkey"
+            columns: ["plan_session_id"]
+            isOneToOne: false
+            referencedRelation: "course_delivery_plan_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -2361,6 +2419,7 @@ export type Database = {
           id: string
           section_code: string
           status: string
+          study_system: string | null
           updated_at: string
         }
         Insert: {
@@ -2371,6 +2430,7 @@ export type Database = {
           id?: string
           section_code: string
           status?: string
+          study_system?: string | null
           updated_at?: string
         }
         Update: {
@@ -2381,6 +2441,7 @@ export type Database = {
           id?: string
           section_code?: string
           status?: string
+          study_system?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2400,14 +2461,64 @@ export type Database = {
           },
         ]
       }
-      course_session_executions: {
+      course_session_execution_events: {
         Row: {
+          actor_id: string | null
           compensation_date: string | null
           created_at: string
           execution_date: string | null
+          from_status: string | null
           id: string
           notes: string | null
           plan_session_id: string
+          reason: string | null
+          to_status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          compensation_date?: string | null
+          created_at?: string
+          execution_date?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          plan_session_id: string
+          reason?: string | null
+          to_status: string
+        }
+        Update: {
+          actor_id?: string | null
+          compensation_date?: string | null
+          created_at?: string
+          execution_date?: string | null
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          plan_session_id?: string
+          reason?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_session_execution_events_plan_session_id_fkey"
+            columns: ["plan_session_id"]
+            isOneToOne: false
+            referencedRelation: "course_delivery_plan_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_session_executions: {
+        Row: {
+          compensation_date: string | null
+          compensation_recorded_at: string | null
+          created_at: string
+          execution_date: string | null
+          id: string
+          migration_review_flag: boolean
+          notes: string | null
+          plan_session_id: string
+          previous_status: string | null
           reason: string | null
           recorded_at: string
           recorded_by: string
@@ -2416,11 +2527,14 @@ export type Database = {
         }
         Insert: {
           compensation_date?: string | null
+          compensation_recorded_at?: string | null
           created_at?: string
           execution_date?: string | null
           id?: string
+          migration_review_flag?: boolean
           notes?: string | null
           plan_session_id: string
+          previous_status?: string | null
           reason?: string | null
           recorded_at?: string
           recorded_by: string
@@ -2429,11 +2543,14 @@ export type Database = {
         }
         Update: {
           compensation_date?: string | null
+          compensation_recorded_at?: string | null
           created_at?: string
           execution_date?: string | null
           id?: string
+          migration_review_flag?: boolean
           notes?: string | null
           plan_session_id?: string
+          previous_status?: string | null
           reason?: string | null
           recorded_at?: string
           recorded_by?: string
@@ -2446,6 +2563,116 @@ export type Database = {
             columns: ["plan_session_id"]
             isOneToOne: true
             referencedRelation: "course_delivery_plan_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_syllabi: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          course_id: string
+          created_at: string
+          created_by: string | null
+          description_ar: string | null
+          id: string
+          is_current: boolean
+          objectives_ar: string | null
+          planned_session_count: number
+          references_ar: string | null
+          source_fingerprint: string | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          description_ar?: string | null
+          id?: string
+          is_current?: boolean
+          objectives_ar?: string | null
+          planned_session_count?: number
+          references_ar?: string | null
+          source_fingerprint?: string | null
+          status?: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          description_ar?: string | null
+          id?: string
+          is_current?: boolean
+          objectives_ar?: string | null
+          planned_session_count?: number
+          references_ar?: string | null
+          source_fingerprint?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_syllabi_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_syllabi_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_id"]
+          },
+        ]
+      }
+      course_syllabus_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          session_number: number
+          syllabus_id: string
+          title_ar: string
+          topics_ar: string | null
+          updated_at: string
+          week_number: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_number: number
+          syllabus_id: string
+          title_ar: string
+          topics_ar?: string | null
+          updated_at?: string
+          week_number?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_number?: number
+          syllabus_id?: string
+          title_ar?: string
+          topics_ar?: string | null
+          updated_at?: string
+          week_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_syllabus_sessions_syllabus_id_fkey"
+            columns: ["syllabus_id"]
+            isOneToOne: false
+            referencedRelation: "course_syllabi"
             referencedColumns: ["id"]
           },
         ]
@@ -10009,11 +10236,19 @@ export type Database = {
         Args: { p_course_section_id: string }
         Returns: Json
       }
+      cdp_instantiate_from_syllabus: {
+        Args: { p_course_section_id: string }
+        Returns: string
+      }
       cdp_is_section_faculty: {
         Args: { _course_section_id: string; _user_id: string }
         Returns: boolean
       }
       cdp_list_my_faculty_sections: { Args: never; Returns: Json }
+      cdp_list_plan_sessions_for_materials: {
+        Args: { p_course_section_id: string }
+        Returns: Json
+      }
       cdp_list_student_sections: { Args: never; Returns: Json }
       cdp_publish_plan: { Args: { p_plan_id: string }; Returns: undefined }
       cdp_record_session_execution: {
@@ -10026,6 +10261,10 @@ export type Database = {
           p_status: string
         }
         Returns: string
+      }
+      cdp_regenerate_section_plan: {
+        Args: { p_course_section_id: string }
+        Returns: Json
       }
       cdp_save_plan: {
         Args: {
@@ -12189,6 +12428,24 @@ export type Database = {
         Args: { p_attachment_ids: string[]; p_request_id: string }
         Returns: undefined
       }
+      syllabus_approve_version: {
+        Args: { p_syllabus_id: string }
+        Returns: Json
+      }
+      syllabus_can_view: {
+        Args: { _course_id: string; _user_id: string }
+        Returns: boolean
+      }
+      syllabus_import_version: {
+        Args: {
+          p_course_code: string
+          p_fingerprint?: string
+          p_meta: Json
+          p_sessions: Json
+        }
+        Returns: Json
+      }
+      syllabus_is_admin: { Args: { _user_id: string }; Returns: boolean }
       update_council_decision_followup: {
         Args: {
           p_decision_id: string
