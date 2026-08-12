@@ -9855,6 +9855,7 @@ export type Database = {
         Args: { p_plan_session_id: string }
         Returns: undefined
       }
+      cdp_delivery_monitoring: { Args: { p_period?: string }; Returns: Json }
       cdp_get_section_plan: {
         Args: { p_course_section_id: string }
         Returns: Json
