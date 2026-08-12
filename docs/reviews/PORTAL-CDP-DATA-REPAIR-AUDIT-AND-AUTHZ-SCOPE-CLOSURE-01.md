@@ -136,3 +136,29 @@ Graduation Projects, Graduates Affairs, Academic Councils, Notifications/Documen
 all LIVE reports, cross-portal journeys, rediscovery reconciliation and the presentation
 rehearsal is **not** covered by this document. UNTESTED_* counters therefore remain > 0
 and no global PASS is claimed here.
+
+## B/C — مصفوفة تفويض حية مباشرة على الإنتاج (Direct RPC، 2026-08-12)
+
+مصدر الأدلة: استدعاء REST/RPC حقيقي بجلسات حسابات `DEMO_ONLY_UNIVERSITY_PRESENTATION_01`.
+
+| EVIDENCE_ID | الفاعل | cdp_admin_delivery_overview | cdp_delivery_monitoring (week/month/term) | الأقسام المُعادة |
+|---|---|---|---|---|
+| EV-CDP-AUTHZ-01 | demo.depthead (تكنولوجيا المعلومات) | ALLOW — 7 صفوف | ALLOW ×3 | قسم تكنولوجيا المعلومات فقط |
+| EV-CDP-AUTHZ-02 | demo.dean | ALLOW — 8 صفوف | ALLOW ×3 | تكنولوجيا المعلومات + علوم الحاسوب (نطاق الكلية) |
+| EV-CDP-AUTHZ-03 | demo.admin | ALLOW | ALLOW | نطاق الكلية |
+| EV-CDP-AUTHZ-04 | demo.registrar | ALLOW | ALLOW | نطاق الكلية |
+| EV-CDP-AUTHZ-05 | demo.academic.affairs | ALLOW | ALLOW | نطاق الكلية (حسب العقد) |
+| EV-CDP-AUTHZ-06 | demo.student.affairs | DENY (CDP_NOT_AUTHORIZED) | ALLOW (عقد المتابعة) | — |
+| EV-CDP-AUTHZ-07 | demo.faculty / demo.faculty2 (هيئة تدريس عادية) | DENY | DENY | — |
+| EV-CDP-AUTHZ-08 | demo.student.active / demo.student.l4 | DENY | DENY | — |
+| EV-CDP-AUTHZ-09 | anon | DENY (CDP_UNAUTHENTICATED) | DENY | — |
+
+مصدر التصفية في الدالتين: `public.is_department_head_of(auth.uid(), c.department_id)` ضمن شرط `where`
+(للنطاق `department`)، أي أن التقييد على مستوى SQL وليس على مستوى الواجهة.
+
+التوكنات:
+- DEPARTMENT_HEAD_FOREIGN_ROWS = 0
+- CDP_ADMIN_OVERVIEW_DEPT_SCOPE = PASS
+- CDP_ADMIN_OVERVIEW_UNEXPECTED_ALLOW = 0
+- CDP_DELIVERY_MONITORING_SCOPE = PASS (week/month/term)
+- لا حاجة لإصلاح forward-only: العقد المطبق فعليًا في الإنتاج يطبّق تصفية القسم.
