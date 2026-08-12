@@ -386,8 +386,8 @@ describe("G7 — manual checklist routes wired (local harness)", () => {
 });
 
 describe("G8 — catalog status reconciliation snapshot", () => {
-  test("counts remain 74 entries (63 beneficiary + 11 C9 councils); blocked hubs include VP/dean/strategic/docs", () => {
-    expect(REPORT_CATALOG_ENTRIES).toHaveLength(74);
+  test("counts remain 76 entries (63 beneficiary + 11 C9 councils); blocked hubs include VP/dean/strategic/docs", () => {
+    expect(REPORT_CATALOG_ENTRIES).toHaveLength(76);
     const counts = countByStatus(REPORT_CATALOG_ENTRIES);
     expect(counts.LIVE + counts.DATA_DEPENDENT + counts.SOURCE_READY + counts.UNDER_DEVELOPMENT + counts.NOT_ACTIVATED + counts.BLOCKED).toBe(74);
     expect(counts.LIVE).toBe(26);
