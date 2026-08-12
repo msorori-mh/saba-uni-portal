@@ -11,6 +11,12 @@ export function registerPortalPWA(): void {
   if (typeof window === "undefined" || typeof navigator === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
 
+  // Native Capacitor shell: the app is already installed — never register a SW.
+  if (isNativePlatform()) {
+    void disablePwaInNativeShell();
+    return;
+  }
+
   const inIframe = (() => {
     try {
       return window.self !== window.top;
