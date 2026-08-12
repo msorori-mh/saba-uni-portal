@@ -390,7 +390,7 @@ describe("G8 — catalog status reconciliation snapshot", () => {
     expect(REPORT_CATALOG_ENTRIES).toHaveLength(76);
     const counts = countByStatus(REPORT_CATALOG_ENTRIES);
     expect(counts.LIVE + counts.DATA_DEPENDENT + counts.SOURCE_READY + counts.UNDER_DEVELOPMENT + counts.NOT_ACTIVATED + counts.BLOCKED).toBe(76);
-    expect(counts.LIVE).toBe(26);
+    expect(counts.LIVE).toBe(33);
     for (const code of [
       "HUB-VP-STUDENT-AFFAIRS",
       "HUB-VP-ACADEMIC-AFFAIRS",
