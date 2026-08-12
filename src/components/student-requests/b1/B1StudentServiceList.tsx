@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
+import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import { getB1UiAdapter, type B1ServiceAvailability } from "@/lib/student-requests/b1-ui";
 import { B1EmptyState } from "./B1EmptyState";
 import { B1ErrorState } from "./B1ErrorState";
 import { B1LoadingState } from "./B1LoadingState";
 
 export function B1StudentServiceList() {
+  const routes = useStudentRequestRoutes();
   const [services, setServices] = useState<readonly B1ServiceAvailability[] | null>(null);
   const [error, setError] = useState(false);
 

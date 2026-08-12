@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import {
   getEmptyFormValues,
   getStudentRequestFormDefinition,
@@ -51,6 +52,7 @@ const MAX_SIZE_MB = SECURE_ATTACHMENT_MAX_BYTES / (1024 * 1024);
 
 export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1CanonicalCode }) {
   const navigate = useNavigate();
+  const routes = useStudentRequestRoutes();
   const adapter = useMemo(() => getB1UiAdapter(), []);
   const config = getB1ServiceConfig(serviceCode)!;
   const definition = getStudentRequestFormDefinition(serviceCode)!;
@@ -437,7 +439,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         actionLabelAr="متابعة الطلب"
         onAction={() =>
           void navigate({
-            to: "/student/requests/b1/view/$requestId",
+            to: routes.b1View,
             params: { requestId: success.requestId },
           })
         }
