@@ -175,9 +175,14 @@ function SlipRow({ label, value, mono, onCopy }: { label: string; value: string;
 
   return (
     <div className="flex items-center justify-between gap-2 border-b border-dashed border-border last:border-0 pb-2 last:pb-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className={`${mono ? "font-mono" : ""} font-bold`} dir={mono ? "ltr" : undefined}>{value}</span>
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className={`${mono ? "font-mono text-xs" : ""} font-bold break-all text-left`}
+          dir={mono ? "ltr" : undefined}
+        >
+          {value}
+        </span>
         {onCopy && (
           <button
             onClick={handleCopy}
