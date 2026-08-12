@@ -42,7 +42,7 @@ type Paper = {
   external_url: string | null;
   keywords: string | null;
   citations_count: number;
-  faculty: { id: string; full_name_ar: string } | null;
+  faculty_id: string | null;
   programs: { code: string; name_ar: string } | null;
 };
 
@@ -77,6 +77,17 @@ function ResearchPage() {
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const facultyNames = useMemo(
+    () =>
+      new Map(
+        (faculty as Array<{ id: string; full_name_ar: string }>).map((f) => [
+          f.id,
+          f.full_name_ar,
+        ]),
+      ),
+    [faculty],
+  );
+
   const years = useMemo(() => {
     const set = new Set((papers as Paper[]).map((p) => p.publication_year));
     return [...set].sort((a, b) => b - a);
@@ -87,7 +98,7 @@ function ResearchPage() {
     return (papers as Paper[]).filter((p) => {
       if (year !== "all" && p.publication_year !== Number(year)) return false;
       if (programCode !== "all" && p.programs?.code !== programCode) return false;
-      if (facultyId !== "all" && p.faculty?.id !== facultyId) return false;
+      if (facultyId !== "all" && p.faculty_id !== facultyId) return false;
       if (q) {
         const hay = `${p.title_ar} ${p.title_en ?? ""} ${p.authors} ${p.journal_name ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -274,10 +285,12 @@ function ResearchPage() {
                     )}
 
                     <div className="mt-5 pt-4 border-t border-border/60 flex flex-wrap items-center gap-3 justify-between">
-                      {p.faculty?.full_name_ar ? (
+                      {p.faculty_id && facultyNames.get(p.faculty_id) ? (
                         <span className="text-xs text-muted-foreground">
                           الباحث الرئيسي:{" "}
-                          <span className="text-primary font-bold">{p.faculty.full_name_ar}</span>
+                          <span className="text-primary font-bold">
+                            {facultyNames.get(p.faculty_id)}
+                          </span>
                         </span>
                       ) : <span />}
                       <div className="flex flex-wrap gap-2">

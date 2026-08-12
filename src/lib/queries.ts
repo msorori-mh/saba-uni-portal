@@ -170,7 +170,9 @@ export const researchPapersQuery = queryOptions({
   queryFn: async () => {
     const { data, error } = await supabase
       .from("research_papers")
-      .select("*, faculty:faculty_id(id, full_name_ar), programs:program_id(code, name_ar)")
+      // `faculty` is not readable by `anon` (PII hardening); the public researcher
+      // name comes from `get_public_faculty_directory` and is joined client-side.
+      .select("*, programs:program_id(code, name_ar)")
       .eq("is_published", true)
       .order("publication_year", { ascending: false })
       .order("sort_order");
