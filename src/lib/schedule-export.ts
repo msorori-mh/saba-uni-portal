@@ -72,7 +72,7 @@ export async function exportScheduleXlsx(opts: {
 /** Fire-and-forget audit log routed through the server (log_audit is not client-executable). */
 export async function logScheduleAudit(
   action: "timetable_printed" | "timetable_exported" | "timetable_viewed",
-  view_type: string,
+  view_type: "student" | "faculty",
   filters: Record<string, unknown> = {},
 ) {
   try {
