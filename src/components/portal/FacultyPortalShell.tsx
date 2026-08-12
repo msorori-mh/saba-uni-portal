@@ -18,6 +18,7 @@ export type FacultyNavPath =
   | "/faculty-portal/graduation-projects"
   | "/faculty-portal/materials"
   | "/faculty-portal/lecture-execution"
+  | "/faculty-portal/lecture-monitoring"
   | "/faculty-portal/processing-requests"
   | "/faculty-portal/reports";
 
@@ -45,6 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/faculty-portal", label: "الرئيسية", exact: true },
   { to: "/faculty-portal/schedule", label: "جدول التدريس" },
   { to: "/faculty-portal/lecture-execution", label: "تنفيذ المحاضرات" },
+  { to: "/faculty-portal/lecture-monitoring", label: "متابعة التنفيذ" },
   { to: "/faculty-portal/reports", label: "تقاريري" },
   { to: "/faculty-portal/academic-councils", label: "المجالس الأكاديمية" },
   { to: "/faculty-portal/graduation-projects", label: "مشاريع التخرج" },

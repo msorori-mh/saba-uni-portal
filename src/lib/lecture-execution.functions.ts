@@ -201,3 +201,86 @@ export const getDeliveryOverview = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase.rpc("cdp_admin_delivery_overview");
     return unwrap<DeliveryOverviewRow[]>(data ?? [], error);
   });
+
+export const MONITORING_PERIODS = ["week", "month", "term"] as const;
+export type MonitoringPeriod = (typeof MONITORING_PERIODS)[number];
+
+export const MONITORING_PERIOD_LABELS: Record<MonitoringPeriod, string> = {
+  week: "أسبوعي",
+  month: "شهري",
+  term: "منذ بداية الفصل",
+};
+
+export const PLAN_STATUS_LABELS: Record<string, string> = {
+  none: "لا توجد خطة",
+  draft: "مسودة",
+  published: "معتمدة",
+  archived: "مؤرشفة",
+};
+
+export const RISK_LABELS: Record<string, string> = {
+  high: "خطر مرتفع",
+  medium: "خطر متوسط",
+  low: "ضمن الخطة",
+  no_plan: "بلا خطة معتمدة",
+};
+
+export type MonitoringRow = {
+  course_section_id: string;
+  course_code: string;
+  course_name_ar: string;
+  section_code: string;
+  department_name_ar: string | null;
+  faculty_name: string;
+  plan_status: string;
+  planned_count: number;
+  executed_count: number;
+  compensated_count: number;
+  postponed_count: number;
+  cancelled_count: number;
+  hindered_count: number;
+  not_executed_count: number;
+  uncompensated_count: number;
+  remaining_count: number;
+  execution_percent: number | null;
+  behind_plan: boolean;
+  risk_level: "high" | "medium" | "low" | "no_plan";
+};
+
+export type DeliveryMonitoring = {
+  scope: "college" | "department";
+  period: { kind: MonitoringPeriod; from: string | null; to: string };
+  departments: { department_name_ar: string }[];
+  totals: {
+    sections: number;
+    planned: number;
+    executed: number;
+    compensated: number;
+    postponed: number;
+    cancelled: number;
+    hindered: number;
+    not_executed: number;
+    uncompensated: number;
+    remaining: number;
+    execution_percent: number | null;
+    behind_plan_courses: number;
+  };
+  reasons: { reason: string; count: number }[];
+  rows: MonitoringRow[];
+};
+
+/**
+ * Period-scoped planned-vs-executed monitoring. The RPC decides the scope:
+ * department heads see their own departments, dean/registrar/student affairs
+ * and admins see the whole college.
+ */
+export const getDeliveryMonitoring = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { period?: MonitoringPeriod }) => input)
+  .handler(async ({ data, context }): Promise<DeliveryMonitoring> => {
+    const { data: result, error } = await context.supabase.rpc("cdp_delivery_monitoring", {
+      p_period: data.period ?? "term",
+    });
+    return unwrap<DeliveryMonitoring>(result, error);
+  });
+
