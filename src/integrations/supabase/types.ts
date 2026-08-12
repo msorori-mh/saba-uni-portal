@@ -2045,6 +2045,92 @@ export type Database = {
         }
         Relationships: []
       }
+      course_delivery_plan_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          plan_id: string
+          planned_title: string
+          planned_topics: string | null
+          session_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_id: string
+          planned_title: string
+          planned_topics?: string | null
+          session_number: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_id?: string
+          planned_title?: string
+          planned_topics?: string | null
+          session_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_delivery_plan_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "course_delivery_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_delivery_plans: {
+        Row: {
+          course_section_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          planned_session_count: number
+          published_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          course_section_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          planned_session_count: number
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          course_section_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          planned_session_count?: number
+          published_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_delivery_plans_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: true
+            referencedRelation: "course_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_delivery_plans_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: true
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_section_id"]
+          },
+        ]
+      }
       course_offerings: {
         Row: {
           academic_year_id: string
@@ -2161,6 +2247,56 @@ export type Database = {
             columns: ["faculty_profile_id"]
             isOneToOne: false
             referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_session_executions: {
+        Row: {
+          compensation_date: string | null
+          created_at: string
+          execution_date: string | null
+          id: string
+          notes: string | null
+          plan_session_id: string
+          reason: string | null
+          recorded_at: string
+          recorded_by: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          compensation_date?: string | null
+          created_at?: string
+          execution_date?: string | null
+          id?: string
+          notes?: string | null
+          plan_session_id: string
+          reason?: string | null
+          recorded_at?: string
+          recorded_by: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          compensation_date?: string | null
+          created_at?: string
+          execution_date?: string | null
+          id?: string
+          notes?: string | null
+          plan_session_id?: string
+          reason?: string | null
+          recorded_at?: string
+          recorded_by?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_session_executions_plan_session_id_fkey"
+            columns: ["plan_session_id"]
+            isOneToOne: true
+            referencedRelation: "course_delivery_plan_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -9705,6 +9841,49 @@ export type Database = {
       cast_council_vote: {
         Args: { p_agenda_item_id: string; p_vote_value: string }
         Returns: Json
+      }
+      cdp_admin_delivery_overview: { Args: never; Returns: Json }
+      cdp_can_manage_section: {
+        Args: { _course_section_id: string; _user_id: string }
+        Returns: boolean
+      }
+      cdp_can_view_section: {
+        Args: { _course_section_id: string; _user_id: string }
+        Returns: boolean
+      }
+      cdp_clear_session_execution: {
+        Args: { p_plan_session_id: string }
+        Returns: undefined
+      }
+      cdp_get_section_plan: {
+        Args: { p_course_section_id: string }
+        Returns: Json
+      }
+      cdp_is_section_faculty: {
+        Args: { _course_section_id: string; _user_id: string }
+        Returns: boolean
+      }
+      cdp_list_my_faculty_sections: { Args: never; Returns: Json }
+      cdp_list_student_sections: { Args: never; Returns: Json }
+      cdp_publish_plan: { Args: { p_plan_id: string }; Returns: undefined }
+      cdp_record_session_execution: {
+        Args: {
+          p_compensation_date: string
+          p_execution_date: string
+          p_notes: string
+          p_plan_session_id: string
+          p_reason: string
+          p_status: string
+        }
+        Returns: string
+      }
+      cdp_save_plan: {
+        Args: {
+          p_course_section_id: string
+          p_planned_session_count: number
+          p_sessions: Json
+        }
+        Returns: string
       }
       check_and_record_rate_limit: {
         Args: {

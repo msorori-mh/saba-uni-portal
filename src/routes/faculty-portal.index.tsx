@@ -11,6 +11,7 @@ import {
   BadgeCheck,
   Award,
   CalendarClock,
+  CalendarCheck,
   ClipboardCheck,
   ScrollText,
   Inbox,
@@ -366,6 +367,24 @@ function FacultyDashboard() {
                     <span className="mt-1.5 inline-flex items-center rounded-md border border-gold/40 bg-gold/10 px-2.5 py-1 text-[11px] font-bold text-primary-deep">
                       دخول مجالسي الأكاديمية
                     </span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                to="/faculty-portal/lecture-execution"
+                data-testid="faculty-lecture-execution-card"
+                className="block rounded-xl border-2 border-gold/30 bg-card p-3.5 hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[4.5rem] sm:col-span-2"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <CalendarCheck className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-primary text-sm">متابعة تنفيذ المحاضرات</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      خطة المحاضرات المرقمة وتسجيل ما نُفذ وما تعذر
+                    </div>
                   </div>
                 </div>
               </Link>
