@@ -77,6 +77,17 @@ function ResearchPage() {
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const facultyNames = useMemo(
+    () =>
+      new Map(
+        (faculty as Array<{ id: string; full_name_ar: string }>).map((f) => [
+          f.id,
+          f.full_name_ar,
+        ]),
+      ),
+    [faculty],
+  );
+
   const years = useMemo(() => {
     const set = new Set((papers as Paper[]).map((p) => p.publication_year));
     return [...set].sort((a, b) => b - a);
