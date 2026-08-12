@@ -65,7 +65,7 @@ function DepartmentReportsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("departments")
-        .select("id, name_ar, code")
+        .select("id, name_ar")
         .order("name_ar");
       if (error) return [];
       return data ?? [];
