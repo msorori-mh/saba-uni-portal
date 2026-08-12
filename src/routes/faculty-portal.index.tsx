@@ -11,6 +11,7 @@ import {
   BadgeCheck,
   Award,
   CalendarClock,
+  CalendarCheck,
   ClipboardCheck,
   ScrollText,
   Inbox,
