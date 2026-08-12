@@ -17,7 +17,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "ye.edu.usr.fitcs.portal",
   appName: "بوابة الكلية",
-  webDir: "dist",
+  webDir: "mobile-shell",
   server: {
     url: "https://saba-uni-portal.lovable.app/mobile/student-login",
     cleartext: false,
