@@ -20,6 +20,10 @@ import {
 } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  resolveCanonicalCurrentFourthLevelEligibility,
+  type AcademicStatusTimestampRow,
+} from "@/lib/graduation-projects/eligibility";
+import {
   assertScopeAllowed,
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
