@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { classifyExternalUrl, isSafeExternalUrl } from "../../src/lib/native/external-links";
 import { resolveBackAction } from "../../src/lib/native/back-button";
