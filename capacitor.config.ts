@@ -24,7 +24,7 @@ const config: CapacitorConfig = {
     cleartext: false,
     androidScheme: "https",
     // Minimum navigation allowlist: the official portal origin plus the
-    // backend host the student app actually calls. No *.lovable.app fallback.
+    // backend host the student app actually calls. No preview-host fallback.
     allowNavigation: [
       "quboolye.com",
       "www.quboolye.com",
