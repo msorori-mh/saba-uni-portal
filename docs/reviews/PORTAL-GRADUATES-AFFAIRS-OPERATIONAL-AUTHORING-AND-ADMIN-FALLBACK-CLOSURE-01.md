@@ -121,3 +121,44 @@ RESULT: 72 / 72 PASS (0 FAIL).
 - GA_OPERATIONAL_AUTHORIZATION_MATRIX_EXECUTED = PASS
 
 FINAL_DECISION = PASS_GA_OPERATIONAL_AUTHORING_CLOSURE
+
+## Supplemental Lifecycle Matrix (executed in production, read/write with full cleanup)
+
+Actors: MANAGER, SPECIALIST (own dept), SPECIALIST (foreign dept), ADMIN, SYSTEM_ADMIN, DEAN, REGISTRAR.
+Results persisted in `public.ga_ops_lifecycle_matrix_results` (admin-readable).
+
+| Domain | Steps covered | PASS | FAIL |
+|---|---|---|---|
+| FOLLOWUP | create → in_progress → terminal completion + negative reopen after terminal | 28 | 0 |
+| OPPORTUNITY | draft → in_review → published → closed + negative reopen after closed | 35 | 0 |
+| EVENT | draft → published → completed, and separate draft → cancelled | 35 | 0 |
+| SURVEY | create survey → version draft (multi-question) → edit draft → publish immutable version → close + negative edit after publish | 42 | 0 |
+| COMMUNICATION | valid consent + verified contact = ALLOW; missing consent = DENY; revoked contact = DENY | 21 | 0 |
+
+Total: 161 / 161 PASS, 0 FAIL.
+
+Scope semantics confirmed: catalog authoring (opportunity/event/survey) is denied for
+SPECIALIST on a foreign department scope and for DEAN/REGISTRAR; record-scoped
+operations (follow-up, communication) are allowed for MANAGER/SPECIALIST(owning dept)/
+ADMIN/SYSTEM_ADMIN and denied for DEAN/REGISTRAR.
+
+### Defect found and fixed during the run
+`graduate_affairs_moderate_opportunity(uuid, text)` assigned a text target state directly
+to the `graduate_opportunity_state` enum column, so every opportunity transition through
+the scope-aware overload failed. Fixed with an explicit cast plus an unknown-state guard;
+the opportunity lifecycle was then re-executed for all seven actors (35/35 PASS).
+
+### Cleanup
+All `TEST_ONLY_GA_LIFECYCLE%` artifacts (opportunities, events, surveys, survey versions,
+contact points, communication events, follow-ups, and their domain-event rows) were deleted
+inside the same transaction; post-run residual count = 0 across all tables.
+
+### Tokens
+- GA_FOLLOWUP_LIFECYCLE_E2E = PASS
+- GA_OPPORTUNITY_LIFECYCLE_E2E = PASS
+- GA_EVENT_LIFECYCLE_E2E = PASS
+- GA_SURVEY_VERSION_LIFECYCLE_E2E = PASS
+- GA_COMMUNICATION_CONSENT_E2E = PASS
+- GA_TEST_ONLY_CLEANUP = PASS
+
+FINAL_DECISION = PASS_GA_OPERATIONAL_AUTHORING_CLOSURE
