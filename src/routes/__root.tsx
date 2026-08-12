@@ -21,6 +21,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { PortalInstallPrompt } from "@/components/pwa/PortalInstallPrompt";
 import { GlobalBackButton } from "@/components/navigation/PageBackButton";
 import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
+import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
+import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
 
 function NotFoundComponent() {
   // Unknown /admin/* paths get an admin-scoped 404 that keeps the admin
