@@ -105,6 +105,10 @@ jobs:
       - name: Grant gradlew execute permission
         run: chmod +x android/gradlew
 
+      - name: Verify Gradle wrapper
+        working-directory: android
+        run: ./gradlew --version --no-daemon
+
       - name: Build Debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
