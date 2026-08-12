@@ -12,7 +12,11 @@
     "format": "prettier --write .",
     "cleanup:pilot": "bun run scripts/run-pilot-cleanup.ts",
     "security:test": "bun tests/security/security-test-runner.ts",
-    "security:setup-staging": "bun tests/security/setup-staging-test-accounts.ts"
+    "security:setup-staging": "bun tests/security/setup-staging-test-accounts.ts",
+    "cap:sync": "bun run build && bunx cap sync android && node scripts/mobile/apply-android-identity.mjs",
+    "cap:add:android": "bunx cap add android && node scripts/mobile/apply-android-identity.mjs",
+    "cap:open:android": "bunx cap open android",
+    "android:identity": "node scripts/mobile/apply-android-identity.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",

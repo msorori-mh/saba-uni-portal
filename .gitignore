@@ -66,3 +66,13 @@ scripts/b1-rpc-principal-harness-01/tls/*.pem
 
 
 scripts/b1-rpc-principal-harness-01/local-operator-simulation/out/
+
+# Android signing / store credentials (NEVER commit)
+*.jks
+key.properties
+android/key.properties
+android/keystore.properties
+play-store-credentials*.json
+google-play-service-account*.json
+firebase-adminsdk*.json
+google-services.json
