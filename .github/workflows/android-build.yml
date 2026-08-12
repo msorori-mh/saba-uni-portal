@@ -128,6 +128,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Upload Debug AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-aab
+          path: android/app/build/outputs/bundle/debug/app-debug.aab
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Upload Release APK (unsigned)
         uses: actions/upload-artifact@v4
         with:
