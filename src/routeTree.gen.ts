@@ -86,6 +86,7 @@ import { Route as FacultyPortalProcessingRequestsRouteImport } from './routes/fa
 import { Route as FacultyPortalReportsRouteImport } from './routes/faculty-portal.reports'
 import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
 import { Route as MobileStudentRouteImport } from './routes/mobile.student'
+import { Route as MobileStudentForgotPasswordRouteImport } from './routes/mobile.student-forgot-password'
 import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
@@ -597,6 +598,12 @@ const MobileStudentRoute = MobileStudentRouteImport.update({
   path: '/mobile/student',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MobileStudentForgotPasswordRoute =
+  MobileStudentForgotPasswordRouteImport.update({
+    id: '/mobile/student-forgot-password',
+    path: '/mobile/student-forgot-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MobileStudentLoginRoute = MobileStudentLoginRouteImport.update({
   id: '/mobile/student-login',
   path: '/mobile/student-login',
@@ -957,6 +964,7 @@ export interface FileRoutesByFullPath {
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
+  '/mobile/student-forgot-password': typeof MobileStudentForgotPasswordRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/audit-log': typeof StaffAuditLogRoute
@@ -1089,6 +1097,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
+  '/mobile/student-forgot-password': typeof MobileStudentForgotPasswordRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/audit-log': typeof StaffAuditLogRoute
@@ -1225,6 +1234,7 @@ export interface FileRoutesById {
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
+  '/mobile/student-forgot-password': typeof MobileStudentForgotPasswordRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/audit-log': typeof StaffAuditLogRoute
@@ -1365,6 +1375,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student'
+    | '/mobile/student-forgot-password'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/audit-log'
@@ -1497,6 +1508,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/processing-requests'
     | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
+    | '/mobile/student-forgot-password'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/audit-log'
@@ -1632,6 +1644,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student'
+    | '/mobile/student-forgot-password'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/audit-log'
@@ -1718,6 +1731,7 @@ export interface RootRouteChildren {
   VersionDotjsonRoute: typeof VersionDotjsonRoute
   DocumentViewIdRoute: typeof DocumentViewIdRoute
   MobileStudentRoute: typeof MobileStudentRouteWithChildren
+  MobileStudentForgotPasswordRoute: typeof MobileStudentForgotPasswordRoute
   MobileStudentLoginRoute: typeof MobileStudentLoginRoute
 }
 
@@ -2309,6 +2323,13 @@ declare module '@tanstack/react-router' {
       path: '/mobile/student'
       fullPath: '/mobile/student'
       preLoaderRoute: typeof MobileStudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mobile/student-forgot-password': {
+      id: '/mobile/student-forgot-password'
+      path: '/mobile/student-forgot-password'
+      fullPath: '/mobile/student-forgot-password'
+      preLoaderRoute: typeof MobileStudentForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mobile/student-login': {
@@ -3060,6 +3081,7 @@ const rootRouteChildren: RootRouteChildren = {
   VersionDotjsonRoute: VersionDotjsonRoute,
   DocumentViewIdRoute: DocumentViewIdRoute,
   MobileStudentRoute: MobileStudentRouteWithChildren,
+  MobileStudentForgotPasswordRoute: MobileStudentForgotPasswordRoute,
   MobileStudentLoginRoute: MobileStudentLoginRoute,
 }
 export const routeTree = rootRouteImport

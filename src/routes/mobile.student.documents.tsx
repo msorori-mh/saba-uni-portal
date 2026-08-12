@@ -9,6 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { openExternalUrl } from "@/lib/native/external-links";
 
 export const Route = createFileRoute("/mobile/student/documents")({
   head: () => ({ meta: [{ title: "الوثائق الرسمية" }] }),
@@ -160,22 +161,24 @@ function MobileStudentDocuments() {
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <Link
-                  to="/document-view/$id"
-                  params={{ id: d.id }}
-                  target="_blank"
+                <button
+                  type="button"
+                  onClick={() => void openExternalUrl(`/document-view/${d.id}`)}
                   className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
                 >
                   <Eye className="h-3.5 w-3.5" /> عرض الوثيقة
-                </Link>
-                <Link
-                  to="/verify-document"
-                  search={{ code: d.verification_code }}
-                  target="_blank"
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void openExternalUrl(
+                      `/verify-document?code=${encodeURIComponent(d.verification_code)}`,
+                    )
+                  }
                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-bold text-primary"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" /> تحقق
-                </Link>
+                </button>
               </div>
             </div>
           );
