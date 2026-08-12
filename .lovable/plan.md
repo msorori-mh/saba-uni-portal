@@ -22,7 +22,15 @@ These are the defences on paper. The gate proves them at runtime, from a real au
 
 Any confirmed bypass is treated as HIGH/CRITICAL and fixed forward-only with the smallest safe contract: student direct updates narrowed to genuinely student-editable draft fields (`title`, `description`, `form_data`, `student_notes`), lifecycle fields moved behind the authoritative RPC paths. The workflow is never weakened to preserve a 204.
 
-Required: STUDENT_REQUEST_DIRECT_STATUS_BYPASS = 0, STUDENT_REQUEST_DIRECT_WORKFLOW_FIELD_BYPASS = 0, STUDENT_REQUEST_COLUMN_AUTHZ = PASS.
+### Minimum-privilege rule (Gate 1A, mandatory)
+
+If a lifecycle field has no legitimate direct-client edit journey, `authenticated` MUST NOT retain direct UPDATE privilege on that field merely because a trigger currently neutralizes or rejects unsafe values.
+
+Prefer `NO DIRECT COLUMN PRIVILEGE` over `DIRECT PRIVILEGE + TRIGGER NO-OP` for workflow-controlled fields.
+
+Necessity of direct UPDATE privilege must be explicitly determined and recorded for at least: `status`, `submitted_at`, `cancelled_at`, `rejection_reason`, `request_type`, `updated_at`. Any unnecessary privilege is revoked forward-only. The final contract exposes only the smallest student-editable direct column set.
+
+Required: STUDENT_REQUEST_DIRECT_STATUS_BYPASS = 0, STUDENT_REQUEST_DIRECT_WORKFLOW_FIELD_BYPASS = 0, STUDENT_REQUEST_COLUMN_AUTHZ = PASS, STUDENT_REQUEST_MINIMUM_PRIVILEGE = PASS.
 
 ## Phase 1 — fresh full discovery (start of execution, not a separate round)
 
@@ -35,10 +43,22 @@ Per page, every card, KPI, tab, link, button, form, field, dialog, dropdown, sea
 
 Discovery output feeds directly into Campaign-S in the same run.
 
+### Ledger immutability / discovery hash gate
+
+At the end of initial discovery, freeze and persist deterministic counts + hashes for: PRE_DISCOVERY_ROUTE_SET, PRE_DISCOVERY_PAGE_SET, PRE_DISCOVERY_COMPONENT_SET, PRE_DISCOVERY_ACTION_SET, PRE_DISCOVERY_REPORT_SET, PRE_DISCOVERY_RPC_SET — before executing any campaign.
+
+The discovered denominator is never redefined later merely to reach 100%. Any removal from the initial discovered set requires ITEM_ID, original classification, reason, and evidence proving deprecated / not-runtime / not-applicable.
+
+POST_EXECUTION discovery may ADD missed items but can never silently shrink the PRE set.
+
+FINAL COVERAGE DENOMINATOR = validated PRE set UNION newly discovered POST items.
+
 ## Campaigns
 
 - S — Student: dashboard KPIs verified against DB truth, profile/plan/courses, full published timetable row-by-row (course, المجموعة الدراسية, day, time, room, faculty, lecture/practical), materials 4/4 with hash regression, lecture plan 6/6 sessions with private notes hidden, and every LIVE service end to end: visibility, eligibility allow/deny, every field and validation, attachment, draft, update, submit, pinned workflow version, each step with its exact processing actor, returns, correction/resubmit, approval/rejection, fee path, completion, effect, document, notification, student readback, relogin, wrong-actor RPC, stale action, terminal-action denial.
-- F — Faculty: dashboard, profile, schedule, assigned courses, materials full publish→student download→edit→archive cycle, lecture execution across executed/hindered/postponed/cancelled/compensated with dates, reasons and notes, lecture monitoring, student progress, GP, councils, processing requests, reports, account/password. Assigned faculty ALLOW, everyone else DENY. Ephemeral plans used for destructive paths so the polished DEMO plan stays intact.
+- F — Faculty: dashboard, profile, schedule, assigned courses, materials full publish→student download→edit→archive cycle, lecture execution across executed/hindered/postponed/cancelled/compensated with dates, reasons and notes, lecture monitoring, student progress, GP, councils, processing requests, reports, account/password. Ephemeral plans used for destructive paths so the polished DEMO plan stays intact.
+
+  STRICT FACULTY-ONLY RULE: `assigned faculty → ALLOW / everyone else → DENY` applies specifically to LECTURE EXECUTION CONFIRMATION mutations — `cdp_record_session_execution`, `cdp_clear_session_execution`, and any equivalent faculty-confirmation mutation discovered at runtime. It does NOT override legitimate role-specific capabilities such as department-head monitoring/authoring, GP coordinator actions, GP supervisor actions, committee evaluation, council chair/secretary/member actions, staff processing, or management reports. Every other capability follows its own authoritative role/scope contract.
 - W — Staff: real queues driven by real submissions — student submits, correct staff opens, filters, acts, next actor continues, final state, student verifies outcome. Student Affairs, Registrar, Finance, Academic Affairs, GA roles and any other discovered processing role, plus audit log, fee board, diagnostics, account/password.
 - GP: complete deployed-UI lifecycle from team through proposal, review/return/correction, supervisor assignment and acceptance, progress, approval, defense, committee, evaluation, revisions and archive — one ledger row per transition, separate TEST_ONLY projects for incompatible branches.
 - GA: graduate-side profile, contacts, consent, employment, opportunities, events, surveys, responses, followups, communications, employers, history, notifications; staff authoring lifecycles for opportunity, event and survey including question authoring, reorder, options, required flags, preview, publish, response, close.
@@ -53,10 +73,32 @@ Security matrix runs alongside: every discovered write RPC gets correct-actor AL
 
 Retain all DEMO_ONLY_UNIVERSITY_PRESENTATION_01 data and enrich it so core pages are visually meaningful. Clean only TEST_ONLY_EPHEMERAL_<RUN>. Protected records remain untouched. Each core page is classified PRESENTATION_READY or EXPECTED_EMPTY_BY_DESIGN; CORE_DEMO_PAGES_EMPTY = 0.
 
+### Demo data must be UI-proven
+
+A retained DEMO fixture is not PRESENTATION_READY merely because its DB row exists. Every retained DEMO dataset must be proven from the exact owner-facing UI shown during the University Council presentation:
+
+- DEMO timetable: DB row + student UI shows it + faculty UI shows it + management/report source reconciles.
+- DEMO material: DB + storage exists + faculty UI shows it + student UI shows it + student real download succeeds.
+- DEMO GP: DB project exists + student page populated + coordinator/supervisor/committee pages populated.
+- DEMO GA: DB records exist + graduate UI populated + GA staff UI populated.
+- DEMO Council: DB meeting/decision exists + chair/secretary/member UI populated.
+
+A DB-only fixture cannot satisfy PRESENTATION_READY.
+
 ## Closure
 
 Post-execution rediscovery compares PRE / POST / LEDGER component sets with PRE_MINUS_LEDGER = 0 and POST_MINUS_LEDGER = 0. Then a fresh-context rehearsal for Student, Faculty, Dept Head, Academic Affairs, Dean, Staff, GA and Admin with zero login failures, route crashes, JS errors, unexplained 5xx or missing required data.
 
 Reports written/updated: student, faculty, staff and reports acceptance files, component/lifecycle/report ledgers, the demo data manifest, and the master acceptance file. Detailed per-page component evidence with EVIDENCE_IDs, no summary-only PASS. Safety counters reported separately and honestly, keeping CORRECTIVE_REAL_DATA_WRITES = 2. Passwords delivered in the final chat response only, never committed.
+
+### Mandatory per-page completeness table
+
+The master package contains one row for EVERY discovered page, with columns: PORTAL, ROUTE, PAGE_NAME, ACTOR, COMPONENTS_DISCOVERED, COMPONENTS_TESTED, ACTIONS_DISCOVERED, ACTIONS_TESTED, POSITIVE_CASES, NEGATIVE_CASES, EVIDENCE_COUNT, JS_ERRORS, BACKEND_ERRORS, DATA_LEAKS, FINAL_PAGE_VERDICT.
+
+For every LIVE required page: COMPONENTS_DISCOVERED = COMPONENTS_TESTED, ACTIONS_DISCOVERED = ACTIONS_TESTED, EVIDENCE_COUNT >= tested interactive items, FINAL_PAGE_VERDICT = PASS. No page may disappear inside a portal-level summary.
+
+### Execution continuity
+
+Discovery is never a standalone round. Execution continues in the same mission until every ledger row leaves NOT_TESTED. If an environment limit truncates a run, the ledger and execution state are persisted and the same mission resumes automatically from the first NOT_TESTED row — no re-analysis from scratch, and no "discovered N components, will test next round" outcome.
 
 Final token: PASS_PORTAL_ZERO_OMISSION_FULL_E2E_GO_LIVE_ACCEPTANCE_01 with UNIVERSITY_COUNCIL_PRESENTATION_READINESS = READY only if all gates pass; otherwise HOLD_PORTAL_ZERO_OMISSION_FULL_E2E_<EXACT_BLOCKER>.
