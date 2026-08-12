@@ -50,7 +50,8 @@ export type MasterTemplate = {
     | "student_eligibility"
     | "student_accounts"
     | "documents"
-    | "class_schedule";
+    | "class_schedule"
+    | "course_syllabi";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
