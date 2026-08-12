@@ -102,7 +102,9 @@ export const getMyAssignedSectionsForMaterials = createServerFn({ method: "POST"
     const { data, error } = await (context.supabase as any)
       .from("course_sections")
       .select(
-        "id, section_code, status, offering:course_offerings(academic_year:academic_years(name_ar), semester:semesters(name_ar), program:programs(name_ar), level:academic_levels(name_ar), course:courses(code, name_ar))",
+        // course_offerings has no direct FK to academic_years, so the year is
+        // resolved through the semester relation; year/semester/level use `name`.
+        "id, section_code, status, offering:course_offerings(semester:semesters(name, academic_year:academic_years(name)), program:programs(name_ar), level:academic_levels(name), course:courses(code, name_ar))",
       )
       .eq("faculty_profile_id", fp.id)
       .eq("status", "active");
@@ -111,10 +113,9 @@ export const getMyAssignedSectionsForMaterials = createServerFn({ method: "POST"
       id: string;
       section_code: string;
       offering: {
-        academic_year: { name_ar: string } | null;
-        semester: { name_ar: string } | null;
+        semester: { name: string; academic_year: { name: string } | null } | null;
         program: { name_ar: string } | null;
-        level: { name_ar: string } | null;
+        level: { name: string } | null;
         course: { code: string; name_ar: string } | null;
       } | null;
     };
@@ -124,10 +125,11 @@ export const getMyAssignedSectionsForMaterials = createServerFn({ method: "POST"
       course_code: r.offering?.course?.code ?? "—",
       course_name: r.offering?.course?.name_ar ?? "—",
       program_name: r.offering?.program?.name_ar ?? null,
-      level_name: r.offering?.level?.name_ar ?? null,
-      semester_name: r.offering?.semester?.name_ar ?? null,
-      year_name: r.offering?.academic_year?.name_ar ?? null,
+      level_name: r.offering?.level?.name ?? null,
+      semester_name: r.offering?.semester?.name ?? null,
+      year_name: r.offering?.semester?.academic_year?.name ?? null,
     }));
+
   });
 
 export const listMyCourseMaterials = createServerFn({ method: "POST" })
