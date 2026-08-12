@@ -9,6 +9,7 @@ import {
   MATERIAL_WEEK_MIN,
   buildMaterialsUsageReport,
   resolveMaterialsUploadPolicy,
+  resolveUploadScanState,
   sanitizeFileName,
   type MaterialAccessLogEntry,
   type MaterialUsageEventRow,
@@ -249,6 +250,11 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
       throw new Error(`حجم الملف يتجاوز ${policy.maxMb} ميجابايت`);
     }
     const hash = createHash("sha256").update(buffer).digest("hex");
+    // Fail-closed signature gate: declared MIME must match real container bytes.
+    const scanState = resolveUploadScanState(new Uint8Array(buffer), data.mimeType);
+    if (scanState !== "clean") {
+      throw new Error("محتوى الملف لا يطابق نوعه المعلن ولم يجتز فحص السلامة");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Next version
@@ -277,7 +283,7 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
         size_bytes: buffer.byteLength,
         file_hash: hash,
         version_number: nextVersion,
-        scan_state: "pending",
+        scan_state: scanState,
       })
       .select("id")
       .single();

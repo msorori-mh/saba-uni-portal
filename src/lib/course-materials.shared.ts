@@ -313,3 +313,39 @@ export function buildMaterialsUsageReport(
     generatedAt,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Deterministic content-signature gate (PORTAL-COURSE-MATERIALS-PRODUCTION-SAFE-01)
+// The portal has no external AV service. Instead of leaving every uploaded file
+// permanently 'pending' (which makes downloads impossible), uploads are gated by
+// a fail-closed magic-byte check: the declared MIME type must match the actual
+// container signature. Anything unrecognised stays blocked.
+// ---------------------------------------------------------------------------
+
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46]; // %PDF
+const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04]; // PK.. (docx/pptx)
+const OLE2_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]; // doc/ppt
+
+function startsWith(bytes: Uint8Array, magic: number[]): boolean {
+  if (bytes.length < magic.length) return false;
+  return magic.every((b, i) => bytes[i] === b);
+}
+
+/**
+ * Returns the scan state an uploaded file should be stored with.
+ * 'clean' only when the byte signature matches the declared MIME type.
+ */
+export function resolveUploadScanState(bytes: Uint8Array, mimeType: string): MaterialScanState {
+  switch (mimeType) {
+    case "application/pdf":
+      return startsWith(bytes, PDF_MAGIC) ? "clean" : "failed";
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+      return startsWith(bytes, ZIP_MAGIC) ? "clean" : "failed";
+    case "application/msword":
+    case "application/vnd.ms-powerpoint":
+      return startsWith(bytes, OLE2_MAGIC) ? "clean" : "failed";
+    default:
+      return "failed";
+  }
+}
