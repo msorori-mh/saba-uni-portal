@@ -230,3 +230,16 @@
 ## القرار النهائي
 
 `HOLD_DEPLOYED_LECTURE_EXECUTION_PARITY`
+
+## Addendum — CDP faculty-name defect + entitlement parity (2026-08-12)
+
+Root cause: `cdp_get_section_plan`, `cdp_delivery_monitoring`, `cdp_admin_delivery_overview` referenced `faculty.full_name` (non-existent; actual column `full_name_ar`) → every plan/monitoring read raised 42703 ("تعذر تحميل خطة المحاضرات"). Fixed forward-only. `cdp_can_view_section` student branch aligned with the materials contract (exact active enrollment + active section + active offering + canonical current year/semester).
+
+Live production evidence (demo actors):
+- Enrolled student → plan 200 (6 sessions, 3 executed); internal reason/notes null.
+- Non-enrolled student → CDP_NOT_AUTHORIZED. Anonymous → CDP_UNAUTHENTICATED.
+- Faculty owner → 200. Department head monitoring → 200 (dept-scoped). Student monitoring → DENY. Admin overview → 200.
+- Direct REST `course_materials` : student `[]` (RLS), anon 401. Direct storage object: denied for student and anon.
+- Student UI downloads: 4/4 signed URLs, SHA-256 byte-identical to uploads.
+
+Tokens: CDP_PLAN_RUNTIME = PASS · CDP_ENTITLEMENT_PARITY = PASS · STUDENT_MATERIALS_ENROLLMENT_LINKAGE = PASS · MATERIALS_DOWNLOAD_INTEGRITY = PASS · CDP_NEGATIVE_MATRIX = PASS
