@@ -42,7 +42,7 @@ type Paper = {
   external_url: string | null;
   keywords: string | null;
   citations_count: number;
-  faculty: { id: string; full_name_ar: string } | null;
+  faculty_id: string | null;
   programs: { code: string; name_ar: string } | null;
 };
 
