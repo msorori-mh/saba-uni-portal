@@ -50,7 +50,7 @@ export function B1StudentServiceList() {
                   {service.descriptionAr}
                 </p>
                 <Link
-                  to="/student/requests/b1/$service"
+                  to={routes.b1Service}
                   params={{ service: service.code }}
                   className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
                 >
