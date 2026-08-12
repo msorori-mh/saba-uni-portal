@@ -18,7 +18,7 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // fullPaths, all unique, no duplicate "/" claimants — every delta is an
 // intentionally added route. Recomputed from the current routeTree.gen.ts.
 const ROUTE_SEMANTIC_SHA256 =
-  "ab3d948c208316cdd333f3145c0939034fcaa07add54dfc04fb9d662b5f080de";
+  "a93093cce7026077509add30eba202aed16040c36f70ac360f9b4520c99da446";
 
 
 const FROZEN_GP_FULL_PATHS = [
