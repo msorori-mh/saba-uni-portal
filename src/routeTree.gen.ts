@@ -108,6 +108,7 @@ import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './rout
 import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './routes/faculty-portal.graduation-projects.index'
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
 import { Route as FacultyPortalLectureExecutionIndexRouteImport } from './routes/faculty-portal.lecture-execution.index'
+import { Route as FacultyPortalLectureExecutionSectionIdRouteImport } from './routes/faculty-portal.lecture-execution.$sectionId'
 import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
 import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
@@ -705,6 +706,12 @@ const FacultyPortalLectureExecutionIndexRoute =
     path: '/lecture-execution/',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
+const FacultyPortalLectureExecutionSectionIdRoute =
+  FacultyPortalLectureExecutionSectionIdRouteImport.update({
+    id: '/lecture-execution/$sectionId',
+    path: '/lecture-execution/$sectionId',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
 const FacultyPortalMaterialsIndexRoute =
   FacultyPortalMaterialsIndexRouteImport.update({
     id: '/materials/',
@@ -927,6 +934,7 @@ export interface FileRoutesByFullPath {
   '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
+  '/faculty-portal/lecture-execution/$sectionId': typeof FacultyPortalLectureExecutionSectionIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
@@ -1048,6 +1056,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
+  '/faculty-portal/lecture-execution/$sectionId': typeof FacultyPortalLectureExecutionSectionIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
@@ -1178,6 +1187,7 @@ export interface FileRoutesById {
   '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
+  '/faculty-portal/lecture-execution/$sectionId': typeof FacultyPortalLectureExecutionSectionIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
@@ -1309,6 +1319,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
+    | '/faculty-portal/lecture-execution/$sectionId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
@@ -1430,6 +1441,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
+    | '/faculty-portal/lecture-execution/$sectionId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
@@ -1559,6 +1571,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
+    | '/faculty-portal/lecture-execution/$sectionId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
@@ -2353,6 +2366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalLectureExecutionIndexRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
+    '/faculty-portal/lecture-execution/$sectionId': {
+      id: '/faculty-portal/lecture-execution/$sectionId'
+      path: '/lecture-execution/$sectionId'
+      fullPath: '/faculty-portal/lecture-execution/$sectionId'
+      preLoaderRoute: typeof FacultyPortalLectureExecutionSectionIdRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
     '/faculty-portal/materials/': {
       id: '/faculty-portal/materials/'
       path: '/materials'
@@ -2678,6 +2698,7 @@ interface FacultyPortalRouteChildren {
   FacultyPortalReportsRoute: typeof FacultyPortalReportsRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
+  FacultyPortalLectureExecutionSectionIdRoute: typeof FacultyPortalLectureExecutionSectionIdRoute
   FacultyPortalMaterialsSectionIdRoute: typeof FacultyPortalMaterialsSectionIdRoute
   FacultyPortalStudentProgressStudentIdRoute: typeof FacultyPortalStudentProgressStudentIdRoute
   FacultyPortalLectureExecutionIndexRoute: typeof FacultyPortalLectureExecutionIndexRoute
@@ -2694,6 +2715,8 @@ const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalReportsRoute: FacultyPortalReportsRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
+  FacultyPortalLectureExecutionSectionIdRoute:
+    FacultyPortalLectureExecutionSectionIdRoute,
   FacultyPortalMaterialsSectionIdRoute: FacultyPortalMaterialsSectionIdRoute,
   FacultyPortalStudentProgressStudentIdRoute:
     FacultyPortalStudentProgressStudentIdRoute,
