@@ -140,16 +140,13 @@ function ForgotPasswordPage() {
             <p className="mt-1 text-sm text-primary-deep/75">{cfg.description}</p>
           </div>
 
-          {sent ? (
+          {done ? (
             <div className="px-8 py-10 text-center space-y-4">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
                 <CheckCircle2 className="h-7 w-7" />
               </div>
               <p className="text-sm font-semibold text-foreground">
-                تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                إن لم يصلك البريد خلال دقائق، تحقق من مجلد البريد المزعج (Spam).
+                تم تعيين كلمة المرور الجديدة بنجاح.
               </p>
               <div className="pt-4">
                 <Link to={cfg.backTo} className="text-sm font-bold text-primary hover:text-gold">
@@ -157,6 +154,75 @@ function ForgotPasswordPage() {
                 </Link>
               </div>
             </div>
+          ) : sent ? (
+            <form onSubmit={onVerify} className="px-8 py-8 space-y-5">
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-semibold text-emerald-800">
+                أرسلنا رمز تحقق إلى <span dir="ltr" className="font-mono">{email.trim().toLowerCase()}</span>.
+                أدخل الرمز وكلمة المرور الجديدة. إن لم يصلك البريد تحقق من مجلد البريد المزعج (Spam).
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="code" className="text-sm font-semibold">رمز التحقق</Label>
+                <Input
+                  id="code"
+                  dir="ltr"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="text-center font-mono tracking-[0.5em] text-lg"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newpwd" className="text-sm font-semibold">كلمة المرور الجديدة</Label>
+                <PasswordInput id="newpwd" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="new-password" />
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1">
+                  {PWD_RULES.map((r) => {
+                    const ok = r.test(pwd);
+                    return (
+                      <li key={r.id} className={`text-[11px] ${ok ? "text-emerald-700" : "text-muted-foreground"}`}>
+                        {ok ? "✓" : "•"} {r.label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmpwd" className="text-sm font-semibold">تأكيد كلمة المرور</Label>
+                <PasswordInput id="confirmpwd" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+              </div>
+
+              {error && (
+                <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 bg-gold-gradient text-primary-deep font-extrabold text-base shadow-gold hover:opacity-95 hover:translate-y-0"
+              >
+                {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /> جاري التحقق...</>) : <>تأكيد وتعيين كلمة المرور</>}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setSent(false); setCode(""); setPwd(""); setConfirm(""); setError(null); }}
+                  className="text-primary hover:text-gold font-bold"
+                >
+                  إعادة إرسال الرمز
+                </button>
+                <Link to={cfg.backTo} className="text-primary hover:text-gold font-bold inline-flex items-center gap-1">
+                  <ArrowRight className="h-3 w-3" /> {cfg.backLabel}
+                </Link>
+              </div>
+            </form>
+
           ) : (
             <form onSubmit={onSubmit} className="px-8 py-8 space-y-5">
               <div className="space-y-2">
