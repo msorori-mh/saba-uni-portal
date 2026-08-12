@@ -97,6 +97,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         icon: CalendarDays,
       },
       { to: "/admin/enrollments", label: "تقسيم المجموعات", icon: ClipboardList },
+      { to: "/admin/lecture-execution", label: "متابعة تنفيذ المحاضرات", icon: CalendarCheck },
       { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
       { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
       { to: "/admin/imports", label: "الاستيراد الجماعي", icon: Upload },
