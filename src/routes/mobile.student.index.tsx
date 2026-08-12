@@ -7,8 +7,6 @@ import {
   FileText,
   Award,
   BookOpen,
-  GraduationCap,
-  Users,
   Loader2,
   type LucideIcon,
 } from "lucide-react";
@@ -85,12 +83,9 @@ function buildCards(args: { gpEligible: boolean; isGraduate: boolean }): Dashboa
   if (portalFeatures.studentUnofficialTranscript) {
     cards.push({ label: "السجل الأكاديمي", icon: BookOpen, to: "/mobile/student/academic-record" });
   }
-  if (args.gpEligible) {
-    cards.push({ label: "مشروع التخرج", icon: GraduationCap, to: "/mobile/student/more" });
-  }
-  if (args.isGraduate && portalFeatures.studentGraduatesAffairs) {
-    cards.push({ label: "شؤون الخريجين", icon: Users, to: "/mobile/student/more" });
-  }
+  // مشروع التخرج وشؤون الخريجين غير منشورين في تطبيق الجوال بعد؛ لا تُعرض
+  // بطاقات وهمية. البوابة على المتصفح تبقى المصدر لهاتين الخدمتين.
+  void args;
   return cards;
 }
 
