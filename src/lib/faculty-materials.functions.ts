@@ -353,8 +353,10 @@ async function getLinkageMode(supabaseAdmin: any): Promise<LinkageMode> {
     .select("setting_value")
     .eq("setting_key", "materials_linkage_mode")
     .maybeSingle();
-  const v = (data?.setting_value as string | undefined) ?? "cohort_fallback";
-  return v === "enrollment_only" ? "enrollment_only" : "cohort_fallback";
+  // Secure default: enrollment_only. cohort_fallback stays supported in source
+  // but must be opted into explicitly via site_settings.
+  const v = (data?.setting_value as string | undefined) ?? "enrollment_only";
+  return v === "cohort_fallback" ? "cohort_fallback" : "enrollment_only";
 }
 
 export const publishCourseMaterial = createServerFn({ method: "POST" })
