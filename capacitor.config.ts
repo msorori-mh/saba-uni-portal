@@ -19,15 +19,16 @@ const config: CapacitorConfig = {
   appName: "بوابة الكلية",
   webDir: "mobile-shell",
   server: {
-    url: "https://saba-uni-portal.lovable.app/mobile/student-login",
+    // Canonical production origin for the native student app.
+    url: "https://quboolye.com/mobile/student-login",
     cleartext: false,
     androidScheme: "https",
+    // Minimum navigation allowlist: the official portal origin plus the
+    // backend host the student app actually calls. No preview-host fallback.
     allowNavigation: [
-      "saba-uni-portal.lovable.app",
-      "*.lovable.app",
       "quboolye.com",
-      "*.quboolye.com",
-      "*.supabase.co",
+      "www.quboolye.com",
+      "wpmicqriltrowwonknox.supabase.co",
     ],
   },
   android: {

@@ -1,4 +1,72 @@
-# تطبيق Android — بوابة الطالب فقط: من المصدر إلى Pre-Release
+# APPROVED — PROCEED WITH THE CURRENT ANDROID STUDENT PRE-RELEASE PLAN.
+
+One required correction before final build:
+
+In capacitor.config.ts change the native remote-shell entry point from:
+
+[https://saba-uni-portal.lovable.app/mobile/student-login](https://saba-uni-portal.lovable.app/mobile/student-login)
+
+to the official production endpoint:
+
+[https://quboolye.com/mobile/student-login](https://quboolye.com/mobile/student-login)
+
+Also narrow server.allowNavigation to the minimum domains actually required by
+
+the production student app.
+
+Do not retain *.[lovable.app](http://lovable.app) merely as a fallback.
+
+The Android app must use the official [quboolye.com](http://quboolye.com) runtime as its canonical web origin.
+
+Then continue exactly with the existing plan:
+
+scope guard
+
+→ session persistence verification
+
+→ mobile tests/typecheck
+
+→ CI APK/AAB
+
+→ install APK on physical Android device
+
+→ DEMO student login
+
+→ home
+
+→ schedule
+
+→ grades / academic record
+
+→ requests
+
+→ documents
+
+→ Android back button
+
+→ exit app
+
+→ reopen app
+
+→ verify session persists
+
+No Faculty.
+
+No Staff.
+
+No Admin.
+
+No new mobile scope.
+
+No Migration.
+
+No production DB changes.
+
+Final decision:
+
+PASS_ANDROID_STUDENT_APP_PRE_RELEASE
+
+only after the physical-device smoke test passes.تطبيق Android — بوابة الطالب فقط: من المصدر إلى Pre-Release
 
 النطاق مثبت: التطبيق = الطالب فقط (`/mobile/student-login` ثم `/mobile/student`). لا Faculty ولا Staff ولا Admin داخل التطبيق. الويب يبقى شاملًا للجميع.
 
