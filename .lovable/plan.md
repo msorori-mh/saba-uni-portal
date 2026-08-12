@@ -91,4 +91,14 @@ Post-execution rediscovery compares PRE / POST / LEDGER component sets with PRE_
 
 Reports written/updated: student, faculty, staff and reports acceptance files, component/lifecycle/report ledgers, the demo data manifest, and the master acceptance file. Detailed per-page component evidence with EVIDENCE_IDs, no summary-only PASS. Safety counters reported separately and honestly, keeping CORRECTIVE_REAL_DATA_WRITES = 2. Passwords delivered in the final chat response only, never committed.
 
+### Mandatory per-page completeness table
+
+The master package contains one row for EVERY discovered page, with columns: PORTAL, ROUTE, PAGE_NAME, ACTOR, COMPONENTS_DISCOVERED, COMPONENTS_TESTED, ACTIONS_DISCOVERED, ACTIONS_TESTED, POSITIVE_CASES, NEGATIVE_CASES, EVIDENCE_COUNT, JS_ERRORS, BACKEND_ERRORS, DATA_LEAKS, FINAL_PAGE_VERDICT.
+
+For every LIVE required page: COMPONENTS_DISCOVERED = COMPONENTS_TESTED, ACTIONS_DISCOVERED = ACTIONS_TESTED, EVIDENCE_COUNT >= tested interactive items, FINAL_PAGE_VERDICT = PASS. No page may disappear inside a portal-level summary.
+
+### Execution continuity
+
+Discovery is never a standalone round. Execution continues in the same mission until every ledger row leaves NOT_TESTED. If an environment limit truncates a run, the ledger and execution state are persisted and the same mission resumes automatically from the first NOT_TESTED row — no re-analysis from scratch, and no "discovered N components, will test next round" outcome.
+
 Final token: PASS_PORTAL_ZERO_OMISSION_FULL_E2E_GO_LIVE_ACCEPTANCE_01 with UNIVERSITY_COUNCIL_PRESENTATION_READINESS = READY only if all gates pass; otherwise HOLD_PORTAL_ZERO_OMISSION_FULL_E2E_<EXACT_BLOCKER>.
