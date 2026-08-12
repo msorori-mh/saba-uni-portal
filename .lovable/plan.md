@@ -43,6 +43,16 @@ Per page, every card, KPI, tab, link, button, form, field, dialog, dropdown, sea
 
 Discovery output feeds directly into Campaign-S in the same run.
 
+### Ledger immutability / discovery hash gate
+
+At the end of initial discovery, freeze and persist deterministic counts + hashes for: PRE_DISCOVERY_ROUTE_SET, PRE_DISCOVERY_PAGE_SET, PRE_DISCOVERY_COMPONENT_SET, PRE_DISCOVERY_ACTION_SET, PRE_DISCOVERY_REPORT_SET, PRE_DISCOVERY_RPC_SET — before executing any campaign.
+
+The discovered denominator is never redefined later merely to reach 100%. Any removal from the initial discovered set requires ITEM_ID, original classification, reason, and evidence proving deprecated / not-runtime / not-applicable.
+
+POST_EXECUTION discovery may ADD missed items but can never silently shrink the PRE set.
+
+FINAL COVERAGE DENOMINATOR = validated PRE set UNION newly discovered POST items.
+
 ## Campaigns
 
 - S — Student: dashboard KPIs verified against DB truth, profile/plan/courses, full published timetable row-by-row (course, المجموعة الدراسية, day, time, room, faculty, lecture/practical), materials 4/4 with hash regression, lecture plan 6/6 sessions with private notes hidden, and every LIVE service end to end: visibility, eligibility allow/deny, every field and validation, attachment, draft, update, submit, pinned workflow version, each step with its exact processing actor, returns, correction/resubmit, approval/rejection, fee path, completion, effect, document, notification, student readback, relogin, wrong-actor RPC, stale action, terminal-action denial.
