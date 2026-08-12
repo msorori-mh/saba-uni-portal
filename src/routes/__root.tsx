@@ -236,14 +236,22 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouter().state.location.pathname;
   const isAdmin = pathname.startsWith("/admin");
+  // The mobile app surface is a standalone product: no public-site chrome,
+  // no global back button, no install prompt, no service-worker registration.
+  const isMobileApp = isMobileAppPath(pathname);
+  const bare = isAdmin || isMobileApp;
 
   useEffect(() => {
+    if (isMobileApp) {
+      void disablePwaInNativeShell();
+      return;
+    }
     registerPortalPWA();
-  }, []);
+  }, [isMobileApp]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isAdmin ? (
+      {bare ? (
         <Outlet />
       ) : (
         <div className="flex min-h-screen flex-col">
