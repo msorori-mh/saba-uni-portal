@@ -148,31 +148,30 @@ export const listStudentDeliverySections = createServerFn({ method: "GET" })
     return unwrap<StudentDeliverySection[]>(data ?? [], error);
   });
 
-export const saveDeliveryPlan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: {
-      sectionId: string;
-      plannedSessionCount: number;
-      sessions: { session_number: number; planned_title: string; planned_topics?: string | null }[];
-    }) => input,
-  )
-  .handler(async ({ data, context }): Promise<{ planId: string }> => {
-    const { data: planId, error } = await context.supabase.rpc("cdp_save_plan", {
-      p_course_section_id: data.sectionId,
-      p_planned_session_count: data.plannedSessionCount,
-      p_sessions: data.sessions,
-    });
-    return { planId: unwrap<string>(planId, error) };
-  });
+/**
+ * Plan authoring by faculty is disabled by design: the approved course
+ * syllabus is the single academic source of the lecture plan. Faculty only
+ * record actual execution. The database RPCs reject any authoring attempt.
+ */
 
-export const publishDeliveryPlan = createServerFn({ method: "POST" })
+export type PlanSessionOption = {
+  plan_session_id: string;
+  session_number: number;
+  week_number: number | null;
+  planned_title: string;
+  planned_topics: string | null;
+};
+
+/** Lecture picker used when attaching a learning material to a planned lecture. */
+export const listPlanSessionsForMaterials = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { planId: string }) => input)
-  .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const { error } = await context.supabase.rpc("cdp_publish_plan", { p_plan_id: data.planId });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+  .inputValidator((input: { sectionId: string }) => input)
+  .handler(async ({ data, context }): Promise<PlanSessionOption[]> => {
+    const { data: rows, error } = await context.supabase.rpc(
+      "cdp_list_plan_sessions_for_materials",
+      { p_course_section_id: data.sectionId },
+    );
+    return unwrap<PlanSessionOption[]>(rows ?? [], error);
   });
 
 export const recordSessionExecution = createServerFn({ method: "POST" })
