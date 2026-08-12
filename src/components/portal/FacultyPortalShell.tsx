@@ -18,6 +18,7 @@ export type FacultyNavPath =
   | "/faculty-portal/graduation-projects"
   | "/faculty-portal/materials"
   | "/faculty-portal/lecture-execution"
+  | "/faculty-portal/processing-requests"
   | "/faculty-portal/reports";
 
 export interface FacultyBreadcrumb {
