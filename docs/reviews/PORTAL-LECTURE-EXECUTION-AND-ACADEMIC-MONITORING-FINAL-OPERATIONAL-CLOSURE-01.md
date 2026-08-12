@@ -160,3 +160,73 @@
 غياب التقارير الدورية والإنذار المبكر، بقايا عقد المندوب، كتالوج تقارير غير مطابق) أُصلحت وطُبّقت في الإنتاج.
 المتبقي الوحيد للإغلاق الكامل: تنفيذ مصفوفة RPC الحية ورحلة المتصفح المسجَّلة الدخول بممثلي الاختبار
 (عضو هيئة تدريس مسند، عضو آخر، رئيس قسم، عميد، طالب مسجَّل، طالب غير مسجَّل) والتقاط أدلتها.
+
+---
+
+# LIVE MULTI-ACTOR E2E CLOSURE (المهمة 02)
+
+`RUN_TAG = TEST_ONLY_LECTURE_EXECUTION_E2E_20260812T005719Z` (لم يُستخدم — أُوقفت الحملة عند بوابة التجميد)
+
+## 0 — تجميد الهدف المنشور (Fresh Target Freeze)
+
+| البند | القيمة |
+| --- | --- |
+| TEST_START_UTC | 2026-08-12T00:57:19Z |
+| SOURCE_SHA | `635c87446f9d52dc025f183818db1bd497a3fc1f` |
+| DEPLOYED_SHA (production `/version.json`) | `423e7301f8d40253c7ee275c558d4212667b7e06` |
+| DB_MIGRATION_TIP | `20260812004610` |
+
+### فحص وجود المسارات في الرنتايم المنشور
+
+| المسار | production (`saba-uni-portal.lovable.app`) |
+| --- | --- |
+| `/admin` | 200 |
+| `/faculty-portal` | 200 |
+| `/faculty-portal/schedule` | 200 |
+| `/faculty-portal/reports` | 200 |
+| `/student/materials` | 200 |
+| `/faculty-portal/lecture-execution` | **404** |
+| `/faculty-portal/lecture-monitoring` | **404** |
+| `/admin/lecture-execution` | **404** |
+
+المسارات الشقيقة في نفس الحارس تُرجع 200، بينما جميع مسارات تنفيذ المحاضرات تُرجع 404 —
+أي أنها غير موجودة في شجرة المسارات المنشورة، وليست حالة حجب صلاحيات.
+
+قاعدة البيانات (تيب `20260812004610`) تحتوي فعلياً عقود `cdp_*` الكاملة:
+`cdp_save_plan`, `cdp_publish_plan`, `cdp_record_session_execution`, `cdp_clear_session_execution`,
+`cdp_get_section_plan`, `cdp_delivery_monitoring`, `cdp_admin_delivery_overview`,
+`cdp_list_my_faculty_sections`, `cdp_list_student_sections`, `cdp_is_section_faculty`,
+`cdp_can_manage_section`, `cdp_can_view_section`, `cdp_validate_execution`.
+
+**النتيجة:** الطبقة الخلفية منشورة ومطابقة، لكن طبقة الواجهة/المسارات المقبولة **غير منشورة**
+(`SOURCE_SHA != DEPLOYED_SHA` والمسارات مفقودة فعلياً في الرنتايم المنشور).
+
+`LECTURE_EXECUTION_DEPLOYED_RUNTIME = FAIL`
+
+## قرار البوابة
+
+وفق البند 0 من عقد المهمة: عند عدم نشر المصدر المقبول يجب التوقف وعدم تلفيق أدلة متصفح
+مقابل كود غير منشور. لذلك **لم يُنشأ أي ممثل TEST_ONLY، ولم تُكتب أي بيانات اختبارية، ولم تُنفَّذ أي
+مصفوفة RPC حية أو رحلة متصفح**.
+
+| المؤشر | القيمة |
+| --- | --- |
+| ACTORS_CREATED | 0 |
+| TEST_ONLY_ROWS_CREATED | 0 |
+| TEST_ONLY_ROWS_CLEANED | 0 |
+| TEST_ONLY_ROWS_RETAINED | 0 |
+| REAL_NON_TEST_PRODUCTION_ROWS_MODIFIED | 0 |
+| NEW_TEST_HARNESS_RPCS | 0 (`LECTURE_EXECUTION_NO_TEST_HARNESS_RESIDUE = PASS`) |
+| RPC_POSITIVE_PASS / RPC_NEGATIVE_PASS | NOT_EXECUTED |
+| FACULTY / STUDENT / DEPT_HEAD / DEAN / ACADEMIC_AFFAIRS / ADMIN BROWSER_PASS | NOT_EXECUTED |
+| UI_RPC_DB_PARITY / MONITORING_SCOPE_PARITY | NOT_EXECUTED |
+| ROUTE_CRASHES / JS_ERRORS / UNEXPLAINED_5XX / DATA_LEAKS | 0 (لا جلسات نُفِّذت) |
+
+## الإجراء المطلوب لرفع الحجب
+
+نشر `SOURCE_SHA = 635c8744` إلى الإنتاج (صلاحية النشر ليست ضمن التفويض الحالي لهذه المهمة)،
+ثم إعادة تشغيل الحملة من البند 1 مباشرة دون تغييرات مصدرية إضافية.
+
+## القرار النهائي
+
+`HOLD_DEPLOYED_LECTURE_EXECUTION_PARITY`
