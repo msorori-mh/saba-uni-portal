@@ -22,7 +22,15 @@ These are the defences on paper. The gate proves them at runtime, from a real au
 
 Any confirmed bypass is treated as HIGH/CRITICAL and fixed forward-only with the smallest safe contract: student direct updates narrowed to genuinely student-editable draft fields (`title`, `description`, `form_data`, `student_notes`), lifecycle fields moved behind the authoritative RPC paths. The workflow is never weakened to preserve a 204.
 
-Required: STUDENT_REQUEST_DIRECT_STATUS_BYPASS = 0, STUDENT_REQUEST_DIRECT_WORKFLOW_FIELD_BYPASS = 0, STUDENT_REQUEST_COLUMN_AUTHZ = PASS.
+### Minimum-privilege rule (Gate 1A, mandatory)
+
+If a lifecycle field has no legitimate direct-client edit journey, `authenticated` MUST NOT retain direct UPDATE privilege on that field merely because a trigger currently neutralizes or rejects unsafe values.
+
+Prefer `NO DIRECT COLUMN PRIVILEGE` over `DIRECT PRIVILEGE + TRIGGER NO-OP` for workflow-controlled fields.
+
+Necessity of direct UPDATE privilege must be explicitly determined and recorded for at least: `status`, `submitted_at`, `cancelled_at`, `rejection_reason`, `request_type`, `updated_at`. Any unnecessary privilege is revoked forward-only. The final contract exposes only the smallest student-editable direct column set.
+
+Required: STUDENT_REQUEST_DIRECT_STATUS_BYPASS = 0, STUDENT_REQUEST_DIRECT_WORKFLOW_FIELD_BYPASS = 0, STUDENT_REQUEST_COLUMN_AUTHZ = PASS, STUDENT_REQUEST_MINIMUM_PRIVILEGE = PASS.
 
 ## Phase 1 — fresh full discovery (start of execution, not a separate round)
 
