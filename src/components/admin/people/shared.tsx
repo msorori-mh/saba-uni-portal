@@ -17,6 +17,14 @@ const PORTAL_LABEL: Record<CredentialsSlipData["portal"], string> = {
   staff: "بوابة الموظف",
 };
 
+/** Full portal login URL per account type — driven by slip.portal only. */
+export const PORTAL_LOGIN_URL: Record<CredentialsSlipData["portal"], string> = {
+  student: "https://quboolye.com/portal-login?type=student",
+  faculty: "https://quboolye.com/portal-login?type=faculty",
+  staff: "https://quboolye.com/portal-login?type=staff",
+};
+
+
 export function CredentialsSlip({
   slip,
   onClose,
