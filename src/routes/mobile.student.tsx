@@ -1,10 +1,10 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Home, CalendarClock, ClipboardList, FileText, User, LogOut, Loader2 } from "lucide-react";
+import { Home, CalendarClock, ClipboardList, FileText, LayoutGrid, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
-import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
+import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { useNativeAppShell } from "@/hooks/use-native-app-shell";
 
 export const Route = createFileRoute("/mobile/student")({
@@ -69,7 +69,7 @@ function MobileStudentLayout() {
   useNativeAppShell(pathname);
 
   useEffect(() => {
-    registerPortalPWA();
+    void disablePwaInNativeShell();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
@@ -155,7 +155,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "الجدول", icon: CalendarClock, to: "/mobile/student/schedule" },
   { label: "الطلبات", icon: ClipboardList, to: "/mobile/student/requests" },
   { label: "الوثائق", icon: FileText, to: "/mobile/student/documents" },
-  { label: "الحساب", icon: User, to: null },
+  { label: "المزيد", icon: LayoutGrid, to: "/mobile/student/more" },
 ];
 
 function MobileBottomNav() {
