@@ -50,7 +50,8 @@ export type MasterTemplate = {
     | "student_eligibility"
     | "student_accounts"
     | "documents"
-    | "class_schedule";
+    | "class_schedule"
+    | "course_syllabi";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
@@ -1414,6 +1415,88 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
       ["2026001", "enrollment_letter", "2026-10-01", "لتقديمها للجهات الرسمية", ""],
       ["2026002", "transcript", "2026-10-01", "لطلب القبول", ""],
       ["2026003", "enrollment_letter", "2026-10-01", "بنك", ""],
+    ],
+  },
+  {
+    id: "course_syllabi",
+    fileName: "template_course_syllabi.xlsx",
+    title: "توصيف المقررات (خطة المحاضرات المعتمدة)",
+    description:
+      "التوصيف الأكاديمي المعتمد للمقرر: عدد المحاضرات وعناوينها ومفرداتها. يُستخدم لتوليد خطة تنفيذ المحاضرات لكل مجموعة تلقائياً. صف واحد لكل محاضرة، وأرقام المحاضرات متسلسلة تبدأ من 1.",
+    category: "courses",
+    importerKey: "course_syllabi",
+    hasValidator: true,
+    columns: [
+      {
+        name: "course_code",
+        description: "كود المقرر (يجب أن يكون موجوداً)",
+        required: true,
+        type: "text",
+        example: "CS101",
+      },
+      {
+        name: "session_number",
+        description: "رقم المحاضرة (متسلسل من 1)",
+        required: true,
+        type: "integer",
+        example: 1,
+      },
+      {
+        name: "week_number",
+        description: "رقم الأسبوع الدراسي (اختياري)",
+        required: false,
+        type: "integer",
+        example: 1,
+      },
+      {
+        name: "title_ar",
+        description: "عنوان المحاضرة كما في التوصيف",
+        required: true,
+        type: "text",
+        example: "مقدمة في الخوارزميات",
+      },
+      {
+        name: "topics_ar",
+        description: "مفردات/مواضيع المحاضرة",
+        required: false,
+        type: "text",
+        example: "تعريف الخوارزمية، خصائصها، أمثلة",
+      },
+      {
+        name: "description_ar",
+        description: "وصف المقرر (يُكتب في صف واحد فقط لكل مقرر)",
+        required: false,
+        type: "text",
+        example: "مقرر يؤسس مهارات البرمجة",
+      },
+      {
+        name: "objectives_ar",
+        description: "أهداف المقرر (صف واحد لكل مقرر)",
+        required: false,
+        type: "text",
+        example: "إكساب الطالب أساسيات البرمجة",
+      },
+      {
+        name: "references_ar",
+        description: "المراجع المعتمدة (صف واحد لكل مقرر)",
+        required: false,
+        type: "text",
+        example: "Introduction to Algorithms, 4th ed.",
+      },
+    ],
+    examples: [
+      [
+        "CS101",
+        1,
+        1,
+        "مقدمة في الخوارزميات",
+        "تعريف الخوارزمية، خصائصها",
+        "مقرر يؤسس مهارات البرمجة",
+        "إكساب الطالب أساسيات البرمجة",
+        "Introduction to Algorithms",
+      ],
+      ["CS101", 2, 1, "أنواع البيانات", "الأعداد، النصوص، القيم المنطقية", "", "", ""],
+      ["CS101", 3, 2, "جمل التحكم", "if / switch", "", "", ""],
     ],
   },
 ];

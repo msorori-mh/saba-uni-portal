@@ -47,6 +47,7 @@ import type { ImportReport, ImportType, ValidationResult, ValidatedRow } from "@
 import { MasterTemplatesLibrary } from "@/components/admin/MasterTemplatesLibrary";
 import { downloadMasterTemplate } from "@/lib/imports/master-templates";
 import { ScheduleImportPanel } from "@/components/admin/ScheduleImportPanel";
+import { CourseSyllabusImportPanel } from "@/components/admin/CourseSyllabusImportPanel";
 
 export const Route = createFileRoute("/admin/imports")({
   head: () => ({
@@ -58,7 +59,7 @@ export const Route = createFileRoute("/admin/imports")({
   component: ImportsPage,
 });
 
-type TabId = ImportType | "faculty_accounts" | "class_schedule";
+type TabId = ImportType | "faculty_accounts" | "class_schedule" | "course_syllabi";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "students", label: "الطلاب" },
@@ -79,6 +80,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "student_discounts", label: "خصومات الطلاب" },
   { id: "documents", label: "الوثائق الرسمية" },
   { id: "class_schedule", label: "الجداول الدراسية" },
+  { id: "course_syllabi", label: "توصيف المقررات" },
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
@@ -743,6 +745,8 @@ function ImportsPage() {
         <FacultyAccountsImportPanel />
       ) : tab === "class_schedule" ? (
         <ScheduleImportPanel />
+      ) : tab === "course_syllabi" ? (
+        <CourseSyllabusImportPanel />
       ) : (
         <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
           {IMPORT_TAB_INFO[tab as ImportType] && (

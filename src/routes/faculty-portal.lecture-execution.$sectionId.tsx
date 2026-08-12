@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, ArrowRight, CalendarCheck, Save, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowRight, CalendarCheck, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   getSectionDeliveryPlan,
-  saveDeliveryPlan,
-  publishDeliveryPlan,
   recordSessionExecution,
   clearSessionExecution,
   LECTURE_EXECUTION_STATUSES,
   LECTURE_STATUS_LABELS,
+  SECTION_STUDY_SYSTEM_LABELS,
   type DeliveryPlanSession,
   type LectureExecutionStatus,
   type LectureSessionStatus,
@@ -26,15 +25,15 @@ export const Route = createFileRoute("/faculty-portal/lecture-execution/$section
   component: FacultyLectureExecutionSection,
   head: () => ({
     meta: [
-      { title: "خطة وتنفيذ محاضرات المقرر | بوابة عضو هيئة التدريس" },
+      { title: "تسجيل تنفيذ محاضرات المقرر | بوابة عضو هيئة التدريس" },
       {
         name: "description",
-        content: "تحديد عناوين المحاضرات المخططة مسبقاً وتسجيل حالة تنفيذ كل محاضرة.",
+        content: "خطة المحاضرات المولّدة من توصيف المقرر المعتمد وتسجيل حالة تنفيذ كل محاضرة.",
       },
-      { property: "og:title", content: "خطة وتنفيذ محاضرات المقرر" },
+      { property: "og:title", content: "تسجيل تنفيذ محاضرات المقرر" },
       {
         property: "og:description",
-        content: "تحديد عناوين المحاضرات المخططة مسبقاً وتسجيل حالة تنفيذ كل محاضرة.",
+        content: "خطة المحاضرات المولّدة من توصيف المقرر المعتمد وتسجيل حالة تنفيذ كل محاضرة.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -62,59 +61,19 @@ function FacultyLectureExecutionSection() {
     queryFn: () => getSectionDeliveryPlan({ data: { sectionId } }),
   });
 
-  const [count, setCount] = useState<string>("14");
-  const [titles, setTitles] = useState<Record<number, { title: string; topics: string }>>({});
   const [selected, setSelected] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!data) return;
-    if (data.plan) setCount(String(data.plan.planned_session_count));
-    const next: Record<number, { title: string; topics: string }> = {};
-    for (const s of data.sessions) {
-      next[s.session_number] = { title: s.planned_title, topics: s.planned_topics ?? "" };
-    }
-    setTitles(next);
-  }, [data]);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["delivery-plan", sectionId] });
     void queryClient.invalidateQueries({ queryKey: ["faculty", "lecture-execution", "sections"] });
   };
 
-  const savePlan = useMutation({
-    mutationFn: () =>
-      saveDeliveryPlan({
-        data: {
-          sectionId,
-          plannedSessionCount: Number(count),
-          sessions: Object.entries(titles).map(([number, value]) => ({
-            session_number: Number(number),
-            planned_title: value.title.trim() || `محاضرة ${number}`,
-            planned_topics: value.topics.trim() || null,
-          })),
-        },
-      }),
-    onSuccess: () => {
-      toast.success("تم حفظ خطة المحاضرات");
-      invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const publish = useMutation({
-    mutationFn: (planId: string) => publishDeliveryPlan({ data: { planId } }),
-    onSuccess: () => {
-      toast.success("تم اعتماد خطة المحاضرات");
-      invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const sessions = useMemo<DeliveryPlanSession[]>(() => data?.sessions ?? [], [data]);
   const current = sessions.find((s) => s.session_number === selected) ?? null;
   const executed = sessions.filter(
     (s) => s.status === "executed" || s.status === "compensated",
   ).length;
+  const studySystem = data?.course?.study_system;
 
   return (
     <FacultyPortalShell
@@ -148,133 +107,100 @@ function FacultyLectureExecutionSection() {
               </h1>
               <p className="mt-1 text-xs text-muted-foreground">
                 <span className="font-mono">{data?.course?.course_code}</span> • المجموعة{" "}
-                {data?.course?.section_code} • حالة الخطة:{" "}
-                {data?.plan?.status === "published" ? "معتمدة" : data?.plan ? "مسودة" : "غير موجودة"}
+                {data?.course?.section_code}
+                {studySystem && ` • النظام: ${SECTION_STUDY_SYSTEM_LABELS[studySystem]}`}
+                {data?.plan?.source === "syllabus" && data.plan.syllabus_version
+                  ? ` • توصيف معتمد (إصدار ${data.plan.syllabus_version})`
+                  : data?.plan
+                    ? " • خطة سابقة (قبل اعتماد التوصيف)"
+                    : ""}
               </p>
             </header>
 
-            {/* خطة المحاضرات المخططة مسبقاً */}
-            <section className="rounded-xl border-2 border-gold/30 bg-card p-4">
-              <h2 className="font-bold text-primary mb-3">خطة المحاضرات (تُحدَّد قبل بدء الفصل)</h2>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="w-40">
-                  <Label htmlFor="count" className="text-xs">
-                    عدد المحاضرات المخططة
-                  </Label>
-                  <Input
-                    id="count"
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={count}
-                    onChange={(e) => setCount(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={() => savePlan.mutate()}
-                  disabled={savePlan.isPending}
-                  className="gap-2"
-                >
-                  {savePlan.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  حفظ الخطة
-                </Button>
-                {data?.plan && data.plan.status !== "published" && (
-                  <Button
-                    variant="secondary"
-                    className="gap-2"
-                    disabled={publish.isPending}
-                    onClick={() => publish.mutate(data.plan!.plan_id)}
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> اعتماد الخطة
-                  </Button>
-                )}
+            {data?.awaiting_syllabus || !data?.plan ? (
+              <div className="rounded-xl border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
+                لم يُعتمد توصيف هذا المقرر بعد، لذلك لم تُولَّد خطة المحاضرات. يتم اعتماد التوصيف
+                من إدارة الشؤون الأكاديمية عبر مركز الاستيراد.
               </div>
+            ) : (
+              <>
+                <section className="rounded-xl border-2 border-gold/30 bg-card p-4">
+                  <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="font-bold text-primary">خطة المحاضرات المعتمدة</h2>
+                    <span className="text-xs text-muted-foreground">
+                      {data.plan.planned_session_count} محاضرة
+                    </span>
+                  </header>
+                  <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    <Info className="h-4 w-4 shrink-0 mt-0.5 text-gold" aria-hidden />
+                    <span>
+                      عناوين المحاضرات ومفرداتها مصدرها توصيف المقرر المعتمد ولا يمكن تعديلها من
+                      البوابة. دورك هو تسجيل حالة التنفيذ فقط.
+                    </span>
+                  </div>
+                  <ul className="mt-3 space-y-2">
+                    {sessions.map((s) => (
+                      <li
+                        key={s.plan_session_id}
+                        className="grid gap-1 rounded-lg border p-3 sm:grid-cols-[3rem_1fr]"
+                      >
+                        <div className="grid h-9 w-9 place-items-center rounded-md bg-primary/10 text-sm font-bold text-primary">
+                          {s.session_number}
+                        </div>
+                        <div className="text-sm">
+                          <div className="font-medium text-primary">
+                            {s.planned_title}
+                            {s.week_number ? (
+                              <span className="mr-2 text-xs text-muted-foreground">
+                                (الأسبوع {s.week_number})
+                              </span>
+                            ) : null}
+                          </div>
+                          {s.planned_topics && (
+                            <div className="text-xs text-muted-foreground">{s.planned_topics}</div>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
 
-              {sessions.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {sessions.map((s) => (
-                    <div
-                      key={s.plan_session_id}
-                      className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[3rem_1fr_1fr]"
-                    >
-                      <div className="grid h-9 w-9 place-items-center rounded-md bg-primary/10 text-sm font-bold text-primary">
+                <section className="rounded-xl border-2 border-gold/30 bg-card p-4">
+                  <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="font-bold text-primary">تسجيل التنفيذ</h2>
+                    <span className="text-xs text-muted-foreground">
+                      المنفذ {executed} من {data.plan.planned_session_count}
+                    </span>
+                  </header>
+                  <div className="flex flex-wrap gap-2">
+                    {sessions.map((s) => (
+                      <button
+                        key={s.plan_session_id}
+                        type="button"
+                        onClick={() =>
+                          setSelected(s.session_number === selected ? null : s.session_number)
+                        }
+                        aria-label={`المحاضرة ${s.session_number} — ${LECTURE_STATUS_LABELS[s.status]}`}
+                        className={cn(
+                          "h-10 w-10 rounded-lg border-2 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          STATUS_STYLES[s.status],
+                          selected === s.session_number && "ring-2 ring-gold",
+                        )}
+                      >
                         {s.session_number}
-                      </div>
-                      <Input
-                        aria-label={`عنوان المحاضرة ${s.session_number}`}
-                        placeholder="عنوان المحاضرة المخطط"
-                        value={titles[s.session_number]?.title ?? ""}
-                        onChange={(e) =>
-                          setTitles((prev) => ({
-                            ...prev,
-                            [s.session_number]: {
-                              title: e.target.value,
-                              topics: prev[s.session_number]?.topics ?? "",
-                            },
-                          }))
-                        }
-                      />
-                      <Input
-                        aria-label={`مواضيع المحاضرة ${s.session_number}`}
-                        placeholder="مفردات/مواضيع (اختياري)"
-                        value={titles[s.session_number]?.topics ?? ""}
-                        onChange={(e) =>
-                          setTitles((prev) => ({
-                            ...prev,
-                            [s.session_number]: {
-                              title: prev[s.session_number]?.title ?? "",
-                              topics: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+                      </button>
+                    ))}
+                  </div>
 
-            {/* تسجيل التنفيذ */}
-            {data?.plan?.status === "published" && (
-              <section className="rounded-xl border-2 border-gold/30 bg-card p-4">
-                <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="font-bold text-primary">تسجيل التنفيذ</h2>
-                  <span className="text-xs text-muted-foreground">
-                    المنفذ {executed} من {data.plan.planned_session_count}
-                  </span>
-                </header>
-                <div className="flex flex-wrap gap-2">
-                  {sessions.map((s) => (
-                    <button
-                      key={s.plan_session_id}
-                      type="button"
-                      onClick={() =>
-                        setSelected(s.session_number === selected ? null : s.session_number)
-                      }
-                      aria-label={`المحاضرة ${s.session_number} — ${LECTURE_STATUS_LABELS[s.status]}`}
-                      className={cn(
-                        "h-10 w-10 rounded-lg border-2 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        STATUS_STYLES[s.status],
-                        selected === s.session_number && "ring-2 ring-gold",
-                      )}
-                    >
-                      {s.session_number}
-                    </button>
-                  ))}
-                </div>
-
-                {current && (
-                  <ExecutionForm
-                    key={current.plan_session_id}
-                    session={current}
-                    onSaved={invalidate}
-                  />
-                )}
-              </section>
+                  {current && (
+                    <ExecutionForm
+                      key={current.plan_session_id}
+                      session={current}
+                      onSaved={invalidate}
+                    />
+                  )}
+                </section>
+              </>
             )}
           </div>
         )}
