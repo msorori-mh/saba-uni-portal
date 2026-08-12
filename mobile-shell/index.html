@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>بوابة الكلية</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0; height: 100%;
+        background: #061f33; color: #f5f7fa;
+        font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
+      }
+      main {
+        height: 100%; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 1rem; padding: 2rem; text-align: center;
+      }
+      h1 { font-size: 1.15rem; color: #d4af37; margin: 0; }
+      p { margin: 0; font-size: 0.9rem; opacity: 0.85; line-height: 1.9; }
+      button {
+        margin-top: 0.5rem; padding: 0.7rem 1.6rem; border-radius: 0.6rem;
+        border: 1px solid rgba(212, 175, 55, 0.6); background: transparent;
+        color: #d4af37; font-size: 0.9rem; font-weight: 700;
+      }
+      .spinner {
+        width: 34px; height: 34px; border-radius: 50%;
+        border: 3px solid rgba(245, 247, 250, 0.25); border-top-color: #d4af37;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <!--
+      Native fallback shell.
+
+      The Android app normally loads the deployed portal directly
+      (capacitor.config.ts -> server.url, HTTPS only). This document is only
+      shown when the device has no usable network at launch.
+    -->
+    <main>
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>بوابة الكلية</h1>
+      <p>
+        تعذّر الاتصال بالخادم حالياً.<br />
+        تأكد من اتصالك بالإنترنت ثم أعد المحاولة.
+      </p>
+      <button type="button" onclick="location.reload()">إعادة المحاولة</button>
+    </main>
+  </body>
+</html>
