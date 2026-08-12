@@ -41,12 +41,15 @@ export function CredentialsSlip({
       return false;
     }
   };
+  const portalUrl = PORTAL_LOGIN_URL[slip.portal];
   const copyAll = async () => {
     const text =
       `الاسم: ${slip.full_name_ar}\n` +
       `الرقم الإداري: ${slip.identifier}\n` +
       `الإيميل الجامعي: ${slip.email}\n` +
-      `كلمة المرور المؤقتة: ${slip.password}`;
+      `كلمة المرور المؤقتة: ${slip.password}\n` +
+      `رابط الدخول: ${portalUrl}`;
+
     const ok = await copy(text);
     if (ok) {
       setCopiedAll(true);
