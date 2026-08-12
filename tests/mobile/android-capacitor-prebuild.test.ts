@@ -92,10 +92,38 @@ describe("capacitor config contract", () => {
     expect(config).not.toContain("cleartext: true");
   });
 
-  test("native entry is the student login surface", () => {
-    expect(config).toContain("/mobile/student-login");
+  test("native entry is the student login surface on the official origin", () => {
+    expect(config).toContain("https://quboolye.com/mobile/student-login");
     expect(config).not.toContain("/admin");
     expect(config).not.toContain("/staff");
+    expect(config).not.toContain("/faculty-portal");
+  });
+
+  test("navigation allowlist is minimal and drops the lovable.app fallback", () => {
+    expect(config).not.toContain("lovable.app");
+    expect(config).not.toContain('"*.quboolye.com"');
+    expect(config).toContain('"quboolye.com"');
+    expect(config).toContain('"www.quboolye.com"');
+    expect(config).toContain('"wpmicqriltrowwonknox.supabase.co"');
+  });
+});
+
+describe("android student app scope guard — student only", () => {
+  const routes = readdirSync(join(ROOT, "src/routes")).filter((f) => f.startsWith("mobile."));
+
+  test("every /mobile route is a student surface", () => {
+    expect(routes.length).toBeGreaterThan(0);
+    for (const file of routes) {
+      expect(file.startsWith("mobile.student")).toBe(true);
+    }
+  });
+
+  test("no mobile screen links into faculty, staff or admin portals", () => {
+    for (const file of routes) {
+      const source = read(join("src/routes", file));
+      const links = source.match(/to="\/(faculty-portal|staff|admin)[^"]*"/g) ?? [];
+      expect({ file, links }).toEqual({ file, links: [] });
+    }
   });
 });
 
