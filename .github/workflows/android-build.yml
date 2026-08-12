@@ -50,6 +50,12 @@ jobs:
           java -version
           javac -version
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-provider: basic
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
