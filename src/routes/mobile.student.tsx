@@ -61,6 +61,11 @@ async function fetchShortProfile(): Promise<ShortProfile | null> {
 
 function MobileStudentLayout() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // Native (Capacitor/Android) app-shell: status bar, splash hide, back button.
+  // No-op on the web.
+  useNativeAppShell(pathname);
 
   useEffect(() => {
     registerPortalPWA();
