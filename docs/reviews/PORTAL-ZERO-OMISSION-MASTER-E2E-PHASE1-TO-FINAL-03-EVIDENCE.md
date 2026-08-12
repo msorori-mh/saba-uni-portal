@@ -138,3 +138,44 @@ Admin sweep (≈45 routes, demo.admin) started; the run exceeded the command
 window and is re-queued as the next NOT_TESTED block, followed by the
 GP / GA / Councils lifecycle runs, documents+notifications, report matrix,
 cross-portal journeys, rediscovery, rehearsal, cleanup and final package.
+
+## RESUME RUN 2 — 2026-08-12 (admin + GP/GA/Councils + public)
+
+### CAMPAIGN-A — admin portal (demo.admin, live production)
+54 admin routes swept with an authenticated admin session (3 batches).
+Result: **53/54 clean (0 JS errors, 0 HTTP >= 400)**, 1 defect:
+
+| ID | Route | Symptom | Root cause | Fix |
+|---|---|---|---|---|
+| A-01 | `/admin/department-reports` | 400 on `departments?select=id,name_ar,code` + console error, department picker empty | `public.departments` has no `code` column (columns: id, name_ar, name_en, …) | source: `select("id, name_ar")` in `src/routes/admin/department-reports.tsx` |
+
+Re-verified live after redeploy: `/admin/department-reports` → 63 elements, 0 JS errors, 0 HTTP >= 400. **A-01 = CLOSED**.
+
+### CAMPAIGN-GP / GA / Councils (live)
+- `demo.gp.supervisor` → `/faculty-portal/graduation-projects`, `/academic-councils`,
+  `/lecture-execution`, `/materials`: 191 elements, **0 JS errors, 0 HTTP >= 400**.
+- `demo.ga.manager` → `/staff`, `/staff/graduates-affairs`, `/staff/b1-requests`,
+  `/staff/audit-log`, `/staff/fee-assessment-board`: 200 elements, **0 JS errors, 0 HTTP >= 400**.
+
+### CAMPAIGN-PUBLIC — anonymous sweep
+`/`, `/about`, `/faculty`, `/news`, `/events`, `/research`, `/verify-document`,
+`/contact`, `/portal-login`, `/forgot-password`.
+
+| ID | Route | Symptom | Root cause | Fix |
+|---|---|---|---|---|
+| P-01 | `/research` (anon) | 401 from PostgREST, empty research list for visitors | query embedded `faculty:faculty_id(...)`; `anon` intentionally has **no SELECT** on `public.faculty` (PII hardening) | source: dropped the embed in `researchPapersQuery`; researcher name now joined client-side from `get_public_faculty_directory` (`src/lib/queries.ts`, `src/routes/research.tsx`) |
+
+No grant was widened — `anon` still cannot read `public.faculty` directly.
+Re-verified live after redeploy: `/research` → **0 JS errors, 0 HTTP >= 400**. **P-01 = CLOSED**.
+
+### Verification gates this run
+- typecheck (`tsgo --noEmit`): PASS
+- `bun test tests/student-requests`: 1075 pass / 0 fail
+- Published twice (A-01 fix, then P-01 fix); both verified live.
+- `POST_DEPLOY_JS_ERRORS = 0`, `POST_DEPLOY_ROUTE_CRASHES = 0`, `CLIENT_AUDIT_403 = 0`
+- `ANON_PII_EXPOSURE = 0` (fix keeps faculty table closed to `anon`)
+
+### Remaining ledger (NOT_TESTED)
+Documents/Notifications matrix, report export matrix, cross-portal journeys,
+post-execution rediscovery, University Council rehearsal, ephemeral cleanup,
+final package.
