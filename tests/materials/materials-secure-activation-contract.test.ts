@@ -132,14 +132,17 @@ describe("runtime fail-closed contracts", () => {
     );
   });
 
-  test("faculty upload enforces the resolved narrow-only policy and marks files pending", () => {
+  test("faculty upload enforces the resolved narrow-only policy and gates scan state", () => {
     expect(facultyRuntime).toContain("resolveMaterialsUploadPolicy");
     expect(facultyRuntime).toContain("MATERIALS_SETTINGS_KEYS");
     expect(facultyRuntime).toContain("getEffectiveMaterialsUploadPolicy");
     expect(facultyRuntime).toContain("policy.allowedMimeTypes");
     expect(facultyRuntime).toContain("policy.allowedExtensions");
     expect(facultyRuntime).toContain("policy.maxBytes");
-    expect(facultyRuntime).toContain('scan_state: "pending"');
+    // Fail-closed signature gate replaces the permanently-pending placeholder.
+    expect(facultyRuntime).toContain("resolveUploadScanState");
+    expect(facultyRuntime).toContain("scan_state: scanState");
+    expect(facultyRuntime).toContain('if (scanState !== "clean")');
   });
 
   test("week linkage is wired through faculty create/update/list", () => {
@@ -173,9 +176,11 @@ describe("runtime fail-closed contracts", () => {
   });
 });
 
-describe("activation stays behind feature flags", () => {
-  test("both materials flags remain off in this PR", () => {
-    expect(portalFeatures).toContain("facultyCourseMaterials: false");
-    expect(portalFeatures).toContain("studentCourseMaterials: false");
+describe("activation state", () => {
+  // PORTAL-COURSE-MATERIALS-PRODUCTION-SAFE-MIGRATION-AND-DEMO-CLOSURE-01:
+  // schema + private bucket + authz matrix passed, so both flags are ON.
+  test("both materials flags are enabled after the safe production migration", () => {
+    expect(portalFeatures).toContain("facultyCourseMaterials: true");
+    expect(portalFeatures).toContain("studentCourseMaterials: true");
   });
 });

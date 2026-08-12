@@ -193,8 +193,8 @@ describe("faculty dashboard — processing / councils / materials gates", () => 
     expect(INDEX_SRC).toMatch(
       /\{portalFeatures\.facultyCourseMaterials\s*&&\s*\(\s*<Link[\s\S]*to="\/faculty-portal\/materials"/,
     );
-    expect(FEATURES_SRC).toMatch(/facultyCourseMaterials:\s*false/);
-    expect(portalFeatures.facultyCourseMaterials).toBe(false);
+    expect(FEATURES_SRC).toMatch(/facultyCourseMaterials:\s*true/);
+    expect(portalFeatures.facultyCourseMaterials).toBe(true);
   });
 });
 
