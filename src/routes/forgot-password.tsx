@@ -70,6 +70,14 @@ const COPY: Record<Ctx, {
   },
 };
 
+const PWD_RULES: Array<{ id: string; label: string; test: (v: string) => boolean }> = [
+  { id: "len", label: "١٠ أحرف على الأقل", test: (v) => v.length >= 10 },
+  { id: "upper", label: "حرف كبير (A-Z)", test: (v) => /[A-Z]/.test(v) },
+  { id: "lower", label: "حرف صغير (a-z)", test: (v) => /[a-z]/.test(v) },
+  { id: "number", label: "رقم (0-9)", test: (v) => /[0-9]/.test(v) },
+  { id: "special", label: "رمز خاص (!@#$…)", test: (v) => /[^A-Za-z0-9]/.test(v) },
+];
+
 function ForgotPasswordPage() {
   const { type } = Route.useSearch();
   const cfg = useMemo(() => COPY[(type ?? "admin") as Ctx], [type]);
@@ -78,7 +86,12 @@ function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [done, setDone] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => { emailRef.current?.focus(); }, []);
 
