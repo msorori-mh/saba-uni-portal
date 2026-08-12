@@ -236,8 +236,8 @@ function StudentRequestDetailsPage() {
       await submitFn({ data: { requestId: id } });
       toast.success("تمت إعادة الإرسال", { description: "انتقل الطلب إلى: مُرسَل — بانتظار المراجعة." });
       qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
-    } catch (e) {
-      toast.error("تعذر إعادة الإرسال", { description: (e as Error).message });
+    } catch {
+      toast.error("تعذر إعادة الإرسال", { description: "أعد المحاولة لاحقاً أو تواصل مع شؤون الطلاب." });
     } finally {
       resubmitInFlightRef.current = false;
       setResubmitting(false);
@@ -248,7 +248,14 @@ function StudentRequestDetailsPage() {
     return <div className="grid place-items-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
   if (error || !data) {
-    return <div className="rounded border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{(error as Error)?.message ?? "تعذر تحميل الطلب"}</div>;
+    return (
+      <div
+        role="alert"
+        className="rounded border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+      >
+        تعذّر تحميل الطلب. تحقق من الاتصال ثم أعد المحاولة لاحقاً.
+      </div>
+    );
   }
 
   const request: any = data.request;

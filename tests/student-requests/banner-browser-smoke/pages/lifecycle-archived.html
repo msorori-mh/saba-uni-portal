@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lifecycle archived</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #f5f7f6; color: #0f3d2e; }
+    main { max-width: 42rem; margin: 0 auto; padding: 1rem; width: 100%; overflow-x: hidden; }
+    .card { background: #fff; border: 1px solid #d9e0dc; border-radius: .75rem; padding: 1rem; margin-top: .75rem; }
+    .muted { color: #667; font-size: .875rem; }
+    .loader { width: 1.5rem; height: 1.5rem; border: 2px solid #ccc; border-top-color: #0f3d2e; border-radius: 50%; animation: spin 1s linear infinite; margin: 1rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button.retry { min-height: 44px; margin-top: .5rem; padding: 0 .75rem; border-radius: .5rem; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; font-weight: 700; cursor: pointer; }
+    .rose { background: #ffe4e6; border: 1px solid #fecdd3; color: #881337; border-radius: .75rem; padding: 1rem; }
+    .amber { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: .75rem; padding: .75rem; }
+  </style>
+</head>
+<body>
+<main id="app"><h1>حالة الطلب: archived</h1>
+     <div class="card muted" data-testid="status-chip">الحالة الفعلية: archived</div>
+     <div data-testid="notice"><p class="muted" data-testid="eligibility-hidden">لا شريط أهلية إنشاء</p></div>
+<div id="smoke-flag" data-smoke-json="{&quot;status&quot;:&quot;archived&quot;,&quot;ok&quot;:true,&quot;hasCreationViolation&quot;:false}"></div>
+</main>
+<script></script>
+</body>
+</html>

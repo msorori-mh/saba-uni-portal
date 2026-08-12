@@ -77,7 +77,6 @@ function StudentRequestsIndexPage() {
     data: requests = [],
     isLoading: requestsLoading,
     isError: requestsError,
-    error: requestsErr,
   } = useQuery({
     queryKey: ["student-affairs", "my-requests-progress"],
     queryFn: () => listFn({ data: {} }),
@@ -230,7 +229,7 @@ function StudentRequestsIndexPage() {
             role="alert"
             className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
           >
-            {(requestsErr as Error)?.message || "تعذر تحميل الطلبات. حاول مرة أخرى."}
+            تعذّر تحميل الطلبات. تحقق من الاتصال ثم حاول مرة أخرى.
           </div>
         ) : null}
 

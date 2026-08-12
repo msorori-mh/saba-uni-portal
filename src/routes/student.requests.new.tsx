@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -44,6 +44,9 @@ export const Route = createFileRoute("/student/requests/new")({
   }),
   component: NewStudentRequestPage,
 });
+
+/** Safe generic message — raw backend error text never reaches reference-data state. */
+const REFERENCE_DATA_ERROR_MSG = "تعذّر تحميل البيانات المرجعية حالياً.";
 
 type RequestTypeOption = {
   id: string;
@@ -144,18 +147,18 @@ function NewStudentRequestPage() {
       academic_years: referenceDataLoading
         ? { status: "loading", options: [] }
         : referenceDataError
-          ? { status: "error", options: [], message: (referenceDataError as Error).message }
+          ? { status: "error", options: [], message: REFERENCE_DATA_ERROR_MSG }
           : { status: "ready", options: loadedReferenceData?.academicYears ?? [] },
       semesters_for_year:
         !selectedAcademicYear || referenceDataLoading
           ? { status: "loading", options: [] }
           : referenceDataError
-            ? { status: "error", options: [], message: (referenceDataError as Error).message }
+            ? { status: "error", options: [], message: REFERENCE_DATA_ERROR_MSG }
             : { status: "ready", options: loadedReferenceData?.semesters ?? [] },
       current_student_enrollments: referenceDataLoading
         ? { status: "loading", options: [] }
         : referenceDataError
-          ? { status: "error", options: [], message: (referenceDataError as Error).message }
+          ? { status: "error", options: [], message: REFERENCE_DATA_ERROR_MSG }
           : { status: "ready", options: loadedReferenceData?.currentStudentEnrollments ?? [] },
     }),
     [loadedReferenceData, referenceDataError, referenceDataLoading, selectedAcademicYear],
@@ -274,10 +277,11 @@ function NewStudentRequestPage() {
         description: "انتقل الطلب إلى حالة: مُرسَل — بانتظار المراجعة.",
       });
       navigate({ to: "/student/requests/$id", params: { id: result.id } });
-    } catch (e) {
-      const msg = (e as Error).message;
-      setError(msg);
-      toast.error("تعذر إرسال الطلب", { description: msg });
+    } catch {
+      setError("تعذّر إرسال الطلب. تحقق من الاتصال ثم أعد المحاولة، أو تواصل مع شؤون الطلاب.");
+      toast.error("تعذر إرسال الطلب", {
+        description: "أعد المحاولة لاحقاً أو تواصل مع شؤون الطلاب.",
+      });
     } finally {
       submitInFlightRef.current = false;
       setSubmitting(false);
@@ -339,7 +343,10 @@ function NewStudentRequestPage() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        >
           {error}
         </div>
       )}
@@ -360,6 +367,10 @@ function NewStudentRequestPage() {
           <div className="grid place-items-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
+        ) : typesError ? (
+          <p role="status" className="text-sm text-amber-900">
+            تعذّر تحميل أنواع الطلبات. أعد المحاولة أو حدّث الصفحة.
+          </p>
         ) : typedTypes.length === 0 ? (
           <p className="text-sm text-muted-foreground">لا توجد أنواع طلبات متاحة حالياً.</p>
         ) : (
