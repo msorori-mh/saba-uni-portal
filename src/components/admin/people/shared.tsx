@@ -123,6 +123,7 @@ export function CredentialsSlip({
             <SlipRow label="الرقم الإداري" value={slip.identifier} mono onCopy={() => copy(slip.identifier)} />
             <SlipRow label="الإيميل الجامعي (اسم الدخول)" value={slip.email} mono onCopy={() => copy(slip.email)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
+            <SlipRow label="رابط الدخول للبوابة" value={portalUrl} mono onCopy={() => copy(portalUrl)} />
           </div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">سيُطلب من المستخدم تغيير كلمة المرور عند أول دخول.</p>
