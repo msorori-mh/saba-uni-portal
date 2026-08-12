@@ -3253,6 +3253,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ga_ops_lifecycle_matrix_results: {
+        Row: {
+          actor: string
+          actual: string
+          created_at: string
+          detail: string | null
+          domain: string
+          expected: string
+          id: string
+          run_id: string
+          step: string
+          verdict: string
+        }
+        Insert: {
+          actor: string
+          actual: string
+          created_at?: string
+          detail?: string | null
+          domain: string
+          expected: string
+          id?: string
+          run_id: string
+          step: string
+          verdict: string
+        }
+        Update: {
+          actor?: string
+          actual?: string
+          created_at?: string
+          detail?: string | null
+          domain?: string
+          expected?: string
+          id?: string
+          run_id?: string
+          step?: string
+          verdict?: string
+        }
+        Relationships: []
+      }
       grade_appeal_details: {
         Row: {
           academic_year_id: string
