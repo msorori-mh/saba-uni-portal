@@ -17,6 +17,7 @@ import {
   CalendarRange,
   ListTree,
   CalendarDays,
+  CalendarCheck,
   ClipboardList,
   ClipboardCheck,
   FileText,
