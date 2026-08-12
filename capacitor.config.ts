@@ -1,17 +1,22 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Capacitor configuration — Student Mobile Portal (Android)
+ * Capacitor configuration — Android mobile shell.
  *
- * Package: usr.student
- * App Name: بوابة الطالب
- * Mode: Remote shell (server.url) — TanStack Start is SSR; the deployed
- * production URL is loaded inside the native WebView. This means web updates
- * apply instantly without rebuilding APK/AAB. HTTPS only.
+ * FROZEN IDENTITY (see docs/mobile/ANDROID-PLAY-IDENTITY-CONTRACT.md):
+ *   applicationId : ye.edu.usr.fitcs.portal
+ *   app name      : بوابة الكلية
+ *
+ * Mode: remote shell (server.url) — TanStack Start is SSR, so the deployed
+ * production URL is loaded inside the native WebView and web updates apply
+ * without rebuilding the APK/AAB. HTTPS only, no cleartext, no SSL bypass.
+ *
+ * The app is STUDENT-FIRST: the entry URL is the mobile student login, which
+ * redirects to /mobile/student after a valid student session.
  */
 const config: CapacitorConfig = {
-  appId: "usr.student",
-  appName: "بوابة الطالب",
+  appId: "ye.edu.usr.fitcs.portal",
+  appName: "بوابة الكلية",
   webDir: "dist",
   server: {
     url: "https://saba-uni-portal.lovable.app/mobile/student-login",
