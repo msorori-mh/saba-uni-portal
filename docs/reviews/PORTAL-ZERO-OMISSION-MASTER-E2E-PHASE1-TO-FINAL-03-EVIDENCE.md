@@ -91,3 +91,50 @@ Remediation (source, forward-only):
 No database grant was widened — `log_audit` remains non-executable for `authenticated`.
 
 `CLIENT_AUDIT_403 = 0 (source-fixed, pending redeploy)`
+
+## RESUME RUN — 2026-08-12
+
+### Redeploy (closes the pending audit-logging fix)
+- typecheck: PASS (0 errors)
+- published SOURCE_SHA `d70ec2a8` → `https://quboolye.com/version.json` = `d70ec2a8`
+- DEPLOYED_SHA == SOURCE_SHA → `DEPLOY_PARITY = PASS`
+- `CLIENT_AUDIT_403 = 0` (verified live, see Campaign-S below)
+
+### CAMPAIGN-S — student portal interaction execution (live, authenticated demo student)
+
+| Route | Interactive discovered | Tested | JS errors | HTTP >=400 |
+|---|---|---|---|---|
+| /student | 3 | 1 | 0 | 0 |
+| /student/study-plan | 5 | 2 | 0 | 0 |
+| /student/schedule | 4 | 3 | 0 | 0 |
+| /student/materials | 4 | 2 | 0 | 0 |
+| /student/progress | 4 | 3 | 0 | 0 |
+| /student/requests | 4 | 3 | 0 | 0 |
+| /student/notifications | 5 | 4 | 0 | 0 |
+| /student/reports | 8 | 7 | 0 | 0 |
+| /student/change-password | 5 | 4 | 0 | 0 |
+
+Untested items are destructive/guarded controls (logout, delete, cancel request,
+password submit) deliberately excluded from the non-destructive sweep and carried
+forward to the controlled lifecycle runs. `/student/schedule` is now error-free →
+Defect S-01 remediation confirmed in the deployed runtime.
+
+### CAMPAIGN-F — faculty portal interaction execution (demo faculty)
+
+10 routes: `/faculty-portal`, `schedule`, `materials`, `lecture-execution`,
+`lecture-monitoring`, `graduation-projects`, `academic-councils`,
+`processing-requests`, `reports`, `change-password`.
+62 interactive elements discovered, 38 non-destructive interactions executed,
+**0 JS errors, 0 HTTP >= 400, 0 route 404**.
+
+### CAMPAIGN-W — staff portal interaction execution (demo registrar)
+
+6 routes: `/staff`, `b1-requests`, `audit-log`, `fee-assessment-board`,
+`graduates-affairs`, `change-password`.
+39 interactive elements discovered, 18 executed, **0 JS errors, 0 HTTP >= 400**.
+
+### In-flight
+Admin sweep (≈45 routes, demo.admin) started; the run exceeded the command
+window and is re-queued as the next NOT_TESTED block, followed by the
+GP / GA / Councils lifecycle runs, documents+notifications, report matrix,
+cross-portal journeys, rediscovery, rehearsal, cleanup and final package.
