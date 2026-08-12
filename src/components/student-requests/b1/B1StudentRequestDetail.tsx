@@ -28,6 +28,7 @@ const STATUS_LABEL_AR: Record<B1RequestDetails["status"], string> = {
 };
 
 export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
+  const routes = useStudentRequestRoutes();
   const adapter = useMemo(() => getB1UiAdapter(), []);
   const [details, setDetails] = useState<B1RequestDetails | null>(null);
   const [formOptions, setFormOptions] = useState<B1FormOptions | null>(null);
