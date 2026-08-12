@@ -7,6 +7,9 @@ on:
     paths:
       - "src/**"
       - "public/**"
+      - "android/**"
+      - "resources/android/**"
+      - "scripts/mobile/**"
       - "capacitor.config.ts"
       - "package.json"
       - "bun.lock"
