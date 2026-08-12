@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Printer, CheckCircle2, Check } from "lucide-react";
+import collegeLogo from "@/assets/college-logo.jpg";
+
 
 export type CredentialsSlipData = {
   full_name_ar: string;
@@ -14,6 +16,14 @@ const PORTAL_LABEL: Record<CredentialsSlipData["portal"], string> = {
   faculty: "بوابة عضو هيئة التدريس",
   staff: "بوابة الموظف",
 };
+
+/** Full portal login URL per account type — driven by slip.portal only. */
+export const PORTAL_LOGIN_URL: Record<CredentialsSlipData["portal"], string> = {
+  student: "https://quboolye.com/portal-login?type=student",
+  faculty: "https://quboolye.com/portal-login?type=faculty",
+  staff: "https://quboolye.com/portal-login?type=staff",
+};
+
 
 export function CredentialsSlip({
   slip,
@@ -31,12 +41,15 @@ export function CredentialsSlip({
       return false;
     }
   };
+  const portalUrl = PORTAL_LOGIN_URL[slip.portal];
   const copyAll = async () => {
     const text =
       `الاسم: ${slip.full_name_ar}\n` +
       `الرقم الإداري: ${slip.identifier}\n` +
       `الإيميل الجامعي: ${slip.email}\n` +
-      `كلمة المرور المؤقتة: ${slip.password}`;
+      `كلمة المرور المؤقتة: ${slip.password}\n` +
+      `رابط الدخول: ${portalUrl}`;
+
     const ok = await copy(text);
     if (ok) {
       setCopiedAll(true);
@@ -47,32 +60,51 @@ export function CredentialsSlip({
   const handlePrint = () => {
     const w = window.open("", "_blank", "width=600,height=700");
     if (!w) return;
+    const logoUrl = new URL(collegeLogo, window.location.origin).href;
     w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
       <style>
-        body{font-family:'Amiri','Times New Roman',serif;padding:32px;color:#111827;}
-        h1{font-size:18px;margin:0 0 8px;text-align:center;}
-        h2{font-size:14px;margin:0 0 24px;text-align:center;color:#4B5563;font-weight:normal;}
+        @page{size:A4;margin:14mm;}
+        body{font-family:'Amiri','Times New Roman',serif;padding:24px;color:#111827;}
+        .logo{display:block;margin:0 auto 12px;width:96px;height:96px;object-fit:contain;}
+        h1{font-size:18px;margin:0 0 4px;text-align:center;}
+        .univ{font-size:14px;margin:0 0 14px;text-align:center;color:#4B5563;}
+        h2{font-size:14px;margin:0 0 18px;text-align:center;color:#4B5563;font-weight:normal;}
         .box{border:2px solid #0B3D62;border-radius:8px;padding:20px;margin-top:16px;}
-        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #D1D5DB;font-size:14px;}
+        .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed #D1D5DB;font-size:14px;}
         .row:last-child{border:0;}
-        .k{color:#4B5563;}
-        .v{font-weight:bold;font-family:'Courier New',monospace;direction:ltr;}
-        .note{margin-top:16px;font-size:11px;color:#4B5563;line-height:1.7;text-align:right;}
+        .k{color:#4B5563;white-space:nowrap;}
+        .v{font-weight:bold;font-family:'Courier New',monospace;direction:ltr;unicode-bidi:embed;}
+        .url{direction:ltr;unicode-bidi:embed;text-align:left;font-family:'Courier New',monospace;font-size:12px;font-weight:bold;color:#0B3D62;word-break:break-all;overflow-wrap:anywhere;}
+        .url a{color:#0B3D62;text-decoration:underline;}
+        .note{margin-top:16px;font-size:11px;color:#4B5563;line-height:1.8;text-align:right;}
+        @media print{body{padding:0;} .logo{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
       </style></head><body>
+      <img class="logo" src="${logoUrl}" alt="شعار الكلية">
       <h1>كلية تكنولوجيا المعلومات وعلوم الحاسوب</h1>
+      <div class="univ">جامعة إقليم سبأ</div>
       <h2>${PORTAL_LABEL[slip.portal]} — بيانات الدخول</h2>
       <div class="box">
         <div class="row"><span class="k">الاسم:</span><span>${slip.full_name_ar}</span></div>
         <div class="row"><span class="k">الإيميل الجامعي (اسم الدخول):</span><span class="v">${slip.email}</span></div>
         <div class="row"><span class="k">كلمة المرور المؤقتة:</span><span class="v">${slip.password}</span></div>
         <div class="row"><span class="k">الرقم الإداري:</span><span class="v">${slip.identifier}</span></div>
+        <div class="row"><span class="k">رابط الدخول للبوابة:</span><span class="url"><a href="${portalUrl}">${portalUrl}</a></span></div>
       </div>
       <p class="note">
-        • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> باستخدام الإيميل الجامعي.<br>
-        • سيتم طلب تغيير كلمة المرور عند أول دخول.<br>
+        • للدخول إلى البوابة استخدم رابط الدخول الموضح أعلاه.<br>
+        • استخدم الإيميل الجامعي وكلمة المرور المؤقتة.<br>
+        • سيُطلب منك تغيير كلمة المرور عند أول دخول.<br>
         • لا تشارك بيانات الدخول مع أي شخص.
       </p>
-      <script>window.onload=()=>{window.print();}</script>
+      <script>
+        (function(){
+          var img=document.querySelector('.logo');
+          var done=false;
+          function go(){ if(done) return; done=true; window.focus(); window.print(); }
+          if(img && !img.complete){ img.onload=go; img.onerror=go; setTimeout(go,3000); }
+          else { window.onload=go; setTimeout(go,300); }
+        })();
+      </script>
       </body></html>`);
     w.document.close();
   };
@@ -91,6 +123,7 @@ export function CredentialsSlip({
             <SlipRow label="الرقم الإداري" value={slip.identifier} mono onCopy={() => copy(slip.identifier)} />
             <SlipRow label="الإيميل الجامعي (اسم الدخول)" value={slip.email} mono onCopy={() => copy(slip.email)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
+            <SlipRow label="رابط الدخول للبوابة" value={portalUrl} mono onCopy={() => copy(portalUrl)} />
           </div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">سيُطلب من المستخدم تغيير كلمة المرور عند أول دخول.</p>
@@ -142,9 +175,14 @@ function SlipRow({ label, value, mono, onCopy }: { label: string; value: string;
 
   return (
     <div className="flex items-center justify-between gap-2 border-b border-dashed border-border last:border-0 pb-2 last:pb-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className={`${mono ? "font-mono" : ""} font-bold`} dir={mono ? "ltr" : undefined}>{value}</span>
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className={`${mono ? "font-mono text-xs" : ""} font-bold break-all text-left`}
+          dir={mono ? "ltr" : undefined}
+        >
+          {value}
+        </span>
         {onCopy && (
           <button
             onClick={handleCopy}
