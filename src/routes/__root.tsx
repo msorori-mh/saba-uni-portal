@@ -262,8 +262,8 @@ function RootComponent() {
           <Footer />
         </div>
       )}
-      <GlobalBackButton />
-      <PortalInstallPrompt />
+      {!isMobileApp && <GlobalBackButton />}
+      {!isMobileApp && <PortalInstallPrompt />}
       <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );
