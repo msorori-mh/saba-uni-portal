@@ -73,6 +73,18 @@ Security matrix runs alongside: every discovered write RPC gets correct-actor AL
 
 Retain all DEMO_ONLY_UNIVERSITY_PRESENTATION_01 data and enrich it so core pages are visually meaningful. Clean only TEST_ONLY_EPHEMERAL_<RUN>. Protected records remain untouched. Each core page is classified PRESENTATION_READY or EXPECTED_EMPTY_BY_DESIGN; CORE_DEMO_PAGES_EMPTY = 0.
 
+### Demo data must be UI-proven
+
+A retained DEMO fixture is not PRESENTATION_READY merely because its DB row exists. Every retained DEMO dataset must be proven from the exact owner-facing UI shown during the University Council presentation:
+
+- DEMO timetable: DB row + student UI shows it + faculty UI shows it + management/report source reconciles.
+- DEMO material: DB + storage exists + faculty UI shows it + student UI shows it + student real download succeeds.
+- DEMO GP: DB project exists + student page populated + coordinator/supervisor/committee pages populated.
+- DEMO GA: DB records exist + graduate UI populated + GA staff UI populated.
+- DEMO Council: DB meeting/decision exists + chair/secretary/member UI populated.
+
+A DB-only fixture cannot satisfy PRESENTATION_READY.
+
 ## Closure
 
 Post-execution rediscovery compares PRE / POST / LEDGER component sets with PRE_MINUS_LEDGER = 0 and POST_MINUS_LEDGER = 0. Then a fresh-context rehearsal for Student, Faculty, Dept Head, Academic Affairs, Dean, Staff, GA and Admin with zero login failures, route crashes, JS errors, unexplained 5xx or missing required data.
