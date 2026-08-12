@@ -45,14 +45,14 @@ function main() {
   const gradleFile = path.join(ANDROID_DIR, "app", "build.gradle");
   let gradle = read(gradleFile);
   gradle = gradle
-    .replace(/namespace\s+"[^"]*"/, `namespace "${APPLICATION_ID}"`)
-    .replace(/applicationId\s+"[^"]*"/, `applicationId "${APPLICATION_ID}"`)
-    .replace(/versionCode\s+\d+/, `versionCode ${VERSION_CODE}`)
-    .replace(/versionName\s+"[^"]*"/, `versionName "${VERSION_NAME}"`);
+    .replace(/namespace\s*=?\s*"[^"]*"/, `namespace = "${APPLICATION_ID}"`)
+    .replace(/applicationId\s*=?\s*"[^"]*"/, `applicationId "${APPLICATION_ID}"`)
+    .replace(/versionCode\s*=?\s*\d+/, `versionCode ${VERSION_CODE}`)
+    .replace(/versionName\s*=?\s*"[^"]*"/, `versionName "${VERSION_NAME}"`);
   fs.writeFileSync(gradleFile, gradle);
 
   if (!gradle.includes(`applicationId "${APPLICATION_ID}"`)) fail("applicationId not applied");
-  if (!gradle.includes(`namespace "${APPLICATION_ID}"`)) fail("namespace not applied");
+  if (!gradle.includes(`namespace = "${APPLICATION_ID}"`)) fail("namespace not applied");
 
   // 2) strings.xml — Arabic app label
   const stringsFile = path.join(ANDROID_DIR, "app", "src", "main", "res", "values", "strings.xml");
