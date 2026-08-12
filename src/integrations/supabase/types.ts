@@ -2131,6 +2131,155 @@ export type Database = {
           },
         ]
       }
+      course_material_events: {
+        Row: {
+          actor_user_id: string | null
+          course_material_id: string
+          created_at: string
+          event: string
+          id: string
+          meta: Json | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          course_material_id: string
+          created_at?: string
+          event: string
+          id?: string
+          meta?: Json | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          course_material_id?: string
+          created_at?: string
+          event?: string
+          id?: string
+          meta?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_material_events_course_material_id_fkey"
+            columns: ["course_material_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_material_files: {
+        Row: {
+          course_material_id: string
+          file_hash: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          scan_state: string
+          size_bytes: number
+          storage_path: string
+          uploaded_at: string
+          version_number: number
+        }
+        Insert: {
+          course_material_id: string
+          file_hash?: string | null
+          id?: string
+          mime_type: string
+          original_filename: string
+          scan_state?: string
+          size_bytes: number
+          storage_path: string
+          uploaded_at?: string
+          version_number?: number
+        }
+        Update: {
+          course_material_id?: string
+          file_hash?: string | null
+          id?: string
+          mime_type?: string
+          original_filename?: string
+          scan_state?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_at?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_material_files_course_material_id_fkey"
+            columns: ["course_material_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_materials: {
+        Row: {
+          course_section_id: string
+          created_at: string
+          description: string | null
+          faculty_profile_id: string
+          id: string
+          lecture_number: number | null
+          published_at: string | null
+          status: string
+          study_system: string
+          title: string
+          updated_at: string
+          week_number: number | null
+        }
+        Insert: {
+          course_section_id: string
+          created_at?: string
+          description?: string | null
+          faculty_profile_id: string
+          id?: string
+          lecture_number?: number | null
+          published_at?: string | null
+          status?: string
+          study_system: string
+          title: string
+          updated_at?: string
+          week_number?: number | null
+        }
+        Update: {
+          course_section_id?: string
+          created_at?: string
+          description?: string | null
+          faculty_profile_id?: string
+          id?: string
+          lecture_number?: number | null
+          published_at?: string | null
+          status?: string
+          study_system?: string
+          title?: string
+          updated_at?: string
+          week_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_materials_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "course_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_materials_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_section_id"]
+          },
+          {
+            foreignKeyName: "course_materials_faculty_profile_id_fkey"
+            columns: ["faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_offerings: {
         Row: {
           academic_year_id: string
