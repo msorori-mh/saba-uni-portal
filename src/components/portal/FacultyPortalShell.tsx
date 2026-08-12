@@ -44,6 +44,7 @@ type NavItem = { to: FacultyNavPath; label: string; exact?: boolean };
 const NAV_ITEMS: NavItem[] = [
   { to: "/faculty-portal", label: "الرئيسية", exact: true },
   { to: "/faculty-portal/schedule", label: "جدول التدريس" },
+  { to: "/faculty-portal/lecture-execution", label: "تنفيذ المحاضرات" },
   { to: "/faculty-portal/reports", label: "تقاريري" },
   { to: "/faculty-portal/academic-councils", label: "المجالس الأكاديمية" },
   { to: "/faculty-portal/graduation-projects", label: "مشاريع التخرج" },
