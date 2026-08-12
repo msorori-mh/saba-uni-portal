@@ -1,8 +1,11 @@
 // Server-side audit logging for academic status views/exports.
 // `log_audit` is not executable by `authenticated`, so browser calls return 403.
+// These actions all originate from privileged academic-report surfaces, so the
+// caller must hold the same capability as those reports (STUDENT_READ_ROLES).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAcademicAuditScope } from "@/lib/audit-scope.server";
 
 const schema = z.object({
   action: z.enum([
@@ -21,6 +24,7 @@ export const logAcademicEvent = createServerFn({ method: "POST" })
   .inputValidator((input: z.infer<typeof schema>) => schema.parse(input))
   .handler(async ({ data, context }) => {
     try {
+      await assertAcademicAuditScope(context.userId, data.entityId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabaseAdmin as any).rpc("log_audit", {

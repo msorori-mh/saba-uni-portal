@@ -1,22 +1,32 @@
 // Server-side audit logging for schedule views/exports.
 // The `log_audit` RPC is not executable by `authenticated`, so the browser
 // cannot call it directly (403). This thin server function performs the write
-// with the service-role client after the caller's session is verified.
+// with the service-role client AFTER verifying the caller is authorized for the
+// exact surface being audited (auth alone is not sufficient).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertScheduleAuditScope } from "@/lib/audit-scope.server";
+
+const filterValue = z.union([z.string().max(120), z.number(), z.boolean(), z.null()]);
 
 const schema = z.object({
   action: z.enum(["timetable_printed", "timetable_exported", "timetable_viewed"]),
-  viewType: z.string().min(1).max(120),
-  filters: z.record(z.string(), z.unknown()).default({}),
+  // Constrained surface identifier — arbitrary client strings are rejected.
+  viewType: z.enum(["student", "faculty"]),
+  filters: z.record(z.string().max(40), filterValue).default({}),
 });
 
 export const logScheduleEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: z.infer<typeof schema>) => schema.parse(input))
+  .inputValidator((input: z.infer<typeof schema>) => {
+    const parsed = schema.parse(input);
+    if (Object.keys(parsed.filters).length > 12) throw new Error("filters too large");
+    return parsed;
+  })
   .handler(async ({ data, context }) => {
     try {
+      await assertScheduleAuditScope(context.userId, data.viewType);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabaseAdmin as any).rpc("log_audit", {
