@@ -33,6 +33,10 @@ function StudentMaterialsCourse() {
             <ArrowRight className="h-4 w-4" /> العودة
           </Link>
         </div>
+        <div className="mb-6">
+          <CourseDeliveryPlanGrid sectionId={sectionId} />
+        </div>
+
         <h1 className="font-display text-xl font-extrabold text-primary mb-4">محاضرات المادة</h1>
 
         {isLoading ? (
