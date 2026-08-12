@@ -191,7 +191,7 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
       .createSignedUrl((file as any).storage_path, 60);
     if (sErr || !signed?.signedUrl) throw new Error(sErr?.message ?? "تعذّر إنشاء رابط التنزيل");
 
-    await (supabaseAdmin as any).from("course_material_events").insert({
+    await supabaseAdmin.from("course_material_events").insert({
       course_material_id: material.id,
       actor_user_id: context.userId,
       event: "downloaded",

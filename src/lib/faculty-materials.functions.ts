@@ -20,8 +20,8 @@ import {
 } from "@/lib/course-materials.shared";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// NOTE: `course_materials*` tables are not yet in supabase/types.ts (migration not applied).
-// Server-side calls cast clients to `any` until types are regenerated post-migration.
+// Types are generated post-migration; remaining `any` casts are only for deep
+// nested-select shapes, not for missing tables.
 
 
 
@@ -178,7 +178,7 @@ export const createCourseMaterial = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await (supabaseAdmin as any).from("course_material_events").insert({
+    await supabaseAdmin.from("course_material_events").insert({
       course_material_id: row.id,
       actor_user_id: context.userId,
       event: "created",
@@ -210,9 +210,9 @@ export const updateCourseMaterial = createServerFn({ method: "POST" })
     if (data.study_system !== undefined) patch.study_system = data.study_system;
     if (Object.keys(patch).length === 0) return { ok: true as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await (supabaseAdmin as any).from("course_materials").update(patch).eq("id", data.materialId);
+    const { error } = await supabaseAdmin.from("course_materials").update(patch).eq("id", data.materialId);
     if (error) throw new Error(error.message);
-    await (supabaseAdmin as any).from("course_material_events").insert({
+    await supabaseAdmin.from("course_material_events").insert({
       course_material_id: data.materialId,
       actor_user_id: context.userId,
       event: "updated",
@@ -291,7 +291,7 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
       await (supabaseAdmin as any).storage.from(MATERIALS_BUCKET).remove([storagePath]);
       throw new Error(insErr.message);
     }
-    await (supabaseAdmin as any).from("course_material_events").insert({
+    await supabaseAdmin.from("course_material_events").insert({
       course_material_id: data.materialId,
       actor_user_id: context.userId,
       event: "file_uploaded",
@@ -390,7 +390,7 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (!prevEvent || prevEvent.length === 0) {
-      await (supabaseAdmin as any).from("course_material_events").insert({
+      await supabaseAdmin.from("course_material_events").insert({
         course_material_id: data.materialId,
         actor_user_id: context.userId,
         event: "published",
@@ -409,7 +409,7 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
             reference_id: data.materialId,
             is_read: false,
           }));
-          await (supabaseAdmin as any).from("notifications").insert(rows);
+          await supabaseAdmin.from("notifications").insert(rows);
         }
       } catch (e) {
         // Non-fatal
@@ -431,7 +431,7 @@ export const archiveCourseMaterial = createServerFn({ method: "POST" })
       .update({ status: "archived" })
       .eq("id", data.materialId);
     if (error) throw new Error(error.message);
-    await (supabaseAdmin as any).from("course_material_events").insert({
+    await supabaseAdmin.from("course_material_events").insert({
       course_material_id: data.materialId,
       actor_user_id: context.userId,
       event: "archived",
