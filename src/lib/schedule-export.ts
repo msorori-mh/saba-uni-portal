@@ -70,21 +70,15 @@ export async function exportScheduleXlsx(opts: {
   XLSX.writeFile(wb, opts.filename);
 }
 
-/** Fire-and-forget audit log. Silently fails if RPC unavailable. */
+/** Fire-and-forget audit log routed through the server (log_audit is not client-executable). */
 export async function logScheduleAudit(
   action: "timetable_printed" | "timetable_exported" | "timetable_viewed",
   view_type: string,
   filters: Record<string, unknown> = {},
 ) {
   try {
-    await supabase.rpc("log_audit" as any, {
-      _entity_type: "schedule",
-      _entity_id: "00000000-0000-0000-0000-000000000000",
-      _action_type: action,
-      _old: null,
-      _new: { view_type, filters },
-      _notes: view_type,
-    });
+    const { logScheduleEvent } = await import("@/lib/schedule-audit.functions");
+    await logScheduleEvent({ data: { action, viewType: view_type, filters } });
   } catch { /* ignore */ }
 }
 
