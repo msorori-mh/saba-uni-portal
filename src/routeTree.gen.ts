@@ -54,6 +54,7 @@ import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/gr
 import { Route as AdminGraduationProjectPoliciesRouteImport } from './routes/admin/graduation-project-policies'
 import { Route as AdminGraduationProjectsRouteImport } from './routes/admin/graduation-projects'
 import { Route as AdminImportsRouteImport } from './routes/admin/imports'
+import { Route as AdminLectureExecutionRouteImport } from './routes/admin/lecture-execution'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminNewsRouteImport } from './routes/admin/news'
@@ -391,6 +392,11 @@ const AdminGraduationProjectsRoute = AdminGraduationProjectsRouteImport.update({
 const AdminImportsRoute = AdminImportsRouteImport.update({
   id: '/imports',
   path: '/imports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLectureExecutionRoute = AdminLectureExecutionRouteImport.update({
+  id: '/lecture-execution',
+  path: '/lecture-execution',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
@@ -873,6 +879,7 @@ export interface FileRoutesByFullPath {
   '/admin/graduation-project-policies': typeof AdminGraduationProjectPoliciesRoute
   '/admin/graduation-projects': typeof AdminGraduationProjectsRoute
   '/admin/imports': typeof AdminImportsRoute
+  '/admin/lecture-execution': typeof AdminLectureExecutionRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
@@ -999,6 +1006,7 @@ export interface FileRoutesByTo {
   '/admin/graduation-project-policies': typeof AdminGraduationProjectPoliciesRoute
   '/admin/graduation-projects': typeof AdminGraduationProjectsRoute
   '/admin/imports': typeof AdminImportsRoute
+  '/admin/lecture-execution': typeof AdminLectureExecutionRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
@@ -1126,6 +1134,7 @@ export interface FileRoutesById {
   '/admin/graduation-project-policies': typeof AdminGraduationProjectPoliciesRoute
   '/admin/graduation-projects': typeof AdminGraduationProjectsRoute
   '/admin/imports': typeof AdminImportsRoute
+  '/admin/lecture-execution': typeof AdminLectureExecutionRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
@@ -1258,6 +1267,7 @@ export interface FileRouteTypes {
     | '/admin/graduation-project-policies'
     | '/admin/graduation-projects'
     | '/admin/imports'
+    | '/admin/lecture-execution'
     | '/admin/login'
     | '/admin/messages'
     | '/admin/news'
@@ -1384,6 +1394,7 @@ export interface FileRouteTypes {
     | '/admin/graduation-project-policies'
     | '/admin/graduation-projects'
     | '/admin/imports'
+    | '/admin/lecture-execution'
     | '/admin/login'
     | '/admin/messages'
     | '/admin/news'
@@ -1510,6 +1521,7 @@ export interface FileRouteTypes {
     | '/admin/graduation-project-policies'
     | '/admin/graduation-projects'
     | '/admin/imports'
+    | '/admin/lecture-execution'
     | '/admin/login'
     | '/admin/messages'
     | '/admin/news'
@@ -1958,6 +1970,13 @@ declare module '@tanstack/react-router' {
       path: '/imports'
       fullPath: '/admin/imports'
       preLoaderRoute: typeof AdminImportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/lecture-execution': {
+      id: '/admin/lecture-execution'
+      path: '/lecture-execution'
+      fullPath: '/admin/lecture-execution'
+      preLoaderRoute: typeof AdminLectureExecutionRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/login': {
@@ -2548,6 +2567,7 @@ interface AdminRouteChildren {
   AdminGraduationProjectPoliciesRoute: typeof AdminGraduationProjectPoliciesRoute
   AdminGraduationProjectsRoute: typeof AdminGraduationProjectsRoute
   AdminImportsRoute: typeof AdminImportsRoute
+  AdminLectureExecutionRoute: typeof AdminLectureExecutionRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNewsRoute: typeof AdminNewsRoute
@@ -2605,6 +2625,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminGraduationProjectPoliciesRoute: AdminGraduationProjectPoliciesRoute,
   AdminGraduationProjectsRoute: AdminGraduationProjectsRoute,
   AdminImportsRoute: AdminImportsRoute,
+  AdminLectureExecutionRoute: AdminLectureExecutionRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNewsRoute: AdminNewsRoute,
