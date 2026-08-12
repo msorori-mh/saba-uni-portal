@@ -34,9 +34,18 @@ export const LECTURE_STATUS_LABELS: Record<LectureSessionStatus, string> = {
   compensated: "عُوضت",
 };
 
+export type SectionStudySystem = "general" | "private" | "both";
+
+export const SECTION_STUDY_SYSTEM_LABELS: Record<SectionStudySystem, string> = {
+  general: "عام",
+  private: "نفقة خاصة",
+  both: "كلا النظامين",
+};
+
 export type DeliveryPlanSession = {
   plan_session_id: string;
   session_number: number;
+  week_number: number | null;
   planned_title: string;
   planned_topics: string | null;
   status: LectureSessionStatus;
@@ -53,13 +62,17 @@ export type SectionDeliveryPlan = {
     section_code: string;
     course_code: string;
     course_name_ar: string;
+    study_system: SectionStudySystem | null;
     faculty_name: string;
   } | null;
   can_manage: boolean;
+  awaiting_syllabus: boolean;
   plan: {
     plan_id: string;
     planned_session_count: number;
     status: "draft" | "published" | "archived";
+    source: "syllabus" | "legacy_faculty";
+    syllabus_version: number | null;
     published_at: string | null;
   } | null;
   sessions: DeliveryPlanSession[];
@@ -70,11 +83,14 @@ export type FacultyDeliverySection = {
   section_code: string;
   course_code: string;
   course_name_ar: string;
+  study_system: SectionStudySystem | null;
   plan_status: string;
+  plan_source: "syllabus" | "legacy_faculty" | null;
   planned_session_count: number;
   recorded_count: number;
   executed_count: number;
 };
+
 
 export type StudentDeliverySection = {
   course_section_id: string;
