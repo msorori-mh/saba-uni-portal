@@ -136,7 +136,57 @@ function ForgotPasswordPage() {
     }
   };
 
+  const onVerify = async (e: FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    setError(null);
+    const trimmed = email.trim().toLowerCase();
+    if (!/^\d{6}$/.test(code)) {
+      setError("أدخل رمز التحقق المكوّن من ٦ أرقام.");
+      return;
+    }
+    if (!PWD_RULES.every((r) => r.test(pwd))) {
+      setError("كلمة المرور لا تحقق جميع الشروط المطلوبة.");
+      return;
+    }
+    if (pwd !== confirm) {
+      setError("كلمتا المرور غير متطابقتين.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: otpErr } = await supabase.auth.verifyOtp({
+        email: trimmed,
+        token: code,
+        type: "recovery",
+      });
+      if (otpErr) {
+        setError("رمز التحقق غير صحيح أو منتهي الصلاحية.");
+        return;
+      }
+      const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
+      if (updErr) throw updErr;
+      try {
+        await (supabase.rpc as any)("log_audit", {
+          _entity_type: "user",
+          _entity_id: null,
+          _action_type: "password_reset_completed",
+          _old: null,
+          _new: { email: trimmed, ctx: type ?? "admin", method: "otp_code" },
+          _notes: null,
+        });
+      } catch { /* ignore */ }
+      await supabase.auth.signOut();
+      setDone(true);
+    } catch (err: any) {
+      setError(err?.message ?? "تعذّر تعيين كلمة المرور. حاول لاحقاً.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const Icon = cfg.Icon;
+
 
   return (
     <div dir="rtl" className="min-h-screen w-full bg-primary-deep relative overflow-hidden grid place-items-center px-4 py-10">
