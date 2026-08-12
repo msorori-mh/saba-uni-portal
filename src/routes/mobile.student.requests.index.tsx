@@ -18,7 +18,7 @@ import {
   getStudentRequestTypeDisplayName,
 } from "@/lib/student-requests/request-type-registry";
 
-export const Route = createFileRoute("/mobile/student/requests")({
+export const Route = createFileRoute("/mobile/student/requests/")({
   head: () => ({ meta: [{ title: "الطلبات" }] }),
   component: MobileStudentRequests,
 });
@@ -150,21 +150,18 @@ function MobileStudentRequests() {
                     )}
                     {t.requires_attachment && !disabled && (
                       <div className="text-[10px] font-bold text-amber-800 mt-1">
-                        يتطلب مرفقاً — غير متاح للإرسال حالياً
+                        يتطلب إرفاق مستند
                       </div>
                     )}
                   </div>
-                  {!disabled && !t.requires_attachment ? (
+                  {!disabled ? (
                     <Link
-                      to="/student/requests/new"
+                      to="/mobile/student/requests/new"
+                      search={{ type: t.code }}
                       className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-bold"
                     >
                       <Plus className="h-3 w-3" /> تقديم
                     </Link>
-                  ) : !disabled && t.requires_attachment ? (
-                    <span className="shrink-0 text-[10px] font-bold text-amber-800 px-2 py-0.5">
-                      يتطلب مرفق
-                    </span>
                   ) : (
                     <span className="shrink-0 text-[10px] font-bold text-muted-foreground px-2 py-0.5">
                       غير متاح
@@ -183,8 +180,8 @@ function MobileStudentRequests() {
           <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center">
             <FileWarning className="h-7 w-7 text-muted-foreground/60 mx-auto mb-2" />
             <div className="text-sm font-bold text-primary">لا توجد طلبات حالياً.</div>
-            <Link to="/student/requests" className="mt-2 inline-block text-xs font-bold text-primary underline">
-              فتح بوابة الطلبات
+            <Link to="/mobile/student/requests/new" className="mt-2 inline-block text-xs font-bold text-primary underline">
+              تقديم طلب جديد
             </Link>
           </div>
         ) : (
@@ -194,7 +191,7 @@ function MobileStudentRequests() {
               return (
                 <Link
                   key={r.id}
-                  to="/student/requests/$id"
+                  to="/mobile/student/requests/$id"
                   params={{ id: r.id }}
                   className="block rounded-2xl border border-border bg-card shadow-card p-3 shadow-card"
                 >
