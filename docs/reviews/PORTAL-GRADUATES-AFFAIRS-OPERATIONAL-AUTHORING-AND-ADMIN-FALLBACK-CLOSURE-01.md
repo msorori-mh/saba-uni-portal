@@ -162,3 +162,22 @@ inside the same transaction; post-run residual count = 0 across all tables.
 - GA_TEST_ONLY_CLEANUP = PASS
 
 FINAL_DECISION = PASS_GA_OPERATIONAL_AUTHORING_CLOSURE
+
+## Security cleanup of test harnesses (forward-only)
+
+- `public.ga_ops_lifecycle_matrix_run()` and `public.ga_ops_authz_matrix_run()` are dropped;
+  `to_regprocedure()` returns NULL for both. No SECURITY DEFINER function matching
+  `matrix_run|test_only|harness` remains in `public` (0 rows).
+- Evidence table `public.ga_ops_lifecycle_matrix_results` retained with 161 rows:
+  anon = no privileges; authenticated = SELECT only (RLS restricts to admin/system_admin,
+  FORCE ROW LEVEL SECURITY enabled); service_role = full write for evidence infrastructure.
+- No evidence rows were deleted.
+
+### Tokens
+- GA_LIFECYCLE_MATRIX_161_161 = PASS
+- GA_TEST_HARNESS_REMOVED = PASS
+- GA_NO_PUBLIC_SECURITY_DEFINER_TEST_RPC = PASS
+- GA_RESULT_EVIDENCE_ADMIN_READABLE = PASS
+- GA_TEST_ONLY_CLEANUP = PASS
+
+FINAL_DECISION = PASS_GA_OPERATIONAL_AUTHORING_CLOSURE
