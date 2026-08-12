@@ -87,12 +87,23 @@ jobs:
       - name: Capacitor sync
         run: ./node_modules/.bin/cap sync android
 
+      - name: Apply frozen Android identity (fails closed)
+        run: node scripts/mobile/apply-android-identity.mjs
+
+      - name: Apply college branding (icons / splash)
+        run: node scripts/mobile/apply-android-branding.mjs
+
       - name: Grant gradlew execute permission
         run: chmod +x android/gradlew
 
       - name: Build Debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build Debug AAB
+        working-directory: android
+        run: ./gradlew bundleDebug --no-daemon --stacktrace
+
 
       - name: Build Release APK (unsigned — keystore not configured)
         working-directory: android
@@ -115,6 +126,14 @@ jobs:
           name: app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Debug AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-aab
+          path: android/app/build/outputs/bundle/debug/app-debug.aab
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Upload Release APK (unsigned)
