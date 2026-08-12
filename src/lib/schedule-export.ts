@@ -1,5 +1,4 @@
 import { loadXLSX } from "@/lib/xlsx-loader";
-import { supabase } from "@/integrations/supabase/client";
 
 export const DAYS: Array<{ code: string; label: string }> = [
   { code: "saturday", label: "السبت" },

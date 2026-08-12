@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 
 export type AcademicAuditAction =
   | "student_progress_viewed"
@@ -9,14 +8,8 @@ export type AcademicAuditAction =
 
 export async function logAcademicAudit(action: AcademicAuditAction, notes: string, entityId?: string) {
   try {
-    await supabase.rpc("log_audit" as any, {
-      _entity_type: "academic_status",
-      _entity_id: entityId ?? "00000000-0000-0000-0000-000000000000",
-      _action_type: action,
-      _old: null,
-      _new: { notes },
-      _notes: notes,
-    });
+    const { logAcademicEvent } = await import("@/lib/academic-audit.functions");
+    await logAcademicEvent({ data: { action, notes, entityId } });
   } catch { /* ignore */ }
 }
 
