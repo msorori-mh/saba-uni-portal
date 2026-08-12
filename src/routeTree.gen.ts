@@ -107,6 +107,7 @@ import { Route as FacultyPortalAcademicCouncilsAuthorizationAuditRouteImport } f
 import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './routes/faculty-portal.academic-councils.reports'
 import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './routes/faculty-portal.graduation-projects.index'
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
+import { Route as FacultyPortalLectureExecutionIndexRouteImport } from './routes/faculty-portal.lecture-execution.index'
 import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
 import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
@@ -698,6 +699,12 @@ const FacultyPortalGraduationProjectsProjectIdRoute =
     path: '/$projectId',
     getParentRoute: () => FacultyPortalGraduationProjectsRoute,
   } as any)
+const FacultyPortalLectureExecutionIndexRoute =
+  FacultyPortalLectureExecutionIndexRouteImport.update({
+    id: '/lecture-execution/',
+    path: '/lecture-execution/',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
 const FacultyPortalMaterialsIndexRoute =
   FacultyPortalMaterialsIndexRouteImport.update({
     id: '/materials/',
@@ -933,6 +940,7 @@ export interface FileRoutesByFullPath {
   '/student/requests/$id': typeof StudentRequestsIdRoute
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/faculty-portal/graduation-projects/': typeof FacultyPortalGraduationProjectsIndexRoute
+  '/faculty-portal/lecture-execution/': typeof FacultyPortalLectureExecutionIndexRoute
   '/faculty-portal/materials/': typeof FacultyPortalMaterialsIndexRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
   '/student/graduates-affairs/': typeof StudentGraduatesAffairsIndexRoute
@@ -1053,6 +1061,7 @@ export interface FileRoutesByTo {
   '/student/requests/$id': typeof StudentRequestsIdRoute
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/faculty-portal/graduation-projects': typeof FacultyPortalGraduationProjectsIndexRoute
+  '/faculty-portal/lecture-execution': typeof FacultyPortalLectureExecutionIndexRoute
   '/faculty-portal/materials': typeof FacultyPortalMaterialsIndexRoute
   '/mobile/student': typeof MobileStudentIndexRoute
   '/student/graduates-affairs': typeof StudentGraduatesAffairsIndexRoute
@@ -1182,6 +1191,7 @@ export interface FileRoutesById {
   '/student/requests/$id': typeof StudentRequestsIdRoute
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/faculty-portal/graduation-projects/': typeof FacultyPortalGraduationProjectsIndexRoute
+  '/faculty-portal/lecture-execution/': typeof FacultyPortalLectureExecutionIndexRoute
   '/faculty-portal/materials/': typeof FacultyPortalMaterialsIndexRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
   '/student/graduates-affairs/': typeof StudentGraduatesAffairsIndexRoute
@@ -1312,6 +1322,7 @@ export interface FileRouteTypes {
     | '/student/requests/$id'
     | '/student/requests/new'
     | '/faculty-portal/graduation-projects/'
+    | '/faculty-portal/lecture-execution/'
     | '/faculty-portal/materials/'
     | '/mobile/student/'
     | '/student/graduates-affairs/'
@@ -1432,6 +1443,7 @@ export interface FileRouteTypes {
     | '/student/requests/$id'
     | '/student/requests/new'
     | '/faculty-portal/graduation-projects'
+    | '/faculty-portal/lecture-execution'
     | '/faculty-portal/materials'
     | '/mobile/student'
     | '/student/graduates-affairs'
@@ -1560,6 +1572,7 @@ export interface FileRouteTypes {
     | '/student/requests/$id'
     | '/student/requests/new'
     | '/faculty-portal/graduation-projects/'
+    | '/faculty-portal/lecture-execution/'
     | '/faculty-portal/materials/'
     | '/mobile/student/'
     | '/student/graduates-affairs/'
@@ -2333,6 +2346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalGraduationProjectsProjectIdRouteImport
       parentRoute: typeof FacultyPortalGraduationProjectsRoute
     }
+    '/faculty-portal/lecture-execution/': {
+      id: '/faculty-portal/lecture-execution/'
+      path: '/lecture-execution'
+      fullPath: '/faculty-portal/lecture-execution/'
+      preLoaderRoute: typeof FacultyPortalLectureExecutionIndexRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
     '/faculty-portal/materials/': {
       id: '/faculty-portal/materials/'
       path: '/materials'
@@ -2660,6 +2680,7 @@ interface FacultyPortalRouteChildren {
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
   FacultyPortalMaterialsSectionIdRoute: typeof FacultyPortalMaterialsSectionIdRoute
   FacultyPortalStudentProgressStudentIdRoute: typeof FacultyPortalStudentProgressStudentIdRoute
+  FacultyPortalLectureExecutionIndexRoute: typeof FacultyPortalLectureExecutionIndexRoute
   FacultyPortalMaterialsIndexRoute: typeof FacultyPortalMaterialsIndexRoute
 }
 
@@ -2676,6 +2697,8 @@ const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalMaterialsSectionIdRoute: FacultyPortalMaterialsSectionIdRoute,
   FacultyPortalStudentProgressStudentIdRoute:
     FacultyPortalStudentProgressStudentIdRoute,
+  FacultyPortalLectureExecutionIndexRoute:
+    FacultyPortalLectureExecutionIndexRoute,
   FacultyPortalMaterialsIndexRoute: FacultyPortalMaterialsIndexRoute,
 }
 
