@@ -34,8 +34,10 @@ async function getLinkageMode(supabaseAdmin: any): Promise<LinkageMode> {
     .select("setting_value")
     .eq("setting_key", "materials_linkage_mode")
     .maybeSingle();
-  const v = (data?.setting_value as string | undefined) ?? "cohort_fallback";
-  return v === "enrollment_only" ? "enrollment_only" : "cohort_fallback";
+  // Secure default: enrollment_only. cohort_fallback stays supported in source
+  // but must be opted into explicitly via site_settings.
+  const v = (data?.setting_value as string | undefined) ?? "enrollment_only";
+  return v === "cohort_fallback" ? "cohort_fallback" : "enrollment_only";
 }
 
 /**
@@ -189,7 +191,7 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
       .createSignedUrl((file as any).storage_path, 60);
     if (sErr || !signed?.signedUrl) throw new Error(sErr?.message ?? "تعذّر إنشاء رابط التنزيل");
 
-    await (supabaseAdmin as any).from("course_material_events").insert({
+    await supabaseAdmin.from("course_material_events").insert({
       course_material_id: material.id,
       actor_user_id: context.userId,
       event: "downloaded",

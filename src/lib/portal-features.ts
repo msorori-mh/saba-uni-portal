@@ -7,8 +7,9 @@ export const portalFeatures = {
   studentUnofficialTranscript: false,
   studentFinance: false,
   adminFinance: false,
-  facultyCourseMaterials: false,
-  studentCourseMaterials: false,
+  /** Course materials — ON after PORTAL-COURSE-MATERIALS-PRODUCTION-SAFE-MIGRATION-01. */
+  facultyCourseMaterials: true,
+  studentCourseMaterials: true,
   /** Graduate self-service portal — ON for final product operational closure. */
   studentGraduatesAffairs: true,
   /** Graduates-affairs staff surfaces — ON for final product operational closure. */
