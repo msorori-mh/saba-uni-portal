@@ -5,6 +5,7 @@ import { Home, CalendarClock, ClipboardList, FileText, User, LogOut, Loader2 } f
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
+import { useNativeAppShell } from "@/hooks/use-native-app-shell";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
