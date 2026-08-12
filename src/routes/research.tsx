@@ -98,7 +98,7 @@ function ResearchPage() {
     return (papers as Paper[]).filter((p) => {
       if (year !== "all" && p.publication_year !== Number(year)) return false;
       if (programCode !== "all" && p.programs?.code !== programCode) return false;
-      if (facultyId !== "all" && p.faculty?.id !== facultyId) return false;
+      if (facultyId !== "all" && p.faculty_id !== facultyId) return false;
       if (q) {
         const hay = `${p.title_ar} ${p.title_en ?? ""} ${p.authors} ${p.journal_name ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -285,10 +285,12 @@ function ResearchPage() {
                     )}
 
                     <div className="mt-5 pt-4 border-t border-border/60 flex flex-wrap items-center gap-3 justify-between">
-                      {p.faculty?.full_name_ar ? (
+                      {p.faculty_id && facultyNames.get(p.faculty_id) ? (
                         <span className="text-xs text-muted-foreground">
                           الباحث الرئيسي:{" "}
-                          <span className="text-primary font-bold">{p.faculty.full_name_ar}</span>
+                          <span className="text-primary font-bold">
+                            {facultyNames.get(p.faculty_id)}
+                          </span>
                         </span>
                       ) : <span />}
                       <div className="flex flex-wrap gap-2">
