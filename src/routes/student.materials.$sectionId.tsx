@@ -7,6 +7,7 @@ import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { listStudentMaterialsForCourse, getCourseMaterialDownloadUrl } from "@/lib/student-materials.functions";
 import { STUDY_SYSTEM_LABELS, formatWeekLectureLabel, type StudySystemTag } from "@/lib/course-materials.shared";
+import { CourseDeliveryPlanGrid } from "@/components/portal/CourseDeliveryPlanGrid";
 
 export const Route = createFileRoute("/student/materials/$sectionId")({
   component: StudentMaterialsCourse,
