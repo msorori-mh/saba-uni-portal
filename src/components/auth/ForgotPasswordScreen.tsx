@@ -78,8 +78,7 @@ export function ForgotPasswordScreen({
   backToOverride?: ForgotPasswordBackTo;
   backLabelOverride?: string;
 } = {}) {
-  const { type } = Route.useSearch();
-  const cfg = useMemo(() => COPY[(type ?? "admin") as Ctx], [type]);
+  const cfg = useMemo(() => COPY[(ctxOverride ?? "admin") as Ctx], [ctxOverride]);
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);

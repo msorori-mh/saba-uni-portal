@@ -227,8 +227,7 @@ function MobileStudentLoginPage() {
 
             <div className="text-center text-xs pt-1">
               <Link
-                to="/forgot-password"
-                search={{ type: "student" }}
+                to="/mobile/student-forgot-password"
                 className="text-primary hover:text-gold font-bold"
               >
                 نسيت كلمة المرور؟
@@ -236,14 +235,6 @@ function MobileStudentLoginPage() {
             </div>
           </form>
 
-          <div className="mt-5 text-center">
-            <Link
-              to="/"
-              className="text-xs text-primary-foreground/70 hover:text-gold"
-            >
-              ← العودة إلى الموقع الرئيسي
-            </Link>
-          </div>
         </div>
       </div>
     </div>
