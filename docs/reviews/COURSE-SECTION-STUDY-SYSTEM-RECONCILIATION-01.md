@@ -1,6 +1,6 @@
 # COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01
 
-الحالة: **DECISION INPUT — NOT APPROVED DATA**. لا كتابة إنتاجية، ولا Migration مطبقة، ولا نشر.
+الحالة: **DECISION INPUT — NOT YET AUTHORIZED FOR PRODUCTION IMPORT**. لا كتابة إنتاجية، ولا Migration مطبقة، ولا نشر.
 
 ## 1. المصدر المعتمد
 
