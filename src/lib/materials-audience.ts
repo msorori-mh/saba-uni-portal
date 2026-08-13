@@ -3,7 +3,7 @@ import {
   type CurrentTerm,
   type CurrentTermSectionRow,
 } from "@/lib/current-term";
-import type { StudySystemTag } from "@/lib/course-materials.shared";
+import { normalizeStudySystemTag, type StudySystemTag } from "@/lib/course-materials.shared";
 
 export type MaterialEnrollmentRow = CurrentTermSectionRow & {
   course_section_id: string;
@@ -37,7 +37,7 @@ export function canAccessPublishedMaterial(input: {
   eligibleSectionIds: ReadonlySet<string>;
   sectionId: string;
   status: string;
-  materialTag: StudySystemTag;
+  materialTag: StudySystemTag | string;
   studentSystem: string | null;
 }): boolean {
   return input.status === "published"
