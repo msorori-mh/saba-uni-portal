@@ -18,7 +18,11 @@ import {
   type MaterialPlanSessionOption,
   type LinkageMode,
 } from "@/lib/course-materials.shared";
-import { MATERIAL_DERIVATION_MESSAGES, deriveMaterialRow } from "@/lib/course-materials-scope";
+import {
+  MATERIAL_DERIVATION_MESSAGES,
+  deriveMaterialRow,
+  deriveMaterialStudySystem,
+} from "@/lib/course-materials-scope";
 import { materialStudySystemMatches } from "@/lib/materials-audience";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
