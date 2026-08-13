@@ -120,14 +120,31 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
 
     const { data: rows } = await supabaseAdmin
       .from("course_materials")
-      .select("id, title, description, week_number, lecture_number, study_system, published_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, scan_state, uploaded_at)")
+      .select("id, title, description, week_number, lecture_number, study_system, material_scope, plan_session_id, published_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, scan_state, uploaded_at)")
       .eq("course_section_id", data.sectionId)
       .eq("status", "published")
       .order("week_number", { ascending: true, nullsFirst: false })
       .order("lecture_number", { ascending: true, nullsFirst: false })
       .order("published_at", { ascending: false });
 
-    type R = { id: string; title: string; description: string | null; week_number: number | null; lecture_number: number | null; study_system: StudySystemTag; published_at: string | null; files: any[] };
+    // Student-safe plan projection: only the official planned title/topics of
+    // the CURRENT plan. Execution reasons/notes are never exposed here.
+    const { data: plan } = await supabaseAdmin
+      .from("course_delivery_plans")
+      .select("id")
+      .eq("course_section_id", data.sectionId)
+      .eq("is_current", true)
+      .maybeSingle();
+    const topicsBySession = new Map<string, string | null>();
+    if (plan) {
+      const { data: sessions } = await supabaseAdmin
+        .from("course_delivery_plan_sessions")
+        .select("id, planned_topics")
+        .eq("plan_id", (plan as any).id);
+      for (const s of ((sessions ?? []) as any[])) topicsBySession.set(s.id, s.planned_topics ?? null);
+    }
+
+    type R = { id: string; title: string; description: string | null; week_number: number | null; lecture_number: number | null; study_system: StudySystemTag; material_scope: string; plan_session_id: string | null; published_at: string | null; files: any[] };
     return ((rows ?? []) as R[])
       .filter((m) => canAccessPublishedMaterial({
         eligibleSectionIds: sectionIds,
@@ -139,6 +156,8 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
       // Fail-closed: files are hidden from students until the malware scan marks them clean.
       .map((m) => ({
         ...m,
+        material_scope: m.material_scope === "lecture" ? "lecture" : "general",
+        planned_topics: m.plan_session_id ? (topicsBySession.get(m.plan_session_id) ?? null) : null,
         files: (m.files ?? []).filter((f) => isMaterialFileDownloadable(f?.scan_state)),
       }));
   });
