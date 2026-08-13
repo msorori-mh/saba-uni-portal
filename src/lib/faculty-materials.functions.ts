@@ -19,6 +19,7 @@ import {
   type LinkageMode,
 } from "@/lib/course-materials.shared";
 import { MATERIAL_DERIVATION_MESSAGES, deriveMaterialRow } from "@/lib/course-materials-scope";
+import { materialStudySystemMatches } from "@/lib/materials-audience";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Types are generated post-migration; remaining `any` casts are only for deep
@@ -373,7 +374,7 @@ async function eligibleStudentsForMaterial(
   material: {
     id: string;
     course_section_id: string;
-    study_system: StudySystemTag;
+    study_system: string;
   },
   linkageMode: LinkageMode,
 ): Promise<string[]> {
@@ -387,7 +388,7 @@ async function eligibleStudentsForMaterial(
   const enrolledIds = ((enrolled ?? []) as ER[])
     .map((r) => r.student)
     .filter((s): s is { user_id: string; study_system: string | null } => !!s?.user_id)
-    .filter((s) => material.study_system === "both" || s.study_system === material.study_system)
+    .filter((s) => materialStudySystemMatches(material.study_system, s.study_system))
     .map((s) => s.user_id);
 
   if (linkageMode === "enrollment_only") return Array.from(new Set(enrolledIds));
@@ -415,7 +416,7 @@ async function eligibleStudentsForMaterial(
     .map((r) => r.student)
     .filter((s): s is { user_id: string; study_system: string | null; program_id: string | null } => !!s?.user_id)
     .filter((s) => s.program_id === o.program_id)
-    .filter((s) => material.study_system === "both" || s.study_system === material.study_system)
+    .filter((s) => materialStudySystemMatches(material.study_system, s.study_system))
     .map((s) => s.user_id);
 
   return Array.from(new Set([...enrolledIds, ...cohortIds]));
