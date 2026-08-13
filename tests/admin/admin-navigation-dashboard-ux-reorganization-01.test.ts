@@ -176,9 +176,13 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     expect(healthIdx).toBeGreaterThan(-1);
     expect(opsIdx).toBeLessThan(healthIdx);
     expect(schedulesIdx).toBeLessThan(healthIdx);
-    // «التقدم الأكاديمي» card is intentionally hidden from the admin dashboard
-    // priority area; when present it must still stay above system health.
-    if (progressIdx > -1) expect(progressIdx).toBeLessThan(healthIdx);
+    // «التقدم الأكاديمي» card is intentionally hidden from the rendered
+    // dashboard; its ordering rank must still precede system health.
+    const orderBlock = DASHBOARD.slice(DASHBOARD.indexOf("const order = ["));
+    const progressRank = orderBlock.indexOf('"التقدم الأكاديمي"');
+    const healthRank = orderBlock.indexOf('"صحة النظام"');
+    expect(progressRank).toBeGreaterThan(-1);
+    expect(progressRank).toBeLessThan(healthRank);
     expect(DASHBOARD).toContain("admin-dashboard-system-health");
   });
 
