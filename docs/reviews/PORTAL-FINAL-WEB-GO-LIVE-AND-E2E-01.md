@@ -67,3 +67,78 @@ Forward-only fix prepared but **NOT applied** (this mission authorizes no migrat
 
 Web deploy, academic E2E, student/mobile E2E and 11 of 12 authorization checks passed. The single
 failing gate is the internal-notes exposure above; Android build preparation is therefore not triggered.
+
+---
+
+# ADDENDUM — COURSE-SESSION-EXECUTION-INTERNAL-PRIVACY-01 (2026-08-13)
+
+Mission: `APPROVED_PRODUCTION_FIX_AND_CLOSE_COURSE_SESSION_EXECUTION_PRIVACY_01`.
+All earlier PASS evidence above is preserved unchanged; only the failed privacy gate was re-run.
+
+## 1. Consumer preflight (read-only)
+Repository-wide search shows **no direct PostgREST client query** against
+`public.course_session_executions` — the only occurrence outside migrations/docs is the generated
+`src/integrations/supabase/types.ts`. Every browser/mobile read and write goes through the
+`cdp_*` SECURITY DEFINER RPCs (all owned by `postgres`, `prosecdef = true`), which are unaffected
+by table/column grants.
+
+- `DIRECT_CLIENT_REQUIRED_COLUMNS` = none (no direct client query exists)
+- `STUDENT_SAFE_COLUMNS` = id, plan_session_id, status, execution_date, compensation_date, recorded_at
+  (mirrors the `cdp_get_section_plan` non-manager projection, which forces `reason = NULL`, `notes = NULL`)
+- `INTERNAL_COLUMNS` = reason, notes, recorded_by, previous_status, created_at, updated_at, compensation_recorded_at
+
+## 2. Draft correction
+`docs/migration-drafts/COURSE-SESSION-EXECUTION-INTERNAL-NOTES-PRIVACY-01.sql` rewritten: scope renamed to
+execution internal-data privacy, `reason` removed from the grant list along with the other internal columns.
+No application-code edit.
+
+## 3. Pre-apply production snapshot
+- Table ACL: `authenticated=arwdDxtm`, `anon=arwdDxtm`, `service_role=arwdDxtm`, no column ACL.
+- RLS: single policy `cdp_exec_select` (SELECT, role `authenticated`, `cdp_can_view_section(...)`).
+- Rows = 12 · notes NOT NULL = 0 · reason NOT NULL = 5
+- Internal-data fingerprint (md5 of id+notes+reason ordered by id) = `62e8987d445de77cc0984f7afd325395`
+- Migration ledger head = `20260813213024`
+
+## 4. Migration
+- `PRODUCTION_MIGRATION_VERSION = 20260813222046`
+- `MIGRATION_FILE = supabase/migrations/20260813222046_78aff251-ebb7-42bd-8ff9-de107bf68505.sql`
+- `PROMOTED_VS_CORRECTED_DRAFT = ZERO_SEMANTIC_DIFF` (statement-for-statement identical body)
+- ACL-only; applied once; no reset, no cleanup, no ledger edit. Post-apply ledger head = `20260813222046`.
+
+## 5. Post-apply security matrix
+`has_column_privilege('authenticated', 'public.course_session_executions', <col>, 'SELECT')`:
+
+| Column | Class | Result |
+|---|---|---|
+| notes | INTERNAL | **false — DENY** |
+| reason | INTERNAL | **false — DENY** |
+| recorded_by | INTERNAL | false — DENY |
+| previous_status | INTERNAL | false — DENY |
+| created_at | INTERNAL | false — DENY |
+| updated_at | INTERNAL | false — DENY |
+| compensation_recorded_at | INTERNAL | false — DENY |
+| id / plan_session_id / status / execution_date / compensation_date / recorded_at | STUDENT-SAFE | true (still subject to `cdp_exec_select` RLS) |
+
+- ANON live REST (`/rest/v1/course_session_executions?select=notes|reason|recorded_by|previous_status|created_at|status`):
+  `[]` for every column — no new access, no rows (RLS default-deny for anon).
+- `service_role` table SELECT = true (required access retained).
+- FACULTY / ADMIN authorized paths: all `cdp_*` RPCs are SECURITY DEFINER owned by `postgres`, so the
+  execution state load, internal `reason`/`notes` visibility for managers, execution record/update and the
+  admin monitoring overview are structurally unaffected by the column grant; contract suites re-run green.
+- Column-level denial is enforced by PostgREST at the `authenticated` role, which is the exact role a student
+  session assumes — catalog privilege, not UI hiding, is the evidence.
+
+## 6. Data integrity
+- `EXECUTION_ROWS_UNCHANGED = PASS` (12 → 12, fingerprint `62e8987d445de77cc0984f7afd325395` unchanged)
+- `NOTES_VALUES_REWRITTEN = 0` · `REASON_VALUES_REWRITTEN = 0`
+- `COURSE_SECTIONS_WRITES = 0` · `COURSE_MATERIAL_WRITES = 0` · `SYLLABUS_WRITES = 0`
+- `UNRELATED_PRODUCTION_WRITES = 0` (migration is ACL-only)
+
+## 7. Targeted regression
+`bun test tests/lecture-execution tests/faculty-materials tests/materials tests/mobile tests/student-portal`
+→ **211 pass / 0 fail** (student plan & material view, faculty lecture execution view/write, admin
+academic monitoring contracts, mobile student projection/isolation).
+
+## 8. Decision
+`PASS_COURSE_SESSION_EXECUTION_INTERNAL_PRIVACY_01`
+`PASS_PORTAL_FINAL_WEB_GO_LIVE_AND_E2E_01` (release decision upgraded from HOLD)
