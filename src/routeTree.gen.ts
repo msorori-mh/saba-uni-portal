@@ -120,6 +120,7 @@ import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile
 import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
 import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.student.finance'
 import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
+import { Route as MobileStudentGraduatesAffairsRouteImport } from './routes/mobile.student.graduates-affairs'
 import { Route as MobileStudentMoreRouteImport } from './routes/mobile.student.more'
 import { Route as MobileStudentNotificationsRouteImport } from './routes/mobile.student.notifications'
 import { Route as MobileStudentReportsRouteImport } from './routes/mobile.student.reports'
@@ -789,6 +790,12 @@ const MobileStudentGradesRoute = MobileStudentGradesRouteImport.update({
   path: '/grades',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const MobileStudentGraduatesAffairsRoute =
+  MobileStudentGraduatesAffairsRouteImport.update({
+    id: '/graduates-affairs',
+    path: '/graduates-affairs',
+    getParentRoute: () => MobileStudentRoute,
+  } as any)
 const MobileStudentMoreRoute = MobileStudentMoreRouteImport.update({
   id: '/more',
   path: '/more',
@@ -1051,6 +1058,7 @@ export interface FileRoutesByFullPath {
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
   '/mobile/student/finance': typeof MobileStudentFinanceRoute
   '/mobile/student/grades': typeof MobileStudentGradesRoute
+  '/mobile/student/graduates-affairs': typeof MobileStudentGraduatesAffairsRoute
   '/mobile/student/more': typeof MobileStudentMoreRoute
   '/mobile/student/notifications': typeof MobileStudentNotificationsRoute
   '/mobile/student/reports': typeof MobileStudentReportsRoute
@@ -1189,6 +1197,7 @@ export interface FileRoutesByTo {
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
   '/mobile/student/finance': typeof MobileStudentFinanceRoute
   '/mobile/student/grades': typeof MobileStudentGradesRoute
+  '/mobile/student/graduates-affairs': typeof MobileStudentGraduatesAffairsRoute
   '/mobile/student/more': typeof MobileStudentMoreRoute
   '/mobile/student/notifications': typeof MobileStudentNotificationsRoute
   '/mobile/student/reports': typeof MobileStudentReportsRoute
@@ -1335,6 +1344,7 @@ export interface FileRoutesById {
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
   '/mobile/student/finance': typeof MobileStudentFinanceRoute
   '/mobile/student/grades': typeof MobileStudentGradesRoute
+  '/mobile/student/graduates-affairs': typeof MobileStudentGraduatesAffairsRoute
   '/mobile/student/more': typeof MobileStudentMoreRoute
   '/mobile/student/notifications': typeof MobileStudentNotificationsRoute
   '/mobile/student/reports': typeof MobileStudentReportsRoute
@@ -1483,6 +1493,7 @@ export interface FileRouteTypes {
     | '/mobile/student/documents'
     | '/mobile/student/finance'
     | '/mobile/student/grades'
+    | '/mobile/student/graduates-affairs'
     | '/mobile/student/more'
     | '/mobile/student/notifications'
     | '/mobile/student/reports'
@@ -1621,6 +1632,7 @@ export interface FileRouteTypes {
     | '/mobile/student/documents'
     | '/mobile/student/finance'
     | '/mobile/student/grades'
+    | '/mobile/student/graduates-affairs'
     | '/mobile/student/more'
     | '/mobile/student/notifications'
     | '/mobile/student/reports'
@@ -1766,6 +1778,7 @@ export interface FileRouteTypes {
     | '/mobile/student/documents'
     | '/mobile/student/finance'
     | '/mobile/student/grades'
+    | '/mobile/student/graduates-affairs'
     | '/mobile/student/more'
     | '/mobile/student/notifications'
     | '/mobile/student/reports'
@@ -2652,6 +2665,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentGradesRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/mobile/student/graduates-affairs': {
+      id: '/mobile/student/graduates-affairs'
+      path: '/graduates-affairs'
+      fullPath: '/mobile/student/graduates-affairs'
+      preLoaderRoute: typeof MobileStudentGraduatesAffairsRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
     '/mobile/student/more': {
       id: '/mobile/student/more'
       path: '/more'
@@ -3176,6 +3196,7 @@ interface MobileStudentRouteChildren {
   MobileStudentDocumentsRoute: typeof MobileStudentDocumentsRoute
   MobileStudentFinanceRoute: typeof MobileStudentFinanceRoute
   MobileStudentGradesRoute: typeof MobileStudentGradesRoute
+  MobileStudentGraduatesAffairsRoute: typeof MobileStudentGraduatesAffairsRoute
   MobileStudentMoreRoute: typeof MobileStudentMoreRoute
   MobileStudentNotificationsRoute: typeof MobileStudentNotificationsRoute
   MobileStudentReportsRoute: typeof MobileStudentReportsRoute
@@ -3194,6 +3215,7 @@ const MobileStudentRouteChildren: MobileStudentRouteChildren = {
   MobileStudentDocumentsRoute: MobileStudentDocumentsRoute,
   MobileStudentFinanceRoute: MobileStudentFinanceRoute,
   MobileStudentGradesRoute: MobileStudentGradesRoute,
+  MobileStudentGraduatesAffairsRoute: MobileStudentGraduatesAffairsRoute,
   MobileStudentMoreRoute: MobileStudentMoreRoute,
   MobileStudentNotificationsRoute: MobileStudentNotificationsRoute,
   MobileStudentReportsRoute: MobileStudentReportsRoute,
