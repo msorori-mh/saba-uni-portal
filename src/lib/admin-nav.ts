@@ -86,6 +86,8 @@ export const NAV_ITEM_ROLES: Record<string, readonly string[]> = {
   "/admin/graduation-project-policies": ["system_admin", "admin", "dean"],
 
   "/admin/graduates-affairs": ["system_admin", "admin"],
+  "/admin/graduates-affairs-workflows": ["system_admin", "admin"],
+  "/admin/lecture-execution": ["system_admin", "admin", "dean", "registrar", "department_head"],
   "/admin/academic-councils": ["system_admin", "admin", "dean"],
   "/admin/students": ["system_admin", "admin", "dean", "registrar", "student_affairs"],
   "/admin/student-requests": ["system_admin", "admin", "dean", "registrar", "student_affairs"],

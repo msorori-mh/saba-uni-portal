@@ -1,41 +1,56 @@
 # COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01
 
-Read-only production preflight. **Decision document only — no writes were performed and none are authorized here.**
-The authoritative value MUST come from the approved group import / registry decision.
-**Do NOT auto-derive the section value from enrolled students.**
+الحالة: **DECISION INPUT — NOT APPROVED DATA**. لا كتابة إنتاجية، ولا Migration مطبقة، ولا نشر.
 
-Production gate requirement: `ACTIVE_SECTIONS_WITH_NULL_STUDY_SYSTEM = 0`
-before `COURSE-MATERIALS-STUDY-SYSTEM-CANONICALIZATION-01.sql` is applied.
+## 1. المصدر المعتمد
 
-Canonical vocabulary: `general` (عام) | `private` (نفقة خاصة) | `both` (كلا النظامين).
+المصدر الوحيد لتحديد `course_sections.study_system` للمجموعات الثماني هو **استيراد course_sections** من مركز الاستيراد مع تفعيل خيار «تحديث القائم».
 
-## Sections with `study_system IS NULL` (8/8, all `status = active`)
+- لا واجهة إدارة جديدة.
+- لا اشتقاق من بيانات الطلاب أو التسجيلات.
+- لا قيمة افتراضية أو تخمينية من الوكيل.
+- القيم تُعبَّأ من مالك المشروع في ملف الاستيراد ثم تُطبَّق بعد موافقة صريحة على الكتابة الإنتاجية.
 
-| # | section id | code | course | academic year | semester | program | enrolled | materials |
-|---|---|---|---|---|---|---|---|---|
-| 1 | `92a920b4-5e7d-401c-aae3-aa2f22c8b1b9` | A | USR02 — مهارات اللغة العربية (2) | 2025-2026 | الفصل الثاني | البكالوريوس في تكنولوجيا المعلومات | 2 | 0 |
-| 2 | `352280c8-2214-46e2-aaf9-de424d0cc58b` | DEMO-FITCS01 | FITCS01 — مقدمة في تكنولوجيا المعلومات | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 1 | 4 |
-| 3 | `ae8ffd5c-8b72-476c-bf80-61c3d8fba363` | DEMO-FITCS02 | FITCS02 — تفاضل وتكامل | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 1 | 0 |
-| 4 | `b4f00f2e-aec2-404a-8ac6-a3aae3737791` | DEMO-FITCS03 | FITCS03 — برمجة الحاسوب (1) | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 1 | 0 |
-| 5 | `df14b32c-5282-427e-b9f1-a8a76c6f254e` | DEMO-FITCS05 | FITCS05 — الرياضيات المتقطعة | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 1 | 0 |
-| 6 | `b600135e-55e9-45a8-a005-d0e5088c527e` | DEMO-IT343 | IT343 — التجارة الالكترونية | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 1 | 0 |
-| 7 | `9cb4c780-ed17-4691-b5f0-c4d845fd978f` | DEMO-IT425 | IT425 — إدارة النظم وصيانتها | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 2 | 0 |
-| 8 | `fa1ba625-269a-498e-bb01-40119c67ed0c` | DEMO-AI414 | AI414 — تنقيب البيانات | 2026-2027 | الفصل الأول | البكالوريوس في تكنولوجيا المعلومات | 1 | 0 |
+القيم المقبولة في العمود: `عام` / `نفقة خاصة` / `كلا النظامين` (العمود إلزامي في القالب، والقيم غير المعروفة تُرفض قبل الكتابة).
 
-The `enrolled` column is informational context only, not a derivation source.
+## 2. المجموعات النشطة ذات `study_system = NULL` (قراءة إنتاجية فقط)
 
-## Effect of the source change (already committed, production untouched)
+عدد الصفوف: **8**
 
-- Existing 4 materials on `DEMO-FITCS01` remain readable and are not rewritten.
-- Any NEW material creation on any of the 8 sections is denied with
-  `UNKNOWN_SECTION_STUDY_SYSTEM` / «نظام الدراسة للمجموعة غير محدد» until the
-  authoritative value is set.
-- `material.study_system` is never silently mutated.
+| # | course_code | اسم المقرر | academic_year | semester | program_code | level | section_code | faculty_employee_number | capacity | status | section_id |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | AI414 | تنقيب البيانات | 2026-2027 | 2026-1 | IT | 4 | DEMO-AI414 | DEMO-F-001 | 40 | active | fa1ba625-269a-498e-bb01-40119c67ed0c |
+| 2 | FITCS01 | مقدمة في تكنولوجيا المعلومات | 2026-2027 | 2026-1 | IT | 1 | DEMO-FITCS01 | DEMO-F-001 | 40 | active | 352280c8-2214-46e2-aaf9-de424d0cc58b |
+| 3 | FITCS02 | تفاضل وتكامل | 2026-2027 | 2026-1 | IT | 1 | DEMO-FITCS02 | DEMO-F-002 | 40 | active | ae8ffd5c-8b72-476c-bf80-61c3d8fba363 |
+| 4 | FITCS03 | برمجة الحاسوب (1) | 2026-2027 | 2026-1 | IT | 1 | DEMO-FITCS03 | DEMO-F-001 | 40 | active | b4f00f2e-aec2-404a-8ac6-a3aae3737791 |
+| 5 | FITCS05 | الرياضيات المتقطعة | 2026-2027 | 2026-1 | IT | 1 | DEMO-FITCS05 | DEMO-F-001 | 40 | active | df14b32c-5282-427e-b9f1-a8a76c6f254e |
+| 6 | IT343 | التجارة الالكترونية | 2026-2027 | 2026-1 | IT | 4 | DEMO-IT343 | DEMO-F-002 | 40 | active | b600135e-55e9-45a8-a005-d0e5088c527e |
+| 7 | IT425 | إدارة النظم وصيانتها | 2026-2027 | 2026-1 | IT | 4 | DEMO-IT425 | DEMO-F-001 | 40 | active | 9cb4c780-ed17-4691-b5f0-c4d845fd978f |
+| 8 | USR02 | مهارات اللغة العربية (2) | 2025-2026 | second | IT | 1 | A | F2025028 | 30 | active | 92a920b4-5e7d-401c-aae3-aa2f22c8b1b9 |
 
-## Mandatory production order (later gate, not this task)
+`section_id` مذكور للتدقيق فقط، وليس عمودًا في ملف الاستيراد.
 
-1. Resolve / reimport authoritative `study_system` for the 8 active sections.
-2. Verify `ACTIVE_SECTIONS_WITH_NULL_STUDY_SYSTEM = 0`.
-3. Apply `COURSE-MATERIALS-STUDY-SYSTEM-CANONICALIZATION-01.sql`.
-4. Apply `CDP-INSTANTIATE-AUTHORIZATION-HARDENING-01.sql`.
-5. Run authorization matrix + syllabus → plan → material → student E2E.
+## 3. مرفق القرار (ملف الاستيراد)
+
+المسار: `docs/reviews/COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01-IMPORT.csv`
+
+- يحتوي **8 صفوف بالضبط** — المجموعات الإنتاجية أعلاه.
+- يستخدم أعمدة قالب `course_sections` القانونية بالترتيب نفسه:
+  `course_code, academic_year, semester, program_code, level, section_code, study_system, faculty_employee_number, capacity, status`
+- يحافظ على جميع قيم المفاتيح والسياق الحالية كما هي في الإنتاج.
+- عمود `study_system` **فارغ** في كل صف.
+- لا يحتوي أي قيمة مخمّنة أو افتراضية.
+- **DECISION INPUT / NOT APPROVED DATA** — لا يُرفع قبل تعبئته واعتماده منك.
+
+## 4. أثر التصنيف على المواد التعليمية
+
+المنطق fail-closed مطبَّق مسبقًا في المصدر:
+
+- `src/lib/course-materials-scope.ts` — `deriveMaterialStudySystem` يعيد `null` للمجموعة غير المصنفة (لا رجوع إلى `both`).
+- `src/lib/faculty-materials.functions.ts` — `getMaterialSectionStudySystem` يفحص التصنيف للواجهة.
+- `src/routes/faculty-portal.materials.$sectionId.tsx` — يمنع إنشاء مادة ويعرض تنبيهًا عربيًا عند مجموعة غير مصنفة.
+- المسودة `COURSE-MATERIALS-STUDY-SYSTEM-CANONICALIZATION-01` ترفع `UNKNOWN_SECTION_STUDY_SYSTEM` على مستوى قاعدة البيانات.
+
+## 5. ترتيب الإنتاج المعتمد
+
+راجع دليل التنفيذ: `docs/reviews/COURSE-SYLLABUS-MATERIALS-STUDY-SYSTEM-EXECUTION-GUIDE-01.md`

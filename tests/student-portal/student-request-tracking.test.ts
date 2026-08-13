@@ -31,7 +31,7 @@ const FEE_SRC = readFileSync(
   "utf-8",
 );
 const DETAIL_ROUTE_SRC = readFileSync(
-  join(ROOT, "src/routes/student.requests.$id.tsx"),
+  join(ROOT, "src/components/student-requests/StudentRequestDetailsScreen.tsx"),
   "utf-8",
 );
 const LIST_ROUTE_SRC = readFileSync(

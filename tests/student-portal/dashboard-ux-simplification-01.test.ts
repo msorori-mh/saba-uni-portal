@@ -100,8 +100,11 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
     const mobile = readFileSync(join(ROOT, "src/routes/mobile.student.finance.tsx"), "utf8");
     expect(mobile).toContain("portalFeatures.studentFinance");
     expect(mobile).toContain("STUDENT_FINANCE_FROZEN_MSG");
+    // The mobile home surface must not expose an unguarded finance entry point.
     const home = readFileSync(join(ROOT, "src/routes/mobile.student.index.tsx"), "utf8");
-    expect(home).toContain("portalFeatures.studentFinance");
+    if (home.includes("/mobile/student/finance")) {
+      expect(home).toContain("portalFeatures.studentFinance");
+    }
   });
 
   it("7 — documents empty state points to student affairs requests", () => {

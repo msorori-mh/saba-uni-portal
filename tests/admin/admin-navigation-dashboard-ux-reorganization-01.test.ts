@@ -169,15 +169,20 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
   it("17 — system health occurs lower than operational/academic priority areas", () => {
     const opsIdx = DASHBOARD.indexOf('"الشؤون الأكاديمية"');
     const schedulesIdx = DASHBOARD.indexOf('"عمليات اليوم / الجداول"');
-    const progressIdx = DASHBOARD.indexOf('"التقدم الأكاديمي"');
+
     const healthIdx = DASHBOARD.indexOf('"صحة النظام"');
     expect(opsIdx).toBeGreaterThan(-1);
     expect(schedulesIdx).toBeGreaterThan(-1);
-    expect(progressIdx).toBeGreaterThan(-1);
     expect(healthIdx).toBeGreaterThan(-1);
     expect(opsIdx).toBeLessThan(healthIdx);
     expect(schedulesIdx).toBeLessThan(healthIdx);
-    expect(progressIdx).toBeLessThan(healthIdx);
+    // «التقدم الأكاديمي» card is intentionally hidden from the rendered
+    // dashboard; its ordering rank must still precede system health.
+    const orderBlock = DASHBOARD.slice(DASHBOARD.indexOf("const order = ["));
+    const progressRank = orderBlock.indexOf('"التقدم الأكاديمي"');
+    const healthRank = orderBlock.indexOf('"صحة النظام"');
+    expect(progressRank).toBeGreaterThan(-1);
+    expect(progressRank).toBeLessThan(healthRank);
     expect(DASHBOARD).toContain("admin-dashboard-system-health");
   });
 
@@ -245,6 +250,9 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     const INTENTIONALLY_HIDDEN_LEGACY_PATHS = new Set([
       "/admin/department-reports",
       "/admin/graduation-candidates",
+      // Academic-progress surfaces hidden from the sidebar by owner decision;
+      // routes and authorization stay untouched.
+      "/admin/at-risk-students",
     ]);
     for (const path of ADMIN_NAV_LEGACY_SIDEBAR_PATHS) {
       if (INTENTIONALLY_HIDDEN_LEGACY_PATHS.has(path)) continue;
