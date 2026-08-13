@@ -100,7 +100,7 @@ describe("mobile student home cards", () => {
     for (const file of MOBILE_ROUTE_FILES) {
       const src = read(file);
       // Never a portal (browser) graduation-project link from the mobile shell.
-      expect(src).not.toContain("/student/graduation-projects\"");
+      expect(src).not.toMatch(/(?<!\/mobile)\/student\/graduation-projects/);
     }
   });
 });
