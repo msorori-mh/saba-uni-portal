@@ -18,7 +18,11 @@ import {
   type MaterialPlanSessionOption,
   type LinkageMode,
 } from "@/lib/course-materials.shared";
-import { MATERIAL_DERIVATION_MESSAGES, deriveMaterialRow } from "@/lib/course-materials-scope";
+import {
+  MATERIAL_DERIVATION_MESSAGES,
+  deriveMaterialRow,
+  deriveMaterialStudySystem,
+} from "@/lib/course-materials-scope";
 import { materialStudySystemMatches } from "@/lib/materials-audience";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -175,6 +179,30 @@ export const listPlanSessionsForMaterials = createServerFn({ method: "POST" })
     await assertOwnsSection((context.supabase as any), data.sectionId, fp.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return fetchCurrentPlanSessions(supabaseAdmin, data.sectionId);
+  });
+
+/**
+ * Section classification probe: the UI must not offer material creation for an
+ * unclassified section. The server remains the enforcement point (fail closed).
+ */
+export const getMaterialSectionStudySystem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ sectionId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
+    await assertOwnsSection((context.supabase as any), data.sectionId, fp.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: section } = await supabaseAdmin
+      .from("course_sections")
+      .select("id, study_system")
+      .eq("id", data.sectionId)
+      .maybeSingle();
+    const studySystem = deriveMaterialStudySystem((section as any)?.study_system ?? null);
+    return {
+      studySystem,
+      canCreateMaterials: studySystem !== null,
+      message: studySystem ? null : MATERIAL_DERIVATION_MESSAGES.UNKNOWN_SECTION_STUDY_SYSTEM,
+    };
   });
 
 export const listMyCourseMaterials = createServerFn({ method: "POST" })

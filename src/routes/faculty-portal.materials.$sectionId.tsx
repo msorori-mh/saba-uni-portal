@@ -16,6 +16,7 @@ import { readFileAsBase64 } from "@/lib/file-upload";
 import {
   listMyCourseMaterials,
   listPlanSessionsForMaterials,
+  getMaterialSectionStudySystem,
   createCourseMaterial,
   uploadCourseMaterialFile,
   publishCourseMaterial,
@@ -192,6 +193,14 @@ function CreateMaterialDialog({
     queryFn: () => listPlanSessionsForMaterials({ data: { sectionId } }),
   });
 
+  const { data: sectionClassification } = useQuery({
+    queryKey: ["faculty", "materials", "section-study-system", sectionId],
+    queryFn: () => getMaterialSectionStudySystem({ data: { sectionId } }),
+  });
+  const sectionUnclassified = sectionClassification
+    ? !sectionClassification.canCreateMaterials
+    : false;
+
   const selected = (sessions as MaterialPlanSessionOption[]).find(
     (s) => s.plan_session_id === planSessionId,
   );
@@ -199,6 +208,10 @@ function CreateMaterialDialog({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (sectionUnclassified) {
+      setError(sectionClassification?.message ?? "نظام الدراسة للمجموعة غير محدد");
+      return;
+    }
     if (scope === "lecture" && !planSessionId) {
       setError("يجب اختيار محاضرة من خطة التنفيذ المعتمدة");
       return;
@@ -234,6 +247,13 @@ function CreateMaterialDialog({
         className="w-full max-w-md rounded-xl bg-card p-5 shadow-elegant space-y-3"
       >
         <h2 className="font-display text-lg font-extrabold text-primary">إضافة مادة تعليمية</h2>
+
+        {sectionUnclassified && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            {sectionClassification?.message ?? "نظام الدراسة للمجموعة غير محدد"} — لا يمكن إضافة مواد
+            تعليمية لهذه المجموعة حتى يُحدَّد نظام الدراسة في بيانات المجموعة.
+          </div>
+        )}
 
         <fieldset className="space-y-1">
           <legend className="text-xs font-bold">نوع المادة *</legend>
@@ -324,7 +344,7 @@ function CreateMaterialDialog({
           </button>
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || sectionUnclassified}
             className="rounded bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold disabled:opacity-60"
           >
             {busy ? "جاري الحفظ…" : "حفظ كمسودة"}
