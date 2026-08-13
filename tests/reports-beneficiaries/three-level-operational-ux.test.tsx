@@ -109,8 +109,12 @@ describe("1 — level order: Attention before KPIs before All Reports", () => {
   });
 
   test("all five report hubs use ReportsOperationalWorkspace", () => {
+    // Phase H: the student hub keeps the workspace but replaces the generic
+    // multi-beneficiary catalog with the student-safe projected list.
+    expect(STUDENT_ROUTE).toContain("ReportsOperationalWorkspace");
+    expect(STUDENT_ROUTE).toContain("StudentSelfReportsList");
+    expect(STUDENT_ROUTE).not.toContain("جميع التقارير");
     for (const src of [
-      STUDENT_ROUTE,
       FACULTY_ROUTE,
       DEPT_ROUTE,
       EXEC_ROUTE,
@@ -351,8 +355,9 @@ describe("12 — terminology regression: المجموعات الدراسية", (
 
 describe("13 — ReportsCenter still scope-aware", () => {
   test("hubs still pass viewerScope into catalog section", () => {
+    // Phase H: student hub has no client-side catalog projection at all.
+    expect(STUDENT_ROUTE).not.toContain("viewerScope");
     for (const src of [
-      STUDENT_ROUTE,
       FACULTY_ROUTE,
       DEPT_ROUTE,
       EXEC_ROUTE,

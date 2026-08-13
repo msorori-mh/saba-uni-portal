@@ -4,14 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, BarChart3, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import {
-  getMyReportScope,
+  getStudentSelfReportCatalog,
   getStudentSelfReportsSummary,
 } from "@/lib/beneficiary-reports.functions";
 import { ReportsOperationalWorkspace } from "@/components/reports/ReportsOperationalWorkspace";
-import {
-  REPORT_CATALOG_ENTRIES,
-  catalogViewerFromActorScope,
-} from "@/lib/reports/catalog";
+import { StudentSelfReportsList } from "@/components/reports/StudentSelfReportsList";
 import { buildStudentAttention } from "@/lib/reports/attention";
 
 export const Route = createFileRoute("/student/reports")({
@@ -26,26 +23,19 @@ export const Route = createFileRoute("/student/reports")({
 
 function StudentReportsPage() {
   const fetchSummary = useServerFn(getStudentSelfReportsSummary);
-  const fetchScope = useServerFn(getMyReportScope);
+  const fetchStudentCatalog = useServerFn(getStudentSelfReportCatalog);
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-self-reports"],
     queryFn: () => fetchSummary(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-  const { data: actorScope } = useQuery({
-    queryKey: ["student-reports-scope"],
-    queryFn: () => fetchScope(),
+  const { data: studentCatalog } = useQuery({
+    queryKey: ["student-reports-catalog"],
+    queryFn: () => fetchStudentCatalog({ data: { surface: "web" as const } }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-
-  const viewerScope = actorScope
-    ? catalogViewerFromActorScope(actorScope)
-    : null;
-  const viewerRoles = viewerScope?.roles?.length
-    ? viewerScope.roles
-    : ["student"];
 
   const attentionItems = useMemo(
     () =>
@@ -125,14 +115,10 @@ function StudentReportsPage() {
               </section>
             ) : null
           }
-          catalog={{
-            entries: REPORT_CATALOG_ENTRIES,
-            viewerRoles,
-            viewerScope,
-            title: "جميع التقارير",
-            subtitle: "ما يخصك فقط — التقارير المحجوبة لا تُعرض كأنها متاحة.",
-            showPreparation: false,
-          }}
+          catalog={undefined}
+          afterCatalog={
+            <StudentSelfReportsList items={studentCatalog?.items ?? []} />
+          }
         />
       )}
     </div>

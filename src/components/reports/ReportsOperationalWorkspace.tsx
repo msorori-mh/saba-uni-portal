@@ -20,7 +20,10 @@ import type { ReportAttentionItem } from "@/lib/reports/attention";
 export interface ReportsOperationalWorkspaceProps {
   readonly attentionItems: readonly ReportAttentionItem[];
   readonly kpiTiles: readonly MetricTile[];
-  readonly catalog: ReportsCatalogSectionProps;
+  /** Omit for surfaces (e.g. student) that render their own safe projection. */
+  readonly catalog?: ReportsCatalogSectionProps;
+  /** Rendered in place of / after the generic catalog section. */
+  readonly afterCatalog?: ReactNode;
   /** Optional header (page title / scope label) rendered above level 1. */
   readonly header?: ReactNode;
   /** Optional content between KPIs and catalog (legacy quick links, etc.). */
@@ -32,6 +35,7 @@ export function ReportsOperationalWorkspace({
   attentionItems,
   kpiTiles,
   catalog,
+  afterCatalog,
   header,
   betweenKpisAndCatalog,
   className,
@@ -46,7 +50,8 @@ export function ReportsOperationalWorkspace({
       <ReportsAttentionSection items={attentionItems} />
       <ReportsPrimaryKpis tiles={kpiTiles} />
       {betweenKpisAndCatalog}
-      <ReportsCatalogSection {...catalog} />
+      {catalog ? <ReportsCatalogSection {...catalog} /> : null}
+      {afterCatalog}
     </div>
   );
 }

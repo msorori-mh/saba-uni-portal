@@ -23,6 +23,8 @@ import {
   resolveCanonicalCurrentFourthLevelEligibility,
   type AcademicStatusTimestampRow,
 } from "@/lib/graduation-projects/eligibility";
+import { REPORT_CATALOG_ENTRIES, catalogViewerFromActorScope } from "@/lib/reports/catalog";
+import { projectStudentSelfReports } from "@/lib/reports/student-projection";
 import {
   assertScopeAllowed,
   resolveReportActorScope,
@@ -261,6 +263,45 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
       ],
     };
   });
+
+/**
+ * Student-safe report projection (Phase H).
+ * Returns ONLY { id, title, summary, to } — never report_code, sensitivity,
+ * data_scope, beneficiaries, required roles, internal routes or any other
+ * implementation metadata.
+ */
+export const getStudentSelfReportCatalog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({ surface: z.enum(["web", "mobile"]).optional() })
+      .optional()
+      .parse(data ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const scope = await resolveReportActorScope(context.userId);
+    const viewer = catalogViewerFromActorScope(scope);
+
+    let fourthLevelEligible = false;
+    if (scope.studentProfileId) {
+      const gpStatuses = await supabaseAdmin
+        .from("student_academic_status")
+        .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
+        .eq("student_profile_id", scope.studentProfileId);
+      fourthLevelEligible = resolveCanonicalCurrentFourthLevelEligibility(
+        (gpStatuses.data ?? []) as AcademicStatusTimestampRow[],
+      ).eligible;
+    }
+
+    return {
+      items: projectStudentSelfReports(REPORT_CATALOG_ENTRIES, viewer, {
+        surface: data?.surface ?? "web",
+        fourthLevelEligible,
+      }),
+    };
+  });
+
+
 
 
 /** Faculty self + assigned courses/groups only. */

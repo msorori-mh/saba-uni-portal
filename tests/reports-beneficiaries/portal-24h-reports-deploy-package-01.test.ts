@@ -49,10 +49,16 @@ const HUBS = [
 
 describe("five report hubs — routes and three-level workspace", () => {
   test("each hub imports ReportsOperationalWorkspace and Arabic catalog title", () => {
-    for (const [, path] of HUBS) {
+    for (const [name, path] of HUBS) {
       const src = read(path);
       expect(src).toContain("ReportsOperationalWorkspace");
-      expect(src).toContain("جميع التقارير");
+      // Phase H: the student hub renders a self-only projected list instead of
+      // the generic "جميع التقارير" multi-beneficiary catalog.
+      if (name === "student") {
+        expect(src).toContain("StudentSelfReportsList");
+      } else {
+        expect(src).toContain("جميع التقارير");
+      }
     }
   });
 

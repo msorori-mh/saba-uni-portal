@@ -8,9 +8,11 @@
 -- Every call therefore fails with: column sr.request_type_id does not exist,
 -- which blocks the student services list and every B1 draft/submit path.
 --
--- Fix: derive open_request_type_codes directly from sr.request_type, keeping
--- the exact same output shape (jsonb array of codes) and the same status
--- exclusion set. Everything else in the function body is unchanged.
+-- Fix: keep the production query shape (JOIN public.request_types) and change
+-- ONLY the bad join key to rt.code = sr.request_type, still aggregating
+-- jsonb_agg(DISTINCT rt.code). SECURITY DEFINER, STABLE, search_path, the
+-- authorization guard, the status exclusion set and the returned JSON shape
+-- are all preserved. Everything else in the function body is unchanged.
 
 CREATE OR REPLACE FUNCTION public.get_student_request_eligibility_context(p_student_profile_id uuid)
  RETURNS jsonb
@@ -71,12 +73,16 @@ BEGIN
   FROM public.academic_levels al
   WHERE al.id = v_academic.level_id;
 
-  -- FIX: canonical column is student_requests.request_type (type CODE).
-  SELECT COALESCE(jsonb_agg(DISTINCT sr.request_type), '[]'::jsonb)
+  -- FIX (join key ONLY): student_requests has no request_type_id column; the
+  -- canonical column is student_requests.request_type (text) holding the CODE.
+  -- The production query shape (JOIN request_types + jsonb_agg(rt.code)) is
+  -- preserved verbatim; only the join key changes to rt.code = sr.request_type.
+  SELECT COALESCE(jsonb_agg(DISTINCT rt.code), '[]'::jsonb)
   INTO v_open
   FROM public.student_requests sr
+  JOIN public.request_types rt
+    ON rt.code = sr.request_type
   WHERE sr.student_profile_id = p_student_profile_id
-    AND sr.request_type IS NOT NULL
     AND sr.status NOT IN ('completed','rejected','cancelled','archived','withdrawn');
 
   v_completed_years := GREATEST(

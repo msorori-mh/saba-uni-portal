@@ -681,8 +681,10 @@ describe("G4 — behavioral server authorization (mocked loaders)", () => {
 
 describe("G5 — ReportsCenter routes receive bindings/scope", () => {
   test("student/faculty/dept/executive/admin routes wire viewerScope", () => {
-    expect(ROUTE_STUDENT).toContain("viewerScope");
-    expect(ROUTE_STUDENT).toContain("getMyReportScope");
+    // Phase H: the student route consumes a server-side safe projection and
+    // never receives catalog scope/metadata on the client.
+    expect(ROUTE_STUDENT).not.toContain("viewerScope");
+    expect(ROUTE_STUDENT).toContain("getStudentSelfReportCatalog");
     expect(ROUTE_FACULTY).toContain("viewerScope");
     expect(ROUTE_FACULTY).toContain("catalogViewerFromActorScope");
     expect(ROUTE_DEPT).toContain("viewerScope");
