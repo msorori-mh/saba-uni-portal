@@ -30,6 +30,30 @@
 
 `section_id` مذكور للتدقيق فقط، وليس عمودًا في ملف الاستيراد.
 
+## 2-أ. القرار المعتمد (2026-08-13)
+
+**APPROVED VALUES — مجموعات DEMO السبع = `عام`:**
+
+| section_code | study_system |
+|---|---|
+| DEMO-FITCS01 | عام |
+| DEMO-FITCS02 | عام |
+| DEMO-FITCS03 | عام |
+| DEMO-FITCS05 | عام |
+| DEMO-IT343 | عام |
+| DEMO-IT425 | عام |
+| DEMO-AI414 | عام |
+
+**PENDING OFFICIAL SOURCE — `A` / `USR02`:**
+
+- القيمة تُترك **فارغة**؛ لا اعتماد ولا افتراض.
+- السبب: لا يتوفر حاليًا مصدر أكاديمي رسمي يثبت نظام دراسة هذه المجموعة، وهي مجموعة إنتاجية حقيقية وليست DEMO.
+- لا اشتقاق من الطلاب أو الرسوم أو أنماط التسجيل.
+
+**أثر البوابة:** ما دامت `A / USR02` بلا قيمة فإن `ACTIVE_SECTIONS_WITH_NULL_STUDY_SYSTEM ≥ 1`،
+وبالتالي **Migration A (Canonicalization) يبقى محجوزًا** حتى بلوغ القيمة `0`.
+**Migration B (تأمين `cdp_instantiate_from_syllabus`)** تصلّب أمني مستقل تقنيًا، ويجوز اعتماده بأمر منفصل من المالك؛ لا تُربط سلامته بحالة USR02.
+
 ## 3. مرفق القرار (ملف الاستيراد)
 
 المسار: `docs/reviews/COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01-IMPORT.csv`
@@ -38,9 +62,9 @@
 - يستخدم أعمدة قالب `course_sections` القانونية بالترتيب نفسه:
   `course_code, academic_year, semester, program_code, level, section_code, study_system, faculty_employee_number, capacity, status`
 - يحافظ على جميع قيم المفاتيح والسياق الحالية كما هي في الإنتاج.
-- عمود `study_system` **فارغ** في كل صف.
+- عمود `study_system` معبّأ بـ `عام` لصفوف DEMO السبع، و**فارغ** لصف `A / USR02` (معلّق).
 - لا يحتوي أي قيمة مخمّنة أو افتراضية.
-- **DECISION INPUT / NOT APPROVED DATA** — لا يُرفع قبل تعبئته واعتماده منك.
+- **DECISION INPUT — NOT YET AUTHORIZED FOR PRODUCTION IMPORT** — لا يُرفع إلى الاستيراد الإنتاجي قبل أمر كتابة إنتاجية صريح.
 
 ## 4. أثر التصنيف على المواد التعليمية
 
