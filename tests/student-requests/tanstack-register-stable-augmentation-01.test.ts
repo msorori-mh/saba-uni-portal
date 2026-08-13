@@ -18,7 +18,7 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // /mobile/student/requests/* family). Drift verified: 137 fullPaths, all unique,
 // no duplicate "/" claimants — every delta is an intentionally added route.
 const ROUTE_SEMANTIC_SHA256 =
-  "ab1f21b514954c77377dd90207f0e268efd37ef2477f9d6c7180957d0c46e547";
+  "49e128ec4490bfc31db2eb706dff5c626d64d489edf160218fb83e2829700565";
 
 
 const FROZEN_GP_FULL_PATHS = [
