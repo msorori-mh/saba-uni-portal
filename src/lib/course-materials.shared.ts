@@ -10,7 +10,13 @@ export const MATERIALS_ALLOWED_EXT = ["pdf", "doc", "docx", "ppt", "pptx"] as co
 export const MATERIALS_MAX_BYTES_DEFAULT = 25 * 1024 * 1024;
 export const MATERIALS_BUCKET = "course-materials";
 
-export type StudySystemTag = "regular" | "parallel" | "both";
+/**
+ * Canonical study-system values (COURSE-SYLLABUS-MATERIALS-AND-STUDY-SYSTEM-CLOSURE-01).
+ * Legacy values `regular` / `parallel` are read-compatible only and are mapped
+ * conservatively to `general` / `private`; they are never written by new flows.
+ */
+export type StudySystemTag = "general" | "private" | "both";
+export type LegacyStudySystemValue = "regular" | "parallel";
 export type MaterialStatus = "draft" | "published" | "archived";
 export type LinkageMode = "cohort_fallback" | "enrollment_only";
 
