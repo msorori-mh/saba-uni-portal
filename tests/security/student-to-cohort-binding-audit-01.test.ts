@@ -49,10 +49,14 @@ describe("STUDENT-TO-COHORT-BINDING-AUDIT-01 evidence", () => {
     expect(normalizedReport).toContain("zero, one, or many academic-status rows");
   });
 
-  it("pins the unresolved study-system vocabulary mismatch without inventing a mapping", () => {
-    expect(shared).toContain('"regular" | "parallel" | "both"');
+  it("resolves the study-system vocabulary through one canonical mapping", () => {
+    // COURSE-SYLLABUS-MATERIALS-AND-STUDY-SYSTEM-CLOSURE-01 closed the mismatch:
+    // canonical general/private/both, with legacy regular/parallel read-compatible.
+    expect(shared).toContain('"general" | "private" | "both"');
+    expect(shared).toContain("export function normalizeStudySystemTag");
+    expect(shared).toContain("regular: \"general\"");
+    expect(shared).toContain("parallel: \"private\"");
     expect(profileSchema).toContain("study_system IN ('regular', 'private')");
-    expect(report).toContain("must not be invented");
   });
 
   it("documents transfer, suspension, RLS and exact audience verification", () => {
