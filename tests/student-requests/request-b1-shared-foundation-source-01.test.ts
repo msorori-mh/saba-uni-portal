@@ -117,7 +117,7 @@ describe("B1 workflows and payment policy", () => {
   });
   it("wires authenticated reference data through the new-request route into the dynamic form", () => {
     const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
-    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "components", "student-requests", "NewStudentRequestScreen.tsx"), "utf8");
     const form = readFileSync(join(process.cwd(), "src", "components", "student-requests", "DynamicStudentRequestForm.tsx"), "utf8");
     expect(server).toContain("getStudentRequestFormReferenceData");
     expect(server).toContain('context.supabase.from("academic_years")');
@@ -143,7 +143,7 @@ describe("B1 workflows and payment policy", () => {
   });
   it("connects activation, trusted reference validation, and stored codes to the submit boundary", () => {
     const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
-    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "components", "student-requests", "NewStudentRequestScreen.tsx"), "utf8");
     expect(server).toContain("validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode })");
     expect(server).toContain("assertTrustedB1FormReferences");
     expect(server).toContain('.eq("student_profile_id", input.profileId)');
@@ -155,7 +155,7 @@ describe("B1 workflows and payment policy", () => {
   });
   it("keeps the general submit path open for non-B1 enrollment_certificate", () => {
     const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
-    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "components", "student-requests", "NewStudentRequestScreen.tsx"), "utf8");
     expect(getRequestServiceAdapter("enrollment_certificate")).toBeUndefined();
     expect(server).toContain("if (b1Adapter) {");
     expect(server).toContain("if (b1Adapter) payload.requestType = getStoredWriteCodeForRequestType");
