@@ -344,7 +344,7 @@ function CreateMaterialDialog({
           </button>
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || sectionUnclassified}
             className="rounded bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold disabled:opacity-60"
           >
             {busy ? "جاري الحفظ…" : "حفظ كمسودة"}
