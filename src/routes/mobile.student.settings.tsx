@@ -65,13 +65,13 @@ function MobileStudentSettings() {
         <form onSubmit={onChangePassword} className="space-y-3">
           <PasswordInput
             value={pwd}
-            onChange={setPwd}
+            onChange={(e) => setPwd(e.target.value)}
             placeholder="كلمة المرور الجديدة"
             autoComplete="new-password"
           />
           <PasswordInput
             value={confirm}
-            onChange={setConfirm}
+            onChange={(e) => setConfirm(e.target.value)}
             placeholder="تأكيد كلمة المرور"
             autoComplete="new-password"
           />
