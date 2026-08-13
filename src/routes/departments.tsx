@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpDown, Brain, Cpu, Database, GraduationCap, Search, Shield } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programsQuery } from "@/lib/queries";
@@ -60,7 +60,9 @@ function StatusBadge({ status }: { status?: string | null }) {
 }
 
 function DepartmentsPage() {
-  const { data: programs, isLoading } = useQuery(programsQuery);
+  // Suspense read: the loader already ensured this data, so server and client
+  // render the same tree (no loading-skeleton hydration mismatch).
+  const { data: programs } = useSuspenseQuery(programsQuery);
   const [query, setQuery] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -92,22 +94,7 @@ function DepartmentsPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card overflow-hidden">
-                <Skeleton className="h-24 w-full" />
-                <div className="p-4 space-y-2">
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-4/5" />
-                  <Skeleton className="h-8 w-full mt-2" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-        ) : list.length === 0 ? (
+        {list.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
