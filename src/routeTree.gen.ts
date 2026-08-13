@@ -86,6 +86,7 @@ import { Route as FacultyPortalProcessingRequestsRouteImport } from './routes/fa
 import { Route as FacultyPortalReportsRouteImport } from './routes/faculty-portal.reports'
 import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
 import { Route as MobileStudentRouteImport } from './routes/mobile.student'
+import { Route as MobileStudentForgotPasswordRouteImport } from './routes/mobile.student-forgot-password'
 import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
@@ -119,6 +120,7 @@ import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile
 import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
 import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.student.finance'
 import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
+import { Route as MobileStudentMoreRouteImport } from './routes/mobile.student.more'
 import { Route as MobileStudentRequestsRouteImport } from './routes/mobile.student.requests'
 import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
 import { Route as StudentGraduatesAffairsIndexRouteImport } from './routes/student.graduates-affairs.index'
@@ -130,8 +132,13 @@ import { Route as StudentRequestsIndexRouteImport } from './routes/student.reque
 import { Route as StudentRequestsIdRouteImport } from './routes/student.requests.$id'
 import { Route as StudentRequestsNewRouteImport } from './routes/student.requests.new'
 import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
+import { Route as MobileStudentRequestsIndexRouteImport } from './routes/mobile.student.requests.index'
+import { Route as MobileStudentRequestsIdRouteImport } from './routes/mobile.student.requests.$id'
+import { Route as MobileStudentRequestsNewRouteImport } from './routes/mobile.student.requests.new'
 import { Route as StudentRequestsB1ServiceRouteImport } from './routes/student.requests.b1.$service'
+import { Route as MobileStudentRequestsB1ServiceRouteImport } from './routes/mobile.student.requests.b1.$service'
 import { Route as StudentRequestsB1ViewRequestIdRouteImport } from './routes/student.requests.b1.view.$requestId'
+import { Route as MobileStudentRequestsB1ViewRequestIdRouteImport } from './routes/mobile.student.requests.b1.view.$requestId'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
 const AdminDocumentsLazyRouteImport = createFileRoute('/admin/documents')()
@@ -591,6 +598,12 @@ const MobileStudentRoute = MobileStudentRouteImport.update({
   path: '/mobile/student',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MobileStudentForgotPasswordRoute =
+  MobileStudentForgotPasswordRouteImport.update({
+    id: '/mobile/student-forgot-password',
+    path: '/mobile/student-forgot-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MobileStudentLoginRoute = MobileStudentLoginRouteImport.update({
   id: '/mobile/student-login',
   path: '/mobile/student-login',
@@ -769,6 +782,11 @@ const MobileStudentGradesRoute = MobileStudentGradesRouteImport.update({
   path: '/grades',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const MobileStudentMoreRoute = MobileStudentMoreRouteImport.update({
+  id: '/more',
+  path: '/more',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
 const MobileStudentRequestsRoute = MobileStudentRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -829,17 +847,46 @@ const AdminRequestTypesIdWorkflowRoute =
     path: '/request-types/$id/workflow',
     getParentRoute: () => AdminRoute,
   } as any)
+const MobileStudentRequestsIndexRoute =
+  MobileStudentRequestsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => MobileStudentRequestsRoute,
+  } as any)
+const MobileStudentRequestsIdRoute = MobileStudentRequestsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => MobileStudentRequestsRoute,
+} as any)
+const MobileStudentRequestsNewRoute =
+  MobileStudentRequestsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => MobileStudentRequestsRoute,
+  } as any)
 const StudentRequestsB1ServiceRoute =
   StudentRequestsB1ServiceRouteImport.update({
     id: '/b1/$service',
     path: '/b1/$service',
     getParentRoute: () => StudentRequestsRoute,
   } as any)
+const MobileStudentRequestsB1ServiceRoute =
+  MobileStudentRequestsB1ServiceRouteImport.update({
+    id: '/b1/$service',
+    path: '/b1/$service',
+    getParentRoute: () => MobileStudentRequestsRoute,
+  } as any)
 const StudentRequestsB1ViewRequestIdRoute =
   StudentRequestsB1ViewRequestIdRouteImport.update({
     id: '/b1/view/$requestId',
     path: '/b1/view/$requestId',
     getParentRoute: () => StudentRequestsRoute,
+  } as any)
+const MobileStudentRequestsB1ViewRequestIdRoute =
+  MobileStudentRequestsB1ViewRequestIdRouteImport.update({
+    id: '/b1/view/$requestId',
+    path: '/b1/view/$requestId',
+    getParentRoute: () => MobileStudentRequestsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -917,6 +964,7 @@ export interface FileRoutesByFullPath {
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
+  '/mobile/student-forgot-password': typeof MobileStudentForgotPasswordRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/audit-log': typeof StaffAuditLogRoute
@@ -956,7 +1004,8 @@ export interface FileRoutesByFullPath {
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
   '/mobile/student/finance': typeof MobileStudentFinanceRoute
   '/mobile/student/grades': typeof MobileStudentGradesRoute
-  '/mobile/student/requests': typeof MobileStudentRequestsRoute
+  '/mobile/student/more': typeof MobileStudentMoreRoute
+  '/mobile/student/requests': typeof MobileStudentRequestsRouteWithChildren
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/student/graduation-projects/$projectId': typeof StudentGraduationProjectsProjectIdRoute
   '/student/materials/$sectionId': typeof StudentMaterialsSectionIdRoute
@@ -971,8 +1020,13 @@ export interface FileRoutesByFullPath {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/mobile/student/requests/$id': typeof MobileStudentRequestsIdRoute
+  '/mobile/student/requests/new': typeof MobileStudentRequestsNewRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/mobile/student/requests/': typeof MobileStudentRequestsIndexRoute
+  '/mobile/student/requests/b1/$service': typeof MobileStudentRequestsB1ServiceRoute
   '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
+  '/mobile/student/requests/b1/view/$requestId': typeof MobileStudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -1043,6 +1097,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
+  '/mobile/student-forgot-password': typeof MobileStudentForgotPasswordRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/audit-log': typeof StaffAuditLogRoute
@@ -1080,7 +1135,7 @@ export interface FileRoutesByTo {
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
   '/mobile/student/finance': typeof MobileStudentFinanceRoute
   '/mobile/student/grades': typeof MobileStudentGradesRoute
-  '/mobile/student/requests': typeof MobileStudentRequestsRoute
+  '/mobile/student/more': typeof MobileStudentMoreRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/student/graduation-projects/$projectId': typeof StudentGraduationProjectsProjectIdRoute
   '/student/materials/$sectionId': typeof StudentMaterialsSectionIdRoute
@@ -1095,8 +1150,13 @@ export interface FileRoutesByTo {
   '/student/materials': typeof StudentMaterialsIndexRoute
   '/student/requests': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/mobile/student/requests/$id': typeof MobileStudentRequestsIdRoute
+  '/mobile/student/requests/new': typeof MobileStudentRequestsNewRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/mobile/student/requests': typeof MobileStudentRequestsIndexRoute
+  '/mobile/student/requests/b1/$service': typeof MobileStudentRequestsB1ServiceRoute
   '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
+  '/mobile/student/requests/b1/view/$requestId': typeof MobileStudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -1174,6 +1234,7 @@ export interface FileRoutesById {
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
+  '/mobile/student-forgot-password': typeof MobileStudentForgotPasswordRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/audit-log': typeof StaffAuditLogRoute
@@ -1213,7 +1274,8 @@ export interface FileRoutesById {
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
   '/mobile/student/finance': typeof MobileStudentFinanceRoute
   '/mobile/student/grades': typeof MobileStudentGradesRoute
-  '/mobile/student/requests': typeof MobileStudentRequestsRoute
+  '/mobile/student/more': typeof MobileStudentMoreRoute
+  '/mobile/student/requests': typeof MobileStudentRequestsRouteWithChildren
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/student/graduation-projects/$projectId': typeof StudentGraduationProjectsProjectIdRoute
   '/student/materials/$sectionId': typeof StudentMaterialsSectionIdRoute
@@ -1228,8 +1290,13 @@ export interface FileRoutesById {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types_/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/mobile/student/requests/$id': typeof MobileStudentRequestsIdRoute
+  '/mobile/student/requests/new': typeof MobileStudentRequestsNewRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/mobile/student/requests/': typeof MobileStudentRequestsIndexRoute
+  '/mobile/student/requests/b1/$service': typeof MobileStudentRequestsB1ServiceRoute
   '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
+  '/mobile/student/requests/b1/view/$requestId': typeof MobileStudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1308,6 +1375,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student'
+    | '/mobile/student-forgot-password'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/audit-log'
@@ -1347,6 +1415,7 @@ export interface FileRouteTypes {
     | '/mobile/student/documents'
     | '/mobile/student/finance'
     | '/mobile/student/grades'
+    | '/mobile/student/more'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
     | '/student/graduation-projects/$projectId'
@@ -1362,8 +1431,13 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types/$id/workflow'
+    | '/mobile/student/requests/$id'
+    | '/mobile/student/requests/new'
     | '/student/requests/b1/$service'
+    | '/mobile/student/requests/'
+    | '/mobile/student/requests/b1/$service'
     | '/student/requests/b1/view/$requestId'
+    | '/mobile/student/requests/b1/view/$requestId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1434,6 +1508,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/processing-requests'
     | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
+    | '/mobile/student-forgot-password'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/audit-log'
@@ -1471,7 +1546,7 @@ export interface FileRouteTypes {
     | '/mobile/student/documents'
     | '/mobile/student/finance'
     | '/mobile/student/grades'
-    | '/mobile/student/requests'
+    | '/mobile/student/more'
     | '/mobile/student/schedule'
     | '/student/graduation-projects/$projectId'
     | '/student/materials/$sectionId'
@@ -1486,8 +1561,13 @@ export interface FileRouteTypes {
     | '/student/materials'
     | '/student/requests'
     | '/admin/request-types/$id/workflow'
+    | '/mobile/student/requests/$id'
+    | '/mobile/student/requests/new'
     | '/student/requests/b1/$service'
+    | '/mobile/student/requests'
+    | '/mobile/student/requests/b1/$service'
     | '/student/requests/b1/view/$requestId'
+    | '/mobile/student/requests/b1/view/$requestId'
   id:
     | '__root__'
     | '/'
@@ -1564,6 +1644,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/reports'
     | '/faculty-portal/schedule'
     | '/mobile/student'
+    | '/mobile/student-forgot-password'
     | '/mobile/student-login'
     | '/news/$slug'
     | '/staff/audit-log'
@@ -1603,6 +1684,7 @@ export interface FileRouteTypes {
     | '/mobile/student/documents'
     | '/mobile/student/finance'
     | '/mobile/student/grades'
+    | '/mobile/student/more'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
     | '/student/graduation-projects/$projectId'
@@ -1618,8 +1700,13 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types_/$id/workflow'
+    | '/mobile/student/requests/$id'
+    | '/mobile/student/requests/new'
     | '/student/requests/b1/$service'
+    | '/mobile/student/requests/'
+    | '/mobile/student/requests/b1/$service'
     | '/student/requests/b1/view/$requestId'
+    | '/mobile/student/requests/b1/view/$requestId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1644,6 +1731,7 @@ export interface RootRouteChildren {
   VersionDotjsonRoute: typeof VersionDotjsonRoute
   DocumentViewIdRoute: typeof DocumentViewIdRoute
   MobileStudentRoute: typeof MobileStudentRouteWithChildren
+  MobileStudentForgotPasswordRoute: typeof MobileStudentForgotPasswordRoute
   MobileStudentLoginRoute: typeof MobileStudentLoginRoute
 }
 
@@ -2237,6 +2325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mobile/student-forgot-password': {
+      id: '/mobile/student-forgot-password'
+      path: '/mobile/student-forgot-password'
+      fullPath: '/mobile/student-forgot-password'
+      preLoaderRoute: typeof MobileStudentForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mobile/student-login': {
       id: '/mobile/student-login'
       path: '/mobile/student-login'
@@ -2468,6 +2563,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentGradesRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/mobile/student/more': {
+      id: '/mobile/student/more'
+      path: '/more'
+      fullPath: '/mobile/student/more'
+      preLoaderRoute: typeof MobileStudentMoreRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
     '/mobile/student/requests': {
       id: '/mobile/student/requests'
       path: '/requests'
@@ -2545,6 +2647,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRequestTypesIdWorkflowRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/mobile/student/requests/': {
+      id: '/mobile/student/requests/'
+      path: '/'
+      fullPath: '/mobile/student/requests/'
+      preLoaderRoute: typeof MobileStudentRequestsIndexRouteImport
+      parentRoute: typeof MobileStudentRequestsRoute
+    }
+    '/mobile/student/requests/$id': {
+      id: '/mobile/student/requests/$id'
+      path: '/$id'
+      fullPath: '/mobile/student/requests/$id'
+      preLoaderRoute: typeof MobileStudentRequestsIdRouteImport
+      parentRoute: typeof MobileStudentRequestsRoute
+    }
+    '/mobile/student/requests/new': {
+      id: '/mobile/student/requests/new'
+      path: '/new'
+      fullPath: '/mobile/student/requests/new'
+      preLoaderRoute: typeof MobileStudentRequestsNewRouteImport
+      parentRoute: typeof MobileStudentRequestsRoute
+    }
     '/student/requests/b1/$service': {
       id: '/student/requests/b1/$service'
       path: '/b1/$service'
@@ -2552,12 +2675,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentRequestsB1ServiceRouteImport
       parentRoute: typeof StudentRequestsRoute
     }
+    '/mobile/student/requests/b1/$service': {
+      id: '/mobile/student/requests/b1/$service'
+      path: '/b1/$service'
+      fullPath: '/mobile/student/requests/b1/$service'
+      preLoaderRoute: typeof MobileStudentRequestsB1ServiceRouteImport
+      parentRoute: typeof MobileStudentRequestsRoute
+    }
     '/student/requests/b1/view/$requestId': {
       id: '/student/requests/b1/view/$requestId'
       path: '/b1/view/$requestId'
       fullPath: '/student/requests/b1/view/$requestId'
       preLoaderRoute: typeof StudentRequestsB1ViewRequestIdRouteImport
       parentRoute: typeof StudentRequestsRoute
+    }
+    '/mobile/student/requests/b1/view/$requestId': {
+      id: '/mobile/student/requests/b1/view/$requestId'
+      path: '/b1/view/$requestId'
+      fullPath: '/mobile/student/requests/b1/view/$requestId'
+      preLoaderRoute: typeof MobileStudentRequestsB1ViewRequestIdRouteImport
+      parentRoute: typeof MobileStudentRequestsRoute
     }
   }
 }
@@ -2874,12 +3011,35 @@ const StudentRouteChildren: StudentRouteChildren = {
 const StudentRouteWithChildren =
   StudentRoute._addFileChildren(StudentRouteChildren)
 
+interface MobileStudentRequestsRouteChildren {
+  MobileStudentRequestsIdRoute: typeof MobileStudentRequestsIdRoute
+  MobileStudentRequestsNewRoute: typeof MobileStudentRequestsNewRoute
+  MobileStudentRequestsIndexRoute: typeof MobileStudentRequestsIndexRoute
+  MobileStudentRequestsB1ServiceRoute: typeof MobileStudentRequestsB1ServiceRoute
+  MobileStudentRequestsB1ViewRequestIdRoute: typeof MobileStudentRequestsB1ViewRequestIdRoute
+}
+
+const MobileStudentRequestsRouteChildren: MobileStudentRequestsRouteChildren = {
+  MobileStudentRequestsIdRoute: MobileStudentRequestsIdRoute,
+  MobileStudentRequestsNewRoute: MobileStudentRequestsNewRoute,
+  MobileStudentRequestsIndexRoute: MobileStudentRequestsIndexRoute,
+  MobileStudentRequestsB1ServiceRoute: MobileStudentRequestsB1ServiceRoute,
+  MobileStudentRequestsB1ViewRequestIdRoute:
+    MobileStudentRequestsB1ViewRequestIdRoute,
+}
+
+const MobileStudentRequestsRouteWithChildren =
+  MobileStudentRequestsRoute._addFileChildren(
+    MobileStudentRequestsRouteChildren,
+  )
+
 interface MobileStudentRouteChildren {
   MobileStudentAcademicRecordRoute: typeof MobileStudentAcademicRecordRoute
   MobileStudentDocumentsRoute: typeof MobileStudentDocumentsRoute
   MobileStudentFinanceRoute: typeof MobileStudentFinanceRoute
   MobileStudentGradesRoute: typeof MobileStudentGradesRoute
-  MobileStudentRequestsRoute: typeof MobileStudentRequestsRoute
+  MobileStudentMoreRoute: typeof MobileStudentMoreRoute
+  MobileStudentRequestsRoute: typeof MobileStudentRequestsRouteWithChildren
   MobileStudentScheduleRoute: typeof MobileStudentScheduleRoute
   MobileStudentIndexRoute: typeof MobileStudentIndexRoute
 }
@@ -2889,7 +3049,8 @@ const MobileStudentRouteChildren: MobileStudentRouteChildren = {
   MobileStudentDocumentsRoute: MobileStudentDocumentsRoute,
   MobileStudentFinanceRoute: MobileStudentFinanceRoute,
   MobileStudentGradesRoute: MobileStudentGradesRoute,
-  MobileStudentRequestsRoute: MobileStudentRequestsRoute,
+  MobileStudentMoreRoute: MobileStudentMoreRoute,
+  MobileStudentRequestsRoute: MobileStudentRequestsRouteWithChildren,
   MobileStudentScheduleRoute: MobileStudentScheduleRoute,
   MobileStudentIndexRoute: MobileStudentIndexRoute,
 }
@@ -2920,6 +3081,7 @@ const rootRouteChildren: RootRouteChildren = {
   VersionDotjsonRoute: VersionDotjsonRoute,
   DocumentViewIdRoute: DocumentViewIdRoute,
   MobileStudentRoute: MobileStudentRouteWithChildren,
+  MobileStudentForgotPasswordRoute: MobileStudentForgotPasswordRoute,
   MobileStudentLoginRoute: MobileStudentLoginRoute,
 }
 export const routeTree = rootRouteImport

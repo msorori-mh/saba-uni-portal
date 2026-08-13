@@ -4,12 +4,24 @@
  * - Skipped on Lovable preview hosts (id-preview-*, *.lovableproject.com).
  * - Only attempted when the browser supports service workers.
  *
+ * - Skipped inside the native Capacitor shell (Android app), where any
+ *   previously registered worker and portal-owned caches are removed instead.
+ *
  * Safe to call multiple times — `register()` is idempotent per scope.
  * Registration failure is non-fatal.
  */
+import { isNativePlatform } from "@/lib/native/platform";
+import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
+
 export function registerPortalPWA(): void {
   if (typeof window === "undefined" || typeof navigator === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
+
+  // Native Capacitor shell: the app is already installed — never register a SW.
+  if (isNativePlatform()) {
+    void disablePwaInNativeShell();
+    return;
+  }
 
   const inIframe = (() => {
     try {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import {
   b1AdapterErrorMessageAr,
   buildB1StudentFormSummaryItems,
@@ -27,6 +28,7 @@ const STATUS_LABEL_AR: Record<B1RequestDetails["status"], string> = {
 };
 
 export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
+  const routes = useStudentRequestRoutes();
   const adapter = useMemo(() => getB1UiAdapter(), []);
   const [details, setDetails] = useState<B1RequestDetails | null>(null);
   const [formOptions, setFormOptions] = useState<B1FormOptions | null>(null);
@@ -124,7 +126,7 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
       <div className="flex flex-col gap-2 sm:flex-row">
         {canResume && config ? (
           <Link
-            to="/student/requests/b1/$service"
+            to={routes.b1Service}
             params={{ service: serviceCode }}
             className="inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
           >
@@ -132,7 +134,7 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
           </Link>
         ) : null}
         <Link
-          to="/student/requests"
+          to={routes.list}
           className="inline-flex min-h-10 items-center justify-center rounded-lg border border-primary px-4 text-sm font-bold text-primary"
         >
           العودة إلى الطلبات

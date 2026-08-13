@@ -304,7 +304,14 @@ describe("student journey — pre-existing and in-processing requests (cases 19-
       adapter.saveB1RequestDraft(saved.requestId, {}, saved.updatedAt),
       "VALIDATION_ERROR",
     );
-    expect(formSource).toContain('to: "/student/requests/b1/view/$requestId"');
+    // Surface-aware navigation: the web surface still resolves to the frozen
+    // /student/requests/b1/view/$requestId target via the shared route map.
+    expect(formSource).toContain("routes.b1View");
+    const surfaceSource = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "surface.tsx"),
+      "utf8",
+    );
+    expect(surfaceSource).toContain('b1View: "/student/requests/b1/view/$requestId"');
   });
 
   it("shows an in-processing status with the current step after submit (case 20)", async () => {

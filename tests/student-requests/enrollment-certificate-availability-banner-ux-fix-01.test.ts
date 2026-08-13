@@ -90,7 +90,7 @@ describe("enrollment certificate availability banner UX fix", () => {
       join(process.cwd(), "src/components/student-requests/DynamicStudentRequestForm.tsx"),
       "utf8",
     );
-    const route = readFileSync(join(process.cwd(), "src/routes/student.requests.new.tsx"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src/components/student-requests/NewStudentRequestScreen.tsx"), "utf8");
     expect(notice).toContain("border-blue-200 bg-blue-50");
     expect(notice).not.toMatch(/eligibility\.notices\.map[\s\S]{0,500}أسباب المنع/);
     expect(form).toContain('role="alert" className="text-[11px] text-destructive"');

@@ -20,6 +20,10 @@ import {
 } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  resolveCanonicalCurrentFourthLevelEligibility,
+  type AcademicStatusTimestampRow,
+} from "@/lib/graduation-projects/eligibility";
+import {
   assertScopeAllowed,
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
@@ -232,6 +236,15 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
       .order("issued_at", { ascending: false })
       .limit(10);
 
+    // مشروع التخرج: يُعرض فقط لطلاب المستوى الرابع الحاليين (نفس معيار حارس المسار).
+    const gpStatuses = await supabaseAdmin
+      .from("student_academic_status")
+      .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
+      .eq("student_profile_id", summary.studentProfileId);
+    const gpEligible = resolveCanonicalCurrentFourthLevelEligibility(
+      (gpStatuses.data ?? []) as AcademicStatusTimestampRow[],
+    ).eligible;
+
     return {
       ...summary,
       recentRequests: requests.data ?? [],
@@ -242,10 +255,13 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
         { to: "/student/schedule", label: "الجدول الأسبوعي" },
         { to: "/student/requests", label: "طلباتي" },
         { to: "/student/materials", label: "المواد التعليمية" },
-        { to: "/student/graduation-projects", label: "مشروع التخرج" },
+        ...(gpEligible
+          ? [{ to: "/student/graduation-projects", label: "مشروع التخرج" }]
+          : []),
       ],
     };
   });
+
 
 /** Faculty self + assigned courses/groups only. */
 export const getFacultySelfReportsSummary = createServerFn({ method: "POST" })

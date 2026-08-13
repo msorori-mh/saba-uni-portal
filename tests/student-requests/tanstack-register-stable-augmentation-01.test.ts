@@ -13,12 +13,12 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Re-pinned after the academic-councils archive / authorization-audit routes
-// and /admin/graduation-project-policies were added. Drift verified: 125
-// fullPaths, all unique, no duplicate "/" claimants — every delta is an
-// intentionally added route. Recomputed from the current routeTree.gen.ts.
+// Re-pinned after the Android student realignment added the contained mobile
+// student routes (/mobile/student/more, /mobile/student-forgot-password and the
+// /mobile/student/requests/* family). Drift verified: 137 fullPaths, all unique,
+// no duplicate "/" claimants — every delta is an intentionally added route.
 const ROUTE_SEMANTIC_SHA256 =
-  "a93093cce7026077509add30eba202aed16040c36f70ac360f9b4520c99da446";
+  "ab1f21b514954c77377dd90207f0e268efd37ef2477f9d6c7180957d0c46e547";
 
 
 const FROZEN_GP_FULL_PATHS = [
