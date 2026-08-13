@@ -1,5 +1,6 @@
 import type { LookupMaps, RowError, ValidatedRow, ValidationResult } from "./types";
 import { normKey } from "./lookups";
+import { normalizeStudySystemTag } from "@/lib/course-materials.shared";
 import { getImportDb } from "./import-db";
 import { resolveStaffRoleTypeInput } from "@/lib/staff-functional-roles";
 import { ELIGIBILITY_FIELD_ERROR_AR } from "./labels";
@@ -1090,6 +1091,7 @@ export type CourseSectionRow = {
   program_id: string;
   level_id: string;
   section_code: string;
+  study_system: "general" | "private" | "both";
   faculty_profile_id: string | null;
   capacity: number | null;
   status: string;
@@ -1199,6 +1201,14 @@ export async function validateCourseSections(
     if (!section_code)
       errors.push({ row: rowNumber, column: "section_code", message: "رمز المجموعة مطلوب" });
 
+    // نظام الدراسة للمجموعة هو مصدر الحقيقة لنظام دراسة المواد التعليمية.
+    const studySystemRaw = str(raw.study_system);
+    const study_system = normalizeStudySystemTag(studySystemRaw);
+    if (!studySystemRaw)
+      errors.push({ row: rowNumber, column: "study_system", message: "نظام الدراسة مطلوب (عام / نفقة خاصة / كلا النظامين)" });
+    else if (!study_system)
+      errors.push({ row: rowNumber, column: "study_system", message: "نظام الدراسة غير معروف (عام / نفقة خاصة / كلا النظامين)" });
+
     const status = str(raw.status) || "active";
     if (!SECTION_STATUSES.has(status))
       errors.push({
@@ -1278,6 +1288,7 @@ export async function validateCourseSections(
             program_id: prog!.id,
             level_id: level_id!,
             section_code,
+            study_system: study_system!,
             faculty_profile_id,
             capacity,
             status,

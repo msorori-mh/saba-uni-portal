@@ -15,6 +15,7 @@ import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { readFileAsBase64 } from "@/lib/file-upload";
 import {
   listMyCourseMaterials,
+  listPlanSessionsForMaterials,
   createCourseMaterial,
   uploadCourseMaterialFile,
   publishCourseMaterial,
@@ -27,10 +28,11 @@ import {
   MATERIALS_ALLOWED_MIME,
   MATERIALS_ALLOWED_EXT,
   MATERIALS_MAX_BYTES_DEFAULT,
-  MATERIAL_WEEK_MIN,
-  MATERIAL_WEEK_MAX,
   STATUS_LABELS,
-  STUDY_SYSTEM_LABELS,
+  MATERIAL_SCOPES,
+  MATERIAL_SCOPE_LABELS,
+  formatPlanSessionOptionLabel,
+  studySystemLabel,
   SCAN_STATE_LABELS,
   MATERIAL_ACCESS_EVENT_LABELS,
   formatWeekLectureLabel,
@@ -39,7 +41,8 @@ import {
   type MaterialAccessEvent,
   type MaterialsUsageReport,
   type MaterialAccessLogEntry,
-  type StudySystemTag,
+  type MaterialScope,
+  type MaterialPlanSessionOption,
   type MaterialScanState,
 } from "@/lib/course-materials.shared";
 
@@ -58,6 +61,9 @@ type MaterialItem = {
   week_number: number | null;
   lecture_number: number | null;
   study_system: string;
+  material_scope?: string | null;
+  plan_session_id?: string | null;
+  planned_topics?: string | null;
   files?: MaterialFileItem[];
 };
 
@@ -115,7 +121,7 @@ function FacultyMaterialsSection() {
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Plus className="h-4 w-4" aria-hidden /> إضافة محاضرة
+            <Plus className="h-4 w-4" aria-hidden /> إضافة مادة
           </button>
         </div>
 
@@ -174,27 +180,31 @@ function CreateMaterialDialog({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const [scope, setScope] = useState<MaterialScope>("lecture");
+  const [planSessionId, setPlanSessionId] = useState<string>("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [weekNumber, setWeekNumber] = useState<string>("");
-  const [lectureNumber, setLectureNumber] = useState<string>("");
-  const [studySystem, setStudySystem] = useState<StudySystemTag>("both");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["faculty", "materials", "plan-sessions", sectionId],
+    queryFn: () => listPlanSessionsForMaterials({ data: { sectionId } }),
+  });
+
+  const selected = (sessions as MaterialPlanSessionOption[]).find(
+    (s) => s.plan_session_id === planSessionId,
+  );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!title.trim()) {
-      setError("العنوان مطلوب");
+    if (scope === "lecture" && !planSessionId) {
+      setError("يجب اختيار محاضرة من خطة التنفيذ المعتمدة");
       return;
     }
-    const parsedWeek = weekNumber ? parseInt(weekNumber, 10) : null;
-    if (
-      parsedWeek !== null &&
-      (Number.isNaN(parsedWeek) || parsedWeek < MATERIAL_WEEK_MIN || parsedWeek > MATERIAL_WEEK_MAX)
-    ) {
-      setError(`رقم الأسبوع يجب أن يكون بين ${MATERIAL_WEEK_MIN} و ${MATERIAL_WEEK_MAX}`);
+    if (scope === "general" && !title.trim()) {
+      setError("العنوان مطلوب");
       return;
     }
     setBusy(true);
@@ -202,16 +212,15 @@ function CreateMaterialDialog({
       await createCourseMaterial({
         data: {
           sectionId,
-          title: title.trim(),
+          scope,
+          planSessionId: scope === "lecture" ? planSessionId : null,
+          title: scope === "general" ? title.trim() : null,
           description: description.trim() || null,
-          week_number: parsedWeek,
-          lecture_number: lectureNumber ? parseInt(lectureNumber, 10) : null,
-          study_system: studySystem,
         },
       });
       onCreated();
-    } catch {
-      setError("تعذّر إنشاء المحاضرة. يرجى المحاولة مرة أخرى.");
+    } catch (e2) {
+      setError((e2 as Error)?.message || "تعذّر إنشاء المادة. يرجى المحاولة مرة أخرى.");
     } finally {
       setBusy(false);
     }
@@ -224,52 +233,80 @@ function CreateMaterialDialog({
         onSubmit={submit}
         className="w-full max-w-md rounded-xl bg-card p-5 shadow-elegant space-y-3"
       >
-        <h2 className="font-display text-lg font-extrabold text-primary">إضافة محاضرة</h2>
-        <label className="block">
-          <span className="text-xs font-bold">العنوان *</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            className="mt-1 w-full rounded border px-3 py-2 text-sm"
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-2">
+        <h2 className="font-display text-lg font-extrabold text-primary">إضافة مادة تعليمية</h2>
+
+        <fieldset className="space-y-1">
+          <legend className="text-xs font-bold">نوع المادة *</legend>
+          {MATERIAL_SCOPES.map((s) => (
+            <label key={s} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="material-scope"
+                value={s}
+                checked={scope === s}
+                onChange={() => setScope(s)}
+              />
+              {MATERIAL_SCOPE_LABELS[s]}
+            </label>
+          ))}
+        </fieldset>
+
+        {scope === "lecture" ? (
+          <>
+            <label className="block">
+              <span className="text-xs font-bold">المحاضرة (من خطة التنفيذ الحالية) *</span>
+              <select
+                value={planSessionId}
+                onChange={(e) => setPlanSessionId(e.target.value)}
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              >
+                <option value="">— اختر المحاضرة —</option>
+                {(sessions as MaterialPlanSessionOption[]).map((s) => (
+                  <option key={s.plan_session_id} value={s.plan_session_id}>
+                    {formatPlanSessionOptionLabel(s)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {sessionsLoading ? (
+              <div className="text-xs text-muted-foreground">جاري تحميل خطة التنفيذ…</div>
+            ) : sessions.length === 0 ? (
+              <div className="text-xs text-destructive">
+                لا توجد خطة تنفيذ حالية معتمدة لهذه المجموعة.
+              </div>
+            ) : null}
+            {selected && (
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                <div>
+                  <span className="font-bold">رقم المحاضرة:</span> {selected.session_number}
+                </div>
+                <div>
+                  <span className="font-bold">الأسبوع:</span> {selected.week_number ?? "—"}
+                </div>
+                <div>
+                  <span className="font-bold">عنوان المحاضرة:</span> {selected.planned_title}
+                </div>
+                <div>
+                  <span className="font-bold">المفردات / الموضوعات:</span>{" "}
+                  {selected.planned_topics?.trim() || "—"}
+                </div>
+                <div className="text-muted-foreground">
+                  تُشتق هذه البيانات ونظام الدراسة تلقائياً من الخطة والمجموعة ولا يمكن تعديلها.
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
           <label className="block">
-            <span className="text-xs font-bold">الأسبوع (اختياري)</span>
+            <span className="text-xs font-bold">العنوان *</span>
             <input
-              type="number"
-              min={MATERIAL_WEEK_MIN}
-              max={MATERIAL_WEEK_MAX}
-              value={weekNumber}
-              onChange={(e) => setWeekNumber(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
               className="mt-1 w-full rounded border px-3 py-2 text-sm"
             />
           </label>
-          <label className="block">
-            <span className="text-xs font-bold">رقم المحاضرة (اختياري)</span>
-            <input
-              type="number"
-              min={1}
-              max={200}
-              value={lectureNumber}
-              onChange={(e) => setLectureNumber(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
-            />
-          </label>
-        </div>
-        <label className="block">
-          <span className="text-xs font-bold">نظام الدراسة *</span>
-          <select
-            value={studySystem}
-            onChange={(e) => setStudySystem(e.target.value as StudySystemTag)}
-            className="mt-1 w-full rounded border px-3 py-2 text-sm"
-          >
-            <option value="both">{STUDY_SYSTEM_LABELS.both}</option>
-            <option value="regular">{STUDY_SYSTEM_LABELS.regular}</option>
-            <option value="parallel">{STUDY_SYSTEM_LABELS.parallel}</option>
-          </select>
-        </label>
+        )}
         <label className="block">
           <span className="text-xs font-bold">الوصف (اختياري)</span>
           <textarea
@@ -374,7 +411,8 @@ function MaterialRow({
         <div className="min-w-0">
           <div className="text-xs text-muted-foreground">
             {weekLecture ? `${weekLecture} • ` : ""}
-            {STUDY_SYSTEM_LABELS[material.study_system as StudySystemTag]} •{" "}
+            {MATERIAL_SCOPE_LABELS[material.material_scope === "lecture" ? "lecture" : "general"]} •{" "}
+            {studySystemLabel(material.study_system)} •{" "}
             {STATUS_LABELS[material.status as keyof typeof STATUS_LABELS]}
           </div>
           <div className="font-bold text-primary truncate">{material.title}</div>

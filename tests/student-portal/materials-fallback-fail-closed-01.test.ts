@@ -61,11 +61,16 @@ describe("materials fallback fail-closed audience", () => {
     expect(ids.has("section-b")).toBeFalse();
   });
 
-  it("denies unresolved private/parallel and unknown-system mappings", () => {
-    expect(materialStudySystemMatches("parallel", "private")).toBeFalse();
-    expect(materialStudySystemMatches("both", "private")).toBeFalse();
+  it("resolves legacy vocabulary through the canonical mapping and fails closed on unknown", () => {
+    // COURSE-SYLLABUS-MATERIALS-AND-STUDY-SYSTEM-CLOSURE-01: regular→general, parallel→private.
+    expect(materialStudySystemMatches("parallel", "private")).toBeTrue();
+    expect(materialStudySystemMatches("both", "private")).toBeTrue();
     expect(materialStudySystemMatches("regular", "regular")).toBeTrue();
     expect(materialStudySystemMatches("both", "regular")).toBeTrue();
+    expect(materialStudySystemMatches("general", "private")).toBeFalse();
+    expect(materialStudySystemMatches("private", "regular")).toBeFalse();
+    expect(materialStudySystemMatches("unknown", "general")).toBeFalse();
+    expect(materialStudySystemMatches("general", null)).toBeFalse();
   });
 
   it("applies the published/exact-section/system gate to detail and download", () => {

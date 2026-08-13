@@ -3,7 +3,7 @@ import {
   type CurrentTerm,
   type CurrentTermSectionRow,
 } from "@/lib/current-term";
-import type { StudySystemTag } from "@/lib/course-materials.shared";
+import { normalizeStudySystemTag, type StudySystemTag } from "@/lib/course-materials.shared";
 
 export type MaterialEnrollmentRow = CurrentTermSectionRow & {
   course_section_id: string;
@@ -23,18 +23,21 @@ export function exactCurrentMaterialSectionIds(
 }
 
 export function materialStudySystemMatches(
-  materialTag: StudySystemTag,
+  materialTag: StudySystemTag | string,
   studentSystem: string | null,
 ): boolean {
-  if (studentSystem !== "regular" && studentSystem !== "parallel") return false;
-  return materialTag === "both" || materialTag === studentSystem;
+  const material = normalizeStudySystemTag(materialTag);
+  const student = normalizeStudySystemTag(studentSystem);
+  if (!material || !student) return false;
+  if (student === "both") return true;
+  return material === "both" || material === student;
 }
 
 export function canAccessPublishedMaterial(input: {
   eligibleSectionIds: ReadonlySet<string>;
   sectionId: string;
   status: string;
-  materialTag: StudySystemTag;
+  materialTag: StudySystemTag | string;
   studentSystem: string | null;
 }): boolean {
   return input.status === "published"

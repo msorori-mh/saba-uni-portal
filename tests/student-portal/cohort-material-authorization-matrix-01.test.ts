@@ -74,9 +74,12 @@ describe("cohort material authorization matrix", () => {
     expect(canAccessPublishedMaterial({ ...allowed, sectionId: "another-student-section" })).toBeFalse();
     expect(canAccessPublishedMaterial({ ...allowed, status: "draft" })).toBeFalse();
     expect(canAccessPublishedMaterial({ ...allowed, status: "archived" })).toBeFalse();
+    // Canonical vocabulary: parallel/private is a different audience than regular/general.
     expect(canAccessPublishedMaterial({ ...allowed, materialTag: "parallel" })).toBeFalse();
+    expect(canAccessPublishedMaterial({ ...allowed, materialTag: "نفقة خاصة" })).toBeFalse();
+    expect(canAccessPublishedMaterial({ ...allowed, materialTag: "unknown-system" })).toBeFalse();
     expect(materialStudySystemMatches("both", null)).toBeFalse();
-    expect(materialStudySystemMatches("both", "private")).toBeFalse();
+    expect(materialStudySystemMatches("both", "private")).toBeTrue();
   });
 });
 

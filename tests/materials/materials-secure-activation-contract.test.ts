@@ -146,8 +146,11 @@ describe("runtime fail-closed contracts", () => {
   });
 
   test("week linkage is wired through faculty create/update/list", () => {
-    expect(facultyRuntime).toContain("week_number: z.number().int().min(MATERIAL_WEEK_MIN).max(MATERIAL_WEEK_MAX)");
-    expect(facultyRuntime).toContain("week_number: data.week_number ?? null");
+    // Week/lecture linkage is now DERIVED from the official delivery plan session,
+    // never accepted from the client.
+    expect(facultyRuntime).toContain("deriveMaterialRow");
+    expect(facultyRuntime).toContain("listPlanSessionsForMaterials");
+    expect(facultyRuntime).not.toContain("week_number: data.week_number");
     expect(facultyRuntime).toContain('.order("week_number", { ascending: true, nullsFirst: false })');
   });
 

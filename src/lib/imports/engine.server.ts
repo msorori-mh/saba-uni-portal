@@ -899,6 +899,7 @@ export async function importCourseSections(
     const payload = {
       course_offering_id: offeringId,
       section_code: p.section_code,
+      study_system: p.study_system,
       faculty_profile_id: p.faculty_profile_id,
       capacity: p.capacity,
       status: p.status,

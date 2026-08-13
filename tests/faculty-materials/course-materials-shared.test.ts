@@ -5,6 +5,7 @@ import {
   MATERIALS_MAX_BYTES_DEFAULT,
   sanitizeFileName,
   STUDY_SYSTEM_LABELS,
+  normalizeStudySystemTag,
 } from "@/lib/course-materials.shared";
 
 describe("course-materials shared", () => {
@@ -23,12 +24,25 @@ describe("course-materials shared", () => {
     expect(MATERIALS_MAX_BYTES_DEFAULT).toBe(25 * 1024 * 1024);
   });
 
-  it("labels study systems in Arabic (regular / parallel / both)", () => {
-    expect(STUDY_SYSTEM_LABELS.regular).toBe("نظامي");
-    expect(STUDY_SYSTEM_LABELS.parallel).toBe("انتساب");
+  it("labels canonical study systems in Arabic (عام / نفقة خاصة / كلا النظامين)", () => {
+    expect(STUDY_SYSTEM_LABELS.general).toBe("عام");
+    expect(STUDY_SYSTEM_LABELS.private).toBe("نفقة خاصة");
     expect(STUDY_SYSTEM_LABELS.both).toBe("كلا النظامين");
-    // ممنوع مصطلح affiliate في الواجهة
-    expect(Object.values(STUDY_SYSTEM_LABELS)).not.toContain("affiliate");
+    // المصطلحات القديمة ممنوعة في الواجهة
+    for (const legacy of ["affiliate", "نظامي", "انتساب"]) {
+      expect(Object.values(STUDY_SYSTEM_LABELS)).not.toContain(legacy);
+    }
+  });
+
+  it("normalizes legacy and Arabic study-system inputs, failing closed on unknown", () => {
+    expect(normalizeStudySystemTag("regular")).toBe("general");
+    expect(normalizeStudySystemTag("parallel")).toBe("private");
+    expect(normalizeStudySystemTag("عام")).toBe("general");
+    expect(normalizeStudySystemTag("نفقة خاصة")).toBe("private");
+    expect(normalizeStudySystemTag("كلا النظامين")).toBe("both");
+    expect(normalizeStudySystemTag("نظامي")).toBeNull();
+    expect(normalizeStudySystemTag("")).toBeNull();
+    expect(normalizeStudySystemTag(undefined)).toBeNull();
   });
 
   it("sanitizes filenames: strips unsafe chars, preserves unicode, caps length, lowercases extension", () => {

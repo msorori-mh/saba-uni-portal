@@ -443,6 +443,7 @@ describe("G-01: previously-broken validators resolve via getImportDb", () => {
           program_code: "IT",
           level: "1",
           section_code: "A",
+          study_system: "عام",
         },
       ],
       makeLookups(),
