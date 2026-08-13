@@ -1,4 +1,80 @@
-# إغلاق مسار نظام الدراسة والمواد التعليمية — مسار معتمد
+# APPROVED — EXECUTE THE PLAN AS WRITTEN.
+
+One mandatory addition:
+
+Before declaring
+
+PASS_COURSE_SYLLABUS_MATERIALS_STUDY_SYSTEM_SOURCE_READY_FOR_PRODUCTION_GATE
+
+run not only:
+
+- tests/mobile
+
+- tests/student-requests
+
+- tsgo --noEmit
+
+but also all targeted suites for:
+
+- course syllabus
+
+- lecture execution
+
+- faculty/course materials
+
+- student materials
+
+- course_sections imports
+
+- CDP authorization / direct RPC negative matrix
+
+The reconciliation import attachment must:
+
+- contain exactly the 8 production sections
+
+- use the exact canonical course_sections import columns
+
+- preserve all current key/context values
+
+- leave study_system BLANK
+
+- contain no guessed/default value
+
+- be clearly marked DECISION INPUT / NOT APPROVED DATA
+
+No Production write.
+
+No Migration apply.
+
+No Publish/Deploy.
+
+Proceed to source/document/package completion and return:
+
+- STARTING_HEAD
+
+- ENDING_HEAD
+
+- exact changed files
+
+- reconciliation attachment path
+
+- updated reconciliation report
+
+- execution guide path
+
+- both migration draft hashes/diffs
+
+- targeted test counts
+
+- ZERO production writes confirmation
+
+Final allowed decision:
+
+PASS_COURSE_SYLLABUS_MATERIALS_STUDY_SYSTEM_SOURCE_READY_FOR_PRODUCTION_GATE
+
+Then STOP.
+
+إغلاق مسار نظام الدراسة والمواد التعليمية — مسار معتمد
 
 المصدر الوحيد لتحديد نظام الدراسة للمجموعات الثماني هو **استيراد course_sections** مع خيار «تحديث القائم». لا واجهة إدارة جديدة، ولا اشتقاق من بيانات الطلاب، ولا أي قيمة افتراضية تُطبَّق تلقائيًا.
 
@@ -34,7 +110,7 @@ Migration منفصلة لكل غرض؛ لا دمج.
 ## تفاصيل تقنية
 
 - استعلام البوابة 2:
-  `SELECT count(*) FROM course_sections cs JOIN course_offerings co ON co.id = cs.course_offering_id WHERE cs.status = 'active' AND (cs.study_system IS NULL OR btrim(cs.study_system) = '');`
+`SELECT count(*) FROM course_sections cs JOIN course_offerings co ON co.id = cs.course_offering_id WHERE cs.status = 'active' AND (cs.study_system IS NULL OR btrim(cs.study_system) = '');`
 - Verify A: وجود `course_materials_study_system_check` بالمفردات القانونية، وجود `course_materials_derive_scope_trg`، ورفض إدراج مادة على مجموعة غير مصنفة بخطأ `UNKNOWN_SECTION_STUDY_SYSTEM`.
 - Verify B: `SELECT proacl FROM pg_proc … proname='cdp_instantiate_from_syllabus'` — بلا `authenticated=X` أو `anon=X` أو `=X/`، مع بقاء المالك و`service_role`، وسلامة `syllabus_approve_version` و`cdp_regenerate_section_plan` و`cdp_section_autoplan`.
 - الواجهة: المنطق fail-closed مطبَّق مسبقًا في `src/lib/course-materials-scope.ts` و`src/routes/faculty-portal.materials.$sectionId.tsx` — لا تعديل إضافي مطلوب.
