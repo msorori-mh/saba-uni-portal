@@ -60,12 +60,19 @@ export const MATERIAL_DERIVATION_MESSAGES: Record<MaterialDerivationFailure, str
 };
 
 /**
- * Study system is ALWAYS derived from the course section. `null` sections stay
- * legacy-compatible and resolve to `both` so historical rows keep working.
+ * Study system is ALWAYS derived from the course section (Source of Truth).
+ *
+ * FAIL CLOSED: an unclassified section (NULL / blank / unknown literal) is NOT
+ * inferred as `both`. New material writes are denied until the section carries
+ * an authoritative value. Historical rows are never rewritten.
  */
 export function deriveMaterialStudySystem(sectionStudySystem: unknown): StudySystemTag | null {
-  if (sectionStudySystem === null || sectionStudySystem === undefined || sectionStudySystem === "") {
-    return "both";
+  if (
+    sectionStudySystem === null ||
+    sectionStudySystem === undefined ||
+    (typeof sectionStudySystem === "string" && sectionStudySystem.trim() === "")
+  ) {
+    return null;
   }
   return normalizeStudySystemTag(sectionStudySystem);
 }
