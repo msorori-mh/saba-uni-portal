@@ -6,7 +6,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { listStudentMaterialsForCourse, getCourseMaterialDownloadUrl } from "@/lib/student-materials.functions";
-import { STUDY_SYSTEM_LABELS, formatWeekLectureLabel, type StudySystemTag } from "@/lib/course-materials.shared";
+import { formatWeekLectureLabel } from "@/lib/course-materials.shared";
 import { CourseDeliveryPlanGrid } from "@/components/portal/CourseDeliveryPlanGrid";
 
 export const Route = createFileRoute("/student/materials/$sectionId")({
@@ -20,6 +20,9 @@ function StudentMaterialsCourse() {
     queryKey: ["student", "materials", "course", sectionId],
     queryFn: () => listStudentMaterialsForCourse({ data: { sectionId } }),
   });
+
+  const lectureMaterials = (data as any[]).filter((m) => m.material_scope === "lecture");
+  const generalMaterials = (data as any[]).filter((m) => m.material_scope !== "lecture");
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
