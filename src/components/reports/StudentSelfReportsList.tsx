@@ -1,10 +1,9 @@
 /**
  * Student-safe reports list (Phase H).
  *
- * Deliberately NOT the generic multi-beneficiary ReportCard: no beneficiary
- * groups (Faculty/Supervisor, Department Head/Coordinator), no technical tags
- * (report codes, sensitivity, data scope, statuses) and no duplicate cards.
- * It renders only what the server projected: title, summary, destination.
+ * Deliberately NOT the generic multi-audience card component: no audience
+ * groups, no technical tags, no duplicate cards. It renders only what the
+ * server projected: title, summary, destination.
  */
 
 import { Link } from "@tanstack/react-router";

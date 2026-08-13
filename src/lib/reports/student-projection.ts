@@ -84,6 +84,9 @@ export function projectStudentSelfReports(
   const surface = options.surface ?? "web";
   const gpOk = options.fourthLevelEligible === true;
 
+  // Self-only: without a resolved student identity nothing is projected.
+  if (!viewer?.studentProfileId) return [];
+
   const visible = visibleReportsForViewer(entries, viewer);
   const items: StudentReportItem[] = [];
   const seen = new Set<string>();
