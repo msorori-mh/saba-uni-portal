@@ -28,10 +28,76 @@ export function sanitizeFileName(name: string): string {
 }
 
 export const STUDY_SYSTEM_LABELS: Record<StudySystemTag, string> = {
-  regular: "نظامي",
-  parallel: "انتساب",
+  general: "عام",
+  private: "نفقة خاصة",
   both: "كلا النظامين",
 };
+
+export const LEGACY_STUDY_SYSTEM_MAP: Record<LegacyStudySystemValue, StudySystemTag> = {
+  regular: "general",
+  parallel: "private",
+};
+
+const ARABIC_STUDY_SYSTEM_MAP: Record<string, StudySystemTag> = {
+  "عام": "general",
+  "نظام عام": "general",
+  "نفقة خاصة": "private",
+  "نظام نفقة خاصة": "private",
+  "كلا النظامين": "both",
+  "كلا النظامين معاً": "both",
+};
+
+/**
+ * Normalize any stored/imported study-system value into the canonical set.
+ * Fails closed (null) for unknown values.
+ */
+export function normalizeStudySystemTag(value: unknown): StudySystemTag | null {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (raw.length === 0) return null;
+  const lower = raw.toLowerCase();
+  if (lower === "general" || lower === "private" || lower === "both") return lower;
+  if (lower === "regular" || lower === "parallel") {
+    return LEGACY_STUDY_SYSTEM_MAP[lower as LegacyStudySystemValue];
+  }
+  return ARABIC_STUDY_SYSTEM_MAP[raw.replace(/\s+/g, " ")] ?? null;
+}
+
+/** Arabic label for any stored value (legacy-compatible); empty for unknown. */
+export function studySystemLabel(value: unknown): string {
+  const tag = normalizeStudySystemTag(value);
+  return tag ? STUDY_SYSTEM_LABELS[tag] : "";
+}
+
+/** Material scope: linked to an official plan session, or general course material. */
+export const MATERIAL_SCOPES = ["lecture", "general"] as const;
+export type MaterialScope = (typeof MATERIAL_SCOPES)[number];
+
+export const MATERIAL_SCOPE_LABELS: Record<MaterialScope, string> = {
+  lecture: "مادة مرتبطة بمحاضرة",
+  general: "مادة عامة للمقرر",
+};
+
+export function isMaterialScope(value: unknown): value is MaterialScope {
+  return value === "lecture" || value === "general";
+}
+
+/** Plan session option shown to faculty when linking a material to a lecture. */
+export type MaterialPlanSessionOption = {
+  plan_session_id: string;
+  session_number: number;
+  week_number: number | null;
+  planned_title: string;
+  planned_topics: string | null;
+};
+
+/** "المحاضرة 01 — الأسبوع 1 — العنوان" */
+export function formatPlanSessionOptionLabel(session: MaterialPlanSessionOption): string {
+  const lecture = `المحاضرة ${String(session.session_number).padStart(2, "0")}`;
+  const week = session.week_number != null ? ` — الأسبوع ${session.week_number}` : "";
+  const title = session.planned_title?.trim() ? ` — ${session.planned_title.trim()}` : "";
+  return `${lecture}${week}${title}`;
+}
 
 export const STATUS_LABELS: Record<MaterialStatus, string> = {
   draft: "مسودة",
