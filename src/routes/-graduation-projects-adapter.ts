@@ -369,7 +369,10 @@ async function sha256Hex(file: File): Promise<string> {
     .join("");
 }
 
-export function useGraduationProjectList(scope: "assigned" | "administration") {
+export function useGraduationProjectList(
+  scope: "assigned" | "administration",
+  options?: { enabled?: boolean },
+) {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: ["graduation-projects", scope],
