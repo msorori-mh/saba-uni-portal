@@ -1,5 +1,8 @@
 -- COURSE-SYLLABUS-MATERIALS-AND-STUDY-SYSTEM-CLOSURE-01
 -- Forward-only. No historical row rewrite. NOT APPLIED — awaiting production gate approval.
+-- PRODUCTION ORDER: this migration MUST NOT be applied while any active course
+-- section used for materials still has study_system NULL
+-- (preflight requirement: ACTIVE_SECTIONS_WITH_NULL_STUDY_SYSTEM = 0).
 
 -- 1) Widen course_materials.study_system to the canonical vocabulary while
 --    keeping legacy literals valid for historical rows.
@@ -30,8 +33,19 @@ BEGIN
   FROM public.course_sections cs
   WHERE cs.id = NEW.course_section_id;
 
-  -- المجموعة الدراسية هي مصدر الحقيقة لنظام الدراسة
-  NEW.study_system := COALESCE(v_section_system, 'both');
+  -- المجموعة الدراسية هي مصدر الحقيقة لنظام الدراسة.
+  -- FAIL CLOSED: مجموعة غير مصنفة => رفض الكتابة الجديدة، ولا يُفترض 'both'.
+  IF v_section_system IS NULL OR btrim(v_section_system) = ''
+     OR v_section_system NOT IN ('general','private','both','regular','parallel') THEN
+    RAISE EXCEPTION 'UNKNOWN_SECTION_STUDY_SYSTEM'
+      USING HINT = 'نظام الدراسة للمجموعة غير محدد';
+  END IF;
+
+  NEW.study_system := CASE v_section_system
+    WHEN 'regular'  THEN 'general'   -- legacy compatibility mapping
+    WHEN 'parallel' THEN 'private'
+    ELSE v_section_system
+  END;
 
   IF NEW.material_scope = 'lecture' THEN
     IF NEW.plan_session_id IS NULL THEN
