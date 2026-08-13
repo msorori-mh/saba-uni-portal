@@ -127,6 +127,7 @@ import { Route as MobileStudentProfileRouteImport } from './routes/mobile.studen
 import { Route as MobileStudentReportsRouteImport } from './routes/mobile.student.reports'
 import { Route as MobileStudentRequestsRouteImport } from './routes/mobile.student.requests'
 import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
+import { Route as MobileStudentSettingsRouteImport } from './routes/mobile.student.settings'
 import { Route as MobileStudentStudyPlanRouteImport } from './routes/mobile.student.study-plan'
 import { Route as StudentGraduatesAffairsIndexRouteImport } from './routes/student.graduates-affairs.index'
 import { Route as StudentGraduationProjectsIndexRouteImport } from './routes/student.graduation-projects.index'
@@ -828,6 +829,11 @@ const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const MobileStudentSettingsRoute = MobileStudentSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
 const MobileStudentStudyPlanRoute = MobileStudentStudyPlanRouteImport.update({
   id: '/study-plan',
   path: '/study-plan',
@@ -1071,6 +1077,7 @@ export interface FileRoutesByFullPath {
   '/mobile/student/reports': typeof MobileStudentReportsRoute
   '/mobile/student/requests': typeof MobileStudentRequestsRouteWithChildren
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
+  '/mobile/student/settings': typeof MobileStudentSettingsRoute
   '/mobile/student/study-plan': typeof MobileStudentStudyPlanRoute
   '/student/graduation-projects/$projectId': typeof StudentGraduationProjectsProjectIdRoute
   '/student/materials/$sectionId': typeof StudentMaterialsSectionIdRoute
@@ -1210,6 +1217,7 @@ export interface FileRoutesByTo {
   '/mobile/student/profile': typeof MobileStudentProfileRoute
   '/mobile/student/reports': typeof MobileStudentReportsRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
+  '/mobile/student/settings': typeof MobileStudentSettingsRoute
   '/mobile/student/study-plan': typeof MobileStudentStudyPlanRoute
   '/student/graduation-projects/$projectId': typeof StudentGraduationProjectsProjectIdRoute
   '/student/materials/$sectionId': typeof StudentMaterialsSectionIdRoute
@@ -1359,6 +1367,7 @@ export interface FileRoutesById {
   '/mobile/student/reports': typeof MobileStudentReportsRoute
   '/mobile/student/requests': typeof MobileStudentRequestsRouteWithChildren
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
+  '/mobile/student/settings': typeof MobileStudentSettingsRoute
   '/mobile/student/study-plan': typeof MobileStudentStudyPlanRoute
   '/student/graduation-projects/$projectId': typeof StudentGraduationProjectsProjectIdRoute
   '/student/materials/$sectionId': typeof StudentMaterialsSectionIdRoute
@@ -1509,6 +1518,7 @@ export interface FileRouteTypes {
     | '/mobile/student/reports'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
+    | '/mobile/student/settings'
     | '/mobile/student/study-plan'
     | '/student/graduation-projects/$projectId'
     | '/student/materials/$sectionId'
@@ -1648,6 +1658,7 @@ export interface FileRouteTypes {
     | '/mobile/student/profile'
     | '/mobile/student/reports'
     | '/mobile/student/schedule'
+    | '/mobile/student/settings'
     | '/mobile/student/study-plan'
     | '/student/graduation-projects/$projectId'
     | '/student/materials/$sectionId'
@@ -1796,6 +1807,7 @@ export interface FileRouteTypes {
     | '/mobile/student/reports'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
+    | '/mobile/student/settings'
     | '/mobile/student/study-plan'
     | '/student/graduation-projects/$projectId'
     | '/student/materials/$sectionId'
@@ -2726,6 +2738,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentScheduleRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/mobile/student/settings': {
+      id: '/mobile/student/settings'
+      path: '/settings'
+      fullPath: '/mobile/student/settings'
+      preLoaderRoute: typeof MobileStudentSettingsRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
     '/mobile/student/study-plan': {
       id: '/mobile/student/study-plan'
       path: '/study-plan'
@@ -3222,6 +3241,7 @@ interface MobileStudentRouteChildren {
   MobileStudentReportsRoute: typeof MobileStudentReportsRoute
   MobileStudentRequestsRoute: typeof MobileStudentRequestsRouteWithChildren
   MobileStudentScheduleRoute: typeof MobileStudentScheduleRoute
+  MobileStudentSettingsRoute: typeof MobileStudentSettingsRoute
   MobileStudentStudyPlanRoute: typeof MobileStudentStudyPlanRoute
   MobileStudentIndexRoute: typeof MobileStudentIndexRoute
   MobileStudentGraduationProjectsProjectIdRoute: typeof MobileStudentGraduationProjectsProjectIdRoute
@@ -3242,6 +3262,7 @@ const MobileStudentRouteChildren: MobileStudentRouteChildren = {
   MobileStudentReportsRoute: MobileStudentReportsRoute,
   MobileStudentRequestsRoute: MobileStudentRequestsRouteWithChildren,
   MobileStudentScheduleRoute: MobileStudentScheduleRoute,
+  MobileStudentSettingsRoute: MobileStudentSettingsRoute,
   MobileStudentStudyPlanRoute: MobileStudentStudyPlanRoute,
   MobileStudentIndexRoute: MobileStudentIndexRoute,
   MobileStudentGraduationProjectsProjectIdRoute:
