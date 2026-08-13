@@ -23,11 +23,14 @@ export function exactCurrentMaterialSectionIds(
 }
 
 export function materialStudySystemMatches(
-  materialTag: StudySystemTag,
+  materialTag: StudySystemTag | string,
   studentSystem: string | null,
 ): boolean {
-  if (studentSystem !== "regular" && studentSystem !== "parallel") return false;
-  return materialTag === "both" || materialTag === studentSystem;
+  const material = normalizeStudySystemTag(materialTag);
+  const student = normalizeStudySystemTag(studentSystem);
+  if (!material || !student) return false;
+  if (student === "both") return true;
+  return material === "both" || material === student;
 }
 
 export function canAccessPublishedMaterial(input: {
