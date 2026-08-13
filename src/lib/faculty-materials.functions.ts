@@ -15,9 +15,10 @@ import {
   type MaterialUsageEventRow,
   type MaterialUsageMaterialRow,
   type MaterialsUploadPolicy,
-  type StudySystemTag,
+  type MaterialPlanSessionOption,
   type LinkageMode,
 } from "@/lib/course-materials.shared";
+import { MATERIAL_DERIVATION_MESSAGES, deriveMaterialRow } from "@/lib/course-materials-scope";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Types are generated post-migration; remaining `any` casts are only for deep
@@ -53,14 +54,17 @@ async function assertOwnsSection(supabase: any, sectionId: string, facultyProfil
 async function assertOwnsMaterial(supabase: any, materialId: string, facultyProfileId: string) {
   const { data, error } = await supabase
     .from("course_materials")
-    .select("id, faculty_profile_id, course_section_id, status")
+    .select("id, faculty_profile_id, course_section_id, status, material_scope, plan_session_id")
     .eq("id", materialId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data || data.faculty_profile_id !== facultyProfileId) {
     throw new Error("ليس لديك صلاحية على هذه المادة");
   }
-  return data as { id: string; course_section_id: string; status: string };
+  return data as {
+    id: string; course_section_id: string; status: string;
+    material_scope: string; plan_session_id: string | null;
+  };
 }
 
 /**
