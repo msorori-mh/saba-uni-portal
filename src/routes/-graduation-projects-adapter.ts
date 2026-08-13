@@ -396,6 +396,7 @@ export function useGraduationProjectList(
       }
     },
     retry: false,
+    enabled: options?.enabled ?? true,
   });
 }
 
