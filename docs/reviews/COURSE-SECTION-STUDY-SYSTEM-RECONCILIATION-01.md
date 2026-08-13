@@ -1,6 +1,6 @@
 # COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01
 
-الحالة: **DECISION INPUT — NOT YET AUTHORIZED FOR PRODUCTION IMPORT**. لا كتابة إنتاجية، ولا Migration مطبقة، ولا نشر.
+الحالة: **READY_FOR_PRODUCTION_IMPORT** — القيم معتمدة 8/8. لا كتابة إنتاجية بعد، ولا Migration A مطبقة، ولا نشر.
 
 ## 1. المصدر المعتمد
 
@@ -30,9 +30,9 @@
 
 `section_id` مذكور للتدقيق فقط، وليس عمودًا في ملف الاستيراد.
 
-## 2-أ. القرار المعتمد (2026-08-13)
+## 2-أ. القرار النهائي (2026-08-13)
 
-**APPROVED VALUES — مجموعات DEMO السبع = `عام`:**
+**APPROVED VALUES = 8/8 — جميع المجموعات الثماني `عام`:**
 
 | section_code | study_system |
 |---|---|
@@ -43,28 +43,28 @@
 | DEMO-IT343 | عام |
 | DEMO-IT425 | عام |
 | DEMO-AI414 | عام |
+| A (USR02) | عام |
 
-**PENDING OFFICIAL SOURCE — `A` / `USR02`:**
+- **PENDING OFFICIAL SOURCE = 0** — لم يعد هناك أي صف معلّق.
+- **المصدر المعتمد:** قرار مالك المشروع الصريح بتاريخ 2026-08-13 (اعتماد `A / USR02 = عام`).
+- **لا اشتقاق** من بيانات الطلاب أو الرسوم أو التسجيلات.
+- **حالة الملف:** `READY_FOR_PRODUCTION_IMPORT` — جاهز للاستيراد بخيار «تحديث القائم» عند صدور أمر الكتابة الإنتاجية.
 
-- القيمة تُترك **فارغة**؛ لا اعتماد ولا افتراض.
-- السبب: لا يتوفر حاليًا مصدر أكاديمي رسمي يثبت نظام دراسة هذه المجموعة، وهي مجموعة إنتاجية حقيقية وليست DEMO.
-- لا اشتقاق من الطلاب أو الرسوم أو أنماط التسجيل.
-
-**أثر البوابة:** ما دامت `A / USR02` بلا قيمة فإن `ACTIVE_SECTIONS_WITH_NULL_STUDY_SYSTEM ≥ 1`،
-وبالتالي **Migration A (Canonicalization) يبقى محجوزًا** حتى بلوغ القيمة `0`.
-**Migration B (تأمين `cdp_instantiate_from_syllabus`)** تصلّب أمني مستقل تقنيًا، ويجوز اعتماده بأمر منفصل من المالك؛ لا تُربط سلامته بحالة USR02.
+**أثر البوابة:** بعد تنفيذ الاستيراد يُتوقع `ACTIVE_SECTIONS_WITH_NULL_STUDY_SYSTEM = 0`، وعندها فقط يُفتح Migration A (Canonicalization).
+**Migration B (تأمين `cdp_instantiate_from_syllabus`)** نُفِّذت سابقًا كتصلّب أمني مستقل.
 
 ## 3. مرفق القرار (ملف الاستيراد)
 
 المسار: `docs/reviews/COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01-IMPORT.csv`
 
-- يحتوي **8 صفوف بالضبط** — المجموعات الإنتاجية أعلاه.
+- يحتوي **8 صفوف بالضبط** — المجموعات الإنتاجية أعلاه، بلا تكرار.
 - يستخدم أعمدة قالب `course_sections` القانونية بالترتيب نفسه:
   `course_code, academic_year, semester, program_code, level, section_code, study_system, faculty_employee_number, capacity, status`
-- يحافظ على جميع قيم المفاتيح والسياق الحالية كما هي في الإنتاج.
-- عمود `study_system` معبّأ بـ `عام` لصفوف DEMO السبع، و**فارغ** لصف `A / USR02` (معلّق).
+- يحافظ على جميع قيم المفاتيح والسياق الحالية كما هي في الإنتاج (مسار «تحديث القائم» مدعوم).
+- عمود `study_system` معبّأ بـ `عام` في **جميع** الصفوف الثمانية.
 - لا يحتوي أي قيمة مخمّنة أو افتراضية.
-- **DECISION INPUT — NOT YET AUTHORIZED FOR PRODUCTION IMPORT** — لا يُرفع إلى الاستيراد الإنتاجي قبل أمر كتابة إنتاجية صريح.
+- **READY_FOR_PRODUCTION_IMPORT** — لا يُرفع إلى الاستيراد الإنتاجي قبل أمر كتابة إنتاجية صريح.
+
 
 ## 4. أثر التصنيف على المواد التعليمية
 
