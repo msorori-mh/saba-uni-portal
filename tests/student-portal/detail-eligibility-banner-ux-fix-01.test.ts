@@ -28,11 +28,11 @@ import {
 const ROOT = join(import.meta.dir, "../..");
 
 const DETAIL_SRC = readFileSync(
-  join(ROOT, "src/routes/student.requests.$id.tsx"),
+  join(ROOT, "src/components/student-requests/StudentRequestDetailsScreen.tsx"),
   "utf-8",
 );
 const NEW_SRC = readFileSync(
-  join(ROOT, "src/routes/student.requests.new.tsx"),
+  join(ROOT, "src/components/student-requests/NewStudentRequestScreen.tsx"),
   "utf-8",
 );
 const COMPONENT_SRC = readFileSync(
