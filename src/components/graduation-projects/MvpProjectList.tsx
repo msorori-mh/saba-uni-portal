@@ -9,7 +9,10 @@ export function MvpProjectList({
   readOnly = false,
 }: {
   projects: GraduationProjectSummary[];
-  basePath?: "/student/graduation-projects" | "/faculty-portal/graduation-projects";
+  basePath?:
+    | "/student/graduation-projects"
+    | "/faculty-portal/graduation-projects"
+    | "/mobile/student/graduation-projects";
   readOnly?: boolean;
 }) {
   return (

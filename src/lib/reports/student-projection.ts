@@ -51,7 +51,7 @@ const STUDENT_SAFE_ALLOWLIST: Readonly<Record<string, AllowlistItem>> = {
     title: "خطة المحاضرات لمقرراتي",
     summary: "المحاضرات المخطط لها وحالة تنفيذها في مقرراتك المسجلة.",
     webTo: "/student/materials",
-    mobileTo: null,
+    mobileTo: "/mobile/student/materials",
     requiresFourthLevel: false,
   },
 };
