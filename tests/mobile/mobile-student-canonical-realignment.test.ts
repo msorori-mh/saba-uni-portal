@@ -90,12 +90,17 @@ describe("mobile student home cards", () => {
   });
 
   test("L1/L2/L3 get zero graduation project surface; canonical L4 gate is used", () => {
-    expect(home).toContain("resolveCanonicalCurrentFourthLevelEligibility");
-    expect(home).toContain("shouldShowStudentGpNav");
+    // The gate now lives in one shared context module consumed by every mobile
+    // screen, so eligibility can never be evaluated differently per screen.
+    expect(home).toContain("useMobileStudentContext");
+    expect(home).toContain("gpEligible");
+    const ctx = read("src/lib/mobile/student-context.ts");
+    expect(ctx).toContain("resolveCanonicalCurrentFourthLevelEligibility");
+    expect(ctx).toContain("shouldShowStudentGpNav");
     for (const file of MOBILE_ROUTE_FILES) {
       const src = read(file);
-      expect(src).not.toContain("/mobile/student/graduation-projects");
-      expect(src).not.toContain("/student/graduation-projects");
+      // Never a portal (browser) graduation-project link from the mobile shell.
+      expect(src).not.toMatch(/(?<!\/mobile)\/student\/graduation-projects/);
     }
   });
 });
