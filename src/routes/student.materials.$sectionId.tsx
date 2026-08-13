@@ -38,8 +38,6 @@ function StudentMaterialsCourse() {
           <CourseDeliveryPlanGrid sectionId={sectionId} />
         </div>
 
-        <h1 className="font-display text-xl font-extrabold text-primary mb-4">محاضرات المادة</h1>
-
         {isLoading ? (
           <div className="grid place-items-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
         ) : error ? (
@@ -48,29 +46,63 @@ function StudentMaterialsCourse() {
           </div>
         ) : data.length === 0 ? (
           <div className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
-            لا توجد محاضرات منشورة بعد.
+            لا توجد مواد منشورة بعد.
           </div>
         ) : (
-          <div className="space-y-3">
-            {(data as any[]).map((m) => (
-              <div key={m.id} className="rounded-lg border bg-card p-3">
-                <div className="text-xs text-muted-foreground">
-                  {formatWeekLectureLabel(m.week_number, m.lecture_number)}
-                  {m.study_system !== "both" && <> • {STUDY_SYSTEM_LABELS[m.study_system as StudySystemTag]}</>}
-                </div>
-                <div className="font-bold text-primary">{m.title}</div>
-                {m.description && <div className="text-xs text-muted-foreground mt-1">{m.description}</div>}
-                {m.files?.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {m.files.map((f: any) => <StudentFileRow key={f.id} file={f} />)}
-                  </ul>
-                )}
+          <>
+            <h1 className="font-display text-xl font-extrabold text-primary mb-4">مواد المحاضرات</h1>
+            {lectureMaterials.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
+                لا توجد مواد مرتبطة بمحاضرات بعد.
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="space-y-3">
+                {lectureMaterials.map((m) => (
+                  <MaterialCard key={m.id} material={m} showLecture />
+                ))}
+              </div>
+            )}
+
+            {generalMaterials.length > 0 && (
+              <>
+                <h2 className="font-display text-lg font-extrabold text-primary mt-8 mb-3">
+                  مواد عامة للمقرر
+                </h2>
+                <div className="space-y-3">
+                  {generalMaterials.map((m) => (
+                    <MaterialCard key={m.id} material={m} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         )}
       </main>
     </PortalShell>
+  );
+}
+
+function MaterialCard({ material: m, showLecture }: { material: any; showLecture?: boolean }) {
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      {showLecture && (
+        <div className="text-xs text-muted-foreground">
+          {formatWeekLectureLabel(m.week_number, m.lecture_number)}
+        </div>
+      )}
+      <div className="font-bold text-primary">{m.title}</div>
+      {showLecture && m.planned_topics && (
+        <div className="text-xs text-muted-foreground mt-1">
+          المفردات: {m.planned_topics}
+        </div>
+      )}
+      {m.description && <div className="text-xs text-muted-foreground mt-1">{m.description}</div>}
+      {m.files?.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {m.files.map((f: any) => <StudentFileRow key={f.id} file={f} />)}
+        </ul>
+      )}
+    </div>
   );
 }
 
