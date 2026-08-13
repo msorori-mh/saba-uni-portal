@@ -23,6 +23,8 @@ import {
   resolveCanonicalCurrentFourthLevelEligibility,
   type AcademicStatusTimestampRow,
 } from "@/lib/graduation-projects/eligibility";
+import { REPORT_CATALOG_ENTRIES, catalogViewerFromActorScope } from "@/lib/reports/catalog";
+import { projectStudentSelfReports } from "@/lib/reports/student-projection";
 import {
   assertScopeAllowed,
   resolveReportActorScope,
