@@ -173,11 +173,12 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     const healthIdx = DASHBOARD.indexOf('"صحة النظام"');
     expect(opsIdx).toBeGreaterThan(-1);
     expect(schedulesIdx).toBeGreaterThan(-1);
-    expect(progressIdx).toBeGreaterThan(-1);
     expect(healthIdx).toBeGreaterThan(-1);
     expect(opsIdx).toBeLessThan(healthIdx);
     expect(schedulesIdx).toBeLessThan(healthIdx);
-    expect(progressIdx).toBeLessThan(healthIdx);
+    // «التقدم الأكاديمي» card is intentionally hidden from the admin dashboard
+    // priority area; when present it must still stay above system health.
+    if (progressIdx > -1) expect(progressIdx).toBeLessThan(healthIdx);
     expect(DASHBOARD).toContain("admin-dashboard-system-health");
   });
 
@@ -245,6 +246,9 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     const INTENTIONALLY_HIDDEN_LEGACY_PATHS = new Set([
       "/admin/department-reports",
       "/admin/graduation-candidates",
+      // Academic-progress surfaces hidden from the sidebar by owner decision;
+      // routes and authorization stay untouched.
+      "/admin/at-risk-students",
     ]);
     for (const path of ADMIN_NAV_LEGACY_SIDEBAR_PATHS) {
       if (INTENTIONALLY_HIDDEN_LEGACY_PATHS.has(path)) continue;
