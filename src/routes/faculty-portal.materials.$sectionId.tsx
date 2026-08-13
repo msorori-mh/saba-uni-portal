@@ -15,6 +15,7 @@ import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { readFileAsBase64 } from "@/lib/file-upload";
 import {
   listMyCourseMaterials,
+  listPlanSessionsForMaterials,
   createCourseMaterial,
   uploadCourseMaterialFile,
   publishCourseMaterial,
@@ -30,7 +31,10 @@ import {
   MATERIAL_WEEK_MIN,
   MATERIAL_WEEK_MAX,
   STATUS_LABELS,
-  STUDY_SYSTEM_LABELS,
+  MATERIAL_SCOPES,
+  MATERIAL_SCOPE_LABELS,
+  formatPlanSessionOptionLabel,
+  studySystemLabel,
   SCAN_STATE_LABELS,
   MATERIAL_ACCESS_EVENT_LABELS,
   formatWeekLectureLabel,
@@ -39,7 +43,8 @@ import {
   type MaterialAccessEvent,
   type MaterialsUsageReport,
   type MaterialAccessLogEntry,
-  type StudySystemTag,
+  type MaterialScope,
+  type MaterialPlanSessionOption,
   type MaterialScanState,
 } from "@/lib/course-materials.shared";
 
@@ -58,6 +63,9 @@ type MaterialItem = {
   week_number: number | null;
   lecture_number: number | null;
   study_system: string;
+  material_scope?: string | null;
+  plan_session_id?: string | null;
+  planned_topics?: string | null;
   files?: MaterialFileItem[];
 };
 
@@ -115,7 +123,7 @@ function FacultyMaterialsSection() {
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Plus className="h-4 w-4" aria-hidden /> إضافة محاضرة
+            <Plus className="h-4 w-4" aria-hidden /> إضافة مادة
           </button>
         </div>
 
@@ -405,7 +413,8 @@ function MaterialRow({
         <div className="min-w-0">
           <div className="text-xs text-muted-foreground">
             {weekLecture ? `${weekLecture} • ` : ""}
-            {STUDY_SYSTEM_LABELS[material.study_system as StudySystemTag]} •{" "}
+            {MATERIAL_SCOPE_LABELS[material.material_scope === "lecture" ? "lecture" : "general"]} •{" "}
+            {studySystemLabel(material.study_system)} •{" "}
             {STATUS_LABELS[material.status as keyof typeof STATUS_LABELS]}
           </div>
           <div className="font-bold text-primary truncate">{material.title}</div>
