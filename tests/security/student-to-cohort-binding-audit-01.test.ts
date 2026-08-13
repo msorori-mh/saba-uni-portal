@@ -31,7 +31,7 @@ describe("STUDENT-TO-COHORT-BINDING-AUDIT-01 evidence", () => {
     // Runtime later closed that path: the setting default string remains, but
     // audience resolution is exact current enrollment only (no academic-status
     // sibling inference).
-    expect(materials).toContain('?? "cohort_fallback"');
+    expect(materials).toContain('?? "enrollment_only"');
     expect(materials).toContain("never use either mode to infer sibling");
     expect(materials).toContain("exactCurrentMaterialSectionIds");
     expect(materials).toContain("fetchCanonicalCurrentTerm");
