@@ -1,6 +1,6 @@
 # COURSE-SECTION-STUDY-SYSTEM-RECONCILIATION-01
 
-الحالة: **DECISION INPUT — NOT YET AUTHORIZED FOR PRODUCTION IMPORT**. لا كتابة إنتاجية، ولا Migration مطبقة، ولا نشر.
+الحالة: **READY_FOR_PRODUCTION_IMPORT** — القيم معتمدة 8/8. لا كتابة إنتاجية بعد، ولا Migration A مطبقة، ولا نشر.
 
 ## 1. المصدر المعتمد
 
