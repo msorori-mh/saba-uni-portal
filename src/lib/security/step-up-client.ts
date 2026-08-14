@@ -50,6 +50,15 @@ type ChallengeRow = {
   device_id?: string;
 };
 
+async function defaultVerifyAssertion(input: {
+  challengeId: string;
+  signature: string;
+}): Promise<{ ok: boolean; proofToken?: string }> {
+  const { verifyStepUpAssertionFn } = await import("./step-up-verify.functions");
+  const result = await verifyStepUpAssertionFn({ data: input });
+  return result.ok ? { ok: true, proofToken: result.proofToken } : { ok: false };
+}
+
 function first<T>(data: unknown): T | null {
   if (Array.isArray(data)) return (data[0] as T) ?? null;
   return (data as T) ?? null;
@@ -66,6 +75,11 @@ export async function performStepUp(
     biometricsAvailable?: () => boolean;
     ensureKey?: typeof ensureDeviceKey;
     sign?: typeof signStepUpChallenge;
+    /** Server-side ECDSA verification + single-use proof minting. */
+    verifyAssertion?: (input: {
+      challengeId: string;
+      signature: string;
+    }) => Promise<{ ok: boolean; proofToken?: string }>;
   } = {},
 ): Promise<StepUpOutcome> {
   const descriptor = getStepUpDescriptor(input.serviceCode);
@@ -133,16 +147,18 @@ export async function performStepUp(
     return { status: "failed", messageAr: STEP_UP_MESSAGES_AR.failed };
   }
 
-  const verified = await client.rpc("verify_step_up_assertion", {
-    p_challenge_id: challenge.challenge_id,
-    p_signature: signature,
-  });
-  if (verified.error) {
+  const verify = deps.verifyAssertion ?? defaultVerifyAssertion;
+  let verified: { ok: boolean; proofToken?: string };
+  try {
+    verified = await verify({
+      challengeId: challenge.challenge_id,
+      signature,
+    });
+  } catch {
     return { status: "failed", messageAr: STEP_UP_MESSAGES_AR.failed };
   }
-  const proof = first<{ proof_token?: string }>(verified.data);
-  if (!proof?.proof_token) {
+  if (!verified.ok || !verified.proofToken) {
     return { status: "failed", messageAr: STEP_UP_MESSAGES_AR.failed };
   }
-  return { status: "proof", proofToken: proof.proof_token };
+  return { status: "proof", proofToken: verified.proofToken };
 }
