@@ -12,7 +12,9 @@ import {
   resolveAgendaItemFn,
   getCouncilVoteResultFn,
   getMyCouncilVoteFn,
+  getAgendaItemVoteProgressFn,
 } from "@/lib/councils-c4-c8.functions";
+
 import {
   LIVE_SESSION_INTERVAL_MS,
   agendaSessionStatusLabel,
@@ -63,6 +65,20 @@ export function CouncilVotingControl({
     ...liveQueryOptions(liveInterval),
   });
 
+
+  // Live completion progress (eligible / cast / pending). Drives the chair's
+  // close button: closing early is refused server-side, so the UI must not
+  // pretend it is available.
+  const progressQuery = useQuery({
+    queryKey: ["council-vote-progress", agendaItemId],
+    queryFn: () => getAgendaItemVoteProgressFn({ data: { agenda_item_id: agendaItemId } }),
+    enabled: Boolean(agendaItemId) && sessionStatus === "voting_open",
+    ...liveQueryOptions(liveInterval),
+  });
+
+  const progress = progressQuery.data ?? null;
+  const closeBlocked = Boolean(progress) && !progress!.can_close;
+
   const serverVote = myVoteQuery.data?.vote_value ?? null;
   const userVote = serverVote ?? localVote;
   const voteStateUnknown =
@@ -70,6 +86,8 @@ export function CouncilVotingControl({
     sessionStatus === "voting_open" &&
     !localVote &&
     (myVoteQuery.isLoading || myVoteQuery.isError);
+
+
 
 
   async function handleOpenVote() {
@@ -110,7 +128,16 @@ export function CouncilVotingControl({
       qc.invalidateQueries();
       onStatusChanged?.();
     } catch (err: any) {
-      toast.error(err.message || "تعذر إغلاق التصويت");
+      const msg = String(err?.message ?? "");
+      if (msg.includes("COUNCIL_VOTING_INCOMPLETE")) {
+        void progressQuery.refetch();
+        toast.error("لا يمكن إغلاق التصويت قبل تصويت جميع الأعضاء الحاضرين");
+      } else if (msg.includes("COUNCIL_VOTING_NO_ELIGIBLE_VOTERS")) {
+        toast.error("لا يوجد أعضاء حاضرون مؤهلون للتصويت على هذا البند");
+      } else {
+        toast.error(msg || "تعذر إغلاق التصويت");
+      }
+
     } finally {
       setLoading(false);
     }
@@ -169,10 +196,22 @@ export function CouncilVotingControl({
             )}
 
             {sessionStatus === "voting_open" && (
-              <Button onClick={handleCloseVote} disabled={loading} size="sm" variant="destructive" className="h-7 text-xs">
+              <Button
+                onClick={handleCloseVote}
+                disabled={loading || closeBlocked}
+                size="sm"
+                variant="destructive"
+                className="h-7 text-xs"
+                title={
+                  closeBlocked
+                    ? `لا يمكن إغلاق التصويت قبل اكتمال الأصوات (${progress?.cast ?? 0}/${progress?.eligible ?? 0})`
+                    : undefined
+                }
+              >
                 إغلاق التصويت
               </Button>
             )}
+
 
             {sessionStatus === "voting_closed" && (
               <>
@@ -189,6 +228,31 @@ export function CouncilVotingControl({
           </div>
         )}
       </div>
+
+      {/* Live completion progress — eligible voters = finalized attendance */}
+      {sessionStatus === "voting_open" && progress && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+            <span>
+              الأصوات المسجلة: <strong>{progress.cast}</strong> من{" "}
+              <strong>{progress.eligible}</strong> عضواً حاضراً
+            </span>
+            <span className={progress.can_close ? "text-emerald-600 font-semibold" : "text-amber-600"}>
+              {progress.can_close ? "اكتملت الأصوات — يمكن الإغلاق" : `بانتظار ${progress.pending} صوت`}
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+            <div
+              className={`h-full transition-all ${progress.can_close ? "bg-emerald-500" : "bg-indigo-500"}`}
+              style={{
+                width: `${progress.eligible > 0 ? Math.min(100, (progress.cast / progress.eligible) * 100) : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+
 
       {/* Member Live Voting Bar */}
       {sessionStatus === "voting_open" && isEligibleMember && (
