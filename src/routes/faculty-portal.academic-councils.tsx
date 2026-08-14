@@ -62,6 +62,12 @@ import { CouncilNotificationBell } from "@/components/councils/CouncilNotificati
 import { CouncilChairDashboard } from "@/components/councils/CouncilChairDashboard";
 import { CouncilSecretaryDashboard } from "@/components/councils/CouncilSecretaryDashboard";
 import { CouncilMemberWorkspace } from "@/components/councils/CouncilMemberWorkspace";
+import {
+  COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
+
 import { CouncilResponsibleActorView } from "@/components/councils/CouncilResponsibleActorView";
 import { CouncilReportsView } from "@/components/councils/CouncilReportsView";
 import { supabase } from "@/integrations/supabase/client";
