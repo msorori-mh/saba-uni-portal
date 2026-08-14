@@ -43,6 +43,8 @@ interface CouncilMemberWorkspaceProps {
    * card. The `upcoming_meetings` scan is only a fallback for other callers.
    */
   liveMeeting?: CouncilLiveMeetingRef | null;
+  /** IA_02: council decisions live in the "القرارات" tab; this jumps there. */
+  onOpenDecisions?: () => void;
 }
 
 
