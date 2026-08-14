@@ -92,17 +92,6 @@ export function CouncilSessionAndGovernanceWorkspace({
   const minutesDirtyRef = useRef(false);
 
 
-  // Follow-up execution note state
-  const [selectedDecisionForFollowup, setSelectedDecisionForFollowup] = useState<any>(null);
-  const [followupNote, setFollowupNote] = useState("");
-  const [followupStatus, setFollowupStatus] = useState("in_progress");
-
-  // Fetch dashboard decisions
-  const dashboardQuery = useQuery({
-    queryKey: ["council-dashboard", councilId],
-    queryFn: () => getCouncilDecisionFollowupDashboardFn({ data: { council_id: councilId } }),
-    enabled: Boolean(councilId),
-  });
 
   // Fetch historical minutes
   const minutesQuery = useQuery({
