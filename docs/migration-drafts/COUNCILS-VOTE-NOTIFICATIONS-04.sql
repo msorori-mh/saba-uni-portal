@@ -285,7 +285,6 @@ BEGIN
   SELECT r.outcome INTO v_outcome
   FROM public.academic_council_vote_results r
   WHERE r.agenda_item_id = p_agenda_item_id
-  ORDER BY r.created_at DESC
   LIMIT 1;
 
   IF v_outcome IS NULL THEN
@@ -300,5 +299,88 @@ $$;
 
 REVOKE ALL ON FUNCTION public.council_notify_vote_result_ready(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.council_notify_vote_result_ready(uuid) TO service_role;
+
+-- ---------------------------------------------------------------------
+-- G) calculate_agenda_item_result: announce the result only after it is
+--     persisted (vote_closed_result is deliberately NOT sent on close).
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.calculate_agenda_item_result(p_agenda_item_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_uid uuid := public.council_attendance_require_auth_uid();
+  v_item public.academic_council_agenda_items%ROWTYPE;
+  v_meeting public.academic_council_meetings%ROWTYPE;
+  v_yes int := 0;
+  v_no int := 0;
+  v_abs int := 0;
+  v_total int := 0;
+  v_outcome text;
+  v_res_id uuid;
+BEGIN
+  SELECT * INTO v_item FROM public.academic_council_agenda_items WHERE id = p_agenda_item_id;
+  IF v_item.id IS NULL THEN RAISE EXCEPTION 'COUNCIL_AGENDA_ITEM_NOT_FOUND' USING ERRCODE = 'P0002'; END IF;
+
+  SELECT * INTO v_meeting FROM public.academic_council_meetings WHERE id = v_item.meeting_id;
+
+  IF NOT public.can_write_council_agenda(v_uid, v_meeting.council_id) THEN
+    RAISE EXCEPTION 'COUNCIL_ACCESS_DENIED' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_item.session_status NOT IN ('voting_closed', 'resolved') THEN
+    RAISE EXCEPTION 'COUNCIL_VOTING_NOT_CLOSED' USING ERRCODE = '22000';
+  END IF;
+
+  SELECT
+    count(*) FILTER (WHERE vote_value = 'yes'),
+    count(*) FILTER (WHERE vote_value = 'no'),
+    count(*) FILTER (WHERE vote_value = 'abstain'),
+    count(*)
+  INTO v_yes, v_no, v_abs, v_total
+  FROM public.academic_council_votes
+  WHERE agenda_item_id = p_agenda_item_id;
+
+  IF v_yes > v_no THEN
+    v_outcome := 'passed';
+  ELSIF v_no > v_yes THEN
+    v_outcome := 'rejected';
+  ELSE
+    v_outcome := 'tied';
+  END IF;
+
+  INSERT INTO public.academic_council_vote_results (
+    agenda_item_id, meeting_id, council_id, yes_count, no_count, abstain_count, total_votes, outcome, calculated_at, calculated_by
+  ) VALUES (
+    p_agenda_item_id, v_meeting.id, v_meeting.council_id, v_yes, v_no, v_abs, v_total, v_outcome, now(), v_uid
+  )
+  ON CONFLICT (agenda_item_id) DO UPDATE SET
+    yes_count = EXCLUDED.yes_count,
+    no_count = EXCLUDED.no_count,
+    abstain_count = EXCLUDED.abstain_count,
+    total_votes = EXCLUDED.total_votes,
+    outcome = EXCLUDED.outcome,
+    calculated_at = EXCLUDED.calculated_at,
+    calculated_by = EXCLUDED.calculated_by
+  RETURNING id INTO v_res_id;
+
+  PERFORM public.council_notify_vote_result_ready(p_agenda_item_id);
+
+  RETURN jsonb_build_object(
+    'result_id', v_res_id,
+    'agenda_item_id', p_agenda_item_id,
+    'yes_count', v_yes,
+    'no_count', v_no,
+    'abstain_count', v_abs,
+    'total_votes', v_total,
+    'outcome', v_outcome
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.calculate_agenda_item_result(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.calculate_agenda_item_result(uuid) TO authenticated, service_role;
 
 COMMIT;
