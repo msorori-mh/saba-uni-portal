@@ -6,9 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
 import { AGENDA_LOAD_FAILED_UI, CompactEmpty } from "./shared";
 
-export function MeetingAgendaExpandable({ meetingId }: { meetingId: string }) {
+export function MeetingAgendaExpandable({
+  meetingId,
+  autoExpand = false,
+}: {
+  meetingId: string;
+  /** Opens the agenda immediately (used when the user asked for this meeting's agenda). */
+  autoExpand?: boolean;
+}) {
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(autoExpand);
+
+  useEffect(() => {
+    if (autoExpand) setExpanded(true);
+  }, [autoExpand]);
   const agendaQuery = useQuery({
     queryKey: ["faculty", "meeting-agenda", meetingId],
     queryFn: () => fetchAgenda({ data: { meetingId } }),
