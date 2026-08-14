@@ -123,15 +123,28 @@ export function GlobalBackButton() {
   if (inline || !shouldShowBackButton(pathname)) return null;
 
   return (
-    <button
-      type="button"
-      onClick={goBack}
-      data-testid="global-back-button"
-      aria-label="الرجوع للصفحة السابقة"
-      className="fixed bottom-24 left-4 z-40 inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-primary-deep/95 px-4 py-2.5 text-sm font-bold text-gold shadow-elegant backdrop-blur transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 md:bottom-6 print:hidden"
+    // Anchored to the RTL reading start (right edge) and lifted above the
+    // mobile safe area, so it no longer collides with bottom-left overlays.
+    <div
+      className="pointer-events-none fixed bottom-4 right-4 z-40 print:hidden"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingInlineEnd: "env(safe-area-inset-right)",
+      }}
     >
-      <ArrowRight className="h-4 w-4" aria-hidden />
-      <span>رجوع</span>
-    </button>
+      <button
+        type="button"
+        onClick={goBack}
+        data-testid="global-back-button"
+        aria-label="الرجوع للصفحة السابقة"
+        title="رجوع"
+        className="pointer-events-auto group inline-flex h-11 items-center gap-0 rounded-full border border-gold/40 bg-primary-deep/90 pe-3 ps-3 text-sm font-bold text-gold shadow-elegant backdrop-blur-md transition-all duration-200 hover:border-gold hover:bg-primary-deep hover:gap-2 hover:ps-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <ArrowRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
+        <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[5rem] group-hover:opacity-100 group-focus-visible:max-w-[5rem] group-focus-visible:opacity-100">
+          رجوع
+        </span>
+      </button>
+    </div>
   );
 }
