@@ -856,60 +856,6 @@ export function CouncilSessionAndGovernanceWorkspace({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Update Followup */}
-      <Dialog open={Boolean(selectedDecisionForFollowup)} onOpenChange={() => setSelectedDecisionForFollowup(null)}>
-        <DialogContent className="dir-rtl text-right sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>تحديث حالة متابعة القرار</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-                حالة التنفيذ
-              </label>
-              <Select value={followupStatus} onValueChange={setFollowupStatus} dir="rtl">
-                <SelectTrigger aria-label="حالة تنفيذ القرار">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {followupOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-                ملاحظات مجريات التنفيذ والوثائق
-              </label>
-              <Textarea
-                value={followupNote}
-                onChange={(e) => setFollowupNote(e.target.value)}
-                placeholder="اكتب مستجدات خطة التنفيذ وتاريخ الرفع والنتائج..."
-                rows={3}
-                className="dir-rtl"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:justify-start">
-            <Button
-              onClick={handleUpdateFollowup}
-              disabled={loadingAction === "update_followup"}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {loadingAction === "update_followup" ? (
-                <Loader2 className="w-4 h-4 animate-spin ml-2" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 ml-2" />
-              )}
-              حفظ تحديث التنفيذ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
