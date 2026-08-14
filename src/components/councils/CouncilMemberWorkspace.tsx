@@ -11,13 +11,22 @@ import {
   Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCouncilMemberWorkspaceFn } from "@/lib/councils-c9.functions";
+import {
+  COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  agendaSessionStatusLabel,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
 
 interface CouncilMemberWorkspaceProps {
   councilId: string;
   councilName: string;
   readOnly?: boolean;
+  /** Opens the meeting workspace for the live session. */
+  onEnterMeeting?: (meetingId: string) => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -31,15 +40,17 @@ const STATUS_LABELS: Record<string, string> = {
   minutes_locked: "محضر مقفل",
   archived: "مؤرشف",
   cancelled: "ملغى",
-  pending: "معلّق",
+  pending: "بانتظار المناقشة",
   in_discussion: "قيد المناقشة",
-  voting_open: "تصويت مفتوح",
-  resolved: "مُبت فيه",
+  voting_open: "التصويت مفتوح",
+  voting_closed: "انتهى التصويت",
+  resolved: "تم البت",
 };
 
 function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
+
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
