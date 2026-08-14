@@ -13,8 +13,6 @@ import {
   Download,
   Sparkles,
   ShieldCheck,
-  Building,
-  UserCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,9 +40,7 @@ import {
   submitCouncilMinutesForReviewFn,
   approveAndLockCouncilMinutesFn,
   issueCouncilDecisionFn,
-  updateCouncilDecisionFollowupFn,
   archiveCouncilMeetingFn,
-  getCouncilDecisionFollowupDashboardFn,
   getCouncilHistoricalMinutesFn,
   exportApprovedCouncilMinutesPdfFn,
 } from "@/lib/councils-c4-c8.functions";
