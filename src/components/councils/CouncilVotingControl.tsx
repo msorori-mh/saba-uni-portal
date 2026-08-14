@@ -128,7 +128,16 @@ export function CouncilVotingControl({
       qc.invalidateQueries();
       onStatusChanged?.();
     } catch (err: any) {
-      toast.error(err.message || "تعذر إغلاق التصويت");
+      const msg = String(err?.message ?? "");
+      if (msg.includes("COUNCIL_VOTING_INCOMPLETE")) {
+        void progressQuery.refetch();
+        toast.error("لا يمكن إغلاق التصويت قبل تصويت جميع الأعضاء الحاضرين");
+      } else if (msg.includes("COUNCIL_VOTING_NO_ELIGIBLE_VOTERS")) {
+        toast.error("لا يوجد أعضاء حاضرون مؤهلون للتصويت على هذا البند");
+      } else {
+        toast.error(msg || "تعذر إغلاق التصويت");
+      }
+
     } finally {
       setLoading(false);
     }
