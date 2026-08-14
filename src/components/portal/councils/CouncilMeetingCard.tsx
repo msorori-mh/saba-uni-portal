@@ -325,8 +325,14 @@ export function CouncilMeetingCard({
 
   return (
     <li
+      id={`council-meeting-card-${meeting.meeting_id}`}
       data-testid={`council-meeting-card-${meeting.meeting_id}`}
-      className="rounded-lg border border-border bg-background p-3"
+      tabIndex={-1}
+      className={`rounded-lg border bg-background p-3 outline-none transition-shadow ${
+        focused
+          ? "border-primary ring-2 ring-primary/50 shadow-md"
+          : "border-border"
+      }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
