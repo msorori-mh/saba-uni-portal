@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -86,8 +86,11 @@ export function CouncilSessionAndGovernanceWorkspace({
   const [decisionDueDate, setDecisionDueDate] = useState("");
   const [selectedAgendaItemId, setSelectedAgendaItemId] = useState<string>("");
 
-  // Minutes draft state
+  // Minutes draft state. `minutesDirtyRef` guards the saved-text sync so a
+  // refetch never overwrites what the user is currently typing.
   const [minutesBody, setMinutesBody] = useState("");
+  const minutesDirtyRef = useRef(false);
+
 
   // Follow-up execution note state
   const [selectedDecisionForFollowup, setSelectedDecisionForFollowup] = useState<any>(null);
@@ -111,6 +114,64 @@ export function CouncilSessionAndGovernanceWorkspace({
   const isChair = userRole === "chair";
   const isSecretary = userRole === "secretary";
   const canWriteAgenda = isChair || isSecretary;
+
+  // Minutes lifecycle stages, mirroring the backend state machine:
+  // minutes_draft -> (secretary submits) -> minutes_review -> (chair locks) -> minutes_locked
+  const isMinutesDraftStage = meetingStatus === "minutes_draft";
+  const isMinutesReviewStage = meetingStatus === "minutes_review";
+
+  // Reset the dirty flag whenever the workspace switches to another meeting.
+  useEffect(() => {
+    minutesDirtyRef.current = false;
+    setMinutesBody("");
+  }, [meetingId]);
+
+  // Load the saved draft text once it arrives, without clobbering local edits.
+  const savedMinutesBody = (minutesQuery.data?.body as string | undefined) ?? "";
+  useEffect(() => {
+    if (minutesDirtyRef.current) return;
+    if (savedMinutesBody) setMinutesBody(savedMinutesBody);
+  }, [savedMinutesBody]);
+
+  /**
+   * Never surface raw backend codes. On a lifecycle mismatch (race condition)
+   * also resynchronise both the minutes and the meeting status, since
+   * `meetingStatus` is owned by the parent.
+   */
+  function reportMinutesError(err: unknown, fallback: string) {
+    const raw = String((err as { message?: string })?.message ?? "");
+    let message = fallback;
+    let lifecycleMismatch = false;
+
+    if (raw.includes("COUNCIL_MINUTES_LOCK_STATE_INVALID")) {
+      message = "لا يمكن اعتماد المحضر الآن. يجب إرسال المسودة للمراجعة أولاً.";
+      lifecycleMismatch = true;
+    } else if (
+      raw.includes("COUNCIL_MINUTES_DRAFT_STATE_INVALID") ||
+      raw.includes("COUNCIL_MINUTES_STATE_INVALID")
+    ) {
+      message = "لا يمكن تعديل المسودة بعد إرسالها للمراجعة.";
+      lifecycleMismatch = true;
+    } else if (raw.includes("COUNCIL_MINUTES_REVIEW_STATE_INVALID")) {
+      message = "لا يمكن إرسال المحضر للمراجعة في الحالة الحالية.";
+      lifecycleMismatch = true;
+    } else if (raw.includes("COUNCIL_SECRETARY_AUTHORITY_REQUIRED")) {
+      message = "إرسال المحضر للمراجعة من صلاحية أمين السر فقط.";
+    } else if (raw.includes("COUNCIL_CHAIR_AUTHORITY_REQUIRED")) {
+      message = "اعتماد وقفل المحضر من صلاحية رئيس المجلس فقط.";
+    } else if (raw.includes("COUNCIL_ACCESS_DENIED")) {
+      message = "لا تملك صلاحية تنفيذ هذا الإجراء على المحضر.";
+    }
+
+    toast.error(message);
+    void minutesQuery.refetch();
+    if (lifecycleMismatch) {
+      qc.invalidateQueries();
+      onStateChanged?.();
+    }
+  }
+
+
 
   async function handleOpenSession() {
     setLoadingAction("open_session");
@@ -144,10 +205,11 @@ export function CouncilSessionAndGovernanceWorkspace({
     setLoadingAction("save_minutes");
     try {
       await draftCouncilMinutesFn({ data: { meeting_id: meetingId, body: minutesBody } });
+      minutesDirtyRef.current = false;
       toast.success("تم حفظ مسودة المحضر بنجاح");
       qc.invalidateQueries();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر حفظ مسودة المحضر");
+    } catch (err: unknown) {
+      reportMinutesError(err, "تعذر حفظ مسودة المحضر");
     } finally {
       setLoadingAction(null);
     }
@@ -157,10 +219,12 @@ export function CouncilSessionAndGovernanceWorkspace({
     setLoadingAction("submit_minutes");
     try {
       await submitCouncilMinutesForReviewFn({ data: { meeting_id: meetingId } });
+      minutesDirtyRef.current = false;
       toast.success("تم إرسال المحضر للمراجعة");
       qc.invalidateQueries();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر إرسال المحضر");
+      onStateChanged?.();
+    } catch (err: unknown) {
+      reportMinutesError(err, "تعذر إرسال المحضر للمراجعة");
     } finally {
       setLoadingAction(null);
     }
@@ -172,15 +236,17 @@ export function CouncilSessionAndGovernanceWorkspace({
       await approveAndLockCouncilMinutesFn({
         data: { meeting_id: meetingId, approved_body: minutesBody || undefined },
       });
+      minutesDirtyRef.current = false;
       toast.success("تم اعتماد وقفل المحضر بنجاح. أصبح غير قابل للتعديل.");
       qc.invalidateQueries();
       onStateChanged?.();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر قفل المحضر");
+    } catch (err: unknown) {
+      reportMinutesError(err, "تعذر اعتماد وقفل المحضر");
     } finally {
       setLoadingAction(null);
     }
   }
+
 
   async function handleExportMinutesPdf() {
     setLoadingAction("export_minutes_pdf");
@@ -529,9 +595,14 @@ export function CouncilSessionAndGovernanceWorkspace({
               <Lock className="w-3.5 h-3.5" />
               محضر مقفل رسمياً ورقمياً
             </Badge>
+          ) : isMinutesReviewStage ? (
+            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300">
+              قيد مراجعة رئيس المجلس
+            </Badge>
           ) : (
-            <Badge variant="secondary">مسودة / قيد المراجعة</Badge>
+            <Badge variant="secondary">مسودة المحضر</Badge>
           )}
+
         </div>
 
         {isMinutesLocked ? (
@@ -575,49 +646,85 @@ export function CouncilSessionAndGovernanceWorkspace({
               العرض للاطلاع فقط — تحرير المحضر من صلاحية رئيس المجلس وأمين السر.
             </p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <Textarea
-              value={minutesBody}
-              onChange={(e) => setMinutesBody(e.target.value)}
-              placeholder="اكتب بنود وقرارات ومداولات محضر الاجتماع هنا..."
-              rows={5}
-              className="dir-rtl text-right font-sans"
-            />
-            <div className="flex items-center gap-2 justify-end">
-              <Button
-                onClick={handleSaveMinutesDraft}
-                disabled={loadingAction === "save_minutes"}
-                variant="outline"
-                size="sm"
-              >
-                حفظ المسودة
-              </Button>
-              {isSecretary && (
-                <Button
-                  onClick={handleSubmitMinutesReview}
-                  disabled={loadingAction === "submit_minutes"}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  تقديم للمراجعة
-                </Button>
-              )}
-              {isChair && (
+        ) : isMinutesReviewStage ? (
+          /* minutes_review — the draft is frozen for editing.
+             Chair: read the saved text and approve/lock. Secretary: read-only. */
+          <div className="space-y-3" data-testid="council-minutes-review">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">
+              {savedMinutesBody.trim() ? savedMinutesBody : "لا يوجد نص محفوظ للمسودة."}
+            </div>
+            {isChair ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-slate-500">
+                  المحضر بانتظار مراجعتك واعتماده. بعد الاعتماد يصبح غير قابل للتعديل.
+                </p>
                 <Button
                   onClick={handleLockMinutes}
                   disabled={loadingAction === "lock_minutes"}
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shrink-0"
                 >
                   <Lock className="w-4 h-4 ml-1.5" />
                   اعتماد وقفل المحضر رسمياً
                 </Button>
-              )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">
+                تم إرسال المحضر إلى رئيس المجلس للمراجعة والاعتماد. لا يمكن تعديل المسودة في هذه المرحلة.
+              </p>
+            )}
+          </div>
+        ) : isMinutesDraftStage ? (
+          /* minutes_draft — chair and secretary may write; only the secretary submits. */
+          <div className="space-y-3" data-testid="council-minutes-draft-editor">
+            <Textarea
+              value={minutesBody}
+              onChange={(e) => {
+                minutesDirtyRef.current = true;
+                setMinutesBody(e.target.value);
+              }}
+              placeholder="اكتب بنود وقرارات ومداولات محضر الاجتماع هنا..."
+              rows={5}
+              className="dir-rtl text-right font-sans"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">
+                {isChair
+                  ? "المحضر مسودة ولم يُرسل للمراجعة بعد. يتولى أمين السر إرساله للمراجعة قبل الاعتماد."
+                  : "احفظ المسودة ثم أرسلها لرئيس المجلس للمراجعة والاعتماد."}
+              </p>
+              <div className="flex items-center gap-2 justify-end shrink-0">
+                <Button
+                  onClick={handleSaveMinutesDraft}
+                  disabled={loadingAction === "save_minutes"}
+                  variant="outline"
+                  size="sm"
+                >
+                  حفظ المسودة
+                </Button>
+                {isSecretary && (
+                  <Button
+                    onClick={handleSubmitMinutesReview}
+                    disabled={loadingAction === "submit_minutes"}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    تقديم للمراجعة
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Before the session closes there is no minutes stage yet. */
+          <div className="space-y-2" data-testid="council-minutes-not-started">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-slate-600 dark:text-slate-300 text-sm">
+              لم تبدأ مرحلة إعداد المحضر بعد. تُفتح المسودة بعد إغلاق الجلسة.
             </div>
           </div>
         )}
       </div>
+
 
       {/* Decisions & Follow-up Section */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
