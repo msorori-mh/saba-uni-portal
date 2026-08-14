@@ -11,7 +11,14 @@ import {
   calculateAgendaItemResultFn,
   resolveAgendaItemFn,
   getCouncilVoteResultFn,
+  getMyCouncilVoteFn,
 } from "@/lib/councils-c4-c8.functions";
+import {
+  LIVE_SESSION_INTERVAL_MS,
+  agendaSessionStatusLabel,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
 
 interface CouncilVotingControlProps {
   agendaItemId: string;
@@ -32,13 +39,38 @@ export function CouncilVotingControl({
 }: CouncilVotingControlProps) {
   const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const [userVote, setUserVote] = useState<"yes" | "no" | "abstain" | null>(null);
+  const [localVote, setLocalVote] = useState<"yes" | "no" | "abstain" | null>(null);
+
+  const isLiveItem =
+    sessionStatus === "voting_open" ||
+    sessionStatus === "in_discussion" ||
+    sessionStatus === "voting_closed";
+  const liveInterval = useLivePollInterval(isLiveItem, LIVE_SESSION_INTERVAL_MS);
 
   const voteResultQuery = useQuery({
     queryKey: ["council-vote-result", agendaItemId],
     queryFn: () => getCouncilVoteResultFn({ data: { agenda_item_id: agendaItemId } }),
     enabled: Boolean(agendaItemId) && (sessionStatus === "voting_closed" || sessionStatus === "resolved"),
+    ...liveQueryOptions(sessionStatus === "voting_closed" ? liveInterval : false),
   });
+
+  // Server-backed: the member's own vote, so it survives a reload and never
+  // claims "not voted" when the database says otherwise.
+  const myVoteQuery = useQuery({
+    queryKey: ["council-my-vote", agendaItemId],
+    queryFn: () => getMyCouncilVoteFn({ data: { agenda_item_id: agendaItemId } }),
+    enabled: Boolean(agendaItemId) && isEligibleMember && sessionStatus === "voting_open",
+    ...liveQueryOptions(liveInterval),
+  });
+
+  const serverVote = myVoteQuery.data?.vote_value ?? null;
+  const userVote = serverVote ?? localVote;
+  const voteStateUnknown =
+    isEligibleMember &&
+    sessionStatus === "voting_open" &&
+    !localVote &&
+    (myVoteQuery.isLoading || myVoteQuery.isError);
+
 
   async function handleOpenVote() {
     setLoading(true);
