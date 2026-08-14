@@ -153,6 +153,7 @@ export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
   });
 
 async function currentStudentProfileId(userId: string): Promise<string> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("student_profiles")
     .select("id")
@@ -174,6 +175,7 @@ export const performWebStepUpFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => webStepUpSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ proofToken: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Verify the request and canonical service code.
     const { data: req, error: reqError } = await supabaseAdmin
       .from("student_requests")
