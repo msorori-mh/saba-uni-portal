@@ -162,8 +162,7 @@ function MobileStudentRequests() {
         </section>
       )}
 
-        )}
-      </section>
+
 
       <section>
         <h2 className="font-display text-sm font-extrabold text-primary mb-2">طلباتي</h2>
