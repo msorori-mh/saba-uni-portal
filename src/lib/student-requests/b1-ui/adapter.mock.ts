@@ -559,7 +559,11 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       request.updatedAt = nowIso();
     },
 
-    async submitB1Request(requestId: string, expectedUpdatedAt: string): Promise<B1SubmitResult> {
+    async submitB1Request(
+      requestId: string,
+      expectedUpdatedAt: string,
+      _stepUpProof?: string | null,
+    ): Promise<B1SubmitResult> {
       await sleep();
       const request = requireRequest(requestId);
       if (request.submittedAt) {
