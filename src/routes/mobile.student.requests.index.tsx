@@ -16,7 +16,9 @@ import { STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG } from "@/lib/student-request-rp
 import {
   filterStudentRequestTypesForDisplay,
   getStudentRequestTypeDisplayName,
+  normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
 
 export const Route = createFileRoute("/mobile/student/requests/")({
   head: () => ({ meta: [{ title: "الطلبات" }] }),
