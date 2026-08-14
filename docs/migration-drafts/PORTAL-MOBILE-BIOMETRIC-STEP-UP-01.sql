@@ -64,7 +64,7 @@ ALTER TABLE public.step_up_challenges ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.step_up_proofs (
   proof_token text PRIMARY KEY,
-  challenge_id uuid NOT NULL REFERENCES public.step_up_challenges (id) ON DELETE CASCADE,
+  challenge_id uuid REFERENCES public.step_up_challenges (id) ON DELETE CASCADE,
   user_id uuid NOT NULL,
   device_id text NOT NULL,
   action_code text NOT NULL,
