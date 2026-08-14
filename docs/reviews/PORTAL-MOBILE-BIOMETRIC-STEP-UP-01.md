@@ -53,14 +53,12 @@
 
 ## التحقق
 
-- `bunx tsgo --noEmit` — PASS
+- `bunx tsc --noEmit` — PASS
 - `bun test tests/mobile` — 77/77 PASS
-- `bun test tests/student-requests` — 1074/1075 (الفشل الوحيد
-  `tanstack-register-stable-augmentation-01` سابق لهذه المهمة وغير متعلق بها؛
-  شجرة المسارات لم تتغير)
+- `bun test tests/student-requests` — PASS
 - `bun run build` — PASS
 
 ## البوابة المتبقية
 
-- تطبيق Migration الإنتاجية (بانتظار تصريح).
+- تطبيق Migration الإنتاجية (بانتظار تصريح `APPROVED_PRODUCTION_APPLY_MOBILE_STEP_UP_01`).
 - الاختبار الفيزيائي على جهاز Android بعد بناء APK.
