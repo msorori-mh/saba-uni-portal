@@ -95,6 +95,8 @@ function MobileStudentSettings() {
         </form>
       </section>
 
+      <MobileSecuritySettings />
+
       <section className="rounded-2xl border border-border bg-card p-4 shadow-card space-y-2">
         <div className="text-sm font-extrabold text-primary">معلومات التطبيق</div>
         <div className="flex items-center justify-between text-[11px]">
