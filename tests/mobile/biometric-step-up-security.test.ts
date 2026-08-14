@@ -14,8 +14,9 @@ import { performStepUp, type StepUpRpcClient } from "../../src/lib/security/step
 import { BiometricError } from "../../src/lib/native/biometrics";
 import { derToRawEcdsaSignature } from "../../src/lib/security/ecdsa-der";
 import {
-  APP_LOCK_STATES,
+  isContentVisible,
   nextAppLockState,
+  shouldApplySecureScreen,
 } from "../../src/lib/security/app-lock-contract";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -160,22 +161,33 @@ describe("step-up orchestration", () => {
 
 describe("app lock state machine", () => {
   test("background then resume requires biometric re-auth", () => {
-    let state = APP_LOCK_STATES.unlocked;
-    state = nextAppLockState(state, { type: "background", lockEnabled: true });
-    expect(state).toBe(APP_LOCK_STATES.covered);
-    state = nextAppLockState(state, { type: "resume", lockEnabled: true });
-    expect(state).toBe(APP_LOCK_STATES.locked);
-    state = nextAppLockState(state, { type: "unlock_failed", lockEnabled: true });
-    expect(state).toBe(APP_LOCK_STATES.locked);
-    state = nextAppLockState(state, { type: "unlock_succeeded", lockEnabled: true });
-    expect(state).toBe(APP_LOCK_STATES.unlocked);
+    let state = nextAppLockState("unlocked", { type: "BACKGROUND" }, true);
+    expect(state).toBe("covered");
+    expect(isContentVisible(state)).toBe(false);
+    expect(shouldApplySecureScreen(state)).toBe(true);
+
+    state = nextAppLockState(state, { type: "FOREGROUND" }, true);
+    expect(state).toBe("locked");
+    expect(isContentVisible(state)).toBe(false);
+
+    state = nextAppLockState(state, { type: "UNLOCK_FAILURE" }, true);
+    expect(state).toBe("locked");
+    expect(isContentVisible(state)).toBe(false);
+
+    state = nextAppLockState(state, { type: "UNLOCK_SUCCESS" }, true);
+    expect(state).toBe("unlocked");
+    expect(isContentVisible(state)).toBe(true);
+    expect(shouldApplySecureScreen(state)).toBe(false);
   });
 
   test("lock disabled keeps the current behaviour", () => {
-    let state = APP_LOCK_STATES.unlocked;
-    state = nextAppLockState(state, { type: "background", lockEnabled: false });
-    state = nextAppLockState(state, { type: "resume", lockEnabled: false });
-    expect(state).toBe(APP_LOCK_STATES.unlocked);
+    let state = nextAppLockState("unlocked", { type: "BACKGROUND" }, false);
+    state = nextAppLockState(state, { type: "FOREGROUND" }, false);
+    expect(state).toBe("unlocked");
+  });
+
+  test("device trust revocation clears the lock and forces re-enrolment", () => {
+    expect(nextAppLockState("locked", { type: "TRUST_REVOKED" }, true)).toBe("unlocked");
   });
 });
 
