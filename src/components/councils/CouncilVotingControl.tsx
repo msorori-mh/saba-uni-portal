@@ -65,6 +65,20 @@ export function CouncilVotingControl({
     ...liveQueryOptions(liveInterval),
   });
 
+
+  // Live completion progress (eligible / cast / pending). Drives the chair's
+  // close button: closing early is refused server-side, so the UI must not
+  // pretend it is available.
+  const progressQuery = useQuery({
+    queryKey: ["council-vote-progress", agendaItemId],
+    queryFn: () => getAgendaItemVoteProgressFn({ data: { agenda_item_id: agendaItemId } }),
+    enabled: Boolean(agendaItemId) && sessionStatus === "voting_open",
+    ...liveQueryOptions(liveInterval),
+  });
+
+  const progress = progressQuery.data ?? null;
+  const closeBlocked = Boolean(progress) && !progress!.can_close;
+
   const serverVote = myVoteQuery.data?.vote_value ?? null;
   const userVote = serverVote ?? localVote;
   const voteStateUnknown =
@@ -72,6 +86,8 @@ export function CouncilVotingControl({
     sessionStatus === "voting_open" &&
     !localVote &&
     (myVoteQuery.isLoading || myVoteQuery.isError);
+
+
 
 
   async function handleOpenVote() {
