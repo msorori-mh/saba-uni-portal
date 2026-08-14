@@ -115,6 +115,64 @@ export function CouncilSessionAndGovernanceWorkspace({
   const isSecretary = userRole === "secretary";
   const canWriteAgenda = isChair || isSecretary;
 
+  // Minutes lifecycle stages, mirroring the backend state machine:
+  // minutes_draft -> (secretary submits) -> minutes_review -> (chair locks) -> minutes_locked
+  const isMinutesDraftStage = meetingStatus === "minutes_draft";
+  const isMinutesReviewStage = meetingStatus === "minutes_review";
+
+  // Reset the dirty flag whenever the workspace switches to another meeting.
+  useEffect(() => {
+    minutesDirtyRef.current = false;
+    setMinutesBody("");
+  }, [meetingId]);
+
+  // Load the saved draft text once it arrives, without clobbering local edits.
+  const savedMinutesBody = (minutesQuery.data?.body as string | undefined) ?? "";
+  useEffect(() => {
+    if (minutesDirtyRef.current) return;
+    if (savedMinutesBody) setMinutesBody(savedMinutesBody);
+  }, [savedMinutesBody]);
+
+  /**
+   * Never surface raw backend codes. On a lifecycle mismatch (race condition)
+   * also resynchronise both the minutes and the meeting status, since
+   * `meetingStatus` is owned by the parent.
+   */
+  function reportMinutesError(err: unknown, fallback: string) {
+    const raw = String((err as { message?: string })?.message ?? "");
+    let message = fallback;
+    let lifecycleMismatch = false;
+
+    if (raw.includes("COUNCIL_MINUTES_LOCK_STATE_INVALID")) {
+      message = "لا يمكن اعتماد المحضر الآن. يجب إرسال المسودة للمراجعة أولاً.";
+      lifecycleMismatch = true;
+    } else if (
+      raw.includes("COUNCIL_MINUTES_DRAFT_STATE_INVALID") ||
+      raw.includes("COUNCIL_MINUTES_STATE_INVALID")
+    ) {
+      message = "لا يمكن تعديل المسودة بعد إرسالها للمراجعة.";
+      lifecycleMismatch = true;
+    } else if (raw.includes("COUNCIL_MINUTES_REVIEW_STATE_INVALID")) {
+      message = "لا يمكن إرسال المحضر للمراجعة في الحالة الحالية.";
+      lifecycleMismatch = true;
+    } else if (raw.includes("COUNCIL_SECRETARY_AUTHORITY_REQUIRED")) {
+      message = "إرسال المحضر للمراجعة من صلاحية أمين السر فقط.";
+    } else if (raw.includes("COUNCIL_CHAIR_AUTHORITY_REQUIRED")) {
+      message = "اعتماد وقفل المحضر من صلاحية رئيس المجلس فقط.";
+    } else if (raw.includes("COUNCIL_ACCESS_DENIED")) {
+      message = "لا تملك صلاحية تنفيذ هذا الإجراء على المحضر.";
+    }
+
+    toast.error(message);
+    void minutesQuery.refetch();
+    if (lifecycleMismatch) {
+      qc.invalidateQueries();
+      onStateChanged?.();
+    }
+  }
+
+
+
   async function handleOpenSession() {
     setLoadingAction("open_session");
     try {
