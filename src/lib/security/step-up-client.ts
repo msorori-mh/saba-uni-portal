@@ -17,7 +17,6 @@ import {
 import {
   buildStepUpSigningMessage,
   getStepUpDescriptor,
-  hashStepUpPayload,
   STEP_UP_MESSAGES_AR,
 } from "./step-up-contract";
 
@@ -39,7 +38,10 @@ export type StepUpRequest = {
   readonly serviceCode: string;
   readonly requestId: string;
   readonly userId: string;
-  /** Exact operation payload that will be submitted (bound into the signature). */
+  /** Exact operation payload that will be submitted (bound into the signature).
+   *  When the server issues the challenge, the payload hash is supplied by the
+   *  server and the client only signs it; this field is still required for the
+   *  client-side hash computation path used by tests/legacy callers. */
   readonly payload: unknown;
 };
 
@@ -48,7 +50,13 @@ type ChallengeRow = {
   nonce?: string;
   expires_at?: string;
   device_id?: string;
+  payload_hash?: string;
 };
+
+export type StepUpBeginChallenge = (input: {
+  deviceId: string;
+  requestId: string;
+}) => Promise<{ data: ChallengeRow | null; error: { message?: string } | null }>;
 
 async function defaultVerifyAssertion(input: {
   challengeId: string;
@@ -69,12 +77,14 @@ function first<T>(data: unknown): T | null {
  * Callers MUST NOT invoke the sensitive RPC unless `status === "proof"`.
  */
 export async function performStepUp(
-  client: StepUpRpcClient,
   input: StepUpRequest,
   deps: {
     biometricsAvailable?: () => boolean;
     ensureKey?: typeof ensureDeviceKey;
     sign?: typeof signStepUpChallenge;
+    /** Server-side challenge built from the trusted draft. Replaces the old
+     *  client-side issue_step_up_challenge RPC. */
+    beginChallenge?: StepUpBeginChallenge;
     /** Server-side ECDSA verification + single-use proof minting. */
     verifyAssertion?: (input: {
       challengeId: string;
@@ -105,19 +115,13 @@ export async function performStepUp(
     return { status: "unavailable", messageAr: STEP_UP_MESSAGES_AR.unavailable };
   }
 
-  const payloadHash = await hashStepUpPayload(input.payload);
-
-  const issued = await client.rpc("issue_step_up_challenge", {
-    p_device_id: deviceId,
-    p_action_code: descriptor.actionCode,
-    p_request_id: input.requestId,
-    p_payload_hash: payloadHash,
-  });
+  const beginChallengeFn = deps.beginChallenge ?? defaultBeginChallenge;
+  const issued = await beginChallengeFn({ deviceId, requestId: input.requestId });
   if (issued.error) {
     return { status: "failed", messageAr: STEP_UP_MESSAGES_AR.failed };
   }
   const challenge = first<ChallengeRow>(issued.data);
-  if (!challenge?.challenge_id || !challenge.nonce || !challenge.expires_at) {
+  if (!challenge?.challenge_id || !challenge.nonce || !challenge.expires_at || !challenge.payload_hash) {
     return { status: "failed", messageAr: STEP_UP_MESSAGES_AR.failed };
   }
 
@@ -128,7 +132,7 @@ export async function performStepUp(
     deviceId,
     actionCode: descriptor.actionCode,
     requestId: input.requestId,
-    payloadHash,
+    payloadHash: challenge.payload_hash,
     expiresAt: challenge.expires_at,
   });
 
@@ -161,4 +165,20 @@ export async function performStepUp(
     return { status: "failed", messageAr: STEP_UP_MESSAGES_AR.failed };
   }
   return { status: "proof", proofToken: verified.proofToken };
+}
+
+async function defaultBeginChallenge(input: {
+  deviceId: string;
+  requestId: string;
+}): Promise<{ data: ChallengeRow | null; error: { message?: string } | null }> {
+  const { beginStepUpChallengeFn } = await import("./device-trust.functions");
+  try {
+    const data = await beginStepUpChallengeFn({ data: input });
+    return { data, error: null };
+  } catch (error) {
+    return {
+      data: null,
+      error: { message: error instanceof Error ? error.message : String(error) },
+    };
+  }
 }

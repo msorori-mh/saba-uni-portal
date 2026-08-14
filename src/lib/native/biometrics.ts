@@ -150,13 +150,23 @@ export async function signStepUpChallenge(
   }
 }
 
-/** App-unlock prompt. Returns false on cancel/failure; throws on invalidation. */
+/** App-unlock prompt bound to a Keystore signing operation. Returns false on
+ *  cancel/failure; throws on invalidation. The signature itself is not used
+ *  as a pass/fail boolean — a successful signing operation proves the key is
+ *  accessible, which (with setUserAuthenticationRequired(true)) requires a fresh
+ *  biometric authorization. */
 export async function authenticateForAppUnlock(reasonAr: string): Promise<boolean> {
   const impl = plugin();
   if (!impl) throw new BiometricError("NOT_AVAILABLE");
   try {
-    const result = await impl.authenticate({ alias: BIOMETRIC_KEY_ALIAS, reason: reasonAr });
-    return result.verified === true;
+    // Use a fixed canonical message so the unlock operation is not confused
+    // with a step-up signing for a real request.
+    await impl.signChallenge({
+      alias: BIOMETRIC_KEY_ALIAS,
+      message: "usrp-app-unlock-v1",
+      reason: reasonAr,
+    });
+    return true;
   } catch (error) {
     const normalized = normalizeError(error);
     if (normalized.code === "KEY_INVALIDATED") throw normalized;

@@ -42,12 +42,13 @@ import { B1ServiceHeader } from "./B1ServiceHeader";
 import { B1SubmissionConfirmation } from "./B1SubmissionConfirmation";
 import { StepUpConfirmDialog } from "@/components/security/StepUpConfirmDialog";
 import { isBiometricRuntimeAvailable } from "@/lib/native/biometrics";
-import { isStepUpSensitiveService, STEP_UP_MESSAGES_AR } from "@/lib/security/step-up-contract";
-import { performStepUp } from "@/lib/security/step-up-client";
 import {
-  getCurrentUserIdForStepUp,
-  stepUpRpcClient,
-} from "@/lib/security/step-up-browser";
+  isStepUpSensitiveService,
+  STEP_UP_MESSAGES_AR,
+} from "@/lib/security/step-up-contract";
+import { performStepUp } from "@/lib/security/step-up-client";
+import { getCurrentUserIdForStepUp } from "@/lib/security/step-up-browser";
+import { performWebStepUpFn } from "@/lib/security/device-trust.functions";
 import { B1SuccessState } from "./B1SuccessState";
 import {
   describeError,
@@ -88,6 +89,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   const [stepUpOpen, setStepUpOpen] = useState(false);
   const [stepUpBusy, setStepUpBusy] = useState(false);
   const [stepUpError, setStepUpError] = useState<string | null>(null);
+  const [webPassword, setWebPassword] = useState("");
   const attachmentSync = useRef<Promise<void> | null>(null);
   const submitLock = useRef(false);
   const valuesRef = useRef(values);
@@ -328,11 +330,12 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   };
 
   /**
-   * Sensitive services require a server-verified biometric step-up proof before
-   * the submit RPC is invoked. Cancel/failure ⇒ ZERO submit RPC calls.
+   * Sensitive services require a server-verified step-up proof before the
+   * submit RPC is invoked. On native this is a biometric signing; on web it is
+   * a fresh password re-authentication. Cancel/failure ⇒ ZERO submit RPC calls.
    */
-  const requiresStepUp =
-    isStepUpSensitiveService(serviceCode) && isBiometricRuntimeAvailable();
+  const requiresStepUp = isStepUpSensitiveService(serviceCode);
+  const nativeStepUp = isBiometricRuntimeAvailable();
 
   const beginSubmit = () => {
     if (!requiresStepUp) {
@@ -349,34 +352,45 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     setStepUpBusy(true);
     setStepUpError(null);
     try {
-      const userId = await getCurrentUserIdForStepUp();
-      if (!userId) {
-        setStepUpError(STEP_UP_MESSAGES_AR.failed);
-        return;
-      }
       const target = draftRef.current ?? draft;
-      const payload = {
-        requestId: target.requestId,
-        canonicalCode: serviceCode,
-        formData: withSecureAttachmentReferences(
+      if (nativeStepUp) {
+        const userId = await getCurrentUserIdForStepUp();
+        if (!userId) {
+          setStepUpError(STEP_UP_MESSAGES_AR.failed);
+          return;
+        }
+        const outcome = await performStepUp({
           serviceCode,
-          valuesRef.current,
-          target.attachments,
-        ),
-        attachmentIds: target.attachments.map((item) => item.attachmentId).sort(),
-      };
-      const outcome = await performStepUp(stepUpRpcClient, {
-        serviceCode,
-        requestId: target.requestId,
-        userId,
-        payload,
-      });
-      if (outcome.status !== "proof") {
-        setStepUpError(outcome.messageAr);
-        return;
+          requestId: target.requestId,
+          userId,
+          payload: {}, // payload hash is supplied by the server-side challenge
+        });
+        if (outcome.status !== "proof") {
+          setStepUpError(outcome.messageAr);
+          return;
+        }
+        setStepUpOpen(false);
+        await submit(outcome.proofToken);
+      } else {
+        // Web channel: fresh password re-authentication issued as a server-side
+        // single-use proof. The password is verified by the server, not the client.
+        if (!webPassword) {
+          setStepUpError("أدخل كلمة المرور لتأكيد هويتك.");
+          return;
+        }
+        const outcome = await performWebStepUpFn({
+          data: { password: webPassword, requestId: target.requestId },
+        });
+        setWebPassword("");
+        setStepUpOpen(false);
+        await submit(outcome.proofToken);
       }
-      setStepUpOpen(false);
-      await submit(outcome.proofToken);
+    } catch (error) {
+      setStepUpError(
+        error instanceof Error && error.message.includes("REAUTHENTICATION")
+          ? "كلمة المرور غير صحيحة."
+          : STEP_UP_MESSAGES_AR.failed,
+      );
     } finally {
       setStepUpBusy(false);
     }
@@ -744,9 +758,15 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         open={stepUpOpen}
         onOpenChange={(next) => {
           setStepUpOpen(next);
-          if (!next) setStepUpError(null);
+          if (!next) {
+            setStepUpError(null);
+            setWebPassword("");
+          }
         }}
         serviceCode={serviceCode}
+        channel={nativeStepUp ? "native" : "web"}
+        password={webPassword}
+        onPasswordChange={setWebPassword}
         busy={stepUpBusy || submitting}
         errorAr={stepUpError}
         onConfirm={() => void runStepUpThenSubmit()}

@@ -10,7 +10,7 @@ import {
   hashStepUpPayload,
   isStepUpSensitiveService,
 } from "../../src/lib/security/step-up-contract";
-import { performStepUp, type StepUpRpcClient } from "../../src/lib/security/step-up-client";
+import { performStepUp, type StepUpBeginChallenge } from "../../src/lib/security/step-up-client";
 import { BiometricError } from "../../src/lib/native/biometrics";
 import { derToRawEcdsaSignature } from "../../src/lib/security/ecdsa-der";
 import {
@@ -65,23 +65,21 @@ describe("step-up contract", () => {
   });
 });
 
-function makeClient(calls: string[]): StepUpRpcClient {
-  return {
-    rpc: async (fn) => {
-      calls.push(fn);
-      if (fn === "issue_step_up_challenge") {
-        return {
-          data: {
-            challenge_id: "11111111-1111-1111-1111-111111111111",
-            nonce: "abc",
-            expires_at: new Date(Date.now() + 60_000).toISOString(),
-            device_id: "dev",
-          },
-          error: null,
-        };
-      }
-      return { data: null, error: null };
-    },
+function makeBeginChallenge(calls: string[]): StepUpBeginChallenge {
+  return async (input) => {
+    calls.push("begin_step_up_challenge");
+    expect(input.deviceId).toBe("dev");
+    expect(input.requestId).toBe("22222222-2222-2222-2222-222222222222");
+    return {
+      data: {
+        challenge_id: "11111111-1111-1111-1111-111111111111",
+        nonce: "abc",
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        device_id: "dev",
+        payload_hash: "a6ea6b8ff2f1a15a5b4c6c6e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b",
+      },
+      error: null,
+    };
   };
 }
 
@@ -96,9 +94,10 @@ describe("step-up orchestration", () => {
   test("cancel yields no proof and no verification call", async () => {
     const calls: string[] = [];
     let verified = 0;
-    const outcome = await performStepUp(makeClient(calls), baseInput, {
+    const outcome = await performStepUp(baseInput, {
       biometricsAvailable: () => true,
       ensureKey: async () => ({ deviceId: "dev", publicKeyDer: "k", algorithm: "SHA256withECDSA" }),
+      beginChallenge: makeBeginChallenge(calls),
       sign: async () => {
         throw new BiometricError("USER_CANCELED");
       },
@@ -109,11 +108,11 @@ describe("step-up orchestration", () => {
     });
     expect(outcome.status).toBe("canceled");
     expect(verified).toBe(0);
-    expect(calls).toEqual(["issue_step_up_challenge"]);
+    expect(calls).toEqual(["begin_step_up_challenge"]);
   });
 
   test("device key invalidation revokes trust", async () => {
-    const outcome = await performStepUp(makeClient([]), baseInput, {
+    const outcome = await performStepUp(baseInput, {
       biometricsAvailable: () => true,
       ensureKey: async () => {
         throw new BiometricError("KEY_INVALIDATED");
@@ -125,8 +124,9 @@ describe("step-up orchestration", () => {
 
   test("unavailable biometrics never issues a challenge", async () => {
     const calls: string[] = [];
-    const outcome = await performStepUp(makeClient(calls), baseInput, {
+    const outcome = await performStepUp(baseInput, {
       biometricsAvailable: () => false,
+      beginChallenge: makeBeginChallenge(calls),
     });
     expect(outcome.status).toBe("unavailable");
     expect(calls).toEqual([]);
@@ -135,9 +135,10 @@ describe("step-up orchestration", () => {
   test("successful signature exchanges for exactly one server proof", async () => {
     const calls: string[] = [];
     let verified = 0;
-    const outcome = await performStepUp(makeClient(calls), baseInput, {
+    const outcome = await performStepUp(baseInput, {
       biometricsAvailable: () => true,
       ensureKey: async () => ({ deviceId: "dev", publicKeyDer: "k", algorithm: "SHA256withECDSA" }),
+      beginChallenge: makeBeginChallenge(calls),
       sign: async () => ({ signature: "sig", algorithm: "SHA256withECDSA" }),
       verifyAssertion: async () => {
         verified += 1;
@@ -149,9 +150,10 @@ describe("step-up orchestration", () => {
   });
 
   test("server rejection produces failure, not a proof", async () => {
-    const outcome = await performStepUp(makeClient([]), baseInput, {
+    const outcome = await performStepUp(baseInput, {
       biometricsAvailable: () => true,
       ensureKey: async () => ({ deviceId: "dev", publicKeyDer: "k", algorithm: "SHA256withECDSA" }),
+      beginChallenge: makeBeginChallenge([]),
       sign: async () => ({ signature: "sig", algorithm: "SHA256withECDSA" }),
       verifyAssertion: async () => ({ ok: false }),
     });

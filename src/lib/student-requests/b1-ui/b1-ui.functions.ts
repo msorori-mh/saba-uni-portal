@@ -14,6 +14,7 @@ import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-
 import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
 import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
 import { B1_PANEL_ACTION_LABELS_AR } from "@/lib/student-requests/b1-staff-action-routing";
+import { isStepUpSensitiveService } from "@/lib/security/step-up-contract";
 
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
@@ -147,6 +148,10 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
     const canonical = normalizeStudentRequestTypeCode(req.request_type);
     if (!isB1ServiceCode(canonical) || !getRequestServiceAdapter(canonical)) {
       throw new Error("B1_CANONICAL_CODE_REQUIRED");
+    }
+
+    if (isStepUpSensitiveService(canonical) && !data.stepUpProof) {
+      throw new Error("B1_STEP_UP_PROOF_REQUIRED");
     }
 
     const formData = (req.form_data as Record<string, unknown> | null) ?? {};

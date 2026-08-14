@@ -64,7 +64,7 @@ ALTER TABLE public.step_up_challenges ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.step_up_proofs (
   proof_token text PRIMARY KEY,
-  challenge_id uuid NOT NULL REFERENCES public.step_up_challenges (id) ON DELETE CASCADE,
+  challenge_id uuid REFERENCES public.step_up_challenges (id) ON DELETE CASCADE,
   user_id uuid NOT NULL,
   device_id text NOT NULL,
   action_code text NOT NULL,
@@ -244,13 +244,16 @@ BEGIN
      AND action_code = p_action_code
      AND request_id = p_request_id
      AND payload_hash = p_payload_hash
-  RETURNING * INTO p;
+   RETURNING * INTO p;
 
   IF p.proof_token IS NULL THEN
     RAISE EXCEPTION 'STEP_UP_PROOF_INVALID';
   END IF;
 
-  IF NOT EXISTS (
+  -- Web channel proofs are bound to a fresh server-side password re-auth; no
+  -- device row exists for them. Native channel proofs must still prove the
+  -- device is trusted (not revoked) at consumption time.
+  IF p.device_id != 'web' AND NOT EXISTS (
     SELECT 1 FROM public.student_trusted_devices d
      WHERE d.user_id = p.user_id AND d.device_id = p.device_id AND d.revoked_at IS NULL
   ) THEN
@@ -272,7 +275,17 @@ CREATE OR REPLACE FUNCTION public.submit_b1_student_request_atomic(
   p_step_up_payload_hash text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_sensitive boolean := p_canonical_code IN (
+    'file_withdrawal', 'enrollment_suspension', 'department_transfer',
+    'final_chance', 'excused_absence'
+  );
 BEGIN
+  -- Sensitive services cannot be submitted without a server-issued step-up proof.
+  IF v_sensitive AND p_step_up_proof IS NULL THEN
+    RAISE EXCEPTION 'STEP_UP_PROOF_REQUIRED';
+  END IF;
+
   IF p_step_up_proof IS NOT NULL THEN
     -- Payload binding: `p_step_up_payload_hash` is recomputed server-side (in
     -- the authenticated server function, from the persisted draft payload) with
@@ -293,7 +306,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.submit_b1_student_request_atomic(
-  uuid, text, jsonb, timestamptz, uuid[], text, text) FROM PUBLIC, anon;
+  uuid, text, jsonb, timestamptz, uuid[], text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_b1_student_request_atomic(
   uuid, text, jsonb, timestamptz, uuid[], text, text) TO authenticated;
 

@@ -7,16 +7,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 import { getStepUpDescriptor } from "@/lib/security/step-up-contract";
 
 /**
- * Sensitive-action confirmation: shows the action summary and its effects,
- * then requires a biometric step-up. Cancelling here performs ZERO RPC calls.
+ * Sensitive-action confirmation: shows the action summary and its effects, then
+ * requires a step-up proof. Native uses a biometric signing; web uses a fresh
+ * password re-authentication verified server-side. Cancelling here performs
+ * ZERO submit RPC calls.
  */
 export function StepUpConfirmDialog({
   open,
   onOpenChange,
   serviceCode,
+  channel,
+  password,
+  onPasswordChange,
   busy,
   errorAr,
   onConfirm,
@@ -24,6 +30,9 @@ export function StepUpConfirmDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   serviceCode: string;
+  channel: "native" | "web";
+  password: string;
+  onPasswordChange: (value: string) => void;
   busy: boolean;
   errorAr?: string | null;
   onConfirm: () => void;
@@ -59,6 +68,20 @@ export function StepUpConfirmDialog({
           </p>
         )}
 
+        {channel === "web" && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold text-muted-foreground">
+              أدخل كلمة المرور الحالية لتأكيد هويتك قبل إرسال هذا الطلب.
+            </p>
+            <PasswordInput
+              value={password}
+              onChange={(event) => onPasswordChange(event.target.value)}
+              placeholder="كلمة المرور"
+              autoComplete="current-password"
+            />
+          </div>
+        )}
+
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
           <button
             type="button"
@@ -71,13 +94,13 @@ export function StepUpConfirmDialog({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || (channel === "web" && password.length === 0)}
             onClick={onConfirm}
             data-testid="step-up-confirm"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-extrabold text-primary-foreground disabled:opacity-60"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
-            تأكيد بالبصمة
+            {channel === "native" ? "تأكيد بالبصمة" : "تأكيد وإرسال"}
           </button>
         </DialogFooter>
       </DialogContent>

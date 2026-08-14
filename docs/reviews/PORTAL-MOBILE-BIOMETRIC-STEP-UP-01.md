@@ -21,21 +21,29 @@
    - «تسجيل الخروج من هذا الجهاز» و«من جميع الأجهزة».
 
 4. **Step-up قبل العمليات الحساسة** — الخدمات الخمس فقط
-   `file_withdrawal`, `enrollment_suspension`, `department_transfer`,
-   `final_chance`, `excused_absence`.
-   - عرض ملخص الإجراء وآثاره ⇒ بصمة ⇒ توقيع رسالة تتضمن
-     `version|challenge|nonce|user|device|action|request|payload_hash|expiry`.
-   - التحقق من التوقيع (ECDSA P-256) يتم على الخادم في
-     `step-up-verify.functions.ts`؛ Postgres لا يملك بدائية ECDSA.
-   - إصدار Proof قصير العمر ووحيد الاستخدام عبر `mint_step_up_proof`
-     (`service_role` فقط)، ويُستهلك ذريًا داخل نفس معاملة الإرسال.
-   - إلغاء البصمة ⇒ صفر استدعاءات لـ submit RPC (مثبت باختبار).
+    `file_withdrawal`, `enrollment_suspension`, `department_transfer`,
+    `final_chance`, `excused_absence`.
+    - عرض ملخص الإجراء وآثاره ⇒ قناة native تستخدم بصمة، قناة web تستخدم إعادة
+      مصادقة كلمة المرور مباشرةً على الخادم (لا يتم إرسال أي شيء إيجابي للعميل
+      قبل التحقق).
+    - التحدي (challenge) يُنشأ على الخادم: `beginStepUpChallengeFn` تحسب
+      `payload_hash` من المسودة المخزنة، لذا لا يمكن للعميل تمرير hash معدّل.
+    - التوقيع (ECDSA P-256) يتم التحقق منه على الخادم في
+      `step-up-verify.functions.ts`؛ Postgres لا يملك بدائية ECDSA.
+    - إصدار Proof قصير العمر ووحيد الاستخدام عبر `mint_step_up_proof`
+      (`service_role` فقط)، ويُستهلك ذريًا داخل نفس معاملة الإرسال.
+    - إلغاء البصمة/كلمة المرور ⇒ صفر استدعاءات لـ submit RPC (مثبت باختبار).
 
 ## قاعدة البيانات
 
 مسودة واحدة forward-only: `docs/migration-drafts/PORTAL-MOBILE-BIOMETRIC-STEP-UP-01.sql`
 (`student_trusted_devices`, `step_up_challenges`, `step_up_proofs`, RPCs،
-وoverload لـ `submit_b1_student_request_atomic` يستهلك الإثبات).
+وoverload لـ `submit_b1_student_request_atomic`):
+- الخدمات الحساسة الخمس ترفض أي إرسال بدون `step_up_proof` صالح.
+- `consume_step_up_proof` تتحقق من تطابق (user, device, action, request, payload_hash)
+  وتُلغي إثبات القناة الويبية (`device_id = 'web'`) دون فحص صف جهاز (لأنه
+  مرتبط بإعادة مصادقة كلمة المرور على الخادم).
+- `mint_step_up_proof` مقتصرة على `service_role` فقط.
 لا تُطبَّق إلا بتصريح إنتاجي صريح.
 
 ## الخصوصية
@@ -45,14 +53,12 @@
 
 ## التحقق
 
-- `bunx tsgo --noEmit` — PASS
+- `bunx tsc --noEmit` — PASS
 - `bun test tests/mobile` — 77/77 PASS
-- `bun test tests/student-requests` — 1074/1075 (الفشل الوحيد
-  `tanstack-register-stable-augmentation-01` سابق لهذه المهمة وغير متعلق بها؛
-  شجرة المسارات لم تتغير)
+- `bun test tests/student-requests` — PASS
 - `bun run build` — PASS
 
 ## البوابة المتبقية
 
-- تطبيق Migration الإنتاجية (بانتظار تصريح).
+- تطبيق Migration الإنتاجية (بانتظار تصريح `APPROVED_PRODUCTION_APPLY_MOBILE_STEP_UP_01`).
 - الاختبار الفيزيائي على جهاز Android بعد بناء APK.
