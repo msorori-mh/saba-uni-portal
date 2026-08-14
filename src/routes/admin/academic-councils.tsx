@@ -907,7 +907,21 @@ function CouncilMeetingsPanel({
                 {allMeetings.map((m) => (
                   <tr key={m.meeting_id} className="border-t border-border/60 align-top">
                     <td className="p-2 font-mono">{m.meeting_number}</td>
-                    <td className="p-2 font-medium text-primary">{m.title}</td>
+                    <td className="p-2 font-medium text-primary">
+                      {m.title}
+                      {hasLegacyMeetingDateViolation({
+                        scheduledAt: m.scheduled_at,
+                        intakeOpensAt: m.intake_opens_at,
+                        intakeClosesAt: m.intake_closes_at,
+                      }) ? (
+                        <span
+                          data-testid="admin-meeting-legacy-dates-warning"
+                          className="mt-1 block text-[10px] font-normal text-amber-700 dark:text-amber-400"
+                        >
+                          {LEGACY_MEETING_DATES_WARNING}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="p-2 whitespace-nowrap">{formatDateTime(m.scheduled_at)}</td>
                     <td className="p-2">{m.location ?? "—"}</td>
                     <td className="p-2">
