@@ -86,8 +86,11 @@ export function CouncilSessionAndGovernanceWorkspace({
   const [decisionDueDate, setDecisionDueDate] = useState("");
   const [selectedAgendaItemId, setSelectedAgendaItemId] = useState<string>("");
 
-  // Minutes draft state
+  // Minutes draft state. `minutesDirtyRef` guards the saved-text sync so a
+  // refetch never overwrites what the user is currently typing.
   const [minutesBody, setMinutesBody] = useState("");
+  const minutesDirtyRef = useRef(false);
+
 
   // Follow-up execution note state
   const [selectedDecisionForFollowup, setSelectedDecisionForFollowup] = useState<any>(null);
