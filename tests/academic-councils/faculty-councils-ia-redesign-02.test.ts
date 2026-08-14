@@ -190,7 +190,7 @@ describe("councils IA redesign 02 — source guards", () => {
 
   it("keeps the authorization audit route reachable but out of the header", () => {
     expect(ROUTE_SRC).not.toContain("فحص الصلاحيات");
-    expect(ROUTE_SRC).not.toContain("authorization-audit");
+    expect(ROUTE_SRC).not.toMatch(/to="[^"]*authorization-audit/);
   });
 
   it("replaces the disabled minutes textarea with a real read-only view", () => {
