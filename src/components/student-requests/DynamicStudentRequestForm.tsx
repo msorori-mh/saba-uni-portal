@@ -22,8 +22,6 @@ export type DynamicStudentRequestFormProps = {
   fieldErrors?: Readonly<Record<string, string | undefined>>;
 };
 
-const SCHEMA_PENDING_MSG = "سيتم تفعيل حفظ تفاصيل هذا النموذج بعد تطبيق مخطط طلبات الطلاب.";
-
 const UNSUPPORTED_MSG = "هذا النوع من الطلب غير مدعوم حالياً في النموذج الجديد.";
 
 function fieldVisible(field: RequestFormFieldDefinition, values: Record<string, unknown>): boolean {
@@ -80,12 +78,6 @@ export function DynamicStudentRequestForm({
           <p className="text-xs text-muted-foreground">{definition.descriptionAr}</p>
         )}
       </header>
-
-      {definition.unavailableUntilSchemaApplied && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-          {SCHEMA_PENDING_MSG}
-        </div>
-      )}
 
       {definition.warnings?.map((w) => (
         <div
@@ -456,4 +448,4 @@ export function isDynamicFormSupported(requestTypeCode: string): boolean {
   return getStudentRequestFormDefinition(requestTypeCode) != null;
 }
 
-export { UNSUPPORTED_MSG, SCHEMA_PENDING_MSG };
+export { UNSUPPORTED_MSG };

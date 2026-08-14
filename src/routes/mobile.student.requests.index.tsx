@@ -16,7 +16,9 @@ import { STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG } from "@/lib/student-request-rp
 import {
   filterStudentRequestTypesForDisplay,
   getStudentRequestTypeDisplayName,
+  normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
 
 export const Route = createFileRoute("/mobile/student/requests/")({
   head: () => ({ meta: [{ title: "الطلبات" }] }),
@@ -100,6 +102,9 @@ function MobileStudentRequests() {
     ? (types[0]?.disabled_reason ?? STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG)
     : null;
 
+  const availableTypes = types.filter((t) => t.is_eligible && !t.is_disabled);
+  const unavailableTypes = types.filter((t) => t.is_disabled || !t.is_eligible);
+
   return (
     <div className="px-4 py-5 space-y-5" dir="rtl">
       <header>
@@ -107,8 +112,7 @@ function MobileStudentRequests() {
           <FileWarning className="h-5 w-5 text-gold" /> الطلبات الطلابية
         </h1>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          تتبع طلباتك وحالتها. تقديم الطلبات الجديدة يتم عبر بوابة المتصفح — بمسار إرسال
-          موحّد. أنواع تتطلب مرفقات غير متاحة للإرسال حتى يُفعَّل نظام الرفع.
+          قدّم طلبك وتابع حالته من هنا.
         </p>
       </header>
 
@@ -121,58 +125,46 @@ function MobileStudentRequests() {
 
       <section>
         <h2 className="font-display text-sm font-extrabold text-primary mb-2">
-          أنواع الطلبات
+          خدمات متاحة لك
         </h2>
-        {types.length === 0 ? (
-          <EmptyMini text="لا توجد أنواع طلبات متاحة." />
+        {availableTypes.length === 0 ? (
+          <EmptyMini text="لا توجد خدمات متاحة لك حالياً." />
         ) : (
           <div className="space-y-2">
-            {types.map((t) => {
-              const disabled = t.is_disabled || !t.is_eligible;
-              return (
-                <div
-                  key={t.id}
-                  className={`rounded-2xl border border-border bg-card shadow-card p-3 shadow-card flex items-center justify-between gap-2 ${
-                    disabled ? "opacity-60" : ""
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-primary truncate">{t.name_ar}</div>
-                    {t.description_ar && (
-                      <div className="text-[11px] text-muted-foreground line-clamp-2">
-                        {t.description_ar}
-                      </div>
-                    )}
-                    {disabled && t.disabled_reason && (
-                      <div className="text-[10px] font-bold text-amber-800 mt-1">
-                        {t.disabled_reason}
-                      </div>
-                    )}
-                    {t.requires_attachment && !disabled && (
-                      <div className="text-[10px] font-bold text-amber-800 mt-1">
-                        يتطلب إرفاق مستند
-                      </div>
-                    )}
-                  </div>
-                  {!disabled ? (
-                    <Link
-                      to="/mobile/student/requests/new"
-                      search={{ type: t.code }}
-                      className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-bold"
-                    >
-                      <Plus className="h-3 w-3" /> تقديم
-                    </Link>
-                  ) : (
-                    <span className="shrink-0 text-[10px] font-bold text-muted-foreground px-2 py-0.5">
-                      غير متاح
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+            {availableTypes.map((t) => (
+              <ServiceCard key={t.id} type={t} />
+            ))}
           </div>
         )}
       </section>
+
+      {unavailableTypes.length > 0 && (
+        <section>
+          <h2 className="font-display text-sm font-extrabold text-primary mb-2">
+            خدمات غير متاحة لك حالياً
+          </h2>
+          <div className="space-y-2">
+            {unavailableTypes.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-2xl border border-border bg-card shadow-card p-3 opacity-70"
+              >
+                <div className="text-sm font-bold text-primary">{t.name_ar}</div>
+                {t.description_ar && (
+                  <div className="text-[11px] text-muted-foreground line-clamp-2">
+                    {t.description_ar}
+                  </div>
+                )}
+                <div className="text-[10px] font-bold text-amber-800 mt-1">
+                  {t.disabled_reason ?? STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+
 
       <section>
         <h2 className="font-display text-sm font-extrabold text-primary mb-2">طلباتي</h2>
@@ -219,6 +211,61 @@ function MobileStudentRequests() {
     </div>
   );
 }
+
+function ServiceCard({
+  type,
+}: {
+  type: {
+    code: string;
+    name_ar: string;
+    description_ar: string | null;
+    requires_attachment?: boolean;
+  };
+}) {
+  const canonical = normalizeStudentRequestTypeCode(type.code);
+  const body = (
+    <>
+      <div className="min-w-0">
+        <div className="text-sm font-bold text-primary truncate">{type.name_ar}</div>
+        {type.description_ar && (
+          <div className="text-[11px] text-muted-foreground line-clamp-2">
+            {type.description_ar}
+          </div>
+        )}
+        {type.requires_attachment && (
+          <div className="text-[10px] font-bold text-amber-800 mt-1">يتطلب إرفاق مستند</div>
+        )}
+      </div>
+      <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-bold">
+        <Plus className="h-3 w-3" /> تقديم
+      </span>
+    </>
+  );
+  const className =
+    "rounded-2xl border border-border bg-card shadow-card p-3 flex items-center justify-between gap-2 active:scale-[0.99] transition-transform";
+
+  if (isB1ServiceCode(canonical)) {
+    return (
+      <Link
+        to="/mobile/student/requests/b1/$service"
+        params={{ service: canonical }}
+        className={className}
+      >
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <Link
+      to="/mobile/student/requests/new"
+      search={{ type: canonical }}
+      className={className}
+    >
+      {body}
+    </Link>
+  );
+}
+
 
 function ErrorBox({
   message,

@@ -1,9 +1,9 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, FilePlus2, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, FilePlus2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getStudentRequestTypesForStudent,
@@ -302,16 +302,26 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
     setSubject("");
   };
 
+  const focusedMode = Boolean(typeFromSearch && selectedType);
+
   return (
     <div dir="rtl" className="space-y-6">
       <header>
         <h1 className="font-display text-2xl font-extrabold text-primary flex items-center gap-2">
-          <FilePlus2 className="h-6 w-6 text-gold" /> تقديم طلب شؤون طلاب
+          <FilePlus2 className="h-6 w-6 text-gold" />{" "}
+          {focusedMode ? selectedType?.name_ar : "تقديم طلب شؤون طلاب"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          اختر نوع الطلب وعبّئ النموذج المناسب. تُعرض حالة الأهلية والتوفر قبل الإرسال — التحقق
-          النهائي يتم لاحقاً من النظام.
+          {focusedMode
+            ? (selectedType?.description_ar ?? "عبّئ بيانات الطلب ثم أرسله.")
+            : "اختر نوع الطلب وعبّئ النموذج المناسب."}
         </p>
+        <Link
+          to={routes.list}
+          className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary"
+        >
+          <ArrowRight className="h-3.5 w-3.5" /> العودة إلى الطلبات
+        </Link>
       </header>
 
       {(typesError || contextError) && (
@@ -349,6 +359,7 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
         </div>
       )}
 
+      {!focusedMode && (
       <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-3">
         <h2 className="text-sm font-bold text-primary">أنواع الطلبات المتاحة</h2>
         {isLoading ? (
@@ -389,7 +400,7 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
                   )}
                   {type.requires_attachment && !disabled && (
                     <div className="mt-1 text-[11px] font-bold text-amber-700">
-                      يتطلب مرفقاً — الرفع غير مفعّل حالياً في هذه الواجهة
+                      يتطلب إرفاق مستند
                     </div>
                   )}
                 </button>
@@ -398,6 +409,7 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
           </div>
         )}
       </section>
+      )}
 
       <form
         onSubmit={onSubmit}
@@ -415,8 +427,7 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
             role="note"
             className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
           >
-            هذا النوع يتطلب مرفقات. رفع الملفات غير مفعّل حالياً — لا يمكن إرسال الطلب حتى يتوفر
-            نظام المرفقات.
+            هذه الخدمة تتطلب إرفاق مستندات.
           </div>
         )}
 
