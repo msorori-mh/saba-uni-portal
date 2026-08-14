@@ -323,26 +323,6 @@ export function CouncilSessionAndGovernanceWorkspace({
     }
   }
 
-  async function handleUpdateFollowup() {
-    if (!selectedDecisionForFollowup) return;
-    setLoadingAction("update_followup");
-    try {
-      await updateCouncilDecisionFollowupFn({
-        data: {
-          decision_id: selectedDecisionForFollowup.decision_id,
-          status: followupStatus,
-          execution_note: followupNote,
-        },
-      });
-      toast.success("تم تحديث نسبة وسجل التنفيذ");
-      setSelectedDecisionForFollowup(null);
-      qc.invalidateQueries();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر تحديث المتابعة");
-    } finally {
-      setLoadingAction(null);
-    }
-  }
 
   const minutesData = minutesQuery.data;
   const isMinutesLocked = minutesData?.is_locked || meetingStatus === "minutes_locked" || meetingStatus === "archived";
