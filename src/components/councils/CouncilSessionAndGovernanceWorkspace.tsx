@@ -349,26 +349,6 @@ export function CouncilSessionAndGovernanceWorkspace({
   // C8 backend contract: issue_council_decision requires minutes_locked + resolved agenda item.
   const canIssueDecision = canWriteAgenda && meetingStatus === "minutes_locked";
 
-  const followupOptions = (() => {
-    const status = selectedDecisionForFollowup?.status as string | undefined;
-    if (status === "issued") {
-      return [
-        { value: "in_progress", label: "قيد التنفيذ" },
-        { value: "blocked", label: "متعثّر / معطّل" },
-      ];
-    }
-    if (status === "in_progress") {
-      return [
-        { value: "in_progress", label: "قيد التنفيذ" },
-        { value: "completed", label: "مكتمل ومُنفّذ" },
-        { value: "blocked", label: "متعثّر / معطّل" },
-      ];
-    }
-    if (status === "blocked") {
-      return [{ value: "in_progress", label: "استئناف التنفيذ" }];
-    }
-    return [];
-  })();
 
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
   // Live session polling: while the meeting is in session the agenda + item
