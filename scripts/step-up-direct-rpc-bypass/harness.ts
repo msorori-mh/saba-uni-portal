@@ -95,6 +95,26 @@ const PRIVILEGE_TARGETS: Record<string, [string, string]> = {
   ],
   authenticated_consume: ["authenticated", "public.consume_step_up_proof(text,text,uuid,text)"],
   authenticated_mint: ["authenticated", "public.mint_step_up_proof(uuid)"],
+  authenticated_register_device: [
+    "authenticated",
+    "public.register_student_device(text,text,text,text)",
+  ],
+  authenticated_issue_challenge: [
+    "authenticated",
+    "public.issue_step_up_challenge(text,text,uuid,text)",
+  ],
+  authenticated_revoke_device: ["authenticated", "public.revoke_student_device(text)"],
+  authenticated_revoke_all_devices: ["authenticated", "public.revoke_all_student_devices()"],
+  service_role_register_device: [
+    "service_role",
+    "public.register_student_device(text,text,text,text)",
+  ],
+  service_role_issue_challenge: [
+    "service_role",
+    "public.issue_step_up_challenge(text,text,uuid,text)",
+  ],
+  anon_register_device: ["anon", "public.register_student_device(text,text,text,text)"],
+  anon_issue_challenge: ["anon", "public.issue_step_up_challenge(text,text,uuid,text)"],
   anon_5arg: [
     "anon",
     "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
@@ -103,6 +123,12 @@ const PRIVILEGE_TARGETS: Record<string, [string, string]> = {
     "anon",
     "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[],text,text)",
   ],
+};
+
+// `has_function_privilege('public', ...)` answers the PUBLIC pseudo-role.
+const PUBLIC_PRIVILEGE_TARGETS: Record<string, string> = {
+  public_register_device: "public.register_student_device(text,text,text,text)",
+  public_issue_challenge: "public.issue_step_up_challenge(text,text,uuid,text)",
 };
 
 export async function runDirectRpcBypassMatrix(): Promise<BypassMatrix> {
