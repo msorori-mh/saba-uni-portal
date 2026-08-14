@@ -97,6 +97,7 @@ export function CouncilMemberWorkspace({
   readOnly = false,
   onEnterMeeting,
   liveMeeting: liveMeetingProp,
+  onOpenDecisions,
 }: CouncilMemberWorkspaceProps) {
   const fetchWorkspace = useServerFn(getCouncilMemberWorkspaceFn);
   const liveInterval = useLivePollInterval(
