@@ -150,6 +150,10 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
       throw new Error("B1_CANONICAL_CODE_REQUIRED");
     }
 
+    if (isStepUpSensitiveService(canonical) && !data.stepUpProof) {
+      throw new Error("B1_STEP_UP_PROOF_REQUIRED");
+    }
+
     const formData = (req.form_data as Record<string, unknown> | null) ?? {};
     const attachmentIds = extractB1SecureAttachmentIds(canonical, formData);
 
