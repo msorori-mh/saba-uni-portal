@@ -228,7 +228,9 @@ REVOKE ALL ON FUNCTION public.register_student_device(text, text, text, text)
 GRANT EXECUTE ON FUNCTION public.register_student_device(text, text, text, text)
   TO service_role;
 
--- Device revocation stays directly callable by the signed-in student.
+-- Device revocation stays directly callable by the signed-in student only.
+REVOKE ALL ON FUNCTION public.revoke_student_device(text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.revoke_all_student_devices() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.revoke_student_device(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_all_student_devices() TO authenticated;
 
