@@ -4,6 +4,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
+  LEGACY_MEETING_DATES_WARNING,
+  firstMeetingDateError,
+  hasLegacyMeetingDateViolation,
+  isPreSessionTransitionBlocked,
+} from "@/lib/councils-meeting-dates";
+import {
   ScrollText, Users2, CalendarClock, FilePlus2, ListChecks, FileText,
   ClipboardCheck, Archive, BarChart3,
   AlertTriangle, Loader2, UserPlus, UserMinus, Search, Pencil,
@@ -688,6 +694,17 @@ function CouncilMeetingsPanel({
       toast.error("أدخل تاريخاً ووقتاً صالحين للاجتماع");
       return;
     }
+    const intakeOpensIso = toIsoFromDatetimeLocal(intakeOpensAt);
+    const intakeClosesIso = toIsoFromDatetimeLocal(intakeClosesAt);
+    const scheduleDateError = firstMeetingDateError({
+      scheduledAt: scheduledIso,
+      intakeOpensAt: intakeOpensIso ?? null,
+      intakeClosesAt: intakeClosesIso ?? null,
+    });
+    if (scheduleDateError) {
+      toast.error(scheduleDateError);
+      return;
+    }
     setScheduleBusy(true);
     try {
       await scheduleMeeting({
@@ -696,8 +713,8 @@ function CouncilMeetingsPanel({
           title: trimmedTitle,
           scheduledAt: scheduledIso,
           location: location.trim() || undefined,
-          intakeOpensAt: toIsoFromDatetimeLocal(intakeOpensAt),
-          intakeClosesAt: toIsoFromDatetimeLocal(intakeClosesAt),
+          intakeOpensAt: intakeOpensIso,
+          intakeClosesAt: intakeClosesIso,
           notes: notes.trim() || undefined,
         },
       });
@@ -731,6 +748,31 @@ function CouncilMeetingsPanel({
       toast.error("أدخل تاريخاً ووقتاً صالحين للاجتماع");
       return;
     }
+    const editOpensIso = editIntakeOpensAt.trim()
+      ? toIsoFromDatetimeLocal(editIntakeOpensAt) ?? null
+      : null;
+    const editClosesIso = editIntakeClosesAt.trim()
+      ? toIsoFromDatetimeLocal(editIntakeClosesAt) ?? null
+      : null;
+    const editDateError = firstMeetingDateError({
+      scheduledAt: scheduledIso,
+      intakeOpensAt: editOpensIso,
+      intakeClosesAt: editClosesIso,
+    });
+    if (editDateError) {
+      toast.error(editDateError);
+      return;
+    }
+    if (
+      isPreSessionTransitionBlocked(editStatus, {
+        scheduledAt: scheduledIso,
+        intakeOpensAt: editOpensIso,
+        intakeClosesAt: editClosesIso,
+      })
+    ) {
+      toast.error(LEGACY_MEETING_DATES_WARNING);
+      return;
+    }
     setEditBusy(true);
     try {
       await updateMeeting({
@@ -739,12 +781,8 @@ function CouncilMeetingsPanel({
           title: trimmedTitle,
           scheduledAt: scheduledIso,
           location: editLocation.trim() || null,
-          intakeOpensAt: editIntakeOpensAt.trim()
-            ? toIsoFromDatetimeLocal(editIntakeOpensAt) ?? null
-            : null,
-          intakeClosesAt: editIntakeClosesAt.trim()
-            ? toIsoFromDatetimeLocal(editIntakeClosesAt) ?? null
-            : null,
+          intakeOpensAt: editOpensIso,
+          intakeClosesAt: editClosesIso,
           notes: editNotes.trim() || null,
           status: editStatus as (typeof MEETING_STATUS_OPTIONS)[number],
         },
