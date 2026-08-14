@@ -188,12 +188,14 @@ DECLARE
   v_token text := encode(gen_random_bytes(32), 'hex');
   v_expires timestamptz := now() + interval '120 seconds';
 BEGIN
-  UPDATE public.step_up_challenges
+  -- Columns are alias-qualified: this function has OUT parameters named
+  -- `proof_token`/`expires_at`, so unqualified references would be ambiguous.
+  UPDATE public.step_up_challenges AS ch
      SET consumed_at = now()
-   WHERE id = p_challenge_id
-     AND consumed_at IS NULL
-     AND expires_at > now()
-  RETURNING * INTO c;
+   WHERE ch.id = p_challenge_id
+     AND ch.consumed_at IS NULL
+     AND ch.expires_at > now()
+  RETURNING ch.* INTO c;
 
   IF c.id IS NULL THEN
     RAISE EXCEPTION 'CHALLENGE_INVALID';
@@ -264,6 +266,62 @@ $$;
 
 REVOKE ALL ON FUNCTION public.consume_step_up_proof(text, text, uuid, text)
   FROM PUBLIC, anon, authenticated;
+
+-- ------------------------------------------- legacy 5-arg bypass closure ----
+--
+-- The pre-existing 5-argument RPC stays REACHABLE for non-sensitive services
+-- (other callers depend on it), but it can no longer be used to submit any of
+-- the five sensitive services without a step-up proof consumed in the SAME
+-- transaction. The original implementation is renamed to a private core
+-- function that is NOT granted to anon/authenticated; only the guarded
+-- wrappers (SECURITY DEFINER, owner-executed) can reach it.
+
+ALTER FUNCTION public.submit_b1_student_request_atomic(
+  uuid, text, jsonb, timestamptz, uuid[]
+) RENAME TO submit_b1_student_request_atomic_core;
+
+REVOKE ALL ON FUNCTION public.submit_b1_student_request_atomic_core(
+  uuid, text, jsonb, timestamptz, uuid[]) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.submit_b1_student_request_atomic(
+  p_request_id uuid,
+  p_canonical_code text,
+  p_form_data jsonb,
+  p_expected_updated_at timestamptz,
+  p_attachment_ids uuid[]
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_sensitive boolean := p_canonical_code IN (
+    'file_withdrawal', 'enrollment_suspension', 'department_transfer',
+    'final_chance', 'excused_absence'
+  );
+BEGIN
+  -- A direct client call to this signature carries no proof. The only way the
+  -- check below can pass is when public.consume_step_up_proof() already ran in
+  -- THIS transaction (consumed_at = now() = transaction_timestamp), which only
+  -- the 7-argument guarded overload does.
+  IF v_sensitive AND NOT EXISTS (
+    SELECT 1
+      FROM public.step_up_proofs p
+     WHERE p.user_id = auth.uid()
+       AND p.request_id = p_request_id
+       AND p.action_code = 'submit_' || p_canonical_code
+       AND p.consumed_at = now()
+  ) THEN
+    RAISE EXCEPTION 'STEP_UP_PROOF_REQUIRED';
+  END IF;
+
+  RETURN public.submit_b1_student_request_atomic_core(
+    p_request_id, p_canonical_code, p_form_data, p_expected_updated_at, p_attachment_ids
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.submit_b1_student_request_atomic(
+  uuid, text, jsonb, timestamptz, uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.submit_b1_student_request_atomic(
+  uuid, text, jsonb, timestamptz, uuid[]) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.submit_b1_student_request_atomic(
   p_request_id uuid,

@@ -86,6 +86,7 @@
   "devDependencies": {
     "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",
+    "@electric-sql/pglite": "^0.5.5",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.13.1",
     "@types/node": "^22.16.5",
