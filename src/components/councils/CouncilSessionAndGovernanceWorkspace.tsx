@@ -595,9 +595,14 @@ export function CouncilSessionAndGovernanceWorkspace({
               <Lock className="w-3.5 h-3.5" />
               محضر مقفل رسمياً ورقمياً
             </Badge>
+          ) : isMinutesReviewStage ? (
+            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300">
+              قيد مراجعة رئيس المجلس
+            </Badge>
           ) : (
-            <Badge variant="secondary">مسودة / قيد المراجعة</Badge>
+            <Badge variant="secondary">مسودة المحضر</Badge>
           )}
+
         </div>
 
         {isMinutesLocked ? (
