@@ -72,6 +72,13 @@ export type SubmitB1StudentRequestAtomicArgs = {
   formData: Record<string, unknown>;
   expectedUpdatedAt: string;
   attachmentIds?: readonly string[];
+  /**
+   * Single-use biometric step-up proof (native app). Sent ONLY when present so
+   * the current production signature stays byte-compatible; the enforcement
+   * migration adds `p_step_up_proof` and consumes it inside the same
+   * transaction as the submit.
+   */
+  stepUpProof?: string | null;
 };
 
 /** Exact RPC arg keys for submit_b1_student_request_atomic. */
@@ -83,17 +90,23 @@ export const SUBMIT_B1_ATOMIC_ARG_KEYS = [
   "p_attachment_ids",
 ] as const;
 
+/** Additional arg key used only when a step-up proof is supplied. */
+export const SUBMIT_B1_ATOMIC_STEP_UP_ARG_KEY = "p_step_up_proof" as const;
+
 export async function rpcSubmitB1StudentRequestAtomic(
   client: B1RpcClient,
   input: SubmitB1StudentRequestAtomicArgs,
 ): Promise<Record<string, unknown>> {
-  const args = {
+  const args: Record<string, unknown> = {
     p_request_id: input.requestId,
     p_canonical_code: input.canonicalCode,
     p_form_data: input.formData,
     p_expected_updated_at: input.expectedUpdatedAt,
     p_attachment_ids: [...(input.attachmentIds ?? [])],
   };
+  if (input.stepUpProof) {
+    args[SUBMIT_B1_ATOMIC_STEP_UP_ARG_KEY] = input.stepUpProof;
+  }
   const { data, error } = await client.rpc("submit_b1_student_request_atomic", args);
   if (error) throw new Error(error.message ?? "submit_b1_student_request_atomic failed");
   return (data ?? {}) as Record<string, unknown>;
