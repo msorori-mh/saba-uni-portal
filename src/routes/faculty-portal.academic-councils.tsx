@@ -525,7 +525,19 @@ function FacultyAcademicCouncilsPage() {
                         councilName={selectedMembership.council_name}
                         readOnly={selectedRole === "viewer"}
                         onEnterMeeting={openMeetingWorkspace}
+                        liveMeeting={
+                          liveMeeting
+                            ? {
+                                meeting_id: liveMeeting.meeting_id,
+                                title:
+                                  liveMeeting.meeting_title?.trim() ||
+                                  `اجتماع رقم ${liveMeeting.meeting_number}`,
+                                scheduled_at: liveMeeting.scheduled_at ?? null,
+                              }
+                            : null
+                        }
                       />
+
                     )}
                   </SectionShell>
                 ) : null}
