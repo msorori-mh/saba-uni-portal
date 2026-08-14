@@ -94,6 +94,7 @@ export function CouncilMemberWorkspace({
   councilName,
   readOnly = false,
   onEnterMeeting,
+  liveMeeting: liveMeetingProp,
 }: CouncilMemberWorkspaceProps) {
   const fetchWorkspace = useServerFn(getCouncilMemberWorkspaceFn);
   const liveInterval = useLivePollInterval(
@@ -115,7 +116,13 @@ export function CouncilMemberWorkspace({
     scheduled_at: string;
     status: string;
   }>;
-  const liveMeeting = meetings.find((m) => m.status === "in_session") ?? null;
+  // Fallback only: `upcoming_meetings` drops a meeting once its scheduled time
+  // has passed, even while it is still in session.
+  const fallbackLiveMeeting: CouncilLiveMeetingRef | null =
+    meetings.find((m) => m.status === "in_session") ?? null;
+  const liveMeeting: CouncilLiveMeetingRef | null =
+    liveMeetingProp !== undefined ? liveMeetingProp : fallbackLiveMeeting;
+
   const openVotes = (data.open_votes ?? []) as Array<{
     agenda_item_id: string;
     title: string;
