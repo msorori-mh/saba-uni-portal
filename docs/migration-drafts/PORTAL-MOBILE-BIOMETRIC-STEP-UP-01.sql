@@ -268,20 +268,21 @@ CREATE OR REPLACE FUNCTION public.submit_b1_student_request_atomic(
   p_form_data jsonb,
   p_expected_updated_at timestamptz,
   p_attachment_ids uuid[],
-  p_step_up_proof text
+  p_step_up_proof text,
+  p_step_up_payload_hash text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  v_payload_hash text;
 BEGIN
   IF p_step_up_proof IS NOT NULL THEN
-    -- Payload binding: the hash is recomputed from the canonical payload the
-    -- client signed, so the confirmed action cannot be swapped for another.
-    v_payload_hash := public.b1_step_up_payload_hash(
-      p_request_id, p_canonical_code, p_form_data, p_attachment_ids
-    );
+    -- Payload binding: `p_step_up_payload_hash` is recomputed server-side (in
+    -- the authenticated server function, from the persisted draft payload) with
+    -- the SAME canonicalization the device signed. A mutated payload therefore
+    -- produces a different hash and the proof no longer matches.
+    IF p_step_up_payload_hash IS NULL THEN
+      RAISE EXCEPTION 'STEP_UP_PAYLOAD_HASH_REQUIRED';
+    END IF;
     PERFORM public.consume_step_up_proof(
-      p_step_up_proof, 'submit_' || p_canonical_code, p_request_id, v_payload_hash
+      p_step_up_proof, 'submit_' || p_canonical_code, p_request_id, p_step_up_payload_hash
     );
   END IF;
 
@@ -292,8 +293,8 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.submit_b1_student_request_atomic(
-  uuid, text, jsonb, timestamptz, uuid[], text) FROM PUBLIC, anon;
+  uuid, text, jsonb, timestamptz, uuid[], text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.submit_b1_student_request_atomic(
-  uuid, text, jsonb, timestamptz, uuid[], text) TO authenticated;
+  uuid, text, jsonb, timestamptz, uuid[], text, text) TO authenticated;
 
 COMMIT;

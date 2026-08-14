@@ -79,6 +79,8 @@ export type SubmitB1StudentRequestAtomicArgs = {
    * transaction as the submit.
    */
   stepUpProof?: string | null;
+  /** SHA-256 of the canonical signed payload; required with a proof. */
+  stepUpPayloadHash?: string | null;
 };
 
 /** Exact RPC arg keys for submit_b1_student_request_atomic. */
@@ -92,6 +94,7 @@ export const SUBMIT_B1_ATOMIC_ARG_KEYS = [
 
 /** Additional arg key used only when a step-up proof is supplied. */
 export const SUBMIT_B1_ATOMIC_STEP_UP_ARG_KEY = "p_step_up_proof" as const;
+export const SUBMIT_B1_ATOMIC_STEP_UP_HASH_ARG_KEY = "p_step_up_payload_hash" as const;
 
 export async function rpcSubmitB1StudentRequestAtomic(
   client: B1RpcClient,
@@ -106,6 +109,7 @@ export async function rpcSubmitB1StudentRequestAtomic(
   };
   if (input.stepUpProof) {
     args[SUBMIT_B1_ATOMIC_STEP_UP_ARG_KEY] = input.stepUpProof;
+    args[SUBMIT_B1_ATOMIC_STEP_UP_HASH_ARG_KEY] = input.stepUpPayloadHash ?? null;
   }
   const { data, error } = await client.rpc("submit_b1_student_request_atomic", args);
   if (error) throw new Error(error.message ?? "submit_b1_student_request_atomic failed");

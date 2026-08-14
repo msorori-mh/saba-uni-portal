@@ -5,6 +5,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { hashStepUpPayload } from "@/lib/security/step-up-contract";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rpcGetAvailableRequestTypes } from "@/lib/student-request-rpc";
@@ -158,6 +159,14 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
       expectedUpdatedAt: data.expectedUpdatedAt,
       attachmentIds,
       stepUpProof: data.stepUpProof ?? null,
+      stepUpPayloadHash: data.stepUpProof
+        ? await hashStepUpPayload({
+            requestId: data.requestId,
+            canonicalCode: canonical,
+            formData,
+            attachmentIds: [...attachmentIds].sort(),
+          })
+        : null,
     });
 
     if (result.success !== true) throw new Error("B1_SUBMIT_FAILED");
