@@ -67,7 +67,12 @@ export function CouncilMeetingWorkspacePanel({
           </TabsList>
 
           <TabsContent value="agenda" className="mt-3 space-y-2">
-            <MeetingAgendaExpandable meetingId={meeting.meeting_id} autoExpand />
+            <MeetingAgendaExpandable
+              meetingId={meeting.meeting_id}
+              autoExpand
+              live={meeting.status === "in_session"}
+            />
+
             {canManageAgenda ? (
               <Button
                 type="button"
