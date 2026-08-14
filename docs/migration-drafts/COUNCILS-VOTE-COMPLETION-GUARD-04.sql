@@ -114,9 +114,7 @@ BEGIN
   SELECT count(*) INTO v_eligible
   FROM public.council_agenda_item_eligible_voters(p_agenda_item_id);
 
-  SELECT count(*) INTO v_cast
-  FROM public.academic_council_votes v
-  WHERE v.agenda_item_id = p_agenda_item_id;
+  v_cast := public.council_agenda_item_cast_count(p_agenda_item_id);
 
   v_viewer_eligible := EXISTS (
     SELECT 1 FROM public.council_agenda_item_eligible_voters(p_agenda_item_id) e
@@ -134,7 +132,7 @@ BEGIN
     'eligible', v_eligible,
     'cast', v_cast,
     'pending', greatest(v_eligible - v_cast, 0),
-    'can_close', (v_eligible > 0 AND v_cast >= v_eligible),
+    'can_close', (v_eligible > 0 AND v_cast = v_eligible),
     'viewer_is_eligible', v_viewer_eligible,
     'viewer_has_voted', v_viewer_voted
   );
@@ -200,6 +198,15 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_VOTER_NOT_ELIGIBLE: attendance state is absent or missing' USING ERRCODE = '42501';
   END IF;
 
+  -- Single source of truth: the caller must belong to the SAME eligible set
+  -- that forms the close denominator (this is what excludes 'viewer').
+  IF NOT EXISTS (
+    SELECT 1 FROM public.council_agenda_item_eligible_voters(p_agenda_item_id) e
+    WHERE e.user_id = v_uid
+  ) THEN
+    RAISE EXCEPTION 'COUNCIL_VOTER_NOT_ELIGIBLE: council role is not entitled to vote' USING ERRCODE = '42501';
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM public.academic_council_votes
     WHERE agenda_item_id = p_agenda_item_id AND voter_user_id = v_uid
@@ -221,8 +228,8 @@ BEGIN
 
   -- Completion fan-out (state/progress only, never a vote direction).
   SELECT count(*) INTO v_eligible FROM public.council_agenda_item_eligible_voters(p_agenda_item_id);
-  SELECT count(*) INTO v_cast FROM public.academic_council_votes WHERE agenda_item_id = p_agenda_item_id;
-  IF v_eligible > 0 AND v_cast >= v_eligible THEN
+  v_cast := public.council_agenda_item_cast_count(p_agenda_item_id);
+  IF v_eligible > 0 AND v_cast = v_eligible THEN
     PERFORM public.council_dispatch_vote_event(p_agenda_item_id, 'vote_completed');
   END IF;
 
@@ -270,7 +277,7 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO v_eligible FROM public.council_agenda_item_eligible_voters(p_agenda_item_id);
-  SELECT count(*) INTO v_cast FROM public.academic_council_votes WHERE agenda_item_id = p_agenda_item_id;
+  v_cast := public.council_agenda_item_cast_count(p_agenda_item_id);
 
   IF v_eligible = 0 THEN
     RAISE EXCEPTION 'COUNCIL_VOTING_NO_ELIGIBLE_VOTERS' USING ERRCODE = '22000';
@@ -279,6 +286,13 @@ BEGIN
   IF v_cast < v_eligible THEN
     RAISE EXCEPTION 'COUNCIL_VOTING_INCOMPLETE CAST=% ELIGIBLE=% PENDING=%',
       v_cast, v_eligible, (v_eligible - v_cast) USING ERRCODE = '22000';
+  END IF;
+
+  -- Exact parity contract: more counted votes than eligible voters can only be
+  -- a data inconsistency; never silently close on it.
+  IF v_cast > v_eligible THEN
+    RAISE EXCEPTION 'COUNCIL_VOTING_CAST_ELIGIBLE_MISMATCH CAST=% ELIGIBLE=%',
+      v_cast, v_eligible USING ERRCODE = '22000';
   END IF;
 
   UPDATE public.academic_council_agenda_items
