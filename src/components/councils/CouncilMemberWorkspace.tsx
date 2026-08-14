@@ -76,16 +76,35 @@ export function CouncilMemberWorkspace({
   councilId,
   councilName,
   readOnly = false,
+  onEnterMeeting,
 }: CouncilMemberWorkspaceProps) {
   const fetchWorkspace = useServerFn(getCouncilMemberWorkspaceFn);
+  const liveInterval = useLivePollInterval(
+    Boolean(councilId),
+    COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  );
   const query = useQuery({
     queryKey: ["council-member-workspace", councilId],
     queryFn: () => fetchWorkspace({ data: { council_id: councilId } }),
-    staleTime: 15_000,
-    refetchOnWindowFocus: false,
+    ...liveQueryOptions(liveInterval),
   });
 
   const data = (query.data ?? {}) as Record<string, unknown[]>;
+
+  const meetings = (data.upcoming_meetings ?? []) as Array<{
+    meeting_id: string;
+    meeting_number: number;
+    title: string;
+    scheduled_at: string;
+    status: string;
+  }>;
+  const liveMeeting = meetings.find((m) => m.status === "in_session") ?? null;
+  const openVotes = (data.open_votes ?? []) as Array<{
+    agenda_item_id: string;
+    title: string;
+    session_status: string;
+  }>;
+
 
   return (
     <div className="space-y-4" dir="rtl">
