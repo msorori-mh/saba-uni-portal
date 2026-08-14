@@ -187,10 +187,22 @@ export function CouncilVotingControl({
             )}
 
             {sessionStatus === "voting_open" && (
-              <Button onClick={handleCloseVote} disabled={loading} size="sm" variant="destructive" className="h-7 text-xs">
+              <Button
+                onClick={handleCloseVote}
+                disabled={loading || closeBlocked}
+                size="sm"
+                variant="destructive"
+                className="h-7 text-xs"
+                title={
+                  closeBlocked
+                    ? `لا يمكن إغلاق التصويت قبل اكتمال الأصوات (${progress?.cast ?? 0}/${progress?.eligible ?? 0})`
+                    : undefined
+                }
+              >
                 إغلاق التصويت
               </Button>
             )}
+
 
             {sessionStatus === "voting_closed" && (
               <>
