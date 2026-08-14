@@ -32,6 +32,12 @@ export type MobileStudentContext = {
   gpEligible: boolean;
   isGraduate: boolean;
   levelNumber: number | null;
+  /** Canonical current enrolment snapshot (display only). */
+  currentEnrolment: {
+    levelName: string | null;
+    semesterName: string | null;
+    academicYearName: string | null;
+  } | null;
 };
 
 export const STUDENT_STATUS_LABELS_AR: Record<string, string> = {
@@ -53,6 +59,7 @@ export async function fetchMobileStudentContext(): Promise<MobileStudentContext>
     gpEligible: false,
     isGraduate: false,
     levelNumber: null,
+    currentEnrolment: null,
   };
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return empty;
@@ -70,11 +77,20 @@ export async function fetchMobileStudentContext(): Promise<MobileStudentContext>
 
   const { data: acad } = await supabase
     .from("student_academic_status")
-    .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
+    .select(
+      "id, level_id, created_at, updated_at, level:academic_levels(level_number, name), semester:semesters(name), academic_year:academic_years(name)",
+    )
     .eq("student_profile_id", profile.id);
 
   const rows = (acad ?? []) as unknown as AcademicStatusTimestampRow[];
   const canonical = resolveCanonicalCurrentFourthLevelEligibility(rows);
+  const current = canonical.current as unknown as
+    | {
+        level?: { name?: string | null } | null;
+        semester?: { name?: string | null } | null;
+        academic_year?: { name?: string | null } | null;
+      }
+    | null;
 
   return {
     profile,
@@ -82,6 +98,13 @@ export async function fetchMobileStudentContext(): Promise<MobileStudentContext>
     gpEligible: shouldShowStudentGpNav(canonical.eligible),
     isGraduate: profile.status === "graduated",
     levelNumber: canonical.levelNumber,
+    currentEnrolment: current
+      ? {
+          levelName: current.level?.name ?? null,
+          semesterName: current.semester?.name ?? null,
+          academicYearName: current.academic_year?.name ?? null,
+        }
+      : null,
   };
 }
 

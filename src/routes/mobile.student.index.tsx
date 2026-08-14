@@ -21,7 +21,7 @@ import {
   useMobileStudentContext,
 } from "@/lib/mobile/student-context";
 import {
-  buildMobileStudentServices,
+  buildMobileHomeServices,
   type MobileServiceKey,
 } from "@/lib/mobile/student-services";
 
@@ -49,6 +49,20 @@ const PRIMARY_CARDS: { label: string; icon: LucideIcon; to: string }[] = [
   { label: "الوثائق الرسمية", icon: FileText, to: "/mobile/student/documents" },
 ];
 
+function IdentityRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-bold text-primary-deep/60">{label}</div>
+      <div
+        dir={mono ? "ltr" : undefined}
+        className={`truncate text-[12px] font-extrabold text-primary-deep ${mono ? "font-mono text-right" : ""}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function MobileStudentHome() {
   usePagePerf("/mobile/student");
   const { data, isLoading } = useMobileStudentContext();
@@ -62,7 +76,8 @@ function MobileStudentHome() {
   }
 
   const profile = data?.profile ?? null;
-  const services = buildMobileStudentServices({
+  const enrolment = data?.currentEnrolment ?? null;
+  const services = buildMobileHomeServices({
     gpEligible: data?.gpEligible === true,
     isGraduate: data?.isGraduate === true,
   });
@@ -72,31 +87,52 @@ function MobileStudentHome() {
     ...services.map((s) => ({ label: s.label, icon: ICONS[s.key], to: s.to })),
   ];
 
+  const identity: { label: string; value: string; mono?: boolean }[] = [];
+  if (profile?.academic_number)
+    identity.push({ label: "الرقم الجامعي", value: profile.academic_number, mono: true });
+  if (profile?.department?.name_ar)
+    identity.push({ label: "القسم", value: profile.department.name_ar });
+  if (profile?.program?.name_ar)
+    identity.push({ label: "البرنامج", value: profile.program.name_ar });
+  if (enrolment?.levelName || data?.levelNumber)
+    identity.push({
+      label: "المستوى",
+      value: enrolment?.levelName ?? `المستوى ${data?.levelNumber}`,
+    });
+  if (enrolment?.semesterName)
+    identity.push({ label: "الفصل الحالي", value: enrolment.semesterName });
+  if (profile?.status)
+    identity.push({
+      label: "حالة القيد",
+      value: STUDENT_STATUS_LABELS_AR[profile.status] ?? profile.status,
+    });
+
   return (
-    <div className="px-4 py-5 space-y-5">
-      <section className="rounded-2xl bg-gold-gradient text-primary-deep p-4 shadow-elegant">
-        <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-          مرحباً بعودتك
+    <div className="px-4 py-5 space-y-6">
+      {/* Welcome + identity summary */}
+      <section className="overflow-hidden rounded-2xl shadow-elegant">
+        <div className="bg-gold-gradient text-primary-deep px-4 pt-4 pb-3.5">
+          <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">
+            مرحباً بعودتك
+          </div>
+          <div className="mt-1 font-display text-lg font-extrabold leading-tight truncate">
+            {profile?.full_name_ar ?? "الطالب"}
+          </div>
         </div>
-        <div className="mt-1 font-display text-lg font-extrabold leading-tight truncate">
-          {profile?.full_name_ar ?? "الطالب"}
-        </div>
-        <div className="mt-1 flex items-center gap-2 text-[11px] font-bold opacity-80">
-          {profile?.academic_number && (
-            <span dir="ltr" className="font-mono">
-              {profile.academic_number}
-            </span>
-          )}
-          {profile?.status && (
-            <span className="rounded bg-primary-deep/10 px-1.5 py-0.5">
-              {STUDENT_STATUS_LABELS_AR[profile.status] ?? profile.status}
-            </span>
-          )}
-        </div>
+        {identity.length > 0 && (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-primary-deep/10 bg-gold/25 px-4 py-3">
+            {identity.map((row) => (
+              <IdentityRow key={row.label} {...row} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section>
-        <h2 className="font-display text-sm font-extrabold text-primary mb-3">الخدمات</h2>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-4 w-1 rounded-full bg-gold" />
+          <h2 className="font-display text-sm font-extrabold text-primary">الخدمات الأساسية</h2>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {cards.map((card) => {
             const Icon = card.icon;
