@@ -256,7 +256,9 @@ describe("student journey — review summary, double-submit, submitting, acknowl
     expect(calls.submitB1Request).toBe(2);
     // Component-level lock and stale-safe submit stay in place.
     expect(formSource).toContain("submitLock.current");
-    expect(formSource).toContain("submitB1Request(saved.requestId, saved.updatedAt)");
+    expect(formSource).toContain(
+      "submitB1Request(saved.requestId, saved.updatedAt, stepUpProof)",
+    );
   });
 
   it("shows a submitting state that blocks interaction (case 13)", () => {
