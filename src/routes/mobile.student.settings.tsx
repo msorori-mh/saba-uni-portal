@@ -4,6 +4,7 @@ import { KeyRound, Loader2, LogOut, Settings2, ShieldCheck } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { ANDROID_APP_DISPLAY_NAME } from "@/lib/native/platform";
+import { MobileSecuritySettings } from "@/components/mobile/MobileSecuritySettings";
 
 export const Route = createFileRoute("/mobile/student/settings")({
   head: () => ({ meta: [{ title: "الإعدادات" }] }),
