@@ -21,13 +21,30 @@ import {
   useLivePollInterval,
 } from "@/lib/councils-live";
 
+/**
+ * Authoritative live-session descriptor supplied by the page. The page derives
+ * it from the full council meeting list, so it stays visible even after the
+ * scheduled time has passed — unlike `upcoming_meetings`, which is time-bound.
+ */
+export interface CouncilLiveMeetingRef {
+  meeting_id: string;
+  title: string;
+  scheduled_at: string | null;
+}
+
 interface CouncilMemberWorkspaceProps {
   councilId: string;
   councilName: string;
   readOnly?: boolean;
   /** Opens the meeting workspace for the live session. */
   onEnterMeeting?: (meetingId: string) => void;
+  /**
+   * When provided, this is the single source of truth for the "current session"
+   * card. The `upcoming_meetings` scan is only a fallback for other callers.
+   */
+  liveMeeting?: CouncilLiveMeetingRef | null;
 }
+
 
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "مجدول",
