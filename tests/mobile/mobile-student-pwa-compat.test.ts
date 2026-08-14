@@ -27,7 +27,7 @@ describe("mobile student portal remains functional", () => {
   test("sensitive mobile student screens still exist", () => {
     for (const file of [
       "src/routes/mobile.student.finance.tsx",
-      "src/routes/mobile.student.documents.tsx",
+      "src/routes/mobile.student.documents.index.tsx",
       "src/routes/mobile.student.requests.tsx",
       "src/routes/mobile.student.grades.tsx",
       "src/routes/mobile.student.academic-record.tsx",

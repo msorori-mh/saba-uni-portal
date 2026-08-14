@@ -6,6 +6,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Printer, ArrowRight, XCircle, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logDocumentAction } from "@/lib/document-audit.functions";
+import { getOfficialDocumentSignedUrl } from "@/lib/documents/official-document-download.functions";
+import { downloadOfficialDocumentPdf } from "@/lib/documents/official-document-actions";
 import {
   EnrollmentCertificate, StatusCertificate, OfficialTranscript, FinancialReceipt,
   type DocumentBase, type StudentInfo, type SiteInfo, type TranscriptCourse, type ReceiptInfo,
@@ -25,6 +27,9 @@ function DocumentViewPage() {
   const autoprint = typeof window !== "undefined" && window.location.search.includes("print=1");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const auditFn = useServerFn(logDocumentAction);
+  const signFn = useServerFn(getOfficialDocumentSignedUrl);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const loggedPrintRef = useRef(false);
 
   const { data, isLoading, error } = useQuery({
@@ -145,10 +150,23 @@ function DocumentViewPage() {
   }, [autoprint, data, qrDataUrl]);
 
   const handlePrint = () => window.print();
-  const handleDownload = () => {
+  // Real PDF download: server authorizes ownership/status and returns a
+  // short-lived signed URL. Never window.print().
+  const handleDownload = async () => {
+    setDownloadError(null);
+    setDownloading(true);
+    const res = await downloadOfficialDocumentPdf(
+      id,
+      data?.doc?.status,
+      async (documentId) =>
+        (await signFn({ data: { officialDocumentId: documentId } })) as {
+          signedUrl: string;
+          expiresInSeconds: number;
+        },
+    );
+    setDownloading(false);
+    if (!res.ok) { setDownloadError(res.error); return; }
     auditFn({ data: { documentId: id, action: "document_downloaded" } }).catch(() => undefined);
-    // Browser "Save as PDF" via print dialog
-    window.print();
   };
 
   if (isLoading) {
@@ -176,8 +194,10 @@ function DocumentViewPage() {
         </button>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleDownload}
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:border-gold"
+            onClick={() => void handleDownload()}
+            disabled={downloading}
+            data-testid="document-download"
+            className="disabled:opacity-50 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:border-gold"
           >
             <Download className="h-4 w-4" /> تنزيل PDF
           </button>
@@ -189,6 +209,11 @@ function DocumentViewPage() {
           </button>
         </div>
       </div>
+      {downloadError ? (
+        <div className="print:hidden mx-auto mt-3 max-w-3xl rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs font-bold text-destructive">
+          {downloadError}
+        </div>
+      ) : null}
       <div className="py-6 print:py-0">
         {doc.document_type === "enrollment_certificate" && (
           <EnrollmentCertificate doc={doc} student={student} site={site} qrDataUrl={qrDataUrl} />
