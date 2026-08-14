@@ -205,10 +205,11 @@ export function CouncilSessionAndGovernanceWorkspace({
     setLoadingAction("save_minutes");
     try {
       await draftCouncilMinutesFn({ data: { meeting_id: meetingId, body: minutesBody } });
+      minutesDirtyRef.current = false;
       toast.success("تم حفظ مسودة المحضر بنجاح");
       qc.invalidateQueries();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر حفظ مسودة المحضر");
+    } catch (err: unknown) {
+      reportMinutesError(err, "تعذر حفظ مسودة المحضر");
     } finally {
       setLoadingAction(null);
     }
@@ -218,10 +219,12 @@ export function CouncilSessionAndGovernanceWorkspace({
     setLoadingAction("submit_minutes");
     try {
       await submitCouncilMinutesForReviewFn({ data: { meeting_id: meetingId } });
+      minutesDirtyRef.current = false;
       toast.success("تم إرسال المحضر للمراجعة");
       qc.invalidateQueries();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر إرسال المحضر");
+      onStateChanged?.();
+    } catch (err: unknown) {
+      reportMinutesError(err, "تعذر إرسال المحضر للمراجعة");
     } finally {
       setLoadingAction(null);
     }
@@ -233,15 +236,17 @@ export function CouncilSessionAndGovernanceWorkspace({
       await approveAndLockCouncilMinutesFn({
         data: { meeting_id: meetingId, approved_body: minutesBody || undefined },
       });
+      minutesDirtyRef.current = false;
       toast.success("تم اعتماد وقفل المحضر بنجاح. أصبح غير قابل للتعديل.");
       qc.invalidateQueries();
       onStateChanged?.();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر قفل المحضر");
+    } catch (err: unknown) {
+      reportMinutesError(err, "تعذر اعتماد وقفل المحضر");
     } finally {
       setLoadingAction(null);
     }
   }
+
 
   async function handleExportMinutesPdf() {
     setLoadingAction("export_minutes_pdf");
