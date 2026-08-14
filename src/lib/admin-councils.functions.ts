@@ -1,6 +1,10 @@
 // Server functions for the Academic Councils portal.
 // Overview reads may use supabaseAdmin (server-only). Membership writes use context.supabase (RLS).
 import { createServerFn } from "@tanstack/react-start";
+import {
+  isPreSessionTransitionBlocked,
+  validateMeetingDates,
+} from "@/lib/councils-meeting-dates";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
@@ -671,7 +675,12 @@ const scheduleCouncilMeetingSchema = z.object({
   intakeOpensAt: z.string().datetime({ message: "موعد فتح الاستقبال غير صالح" }).optional(),
   intakeClosesAt: z.string().datetime({ message: "موعد إغلاق الاستقبال غير صالح" }).optional(),
   notes: z.string().trim().max(4000).optional(),
-});
+})
+  .superRefine((value, ctx) => {
+    for (const issue of validateMeetingDates(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [issue.field], message: issue.message });
+    }
+  });
 
 const updateCouncilMeetingSchema = z.object({
   meetingId: z.string().uuid("معرّف الاجتماع غير صالح"),
