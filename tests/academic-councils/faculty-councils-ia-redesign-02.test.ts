@@ -28,6 +28,7 @@ const DECISIONS_SRC = read("src/components/portal/councils/CouncilDecisionsPanel
 const GOVERNANCE_SRC = read(
   "src/components/councils/CouncilSessionAndGovernanceWorkspace.tsx",
 );
+const MEMBER_SRC = read("src/components/councils/CouncilMemberWorkspace.tsx");
 
 const meeting = (
   id: string,
@@ -179,6 +180,17 @@ describe("councils IA redesign 02 — source guards", () => {
   it("shows council-level decisions with their source meeting", () => {
     expect(DECISIONS_SRC).toContain("getCouncilDecisionFollowupDashboardFn");
     expect(DECISIONS_SRC).toContain('data-testid="councils-decision-source-meeting"');
+  });
+
+  it("renders council decisions exactly once, in the decisions tab", () => {
+    expect(GOVERNANCE_SRC).toContain('data-testid="council-decisions-moved-note"');
+    expect(MEMBER_SRC).toContain('data-testid="councils-overview-decisions-pointer"');
+    expect(MEMBER_SRC).toContain("onOpenDecisions");
+  });
+
+  it("keeps the authorization audit route reachable but out of the header", () => {
+    expect(ROUTE_SRC).not.toContain("فحص الصلاحيات");
+    expect(ROUTE_SRC).not.toMatch(/to="[^"]*authorization-audit/);
   });
 
   it("replaces the disabled minutes textarea with a real read-only view", () => {

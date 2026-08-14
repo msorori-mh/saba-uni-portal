@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { scheduleCouncilMeeting } from "@/lib/admin-councils.functions";
+import { firstMeetingDateError } from "@/lib/councils-meeting-dates";
 import type { MyCouncilMembershipV2 } from "@/lib/faculty-councils.functions";
 import { extractErrorMessage, mapMeetingUiError, toIsoFromDatetimeLocal } from "./shared";
 
@@ -66,6 +67,17 @@ export function ScheduleMeetingDialog({
       toast.error("أدخل تاريخاً ووقتاً صالحين للاجتماع");
       return;
     }
+    const intakeOpensIso = toIsoFromDatetimeLocal(intakeOpensAt);
+    const intakeClosesIso = toIsoFromDatetimeLocal(intakeClosesAt);
+    const dateError = firstMeetingDateError({
+      scheduledAt: scheduledIso,
+      intakeOpensAt: intakeOpensIso ?? null,
+      intakeClosesAt: intakeClosesIso ?? null,
+    });
+    if (dateError) {
+      toast.error(dateError);
+      return;
+    }
     setBusy(true);
     try {
       await scheduleMeeting({
@@ -74,8 +86,8 @@ export function ScheduleMeetingDialog({
           title: trimmedTitle,
           scheduledAt: scheduledIso,
           location: location.trim() || undefined,
-          intakeOpensAt: toIsoFromDatetimeLocal(intakeOpensAt),
-          intakeClosesAt: toIsoFromDatetimeLocal(intakeClosesAt),
+          intakeOpensAt: intakeOpensIso,
+          intakeClosesAt: intakeClosesIso,
           notes: notes.trim() || undefined,
         },
       });

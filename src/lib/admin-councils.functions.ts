@@ -1,6 +1,10 @@
 // Server functions for the Academic Councils portal.
 // Overview reads may use supabaseAdmin (server-only). Membership writes use context.supabase (RLS).
 import { createServerFn } from "@tanstack/react-start";
+import {
+  isPreSessionTransitionBlocked,
+  validateMeetingDates,
+} from "@/lib/councils-meeting-dates";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
@@ -671,7 +675,12 @@ const scheduleCouncilMeetingSchema = z.object({
   intakeOpensAt: z.string().datetime({ message: "موعد فتح الاستقبال غير صالح" }).optional(),
   intakeClosesAt: z.string().datetime({ message: "موعد إغلاق الاستقبال غير صالح" }).optional(),
   notes: z.string().trim().max(4000).optional(),
-});
+})
+  .superRefine((value, ctx) => {
+    for (const issue of validateMeetingDates(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [issue.field], message: issue.message });
+    }
+  });
 
 const updateCouncilMeetingSchema = z.object({
   meetingId: z.string().uuid("معرّف الاجتماع غير صالح"),
@@ -948,11 +957,36 @@ export const transitionCouncilMeeting = createServerFn({ method: "POST" })
 
     const { data: existing, error: readErr } = await sb
       .from("academic_council_meetings")
-      .select("id, council_id, status")
+      .select("id, council_id, status, scheduled_at, intake_opens_at, intake_closes_at")
       .eq("id", data.meetingId)
       .maybeSingle();
     if (readErr) mapMeetingDbError(readErr, "load");
     if (!existing) throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+
+    // Date invariants are validated on the MERGED record: a partial update
+    // must not be able to produce an inconsistent stored chronology.
+    const mergedDates = {
+      scheduledAt:
+        data.scheduledAt !== undefined
+          ? data.scheduledAt
+          : ((existing as { scheduled_at: string | null }).scheduled_at ?? null),
+      intakeOpensAt:
+        data.intakeOpensAt !== undefined
+          ? data.intakeOpensAt
+          : ((existing as { intake_opens_at: string | null }).intake_opens_at ?? null),
+      intakeClosesAt:
+        data.intakeClosesAt !== undefined
+          ? data.intakeClosesAt
+          : ((existing as { intake_closes_at: string | null }).intake_closes_at ?? null),
+    };
+    const touchesDates =
+      data.scheduledAt !== undefined ||
+      data.intakeOpensAt !== undefined ||
+      data.intakeClosesAt !== undefined;
+    const mergedDateIssues = validateMeetingDates(mergedDates);
+    if (touchesDates && mergedDateIssues.length > 0) {
+      throw new Error(mergedDateIssues[0]!.message);
+    }
 
     await assertCanScheduleCouncilMeeting(
       sb,
@@ -1009,11 +1043,36 @@ export const updateCouncilMeeting = createServerFn({ method: "POST" })
 
     const { data: existing, error: readErr } = await sb
       .from("academic_council_meetings")
-      .select("id, council_id, status")
+      .select("id, council_id, status, scheduled_at, intake_opens_at, intake_closes_at")
       .eq("id", data.meetingId)
       .maybeSingle();
     if (readErr) mapMeetingDbError(readErr, "load");
     if (!existing) throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+
+    // Date invariants are validated on the MERGED record: a partial update
+    // must not be able to produce an inconsistent stored chronology.
+    const mergedDates = {
+      scheduledAt:
+        data.scheduledAt !== undefined
+          ? data.scheduledAt
+          : ((existing as { scheduled_at: string | null }).scheduled_at ?? null),
+      intakeOpensAt:
+        data.intakeOpensAt !== undefined
+          ? data.intakeOpensAt
+          : ((existing as { intake_opens_at: string | null }).intake_opens_at ?? null),
+      intakeClosesAt:
+        data.intakeClosesAt !== undefined
+          ? data.intakeClosesAt
+          : ((existing as { intake_closes_at: string | null }).intake_closes_at ?? null),
+    };
+    const touchesDates =
+      data.scheduledAt !== undefined ||
+      data.intakeOpensAt !== undefined ||
+      data.intakeClosesAt !== undefined;
+    const mergedDateIssues = validateMeetingDates(mergedDates);
+    if (touchesDates && mergedDateIssues.length > 0) {
+      throw new Error(mergedDateIssues[0]!.message);
+    }
 
     await assertCanScheduleCouncilMeeting(
       sb,
@@ -1023,6 +1082,13 @@ export const updateCouncilMeeting = createServerFn({ method: "POST" })
 
     // Status changes must go through the authoritative transition RPC.
     if (data.status) {
+      // Legacy rows with broken chronology may still be completed/archived,
+      // but they must not enter or prepare a live session.
+      if (isPreSessionTransitionBlocked(data.status, mergedDates)) {
+        throw new Error(
+          "تواريخ الاجتماع غير متسقة (ترتيب الاستقبال/الانعقاد). صحّح التواريخ قبل متابعة تجهيز الجلسة.",
+        );
+      }
       const { data: transitionRpc, error: transitionErr } = await sb.rpc(
         "council_transition_meeting" as never,
         {

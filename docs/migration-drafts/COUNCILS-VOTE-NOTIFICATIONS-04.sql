@@ -233,8 +233,8 @@ GRANT EXECUTE ON FUNCTION public.open_agenda_item_vote(uuid) TO authenticated, s
 
 -- ---------------------------------------------------------------------
 -- E) Delayed reminder sweep — service_role only, idempotent, DB-deduped
---     NOTE: this makes the system SCHEDULER-READY. It is not a guaranteed
---     background reminder until an external scheduler calls it.
+--     Section G below schedules it in-database (pg_cron), so the 5-minute
+--     reminder is AUTOMATIC and does not depend on any external caller.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.council_dispatch_due_vote_reminders(
   p_delay interval DEFAULT interval '5 minutes'
@@ -384,3 +384,28 @@ REVOKE ALL ON FUNCTION public.calculate_agenda_item_result(uuid) FROM PUBLIC, an
 GRANT EXECUTE ON FUNCTION public.calculate_agenda_item_result(uuid) TO authenticated, service_role;
 
 COMMIT;
+
+-- ---------------------------------------------------------------------
+-- G) Automatic scheduling of the 5-minute reminder (in-database)
+--     Idempotent: the job is unscheduled first, then re-created.
+--     Runs every minute; the sweep itself is DB-deduped, so a minute-level
+--     tick can never produce a duplicate reminder for the same item.
+-- ---------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+DO $cron$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'councils_vote_reminder_5m') THEN
+    PERFORM cron.unschedule('councils_vote_reminder_5m');
+  END IF;
+
+  PERFORM cron.schedule(
+    'councils_vote_reminder_5m',
+    '* * * * *',
+    $job$SELECT public.council_dispatch_due_vote_reminders(interval '5 minutes');$job$
+  );
+END
+$cron$;
+
+-- POST-VERIFIER (read-only):
+-- SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'councils_vote_reminder_5m';

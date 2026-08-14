@@ -13,8 +13,6 @@ import {
   Download,
   Sparkles,
   ShieldCheck,
-  Building,
-  UserCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,9 +40,7 @@ import {
   submitCouncilMinutesForReviewFn,
   approveAndLockCouncilMinutesFn,
   issueCouncilDecisionFn,
-  updateCouncilDecisionFollowupFn,
   archiveCouncilMeetingFn,
-  getCouncilDecisionFollowupDashboardFn,
   getCouncilHistoricalMinutesFn,
   exportApprovedCouncilMinutesPdfFn,
 } from "@/lib/councils-c4-c8.functions";
@@ -92,17 +88,6 @@ export function CouncilSessionAndGovernanceWorkspace({
   const minutesDirtyRef = useRef(false);
 
 
-  // Follow-up execution note state
-  const [selectedDecisionForFollowup, setSelectedDecisionForFollowup] = useState<any>(null);
-  const [followupNote, setFollowupNote] = useState("");
-  const [followupStatus, setFollowupStatus] = useState("in_progress");
-
-  // Fetch dashboard decisions
-  const dashboardQuery = useQuery({
-    queryKey: ["council-dashboard", councilId],
-    queryFn: () => getCouncilDecisionFollowupDashboardFn({ data: { council_id: councilId } }),
-    enabled: Boolean(councilId),
-  });
 
   // Fetch historical minutes
   const minutesQuery = useQuery({
@@ -323,52 +308,12 @@ export function CouncilSessionAndGovernanceWorkspace({
     }
   }
 
-  async function handleUpdateFollowup() {
-    if (!selectedDecisionForFollowup) return;
-    setLoadingAction("update_followup");
-    try {
-      await updateCouncilDecisionFollowupFn({
-        data: {
-          decision_id: selectedDecisionForFollowup.decision_id,
-          status: followupStatus,
-          execution_note: followupNote,
-        },
-      });
-      toast.success("تم تحديث نسبة وسجل التنفيذ");
-      setSelectedDecisionForFollowup(null);
-      qc.invalidateQueries();
-    } catch (err: any) {
-      toast.error(err.message || "تعذر تحديث المتابعة");
-    } finally {
-      setLoadingAction(null);
-    }
-  }
 
   const minutesData = minutesQuery.data;
   const isMinutesLocked = minutesData?.is_locked || meetingStatus === "minutes_locked" || meetingStatus === "archived";
   // C8 backend contract: issue_council_decision requires minutes_locked + resolved agenda item.
   const canIssueDecision = canWriteAgenda && meetingStatus === "minutes_locked";
 
-  const followupOptions = (() => {
-    const status = selectedDecisionForFollowup?.status as string | undefined;
-    if (status === "issued") {
-      return [
-        { value: "in_progress", label: "قيد التنفيذ" },
-        { value: "blocked", label: "متعثّر / معطّل" },
-      ];
-    }
-    if (status === "in_progress") {
-      return [
-        { value: "in_progress", label: "قيد التنفيذ" },
-        { value: "completed", label: "مكتمل ومُنفّذ" },
-        { value: "blocked", label: "متعثّر / معطّل" },
-      ];
-    }
-    if (status === "blocked") {
-      return [{ value: "in_progress", label: "استئناف التنفيذ" }];
-    }
-    return [];
-  })();
 
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
   // Live session polling: while the meeting is in session the agenda + item
@@ -726,100 +671,14 @@ export function CouncilSessionAndGovernanceWorkspace({
       </div>
 
 
-      {/* Decisions & Follow-up Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-            <Building className="w-5 h-5 text-indigo-600" />
-            <h4 className="font-bold text-md">سجل القرارات الصادرة ومتابعة التنفيذ</h4>
-          </div>
-          <Badge variant="outline">
-            إجمالي القرارات: {dashboardQuery.data?.summary?.total ?? 0}
-          </Badge>
-        </div>
+      {/* IA_02: council-level decisions are rendered once, in the council "القرارات" tab. */}
+      <p
+        data-testid="council-decisions-moved-note"
+        className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-xs text-slate-600 dark:text-slate-300"
+      >
+        سجل القرارات الصادرة ومتابعة التنفيذ يُعرض على مستوى المجلس في تبويب «القرارات».
+      </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(dashboardQuery.data?.decisions ?? []).map((dec: any) => (
-            <div
-              key={dec.decision_id}
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400 font-bold">
-                  {dec.canonical_number || dec.decision_id.slice(0, 8)}
-                </span>
-                <Badge
-                  className={
-                    dec.status === "completed"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : dec.status === "in_progress"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  }
-                >
-                  {dec.status === "completed"
-                    ? "مكتمل"
-                    : dec.status === "in_progress"
-                      ? "قيد التنفيذ"
-                      : dec.status === "blocked"
-                        ? "متعثّر"
-                        : dec.status === "issued"
-                          ? "صادر"
-                          : dec.status === "assigned"
-                            ? "مُسند"
-                            : dec.status}
-                </Badge>
-              </div>
-
-              <h5 className="font-bold text-slate-900 dark:text-slate-100 text-sm">{dec.title}</h5>
-              <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{dec.body}</p>
-
-              {dec.responsible_unit && (
-                <p className="text-xs text-slate-500">
-                  الجهة المكلفة: <span className="font-semibold text-slate-700 dark:text-slate-300">{dec.responsible_unit}</span>
-                </p>
-              )}
-
-              {dec.execution_note && (
-                <div className="p-2 bg-white dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-                  ملاحظة التنفيذ: {dec.execution_note}
-                </div>
-              )}
-
-              {/* Action for responsible actor or chair */}
-              {(dec.responsible_user_id === userId || isChair) && dec.status !== "completed" && (
-                <Button
-                  onClick={() => {
-                    setSelectedDecisionForFollowup(dec);
-                    setFollowupNote(dec.execution_note || "");
-                    setFollowupStatus(
-                      dec.status === "issued"
-                        ? "in_progress"
-                        : dec.status === "blocked"
-                          ? "in_progress"
-                          : dec.status === "in_progress"
-                            ? "completed"
-                            : dec.status,
-                    );
-                  }}
-                  size="sm"
-                  variant="outline"
-                  className="w-full text-xs mt-2"
-                >
-                  <UserCheck className="w-3.5 h-3.5 ml-1" />
-                  تحديث حالة ومجريات التنفيذ
-                </Button>
-              )}
-            </div>
-          ))}
-
-          {(dashboardQuery.data?.decisions ?? []).length === 0 && (
-            <div className="col-span-full py-8 text-center text-slate-400 text-sm">
-              لا توجد قرارات صادرة لهذا المجلس بعد.
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Dialog: Issue Decision — C8 requires resolved agenda_item_id after minutes_locked */}
       <Dialog
@@ -942,60 +801,6 @@ export function CouncilSessionAndGovernanceWorkspace({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Update Followup */}
-      <Dialog open={Boolean(selectedDecisionForFollowup)} onOpenChange={() => setSelectedDecisionForFollowup(null)}>
-        <DialogContent className="dir-rtl text-right sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>تحديث حالة متابعة القرار</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-                حالة التنفيذ
-              </label>
-              <Select value={followupStatus} onValueChange={setFollowupStatus} dir="rtl">
-                <SelectTrigger aria-label="حالة تنفيذ القرار">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {followupOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-                ملاحظات مجريات التنفيذ والوثائق
-              </label>
-              <Textarea
-                value={followupNote}
-                onChange={(e) => setFollowupNote(e.target.value)}
-                placeholder="اكتب مستجدات خطة التنفيذ وتاريخ الرفع والنتائج..."
-                rows={3}
-                className="dir-rtl"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:justify-start">
-            <Button
-              onClick={handleUpdateFollowup}
-              disabled={loadingAction === "update_followup"}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {loadingAction === "update_followup" ? (
-                <Loader2 className="w-4 h-4 animate-spin ml-2" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 ml-2" />
-              )}
-              حفظ تحديث التنفيذ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
