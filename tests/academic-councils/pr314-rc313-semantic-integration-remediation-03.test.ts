@@ -62,7 +62,7 @@ const RC313_SERVER_CONSUMERS = [
 const PR314_UX_MARKERS = [
   "CouncilsOperationalSummaryStrip",
   "CouncilsActionRequired",
-  'testId="councils-current-memberships"',
+  'data-testid="councils-current-memberships"',
   "NextMeetingPriorityCard",
   'data-testid="councils-tab-meetings"',
   'data-testid="councils-tab-topics"',
@@ -97,23 +97,19 @@ describe("PR314×RC313 semantic integration remediation 03", () => {
     );
   });
 
-  it("3 — PR314 operational hierarchy remains the page composition spine", () => {
+  it("3 — council-scoped composition remains the page spine", () => {
     const header = ROUTE_SRC.indexOf('data-testid="councils-page-header"');
+    const current = ROUTE_SRC.indexOf('data-testid="councils-current-memberships"');
     const summary = ROUTE_SRC.indexOf("<CouncilsOperationalSummaryStrip");
-    const actions = ROUTE_SRC.indexOf("<CouncilsActionRequired");
-    const current = ROUTE_SRC.indexOf('testId="councils-current-memberships"');
-    const next = ROUTE_SRC.indexOf("<NextMeetingPriorityCard");
-    const review = ROUTE_SRC.indexOf("<CouncilTopicReviewQueue");
     const tabs = ROUTE_SRC.indexOf('data-testid="councils-workspace-tabs"');
-    const governance = ROUTE_SRC.indexOf("الجلسة الحية والحوكمة");
+    const actions = ROUTE_SRC.indexOf("<CouncilsActionRequired");
+    const review = ROUTE_SRC.indexOf("<CouncilTopicReviewQueue");
     expect(header).toBeGreaterThan(-1);
-    expect(summary).toBeGreaterThan(header);
-    expect(actions).toBeGreaterThan(summary);
-    expect(current).toBeGreaterThan(actions);
-    expect(next).toBeGreaterThan(current);
-    expect(review).toBeGreaterThan(next);
-    expect(tabs).toBeGreaterThan(review);
-    expect(governance).toBeGreaterThan(tabs);
+    expect(current).toBeGreaterThan(header);
+    expect(summary).toBeGreaterThan(current);
+    expect(tabs).toBeGreaterThan(summary);
+    expect(actions).toBeGreaterThan(tabs);
+    expect(review).toBeGreaterThan(actions);
     for (const marker of PR314_UX_MARKERS) {
       expect(ALL_COUNCILS_SURFACE).toContain(marker);
     }
@@ -157,14 +153,14 @@ describe("PR314×RC313 semantic integration remediation 03", () => {
   });
 
   it("7 — C9 operational surfaces remain mounted (session/governance + role dashboards)", () => {
-    expect(ROUTE_SRC).toContain("CouncilSessionAndGovernanceWorkspace");
+    expect(ALL_COUNCILS_SURFACE).toContain("CouncilSessionAndGovernanceWorkspace");
     expect(ROUTE_SRC).toContain("CouncilChairDashboard");
     expect(ROUTE_SRC).toContain("CouncilSecretaryDashboard");
     expect(ROUTE_SRC).toContain("CouncilMemberWorkspace");
     expect(ROUTE_SRC).toContain("CouncilResponsibleActorView");
-    expect(ROUTE_SRC).toContain("لوحة العمل والمتابعة");
-    expect(ROUTE_SRC).toContain("الجلسة الحية والحوكمة");
-    expect(ROUTE_SRC).toMatch(/selected\.role === "viewer"/);
+    expect(ROUTE_SRC).toContain("لوحة دوري في المجلس");
+    expect(ALL_COUNCILS_SURFACE).toContain("الجلسة الحية والحوكمة");
+    expect(ROUTE_SRC).toMatch(/selectedRole === "viewer"/);
     expect(ROUTE_SRC).toMatch(/readOnly/);
   });
 });

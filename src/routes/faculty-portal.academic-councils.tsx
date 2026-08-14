@@ -4,28 +4,26 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Archive,
+  BarChart3,
   CalendarClock,
   FilePlus2,
+  Gavel,
+  LayoutDashboard,
   Loader2,
   Plus,
   ScrollText,
   ShieldCheck,
-  Users2,
 } from "lucide-react";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   CouncilsActionRequired,
   CouncilsOperationalSummaryStrip,
-  CurrentMembershipCard,
+  CouncilContextSelector,
+  CouncilLifecycleMeetings,
+  CouncilDecisionsPanel,
+  CouncilMeetingWorkspacePanel,
   PreviousMembershipCard,
   ScheduleMeetingDialog,
   CouncilAgendaDialog,
@@ -39,32 +37,33 @@ import {
   LoadingBlock,
   SectionShell,
   formatDateTime,
-  MEMBER_ROLE_LABELS,
-  meetingStatusLabel,
 } from "@/components/portal/councils";
 import {
   buildOperationalSummary,
   deriveActionRequiredItems,
   filterAgendaWriteMemberships,
   filterChairMemberships,
-  filterSecretaryMemberships,
   filterSubmitEligible,
   isViewerOnly,
 } from "@/lib/faculty-portal/councils-operational";
+import {
+  classifyMeetingLifecycle,
+  pickDefaultCouncilId,
+  scopeMeetingsToCouncil,
+  scopeTopicsToCouncil,
+} from "@/lib/faculty-portal/councils-context";
 import {
   getMyAcademicCouncilMembershipsV2,
   getMyCouncilMeetingsV2,
   getMyCouncilTopics,
   getOpenIntakeMeetingsForMember,
-  type MyCouncilMembershipV2,
 } from "@/lib/faculty-councils.functions";
-import type { CouncilLinkMemberRole } from "@/lib/admin-councils.functions";
-import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
 import { CouncilNotificationBell } from "@/components/councils/CouncilNotificationBell";
 import { CouncilChairDashboard } from "@/components/councils/CouncilChairDashboard";
 import { CouncilSecretaryDashboard } from "@/components/councils/CouncilSecretaryDashboard";
 import { CouncilMemberWorkspace } from "@/components/councils/CouncilMemberWorkspace";
 import { CouncilResponsibleActorView } from "@/components/councils/CouncilResponsibleActorView";
+import { CouncilReportsView } from "@/components/councils/CouncilReportsView";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
@@ -76,15 +75,6 @@ export const Route = createFileRoute("/faculty-portal/academic-councils")({
   }),
   component: FacultyAcademicCouncilsPage,
 });
-
-const GOVERNANCE_MEETING_STATUSES = [
-  "agenda_ready",
-  "in_session",
-  "minutes_draft",
-  "minutes_review",
-  "minutes_locked",
-  "archived",
-] as const;
 
 const INTAKE_CLOSED_NOTICE =
   "أُغلق استقبال الموضوعات لهذا الاجتماع بعد اعتماد جدول الأعمال.";
@@ -135,59 +125,88 @@ function FacultyAcademicCouncilsPage() {
   const councilVisibleTopics = topicsQuery.data?.councilVisibleTopics ?? [];
   const userId = userIdQuery.data ?? null;
 
+  const allMeetings = useMemo(
+    () => [...upcomingMeetings, ...previousMeetings],
+    [upcomingMeetings, previousMeetings],
+  );
+
+  // ---- Council context (primary scope of the whole page) ----
+  const [selectedCouncilIdState, setSelectedCouncilId] = useState<string | null>(null);
+  const defaultCouncilId = useMemo(
+    () => pickDefaultCouncilId(currentMemberships, allMeetings),
+    [currentMemberships, allMeetings],
+  );
+  const selectedCouncilId =
+    selectedCouncilIdState &&
+    currentMemberships.some((m) => m.council_id === selectedCouncilIdState)
+      ? selectedCouncilIdState
+      : defaultCouncilId;
+  const selectedMembership =
+    currentMemberships.find((m) => m.council_id === selectedCouncilId) ?? null;
+  const selectedRole = selectedMembership?.role ?? "viewer";
+
+  const councilMemberships = useMemo(
+    () => (selectedMembership ? [selectedMembership] : []),
+    [selectedMembership],
+  );
   const submitEligibleMemberships = useMemo(
-    () => filterSubmitEligible(currentMemberships),
-    [currentMemberships],
+    () => filterSubmitEligible(councilMemberships),
+    [councilMemberships],
   );
   const chairMemberships = useMemo(
-    () => filterChairMemberships(currentMemberships),
-    [currentMemberships],
+    () => filterChairMemberships(councilMemberships),
+    [councilMemberships],
   );
   const agendaWriteMemberships = useMemo(
-    () => filterAgendaWriteMemberships(currentMemberships),
-    [currentMemberships],
+    () => filterAgendaWriteMemberships(councilMemberships),
+    [councilMemberships],
   );
-  const secretaryMemberships = useMemo(
-    () => filterSecretaryMemberships(currentMemberships),
-    [currentMemberships],
-  );
-  const chairCouncilIds = useMemo(
-    () => new Set(chairMemberships.map((m) => m.council_id)),
-    [chairMemberships],
-  );
-  const agendaWriteCouncilIds = useMemo(
-    () => new Set(agendaWriteMemberships.map((m) => m.council_id)),
-    [agendaWriteMemberships],
-  );
-  const secretaryCouncilIds = useMemo(
-    () => new Set(secretaryMemberships.map((m) => m.council_id)),
-    [secretaryMemberships],
-  );
+  const canManageAgenda = agendaWriteMemberships.length > 0;
   const roleByCouncilId = useMemo(() => {
     const map = new Map<string, string>();
-    for (const m of currentMemberships) {
-      map.set(m.council_id, m.role);
-    }
+    for (const m of currentMemberships) map.set(m.council_id, m.role);
     return map;
   }, [currentMemberships]);
-  const viewerOnly = isViewerOnly(currentMemberships);
+  const viewerOnly = isViewerOnly(councilMemberships);
+
+  // ---- Council-scoped data ----
+  const councilUpcomingMeetings = useMemo(
+    () => scopeMeetingsToCouncil(upcomingMeetings, selectedCouncilId),
+    [upcomingMeetings, selectedCouncilId],
+  );
+  const councilPreviousMeetings = useMemo(
+    () => scopeMeetingsToCouncil(previousMeetings, selectedCouncilId),
+    [previousMeetings, selectedCouncilId],
+  );
+  const councilMeetings = useMemo(
+    () => [...councilUpcomingMeetings, ...councilPreviousMeetings],
+    [councilUpcomingMeetings, councilPreviousMeetings],
+  );
+  const councilMyTopics = useMemo(
+    () => scopeTopicsToCouncil(mySubmittedTopics, selectedCouncilId),
+    [mySubmittedTopics, selectedCouncilId],
+  );
+  const councilOtherTopics = useMemo(
+    () => scopeTopicsToCouncil(councilVisibleTopics, selectedCouncilId),
+    [councilVisibleTopics, selectedCouncilId],
+  );
 
   const summary = useMemo(
     () =>
       buildOperationalSummary({
-        currentMemberships,
+        currentMemberships: councilMemberships,
         chairMemberships,
         agendaWriteMemberships,
-        upcomingMeetings,
-        mySubmittedTopics,
+        upcomingMeetings: councilUpcomingMeetings,
+        mySubmittedTopics: councilMyTopics,
         formatDateTime,
       }),
     [
-      currentMemberships,
+      councilMemberships,
       chairMemberships,
       agendaWriteMemberships,
-      upcomingMeetings,
-      mySubmittedTopics,
+      councilUpcomingMeetings,
+      councilMyTopics,
     ],
   );
 
@@ -196,66 +215,47 @@ function FacultyAcademicCouncilsPage() {
       deriveActionRequiredItems({
         chairMemberships,
         agendaWriteMemberships,
-        upcomingMeetings,
-        mySubmittedTopics,
+        upcomingMeetings: councilUpcomingMeetings,
+        mySubmittedTopics: councilMyTopics,
       }),
-    [chairMemberships, agendaWriteMemberships, upcomingMeetings, mySubmittedTopics],
+    [chairMemberships, agendaWriteMemberships, councilUpcomingMeetings, councilMyTopics],
   );
 
-  const nextMeeting = upcomingMeetings[0];
-  const nextMeetingByCouncil = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const m of upcomingMeetings) {
-      if (!map.has(m.council_id)) {
-        map.set(m.council_id, formatDateTime(m.scheduled_at));
-      }
-    }
-    return map;
-  }, [upcomingMeetings]);
-
-  const governanceMeetings = useMemo(
-    () =>
-      [...upcomingMeetings, ...previousMeetings].filter((m) =>
-        (GOVERNANCE_MEETING_STATUSES as readonly string[]).includes(m.status),
-      ),
-    [upcomingMeetings, previousMeetings],
+  const liveMeeting = councilMeetings.find(
+    (m) => classifyMeetingLifecycle(m.status) === "in_session",
   );
+  const nextMeeting = councilUpcomingMeetings[0];
 
-  const [workspaceTab, setWorkspaceTab] = useState("meetings");
+  // ---- Workspace state ----
+  const [workspaceTab, setWorkspaceTab] = useState("overview");
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [agendaMeetingId, setAgendaMeetingId] = useState<string | null>(null);
   const [agendaOpen, setAgendaOpen] = useState(false);
-  const [focusMeetingId, setFocusMeetingId] = useState<string | null>(null);
-  const [agendaExpandMeetingId, setAgendaExpandMeetingId] = useState<string | null>(null);
+  const [activeMeetingIdState, setActiveMeetingId] = useState<string | null>(null);
+  const activeMeeting =
+    councilMeetings.find((m) => m.meeting_id === activeMeetingIdState) ?? null;
 
   const openAgenda = (meetingId: string) => {
     setAgendaMeetingId(meetingId);
     setAgendaOpen(true);
   };
 
-  const scrollToMeetingCard = (meetingId: string) => {
-    if (typeof window === "undefined") return;
-    window.setTimeout(() => {
-      const el = document.getElementById(`council-meeting-card-${meetingId}`);
-      if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      (el as HTMLElement).focus({ preventScroll: true });
-    }, 120);
+  const openMeetingWorkspace = (meetingId: string) => {
+    setActiveMeetingId(meetingId);
+    setWorkspaceTab("meetings");
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        document
+          .querySelector('[data-testid="councils-meeting-workspace"]')
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+    }
   };
 
-  const openMeeting = (meetingId: string) => {
-    setWorkspaceTab("meetings");
-    setAgendaExpandMeetingId(null);
-    setFocusMeetingId(meetingId);
-    scrollToMeetingCard(meetingId);
-  };
-
-  const viewMeetingAgenda = (meetingId: string) => {
-    setWorkspaceTab("meetings");
-    setFocusMeetingId(meetingId);
-    setAgendaExpandMeetingId(meetingId);
-    scrollToMeetingCard(meetingId);
+  const selectCouncil = (councilId: string) => {
+    setSelectedCouncilId(councilId);
+    setActiveMeetingId(null);
   };
 
   const openIntakeQuery = useQuery({
@@ -265,23 +265,20 @@ function FacultyAcademicCouncilsPage() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
-  const openIntakeMeetings = openIntakeQuery.data ?? [];
+  const openIntakeMeetings = (openIntakeQuery.data ?? []).filter(
+    (m: { council_id?: string }) => !selectedCouncilId || m.council_id === selectedCouncilId,
+  );
   const hasOpenIntake = openIntakeMeetings.length > 0;
   const intakeNoticeForNextMeeting =
     nextMeeting &&
-    !openIntakeMeetings.some((m) => m.meeting_id === nextMeeting.meeting_id) &&
-    (GOVERNANCE_MEETING_STATUSES as readonly string[]).includes(nextMeeting.status)
+    !openIntakeMeetings.some(
+      (m: { meeting_id?: string }) => m.meeting_id === nextMeeting.meeting_id,
+    )
       ? INTAKE_CLOSED_NOTICE
       : null;
 
-
   const pageLoading =
     membershipsQuery.isLoading && meetingsQuery.isLoading && topicsQuery.isLoading;
-
-  const allMeetingsForAgenda = useMemo(
-    () => [...upcomingMeetings, ...previousMeetings],
-    [upcomingMeetings, previousMeetings],
-  );
 
   return (
     <FacultyPortalShell
@@ -309,17 +306,10 @@ function FacultyAcademicCouncilsPage() {
           <div className="flex items-center gap-2 shrink-0">
             <CouncilNotificationBell />
             <Button variant="outline" size="sm" asChild>
-              <Link to="/faculty-portal/academic-councils/archive">الاجتماعات المؤرشفة</Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
               <Link to="/faculty-portal/academic-councils/authorization-audit">
                 فحص الصلاحيات
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/faculty-portal/academic-councils/reports">التقارير</Link>
-            </Button>
-
           </div>
         </header>
 
@@ -327,77 +317,37 @@ function FacultyAcademicCouncilsPage() {
           <div className="grid place-items-center py-16" role="status" aria-label="جاري التحميل">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : membershipsQuery.isError ? (
+          <ErrorBlock message="تعذّر تحميل عضويات المجالس. يرجى إعادة المحاولة لاحقاً." />
+        ) : currentMemberships.length === 0 ? (
+          <SectionShell icon={ShieldCheck} title="مجالسي الحالية" testId="councils-current-memberships">
+            <CompactEmpty text="لا توجد عضويات فعّالة مرتبطة بحسابك حالياً." />
+          </SectionShell>
         ) : (
           <>
+            <div data-testid="councils-current-memberships">
+              <CouncilContextSelector
+                memberships={currentMemberships}
+                selectedCouncilId={selectedCouncilId}
+                onSelect={selectCouncil}
+                nextMeetingLabel={
+                  nextMeeting ? formatDateTime(nextMeeting.scheduled_at) : null
+                }
+              />
+            </div>
+
             <CouncilsOperationalSummaryStrip summary={summary} />
 
-            <CouncilsActionRequired
-              items={actionItems}
-              onSchedule={
-                chairMemberships.length > 0 ? () => setScheduleOpen(true) : undefined
-              }
-              onOpenAgenda={
-                agendaWriteMemberships.length > 0 ? openAgenda : undefined
-              }
-              onOpenTopics={() => setWorkspaceTab("topics")}
-            />
-
-            <SectionShell
-              icon={Users2}
-              title="مجالسي الحالية"
-              testId="councils-current-memberships"
-            >
-              {membershipsQuery.isLoading ? (
-                <LoadingBlock />
-              ) : membershipsQuery.isError ? (
-                <ErrorBlock message="تعذّر تحميل عضويات المجالس. يرجى إعادة المحاولة لاحقاً." />
-              ) : currentMemberships.length === 0 ? (
-                <CompactEmpty text="لا توجد عضويات فعّالة مرتبطة بحسابك حالياً." />
-              ) : (
-                <ul className="grid gap-3 sm:grid-cols-2">
-                  {currentMemberships.map((m) => (
-                    <CurrentMembershipCard
-                      key={m.membership_id}
-                      membership={m}
-                      nextMeeting={nextMeetingByCouncil.get(m.council_id)}
-                      onOpen={() => setWorkspaceTab("meetings")}
-                    />
-                  ))}
-                </ul>
-              )}
-            </SectionShell>
-
-            {nextMeeting ? (
-              <NextMeetingPriorityCard
-                meeting={nextMeeting}
-                canManageAgenda={agendaWriteCouncilIds.has(nextMeeting.council_id)}
-                onManageAgenda={openAgenda}
-                onOpenMeeting={openMeeting}
-                onViewAgenda={viewMeetingAgenda}
-                intakeNotice={intakeNoticeForNextMeeting}
-              />
+            {viewerOnly ? (
+              <div
+                data-testid="councils-viewer-banner"
+                className="rounded-lg border border-amber-300/60 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900"
+              >
+                صلاحيتك الحالية قراءة فقط، ولا يمكنك تقديم موضوعات لهذا المجلس.
+              </div>
             ) : null}
 
-            {currentMemberships.length > 0 ? (
-              <SectionShell icon={ShieldCheck} title="لوحة العمل والمتابعة">
-                <CouncilWorkspacesSection
-                  memberships={currentMemberships}
-                  userId={userId}
-                />
-              </SectionShell>
-            ) : null}
-
-            {agendaWriteMemberships.length > 0 ? (
-              <CouncilTopicReviewQueue
-                roleByCouncilId={roleByCouncilId}
-                onUpdated={() => void topicsQuery.refetch()}
-              />
-            ) : null}
-
-            <div
-              data-testid="councils-primary-actions"
-              className="flex flex-wrap gap-2"
-            >
+            <div data-testid="councils-primary-actions" className="flex flex-wrap gap-2">
               {chairMemberships.length > 0 ? (
                 <Button
                   type="button"
@@ -443,15 +393,6 @@ function FacultyAcademicCouncilsPage() {
               ) : null}
             </div>
 
-            {viewerOnly ? (
-              <div
-                data-testid="councils-viewer-banner"
-                className="rounded-lg border border-amber-300/60 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900"
-              >
-                صلاحيتك الحالية قراءة فقط، ولا يمكنك تقديم موضوعات لهذا المجلس.
-              </div>
-            ) : null}
-
             <Tabs
               value={workspaceTab}
               onValueChange={setWorkspaceTab}
@@ -459,6 +400,14 @@ function FacultyAcademicCouncilsPage() {
               data-testid="councils-workspace-tabs"
             >
               <TabsList className="w-full h-auto flex flex-wrap justify-start gap-1">
+                <TabsTrigger
+                  value="overview"
+                  className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                  data-testid="councils-tab-overview"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
+                  نظرة المجلس
+                </TabsTrigger>
                 <TabsTrigger
                   value="meetings"
                   className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
@@ -476,6 +425,22 @@ function FacultyAcademicCouncilsPage() {
                   الموضوعات
                 </TabsTrigger>
                 <TabsTrigger
+                  value="decisions"
+                  className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                  data-testid="councils-tab-decisions"
+                >
+                  <Gavel className="h-3.5 w-3.5" aria-hidden />
+                  القرارات
+                </TabsTrigger>
+                <TabsTrigger
+                  value="reports"
+                  className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
+                  data-testid="councils-tab-reports"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+                  التقارير
+                </TabsTrigger>
+                <TabsTrigger
                   value="archive"
                   className="min-h-10 flex-1 sm:flex-none text-xs sm:text-sm gap-1.5"
                   data-testid="councils-tab-archive"
@@ -485,34 +450,168 @@ function FacultyAcademicCouncilsPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="meetings" className="mt-4">
-                <CouncilMeetingsWorkspace
-                  upcomingMeetings={upcomingMeetings}
-                  previousMeetings={previousMeetings}
-                  isLoading={meetingsQuery.isLoading}
-                  isError={meetingsQuery.isError}
-                  chairCouncilIds={chairCouncilIds}
-                  agendaWriteCouncilIds={agendaWriteCouncilIds}
-                  secretaryCouncilIds={secretaryCouncilIds}
-                  onManageAgenda={openAgenda}
-                  onUpdated={() => void meetingsQuery.refetch()}
-                  focusMeetingId={focusMeetingId}
-                  agendaExpandMeetingId={agendaExpandMeetingId}
+              {/* نظرة المجلس — أولوية تشغيلية: جلسة حية ← إجراء مطلوب ← الاجتماع القادم */}
+              <TabsContent value="overview" className="mt-4 space-y-4">
+                {liveMeeting ? (
+                  <SectionShell
+                    icon={ShieldCheck}
+                    title="جلسة منعقدة الآن"
+                    testId="councils-live-session-card"
+                    actions={
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="min-h-8 text-xs"
+                        onClick={() => openMeetingWorkspace(liveMeeting.meeting_id)}
+                      >
+                        فتح مساحة الاجتماع
+                      </Button>
+                    }
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      {liveMeeting.meeting_title?.trim() ||
+                        `اجتماع رقم ${liveMeeting.meeting_number}`}{" "}
+                      · {formatDateTime(liveMeeting.scheduled_at)}
+                    </p>
+                  </SectionShell>
+                ) : null}
+
+                <CouncilsActionRequired
+                  items={actionItems}
+                  onSchedule={
+                    chairMemberships.length > 0 ? () => setScheduleOpen(true) : undefined
+                  }
+                  onOpenAgenda={canManageAgenda ? openAgenda : undefined}
+                  onOpenTopics={() => setWorkspaceTab("topics")}
                 />
+
+                {nextMeeting && !liveMeeting ? (
+                  <NextMeetingPriorityCard
+                    meeting={nextMeeting}
+                    canManageAgenda={canManageAgenda}
+                    onManageAgenda={openAgenda}
+                    onOpenMeeting={openMeetingWorkspace}
+                    onViewAgenda={openMeetingWorkspace}
+                    intakeNotice={intakeNoticeForNextMeeting}
+                  />
+                ) : null}
+
+                {selectedMembership ? (
+                  <SectionShell icon={ShieldCheck} title="لوحة دوري في المجلس">
+                    {selectedRole === "chair" ? (
+                      <CouncilChairDashboard
+                        councilId={selectedMembership.council_id}
+                        councilName={selectedMembership.council_name}
+                      />
+                    ) : selectedRole === "secretary" ? (
+                      <CouncilSecretaryDashboard
+                        councilId={selectedMembership.council_id}
+                        councilName={selectedMembership.council_name}
+                      />
+                    ) : (
+                      <CouncilMemberWorkspace
+                        councilId={selectedMembership.council_id}
+                        councilName={selectedMembership.council_name}
+                        readOnly={selectedRole === "viewer"}
+                      />
+                    )}
+                  </SectionShell>
+                ) : null}
+
+                {userId && selectedRole !== "viewer" ? (
+                  <CouncilResponsibleActorView userId={userId} />
+                ) : null}
               </TabsContent>
 
-              <TabsContent value="topics" className="mt-4">
+              {/* الاجتماعات — دورة حياة + مساحة اجتماع واحدة فقط */}
+              <TabsContent value="meetings" className="mt-4 space-y-4">
+                <CouncilLifecycleMeetings
+                  meetings={councilMeetings}
+                  isLoading={meetingsQuery.isLoading}
+                  isError={meetingsQuery.isError}
+                  activeMeetingId={activeMeeting?.meeting_id ?? null}
+                  onOpenMeeting={openMeetingWorkspace}
+                  canManageAgenda={canManageAgenda}
+                  onManageAgenda={openAgenda}
+                />
+
+                {activeMeeting ? (
+                  <CouncilMeetingWorkspacePanel
+                    meeting={activeMeeting}
+                    userRole={
+                      activeMeeting.user_membership_role ??
+                      roleByCouncilId.get(activeMeeting.council_id) ??
+                      "viewer"
+                    }
+                    userId={userId}
+                    canManageAgenda={canManageAgenda}
+                    onManageAgenda={openAgenda}
+                    onClose={() => setActiveMeetingId(null)}
+                    onStateChanged={() => void meetingsQuery.refetch()}
+                  />
+                ) : (
+                  <CompactEmpty
+                    text="اختر اجتماعاً لفتح مساحته وإدارة جدول الأعمال والجلسة والمحضر."
+                    testId="councils-meeting-workspace-empty"
+                  />
+                )}
+              </TabsContent>
+
+              {/* الموضوعات — ضمن المجلس المحدد */}
+              <TabsContent value="topics" className="mt-4 space-y-4">
                 <CouncilTopicsWorkspace
-                  mySubmittedTopics={mySubmittedTopics}
-                  councilVisibleTopics={councilVisibleTopics}
+                  mySubmittedTopics={councilMyTopics}
+                  councilVisibleTopics={councilOtherTopics}
                   isLoading={topicsQuery.isLoading}
                   isError={topicsQuery.isError}
                   userId={userId}
                   onUpdated={() => void topicsQuery.refetch()}
                 />
+                {canManageAgenda ? (
+                  <CouncilTopicReviewQueue
+                    roleByCouncilId={roleByCouncilId}
+                    onUpdated={() => void topicsQuery.refetch()}
+                  />
+                ) : null}
               </TabsContent>
 
-              <TabsContent value="archive" className="mt-4" data-testid="councils-archive-panel">
+              {/* القرارات — على مستوى المجلس مع الاجتماع المصدر */}
+              <TabsContent value="decisions" className="mt-4">
+                {selectedCouncilId ? (
+                  <CouncilDecisionsPanel
+                    councilId={selectedCouncilId}
+                    meetings={councilMeetings}
+                    onOpenSourceMeeting={openMeetingWorkspace}
+                  />
+                ) : null}
+              </TabsContent>
+
+              {/* التقارير */}
+              <TabsContent value="reports" className="mt-4 space-y-3">
+                {selectedMembership ? (
+                  <>
+                    <CouncilReportsView
+                      councilId={selectedMembership.council_id}
+                      councilName={selectedMembership.council_name}
+                    />
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to="/faculty-portal/academic-councils/reports">
+                        فتح صفحة التقارير الكاملة
+                      </Link>
+                    </Button>
+                  </>
+                ) : null}
+              </TabsContent>
+
+              {/* الأرشيف */}
+              <TabsContent value="archive" className="mt-4 space-y-3" data-testid="councils-archive-panel">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/faculty-portal/academic-councils/archive">
+                      الاجتماعات المؤرشفة
+                    </Link>
+                  </Button>
+                </div>
                 <SectionShell icon={Archive} title="عضويات سابقة">
                   {membershipsQuery.isLoading ? (
                     <LoadingBlock />
@@ -534,38 +633,6 @@ function FacultyAcademicCouncilsPage() {
               </TabsContent>
             </Tabs>
 
-            {governanceMeetings.length > 0 && currentMemberships.length > 0 ? (
-              <SectionShell icon={ShieldCheck} title="الجلسة الحية والحوكمة">
-                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                  إدارة الجلسة والتصويت والمحضر والقرارات والأرشفة متاح وفق دورك المعتمد في المجلس.
-                </p>
-                <div className="space-y-6">
-                  {governanceMeetings.map((m) => {
-                    const role =
-                      m.user_membership_role ??
-                      roleByCouncilId.get(m.council_id) ??
-                      "viewer";
-                    return (
-                      <div key={`gov-${m.meeting_id}`} className="space-y-2">
-                        <div className="text-sm font-bold text-primary">
-                          {m.council_name} · الاجتماع رقم {m.meeting_number} ·{" "}
-                          {meetingStatusLabel(m.status)}
-                        </div>
-                        <CouncilSessionAndGovernanceWorkspace
-                          meetingId={m.meeting_id}
-                          councilId={m.council_id}
-                          meetingStatus={m.status}
-                          userRole={role}
-                          userId={userId ?? undefined}
-                          onStateChanged={() => void meetingsQuery.refetch()}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </SectionShell>
-            ) : null}
-
             {chairMemberships.length > 0 ? (
               <ScheduleMeetingDialog
                 open={scheduleOpen}
@@ -581,7 +648,7 @@ function FacultyAcademicCouncilsPage() {
                 onOpenChange={setAgendaOpen}
                 meetingId={agendaMeetingId}
                 writeMemberships={agendaWriteMemberships}
-                upcomingMeetings={allMeetingsForAgenda}
+                upcomingMeetings={councilMeetings}
                 onUpdated={() => void meetingsQuery.refetch()}
               />
             ) : null}
@@ -600,72 +667,5 @@ function FacultyAcademicCouncilsPage() {
   );
 }
 
-function CouncilWorkspacesSection({
-  memberships,
-  userId,
-}: {
-  memberships: MyCouncilMembershipV2[];
-  userId: string | null;
-}) {
-  const [selectedId, setSelectedId] = useState(memberships[0]?.council_id ?? "");
-  const selected = memberships.find((m) => m.council_id === selectedId) ?? memberships[0];
-
-  if (!selected) {
-    return (
-      <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-        لا توجد عضويات متاحة.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3 rounded-lg border border-border">
-        <div className="flex items-center gap-2">
-          <label htmlFor="current-council-select" className="text-xs font-bold text-primary whitespace-nowrap">
-            المجلس الحالي:
-          </label>
-          <Select value={selectedId} onValueChange={setSelectedId} dir="rtl">
-            <SelectTrigger id="current-council-select" className="sm:max-w-xs font-medium">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent dir="rtl">
-              {memberships.map((m) => (
-                <SelectItem key={m.council_id} value={m.council_id}>
-                  {m.council_name} — {MEMBER_ROLE_LABELS[m.role as CouncilLinkMemberRole] ?? m.role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          تستند الصلاحيات والخيارات المتاحة إلى دورك المعتمد في كل مجلس.
-        </p>
-      </div>
-
-      {selected.role === "chair" ? (
-        <CouncilChairDashboard councilId={selected.council_id} councilName={selected.council_name} />
-      ) : selected.role === "secretary" ? (
-        <CouncilSecretaryDashboard
-          councilId={selected.council_id}
-          councilName={selected.council_name}
-        />
-      ) : selected.role === "viewer" ? (
-        <CouncilMemberWorkspace
-          councilId={selected.council_id}
-          councilName={selected.council_name}
-          readOnly
-        />
-      ) : (
-        <CouncilMemberWorkspace
-          councilId={selected.council_id}
-          councilName={selected.council_name}
-        />
-      )}
-
-      {userId && selected.role !== "viewer" ? (
-        <CouncilResponsibleActorView userId={userId} />
-      ) : null}
-    </div>
-  );
-}
+/** Legacy combined meetings workspace kept for compatibility with existing consumers. */
+export const LegacyCouncilMeetingsWorkspace = CouncilMeetingsWorkspace;

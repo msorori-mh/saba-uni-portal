@@ -1,4 +1,91 @@
-# FACULTY_COUNCILS_WORKSPACE_INFORMATION_ARCHITECTURE_REDESIGN_02
+# الخطة **ممتازة ومعتمدة للتنفيذ Source-only**. وبعد مراجعة المصدر الحالي، هي تعالج المشكلة من جذورها دون الحاجة إلى Migration أو تغيير صلاحيات.
+
+```text
+APPROVED_FACULTY_COUNCILS_WORKSPACE_INFORMATION_ARCHITECTURE_REDESIGN_02
+
+SCOPE=SOURCE_ONLY
+MIGRATION=DENY
+RPC_CONTRACT_CHANGE=DENY
+AUTHORIZATION_CHANGE=DENY
+PRODUCTION_WRITE=0
+DEPLOY=DENY
+PUBLISH=DENY
+
+```
+
+هناك فقط **5 ضوابط تنفيذية** أريد تثبيتها قبل البدء:
+
+1. **المجلس المختار هو SoT للواجهة كلها.** عند تبديل المجلس يجب فورًا تصفير `selectedMeetingId` وإغلاق أي Meeting Workspace قديم، وإعادة احتساب: الاجتماعات، الموضوعات، الإجراءات، القرارات، الأرشيف، وصلاحيات العرض. لا يجوز بقاء بيانات مجلس القسم ظاهرة بعد التحويل إلى مجلس الكلية.
+2. الأفضل حفظ السياق في URL Search Params مثل:  
+`?council=<id>&tab=meetings&meeting=<id>`  
+حتى يعمل Refresh/Back/Forward والروابط المباشرة بشكل صحيح. إذا كانت القيمة غير صالحة، fallback لأول عضوية فعالة بدون خطأ.
+3. **تبويب القرارات قابل للتنفيذ دون Backend جديد.** تحققت أن `get_council_decision_followup_dashboard` يعيد بالفعل `meeting_id` مع كل قرار؛ لذلك يمكن إظهار «صادر عن الاجتماع #...» بربطه بقائمة اجتماعات المجلس الحالية، ولا حاجة لأي RPC جديد.
+4. بالنسبة إلى **التقارير**: لا نعيد كتابة صفحة التقارير المستقلة. الأفضل داخل تبويب «التقارير» في الـWorkspace الجديد إعادة استخدام `CouncilReportsView` مباشرة مع `selectedCouncilId`. الصفحة الحالية أصلًا تستخدم نفس المكون وتختار مجلسًا ثم تمرر `councilId` و`councilName`. وهكذا يبقى `/academic-councils/reports` كما هو خارج النطاق.
+5. **الفلترة Client-side ليست Authorization.** هي فقط لتنظيم العرض؛ جميع العمليات تظل تعتمد عقود RLS/RPC الحالية. لا يُضاف أي `role === ...` جديد باعتباره حماية خلفية.
+
+وأضيف هذه الاختبارات الإلزامية للمهمة:
+
+```text
+SELECT_COUNCIL_FILTERS_ALL_SURFACES=PASS
+SWITCH_COUNCIL_CLEARS_OPEN_MEETING=PASS
+ONLY_ONE_MEETING_WORKSPACE_RENDERED=PASS
+IN_SESSION_NEVER_CLASSIFIED_AS_PREVIOUS=PASS
+
+MEETING_GROUP_ACTIVE=PASS
+MEETING_GROUP_PREPARATION=PASS
+MEETING_GROUP_COMPLETED=PASS
+MEETING_GROUP_ARCHIVED=PASS
+
+COUNCIL_DECISION_RENDERED_ONCE=PASS
+DECISION_SOURCE_MEETING_VISIBLE=PASS
+MEMBER_MINUTES_EDITOR_HIDDEN=PASS
+MEMBER_MINUTES_READONLY_STATE=PASS
+
+OPEN_INTAKE_SCOPED_TO_SELECTED_COUNCIL=PASS
+NO_OPEN_INTAKE_TRUTHFUL_MESSAGE=PASS
+
+ARCHIVE_SINGLE_SURFACE=PASS
+AUTHORIZATION_AUDIT_LINK_HIDDEN=PASS
+PERMISSIONS_CARD_ROLE_ACCURATE=PASS
+
+DEPARTMENT_COUNCIL_SAME_WORKSPACE=PASS
+COLLEGE_COUNCIL_SAME_WORKSPACE=PASS
+ROLE_DRIVEN_ACTIONS_PRESERVED=PASS
+
+TSC=PASS
+FACULTY_PORTAL_TESTS=PASS
+ACADEMIC_COUNCILS_SOURCE_TESTS=PASS_OR_ONLY_DOCUMENTED_PREEXISTING_ENV_FAILURES
+DIFF_CHECK=PASS
+
+PRODUCTION_WRITE=0
+MIGRATION=0
+DEPLOY=0
+PUBLISH=0
+
+```
+
+أهم معيار نجاح بصري عندي: عند اختيار **مجلس قسم نظم المعلومات** يجب ألا يرى المستخدم صفحة طويلة فيها خمسة اجتماعات وثلاث مساحات حوكمة؛ يرى **مجلسًا واحدًا، ملخصًا واحدًا، وإجراءه الحالي**، ثم يفتح الاجتماع الذي يريده فقط.
+
+والـMeeting Workspace ينبغي أن يصبح بهذا الشكل:
+
+```text
+مجلس قسم نظم المعلومات
+عضو · فعّال
+
+[ جلسة جارية ] [ الاجتماع التالي ] [ موضوعاتي ] [ مطلوب مني ]
+
+نظرة عامة | الاجتماعات | الموضوعات | القرارات | الأرشيف | التقارير
+
+                ↓ فتح اجتماع
+
+اجتماع #3 — تجريبي2
+✓ الاستقبال → ✓ جدول الأعمال → ● الجلسة → ○ المحضر → ○ القرارات
+
+ملخص | جدول الأعمال | الجلسة والتصويت | المحضر | القرارات
+
+```
+
+هذا هو التنظيم الذي أعتمده للإنتاج مستقبلًا. **ابدأ التنفيذ وفق الخطة كما كتبتها مع الضوابط أعلاه، ولا توسّع النطاق.**FACULTY_COUNCILS_WORKSPACE_INFORMATION_ARCHITECTURE_REDESIGN_02
 
 إعادة تنظيم واجهة «مجالسي الأكاديمية» لعضو هيئة التدريس بحيث يصبح **المجلس هو السياق الرئيسي**، ثم **الاجتماع المختار** مساحة عمل مستقلة. Source-only: لا Migration، لا تغيير في RPCs أو الصلاحيات، لا نشر.
 

@@ -12,6 +12,7 @@ describe("Academic Councils C0-C9 UI / a11y / RTL closure contracts", () => {
   const faculty = read("src/routes/faculty-portal.academic-councils.tsx");
   const reportsRoute = read("src/routes/faculty-portal.academic-councils.reports.tsx");
   const workspace = read("src/components/councils/CouncilSessionAndGovernanceWorkspace.tsx");
+  const meetingPanel = read("src/components/portal/councils/CouncilMeetingWorkspacePanel.tsx");
   const voting = read("src/components/councils/CouncilVotingControl.tsx");
   const notif = read("src/components/councils/CouncilNotificationBell.tsx");
   const reports = read("src/components/councils/CouncilReportsView.tsx");
@@ -23,7 +24,7 @@ describe("Academic Councils C0-C9 UI / a11y / RTL closure contracts", () => {
   const c48fn = read("src/lib/councils-c4-c8.functions.ts");
 
   it("wires CHAIR/SECRETARY/MEMBER/RESPONSIBLE/VIEWER surfaces to backend RPCs", () => {
-    expect(faculty).toContain("CouncilSessionAndGovernanceWorkspace");
+    expect(meetingPanel).toContain("CouncilSessionAndGovernanceWorkspace");
     expect(faculty).toContain("CouncilChairDashboard");
     expect(faculty).toContain("CouncilSecretaryDashboard");
     expect(faculty).toContain("CouncilMemberWorkspace");

@@ -199,35 +199,35 @@ describe("councils page IA — operational dashboard", () => {
     );
   });
 
-  it("places operational summary and current councils near top before archive tab", () => {
+  it("scopes the page to the selected council before workspace tabs", () => {
     const header = ROUTE_SRC.indexOf('data-testid="councils-page-header"');
+    const selector = ROUTE_SRC.indexOf("<CouncilContextSelector");
+    const current = ROUTE_SRC.indexOf('data-testid="councils-current-memberships"');
     const summary = ROUTE_SRC.indexOf("<CouncilsOperationalSummaryStrip");
-    const actions = ROUTE_SRC.indexOf("<CouncilsActionRequired");
-    const current = ROUTE_SRC.indexOf('testId="councils-current-memberships"');
-    const next = ROUTE_SRC.indexOf("<NextMeetingPriorityCard");
     const tabs = ROUTE_SRC.indexOf('data-testid="councils-workspace-tabs"');
-    const archive = ROUTE_SRC.indexOf('data-testid="councils-tab-archive"');
+    const actions = ROUTE_SRC.indexOf("<CouncilsActionRequired");
+    const next = ROUTE_SRC.indexOf("<NextMeetingPriorityCard");
     expect(header).toBeGreaterThan(-1);
-    expect(summary).toBeGreaterThan(header);
-    expect(actions).toBeGreaterThan(summary);
-    expect(current).toBeGreaterThan(actions);
-    expect(next).toBeGreaterThan(current);
-    expect(tabs).toBeGreaterThan(next);
-    expect(archive).toBeGreaterThan(tabs);
+    expect(current).toBeGreaterThan(header);
+    expect(selector).toBeGreaterThan(current);
+    expect(summary).toBeGreaterThan(selector);
+    expect(tabs).toBeGreaterThan(summary);
+    expect(actions).toBeGreaterThan(tabs);
+    expect(next).toBeGreaterThan(actions);
   });
 
   it("exposes meetings / topics / archive tabs with meetings default", () => {
     expect(ROUTE_SRC).toMatch(/data-testid="councils-tab-meetings"/);
     expect(ROUTE_SRC).toMatch(/data-testid="councils-tab-topics"/);
-    expect(ROUTE_SRC).toMatch(/data-testid="councils-tab-archive"/);
-    expect(ROUTE_SRC).toMatch(/useState\("meetings"\)/);
+    expect(ROUTE_SRC).toMatch(/data-testid="councils-tab-decisions"/);
+    expect(ROUTE_SRC).toMatch(/useState\("overview"\)/);
     expect(ROUTE_SRC).toMatch(/الاجتماعات/);
     expect(ROUTE_SRC).toMatch(/الموضوعات/);
     expect(ROUTE_SRC).toMatch(/الأرشيف/);
   });
 
   it("consolidates meetings and topics into workspaces", () => {
-    expect(ROUTE_SRC).toMatch(/CouncilMeetingsWorkspace/);
+    expect(ROUTE_SRC).toMatch(/CouncilLifecycleMeetings/);
     expect(ROUTE_SRC).toMatch(/CouncilTopicsWorkspace/);
     expect(ROUTE_SRC).not.toMatch(/title="الاجتماعات القادمة"/);
     expect(ROUTE_SRC).not.toMatch(/title="الاجتماعات السابقة"/);
