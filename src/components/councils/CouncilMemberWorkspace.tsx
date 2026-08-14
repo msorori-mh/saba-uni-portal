@@ -272,38 +272,29 @@ export function CouncilMemberWorkspace({
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2">
+          {/* IA_02: council decisions are rendered once, in the "القرارات" tab. */}
+          <Card className="md:col-span-2" data-testid="councils-overview-decisions-pointer">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Scale className="h-4 w-4" />
                 القرارات
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {(data.decisions ?? []).length === 0 ? (
-                <EmptyItem text="لا توجد قرارات صادرة لهذا المجلس." />
-              ) : (
-                (data.decisions as Array<{
-                  decision_id: string;
-                  canonical_number: string;
-                  title: string;
-                  status: string;
-                  due_date: string;
-                }>).map((d) => (
-                  <div
-                    key={d.decision_id}
-                    className="flex items-center justify-between rounded-md border border-border p-2 text-xs"
-                  >
-                    <div>
-                      <p className="font-bold">{d.title}</p>
-                      <p className="text-muted-foreground mt-0.5">
-                        الموعد: {formatDateTime(d.due_date)}
-                      </p>
-                    </div>
-                    <Badge variant="outline">{statusLabel(d.status)}</Badge>
-                  </div>
-                ))
-              )}
+            <CardContent className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <p className="text-muted-foreground">
+                سجل القرارات الصادرة ومتابعة التنفيذ يُعرض كاملاً في تبويب «القرارات».
+              </p>
+              {onOpenDecisions ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="min-h-8 text-xs"
+                  onClick={onOpenDecisions}
+                >
+                  فتح تبويب القرارات
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
         </div>
