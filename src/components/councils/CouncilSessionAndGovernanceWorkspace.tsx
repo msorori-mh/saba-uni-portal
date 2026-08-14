@@ -646,49 +646,85 @@ export function CouncilSessionAndGovernanceWorkspace({
               العرض للاطلاع فقط — تحرير المحضر من صلاحية رئيس المجلس وأمين السر.
             </p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <Textarea
-              value={minutesBody}
-              onChange={(e) => setMinutesBody(e.target.value)}
-              placeholder="اكتب بنود وقرارات ومداولات محضر الاجتماع هنا..."
-              rows={5}
-              className="dir-rtl text-right font-sans"
-            />
-            <div className="flex items-center gap-2 justify-end">
-              <Button
-                onClick={handleSaveMinutesDraft}
-                disabled={loadingAction === "save_minutes"}
-                variant="outline"
-                size="sm"
-              >
-                حفظ المسودة
-              </Button>
-              {isSecretary && (
-                <Button
-                  onClick={handleSubmitMinutesReview}
-                  disabled={loadingAction === "submit_minutes"}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  تقديم للمراجعة
-                </Button>
-              )}
-              {isChair && (
+        ) : isMinutesReviewStage ? (
+          /* minutes_review — the draft is frozen for editing.
+             Chair: read the saved text and approve/lock. Secretary: read-only. */
+          <div className="space-y-3" data-testid="council-minutes-review">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">
+              {savedMinutesBody.trim() ? savedMinutesBody : "لا يوجد نص محفوظ للمسودة."}
+            </div>
+            {isChair ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-slate-500">
+                  المحضر بانتظار مراجعتك واعتماده. بعد الاعتماد يصبح غير قابل للتعديل.
+                </p>
                 <Button
                   onClick={handleLockMinutes}
                   disabled={loadingAction === "lock_minutes"}
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shrink-0"
                 >
                   <Lock className="w-4 h-4 ml-1.5" />
                   اعتماد وقفل المحضر رسمياً
                 </Button>
-              )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">
+                تم إرسال المحضر إلى رئيس المجلس للمراجعة والاعتماد. لا يمكن تعديل المسودة في هذه المرحلة.
+              </p>
+            )}
+          </div>
+        ) : isMinutesDraftStage ? (
+          /* minutes_draft — chair and secretary may write; only the secretary submits. */
+          <div className="space-y-3" data-testid="council-minutes-draft-editor">
+            <Textarea
+              value={minutesBody}
+              onChange={(e) => {
+                minutesDirtyRef.current = true;
+                setMinutesBody(e.target.value);
+              }}
+              placeholder="اكتب بنود وقرارات ومداولات محضر الاجتماع هنا..."
+              rows={5}
+              className="dir-rtl text-right font-sans"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">
+                {isChair
+                  ? "المحضر مسودة ولم يُرسل للمراجعة بعد. يتولى أمين السر إرساله للمراجعة قبل الاعتماد."
+                  : "احفظ المسودة ثم أرسلها لرئيس المجلس للمراجعة والاعتماد."}
+              </p>
+              <div className="flex items-center gap-2 justify-end shrink-0">
+                <Button
+                  onClick={handleSaveMinutesDraft}
+                  disabled={loadingAction === "save_minutes"}
+                  variant="outline"
+                  size="sm"
+                >
+                  حفظ المسودة
+                </Button>
+                {isSecretary && (
+                  <Button
+                    onClick={handleSubmitMinutesReview}
+                    disabled={loadingAction === "submit_minutes"}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    تقديم للمراجعة
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Before the session closes there is no minutes stage yet. */
+          <div className="space-y-2" data-testid="council-minutes-not-started">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-slate-600 dark:text-slate-300 text-sm">
+              لم تبدأ مرحلة إعداد المحضر بعد. تُفتح المسودة بعد إغلاق الجلسة.
             </div>
           </div>
         )}
       </div>
+
 
       {/* Decisions & Follow-up Section */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
