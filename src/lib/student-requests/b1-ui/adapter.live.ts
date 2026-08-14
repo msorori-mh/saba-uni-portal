@@ -66,7 +66,11 @@ export type LiveB1UiAdapterDeps = {
   getStudentDetails: (requestId: string) => Promise<B1RequestDetails>;
   getAssignedInbox: () => Promise<readonly B1AssignedRequest[]>;
   getAssignedDetails: (requestId: string) => Promise<B1AssignedRequestDetails>;
-  submitB1Request: (requestId: string, expectedUpdatedAt: string) => Promise<B1SubmitResult>;
+  submitB1Request: (
+    requestId: string,
+    expectedUpdatedAt: string,
+    stepUpProof?: string | null,
+  ) => Promise<B1SubmitResult>;
   actOnB1RequestStep: (
     stepId: string,
     action: Exclude<B1StaffAction, "confirm_payment">,
@@ -322,8 +326,10 @@ function defaultDeps(): LiveB1UiAdapterDeps {
         data: { requestId },
       })) as B1AssignedRequestDetails;
     },
-    async submitB1Request(requestId, expectedUpdatedAt) {
-      return submitB1UiRequestFn({ data: { requestId, expectedUpdatedAt } });
+    async submitB1Request(requestId, expectedUpdatedAt, stepUpProof) {
+      return submitB1UiRequestFn({
+        data: { requestId, expectedUpdatedAt, stepUpProof: stepUpProof ?? null },
+      });
     },
     async actOnB1RequestStep(stepId, action, comment) {
       return actOnB1UiRequestStepFn({ data: { stepId, action, comment: comment ?? null } });
@@ -445,9 +451,13 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
       }
     },
 
-    async submitB1Request(requestId: string, expectedUpdatedAt: string): Promise<B1SubmitResult> {
+    async submitB1Request(
+      requestId: string,
+      expectedUpdatedAt: string,
+      stepUpProof?: string | null,
+    ): Promise<B1SubmitResult> {
       try {
-        return await deps.submitB1Request(requestId, expectedUpdatedAt);
+        return await deps.submitB1Request(requestId, expectedUpdatedAt, stepUpProof ?? null);
       } catch (error) {
         mapLiveError(error);
       }

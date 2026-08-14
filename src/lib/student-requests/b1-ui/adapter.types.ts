@@ -285,7 +285,11 @@ export type B1UiAdapter = {
   removeB1RequestAttachment(requestId: string, attachmentId: string): Promise<void>;
   /** Browser sends attachmentId only; server authorizes then signs. */
   downloadB1RequestAttachment(attachmentId: string): Promise<B1AttachmentDownload>;
-  submitB1Request(requestId: string, expectedUpdatedAt: string): Promise<B1SubmitResult>;
+  submitB1Request(
+    requestId: string,
+    expectedUpdatedAt: string,
+    stepUpProof?: string | null,
+  ): Promise<B1SubmitResult>;
   listB1StudentRequests(): Promise<readonly B1StudentListItem[]>;
   getB1RequestDetails(requestId: string): Promise<B1RequestDetails>;
   getAssignedB1Requests(): Promise<readonly B1AssignedRequest[]>;

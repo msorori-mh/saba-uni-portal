@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { useNativeAppShell } from "@/hooks/use-native-app-shell";
+import { MobileAppLockProvider } from "@/components/mobile/MobileAppLockProvider";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
@@ -92,6 +93,7 @@ function MobileStudentLayout() {
   const displayName = (profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ")) || "الطالب";
 
   return (
+    <MobileAppLockProvider onSignOut={handleLogout}>
     <div
       dir="rtl"
       className="min-h-screen bg-surface flex flex-col"
@@ -141,6 +143,7 @@ function MobileStudentLayout() {
 
       <MobileBottomNav />
     </div>
+    </MobileAppLockProvider>
   );
 }
 

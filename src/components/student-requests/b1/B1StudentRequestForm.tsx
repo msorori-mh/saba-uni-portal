@@ -40,6 +40,14 @@ import { B1LoadingState } from "./B1LoadingState";
 import { B1RequestSummary } from "./B1RequestSummary";
 import { B1ServiceHeader } from "./B1ServiceHeader";
 import { B1SubmissionConfirmation } from "./B1SubmissionConfirmation";
+import { StepUpConfirmDialog } from "@/components/security/StepUpConfirmDialog";
+import { isBiometricRuntimeAvailable } from "@/lib/native/biometrics";
+import { isStepUpSensitiveService, STEP_UP_MESSAGES_AR } from "@/lib/security/step-up-contract";
+import { performStepUp } from "@/lib/security/step-up-client";
+import {
+  getCurrentUserIdForStepUp,
+  stepUpRpcClient,
+} from "@/lib/security/step-up-browser";
 import { B1SuccessState } from "./B1SuccessState";
 import {
   describeError,
@@ -48,6 +56,7 @@ import {
 } from "@/lib/student-requests/b1-ui/submit-trace";
 
 const AUTOSAVE_MS = 1000;
+
 const MAX_SIZE_MB = SECURE_ATTACHMENT_MAX_BYTES / (1024 * 1024);
 
 export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1CanonicalCode }) {
@@ -76,6 +85,9 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     null,
   );
   const [attachmentSyncing, setAttachmentSyncing] = useState(false);
+  const [stepUpOpen, setStepUpOpen] = useState(false);
+  const [stepUpBusy, setStepUpBusy] = useState(false);
+  const [stepUpError, setStepUpError] = useState<string | null>(null);
   const attachmentSync = useRef<Promise<void> | null>(null);
   const submitLock = useRef(false);
   const valuesRef = useRef(values);
@@ -315,7 +327,62 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     document.getElementById(`b1-field-${errorNames[0]}`)?.focus();
   };
 
-  const submit = async () => {
+  /**
+   * Sensitive services require a server-verified biometric step-up proof before
+   * the submit RPC is invoked. Cancel/failure ⇒ ZERO submit RPC calls.
+   */
+  const requiresStepUp =
+    isStepUpSensitiveService(serviceCode) && isBiometricRuntimeAvailable();
+
+  const beginSubmit = () => {
+    if (!requiresStepUp) {
+      void submit(null);
+      return;
+    }
+    setStepUpError(null);
+    setConfirming(false);
+    setStepUpOpen(true);
+  };
+
+  const runStepUpThenSubmit = async () => {
+    if (!draft || stepUpBusy || submitLock.current) return;
+    setStepUpBusy(true);
+    setStepUpError(null);
+    try {
+      const userId = await getCurrentUserIdForStepUp();
+      if (!userId) {
+        setStepUpError(STEP_UP_MESSAGES_AR.failed);
+        return;
+      }
+      const target = draftRef.current ?? draft;
+      const payload = {
+        requestId: target.requestId,
+        canonicalCode: serviceCode,
+        formData: withSecureAttachmentReferences(
+          serviceCode,
+          valuesRef.current,
+          target.attachments,
+        ),
+        attachmentIds: target.attachments.map((item) => item.attachmentId).sort(),
+      };
+      const outcome = await performStepUp(stepUpRpcClient, {
+        serviceCode,
+        requestId: target.requestId,
+        userId,
+        payload,
+      });
+      if (outcome.status !== "proof") {
+        setStepUpError(outcome.messageAr);
+        return;
+      }
+      setStepUpOpen(false);
+      await submit(outcome.proofToken);
+    } finally {
+      setStepUpBusy(false);
+    }
+  };
+
+  const submit = async (stepUpProof: string | null) => {
     if (!draft || submitLock.current) return;
     submitLock.current = true;
     setSubmitting(true);
@@ -353,7 +420,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         requestId: saved.requestId,
         serverFnInvoked: true,
       });
-      const result = await adapter.submitB1Request(saved.requestId, saved.updatedAt);
+      const result = await adapter.submitB1Request(saved.requestId, saved.updatedAt, stepUpProof);
       traceB1Submit("SUBMIT_SERVER_FN_RETURNED", {
         serviceCode,
         requestId: result.requestId,
@@ -670,7 +737,19 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         requireAcknowledgment={Boolean(requiredAcknowledgment)}
         acknowledgmentLabelAr={requiredAcknowledgment?.labelAr}
         submitting={submitting || attachmentSyncing}
-        onConfirm={() => void submit()}
+        onConfirm={beginSubmit}
+      />
+
+      <StepUpConfirmDialog
+        open={stepUpOpen}
+        onOpenChange={(next) => {
+          setStepUpOpen(next);
+          if (!next) setStepUpError(null);
+        }}
+        serviceCode={serviceCode}
+        busy={stepUpBusy || submitting}
+        errorAr={stepUpError}
+        onConfirm={() => void runStepUpThenSubmit()}
       />
 
     </div>
