@@ -46,6 +46,8 @@ export function MobileSecuritySettings() {
           });
           return !signInError;
         },
+        register: async (input) =>
+          registerTrustedDeviceFn({ data: input }),
       });
       if (result.status === "registered") {
         setEnabled(true, result.deviceId);
