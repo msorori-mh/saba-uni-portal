@@ -55,6 +55,7 @@ import {
   getMyAcademicCouncilMembershipsV2,
   getMyCouncilMeetingsV2,
   getMyCouncilTopics,
+  getOpenIntakeMeetingsForMember,
   type MyCouncilMembershipV2,
 } from "@/lib/faculty-councils.functions";
 import type { CouncilLinkMemberRole } from "@/lib/admin-councils.functions";
@@ -85,10 +86,14 @@ const GOVERNANCE_MEETING_STATUSES = [
   "archived",
 ] as const;
 
+const INTAKE_CLOSED_NOTICE =
+  "أُغلق استقبال الموضوعات لهذا الاجتماع بعد اعتماد جدول الأعمال.";
+
 function FacultyAcademicCouncilsPage() {
   const fetchMembershipsV2 = useServerFn(getMyAcademicCouncilMembershipsV2);
   const fetchMeetings = useServerFn(getMyCouncilMeetingsV2);
   const fetchTopics = useServerFn(getMyCouncilTopics);
+  const fetchOpenIntakeMeetings = useServerFn(getOpenIntakeMeetingsForMember);
 
   const membershipsQuery = useQuery({
     queryKey: ["faculty", "my-council-memberships-v2"],
@@ -221,11 +226,54 @@ function FacultyAcademicCouncilsPage() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [agendaMeetingId, setAgendaMeetingId] = useState<string | null>(null);
   const [agendaOpen, setAgendaOpen] = useState(false);
+  const [focusMeetingId, setFocusMeetingId] = useState<string | null>(null);
+  const [agendaExpandMeetingId, setAgendaExpandMeetingId] = useState<string | null>(null);
 
   const openAgenda = (meetingId: string) => {
     setAgendaMeetingId(meetingId);
     setAgendaOpen(true);
   };
+
+  const scrollToMeetingCard = (meetingId: string) => {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      const el = document.getElementById(`council-meeting-card-${meetingId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      (el as HTMLElement).focus({ preventScroll: true });
+    }, 120);
+  };
+
+  const openMeeting = (meetingId: string) => {
+    setWorkspaceTab("meetings");
+    setAgendaExpandMeetingId(null);
+    setFocusMeetingId(meetingId);
+    scrollToMeetingCard(meetingId);
+  };
+
+  const viewMeetingAgenda = (meetingId: string) => {
+    setWorkspaceTab("meetings");
+    setFocusMeetingId(meetingId);
+    setAgendaExpandMeetingId(meetingId);
+    scrollToMeetingCard(meetingId);
+  };
+
+  const openIntakeQuery = useQuery({
+    queryKey: ["faculty", "open-intake-meetings"],
+    queryFn: () => fetchOpenIntakeMeetings(),
+    enabled: submitEligibleMemberships.length > 0,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const openIntakeMeetings = openIntakeQuery.data ?? [];
+  const hasOpenIntake = openIntakeMeetings.length > 0;
+  const intakeNoticeForNextMeeting =
+    nextMeeting &&
+    !openIntakeMeetings.some((m) => m.meeting_id === nextMeeting.meeting_id) &&
+    (GOVERNANCE_MEETING_STATUSES as readonly string[]).includes(nextMeeting.status)
+      ? INTAKE_CLOSED_NOTICE
+      : null;
+
 
   const pageLoading =
     membershipsQuery.isLoading && meetingsQuery.isLoading && topicsQuery.isLoading;
@@ -324,7 +372,9 @@ function FacultyAcademicCouncilsPage() {
                 meeting={nextMeeting}
                 canManageAgenda={agendaWriteCouncilIds.has(nextMeeting.council_id)}
                 onManageAgenda={openAgenda}
-                onOpenMeeting={() => setWorkspaceTab("meetings")}
+                onOpenMeeting={openMeeting}
+                onViewAgenda={viewMeetingAgenda}
+                intakeNotice={intakeNoticeForNextMeeting}
               />
             ) : null}
 
@@ -365,11 +415,31 @@ function FacultyAcademicCouncilsPage() {
                   variant="secondary"
                   className="min-h-9 gap-1.5"
                   data-testid="councils-submit-topic-button"
+                  disabled={openIntakeQuery.isLoading || !hasOpenIntake}
+                  title={
+                    !openIntakeQuery.isLoading && !hasOpenIntake
+                      ? INTAKE_CLOSED_NOTICE
+                      : undefined
+                  }
                   onClick={() => setSubmitOpen(true)}
                 >
-                  <Plus className="h-4 w-4" aria-hidden />
+                  {openIntakeQuery.isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Plus className="h-4 w-4" aria-hidden />
+                  )}
                   تقديم موضوع
                 </Button>
+              ) : null}
+              {submitEligibleMemberships.length > 0 &&
+              !openIntakeQuery.isLoading &&
+              !hasOpenIntake ? (
+                <p
+                  data-testid="councils-submit-topic-disabled-reason"
+                  className="w-full text-[11px] leading-relaxed text-muted-foreground"
+                >
+                  {INTAKE_CLOSED_NOTICE}
+                </p>
               ) : null}
             </div>
 
@@ -426,6 +496,8 @@ function FacultyAcademicCouncilsPage() {
                   secretaryCouncilIds={secretaryCouncilIds}
                   onManageAgenda={openAgenda}
                   onUpdated={() => void meetingsQuery.refetch()}
+                  focusMeetingId={focusMeetingId}
+                  agendaExpandMeetingId={agendaExpandMeetingId}
                 />
               </TabsContent>
 

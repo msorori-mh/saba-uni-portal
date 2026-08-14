@@ -84,6 +84,10 @@ export type CouncilMeetingCardProps = {
   canRecordAttendance?: boolean;
   onManageAgenda: (meetingId: string) => void;
   onUpdated: () => void;
+  /** Highlights this card when the user navigated to this specific meeting. */
+  focused?: boolean;
+  /** Opens the inline agenda list immediately for this meeting. */
+  autoExpandAgenda?: boolean;
 };
 
 export function CouncilMeetingCard({
@@ -94,6 +98,8 @@ export function CouncilMeetingCard({
   canRecordAttendance = false,
   onManageAgenda,
   onUpdated,
+  focused = false,
+  autoExpandAgenda = false,
 }: CouncilMeetingCardProps) {
   const updateMeeting = useServerFn(updateCouncilMeeting);
   const transitionMeeting = useServerFn(transitionMyCouncilMeeting);
@@ -319,8 +325,14 @@ export function CouncilMeetingCard({
 
   return (
     <li
+      id={`council-meeting-card-${meeting.meeting_id}`}
       data-testid={`council-meeting-card-${meeting.meeting_id}`}
-      className="rounded-lg border border-border bg-background p-3"
+      tabIndex={-1}
+      className={`rounded-lg border bg-background p-3 outline-none transition-shadow ${
+        focused
+          ? "border-primary ring-2 ring-primary/50 shadow-md"
+          : "border-border"
+      }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
@@ -445,8 +457,11 @@ export function CouncilMeetingCard({
         ) : null}
       </dl>
 
-      {!canManageAgenda ? (
-        <MeetingAgendaExpandable meetingId={meeting.meeting_id} />
+      {!canManageAgenda || autoExpandAgenda ? (
+        <MeetingAgendaExpandable
+          meetingId={meeting.meeting_id}
+          autoExpand={autoExpandAgenda}
+        />
       ) : null}
 
       <Dialog open={editOpen} onOpenChange={(next) => !next && !editBusy && setEditOpen(false)}>

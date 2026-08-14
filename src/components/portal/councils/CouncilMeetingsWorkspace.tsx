@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CouncilMeetingV2Item } from "@/lib/faculty-councils.functions";
@@ -24,6 +25,8 @@ export function CouncilMeetingsWorkspace({
   secretaryCouncilIds,
   onManageAgenda,
   onUpdated,
+  focusMeetingId = null,
+  agendaExpandMeetingId = null,
 }: {
   upcomingMeetings: CouncilMeetingV2Item[];
   previousMeetings: CouncilMeetingV2Item[];
@@ -34,10 +37,38 @@ export function CouncilMeetingsWorkspace({
   secretaryCouncilIds: Set<string>;
   onManageAgenda: (meetingId: string) => void;
   onUpdated: () => void;
+  /** Meeting the user explicitly asked to open (scroll + highlight). */
+  focusMeetingId?: string | null;
+  /** Meeting whose agenda should open inline right away. */
+  agendaExpandMeetingId?: string | null;
 }) {
+  const [tab, setTab] = useState("upcoming");
+
+  useEffect(() => {
+    const target = focusMeetingId ?? agendaExpandMeetingId;
+    if (!target) return;
+    const inPrevious = previousMeetings.some((m) => m.meeting_id === target);
+    setTab(inPrevious ? "previous" : "upcoming");
+  }, [focusMeetingId, agendaExpandMeetingId, previousMeetings]);
+
+  const renderCard = (m: CouncilMeetingV2Item, variant: "upcoming" | "previous") => (
+    <CouncilMeetingCard
+      key={m.meeting_id}
+      meeting={m}
+      variant={variant}
+      canEdit={chairCouncilIds.has(m.council_id)}
+      canManageAgenda={agendaWriteCouncilIds.has(m.council_id)}
+      canRecordAttendance={secretaryCouncilIds.has(m.council_id)}
+      onManageAgenda={onManageAgenda}
+      onUpdated={onUpdated}
+      focused={focusMeetingId === m.meeting_id || agendaExpandMeetingId === m.meeting_id}
+      autoExpandAgenda={agendaExpandMeetingId === m.meeting_id}
+    />
+  );
+
   return (
     <div data-testid="councils-meetings-workspace" className="space-y-3">
-      <Tabs defaultValue="upcoming" dir="rtl">
+      <Tabs value={tab} onValueChange={setTab} dir="rtl">
         <TabsList className="w-full sm:w-auto h-auto flex flex-wrap justify-start gap-1">
           <TabsTrigger value="upcoming" className="min-h-9 text-xs sm:text-sm">
             القادمة ({upcomingMeetings.length})
@@ -59,18 +90,7 @@ export function CouncilMeetingsWorkspace({
             />
           ) : (
             <ul className="space-y-3">
-              {upcomingMeetings.map((m) => (
-                <CouncilMeetingCard
-                  key={m.meeting_id}
-                  meeting={m}
-                  variant="upcoming"
-                  canEdit={chairCouncilIds.has(m.council_id)}
-                  canManageAgenda={agendaWriteCouncilIds.has(m.council_id)}
-                  canRecordAttendance={secretaryCouncilIds.has(m.council_id)}
-                  onManageAgenda={onManageAgenda}
-                  onUpdated={onUpdated}
-                />
-              ))}
+              {upcomingMeetings.map((m) => renderCard(m, "upcoming"))}
             </ul>
           )}
         </TabsContent>
@@ -87,18 +107,7 @@ export function CouncilMeetingsWorkspace({
             />
           ) : (
             <ul className="space-y-3">
-              {previousMeetings.map((m) => (
-                <CouncilMeetingCard
-                  key={m.meeting_id}
-                  meeting={m}
-                  variant="previous"
-                  canEdit={chairCouncilIds.has(m.council_id)}
-                  canManageAgenda={agendaWriteCouncilIds.has(m.council_id)}
-                  canRecordAttendance={secretaryCouncilIds.has(m.council_id)}
-                  onManageAgenda={onManageAgenda}
-                  onUpdated={onUpdated}
-                />
-              ))}
+              {previousMeetings.map((m) => renderCard(m, "previous"))}
             </ul>
           )}
         </TabsContent>
@@ -112,11 +121,16 @@ export function NextMeetingPriorityCard({
   canManageAgenda,
   onManageAgenda,
   onOpenMeeting,
+  onViewAgenda,
+  intakeNotice = null,
 }: {
   meeting: CouncilMeetingV2Item;
   canManageAgenda: boolean;
   onManageAgenda: (meetingId: string) => void;
-  onOpenMeeting: () => void;
+  onOpenMeeting: (meetingId: string) => void;
+  onViewAgenda: (meetingId: string) => void;
+  /** Explains why topic submission is closed for this meeting, when applicable. */
+  intakeNotice?: string | null;
 }) {
   const displayTitle = meeting.meeting_title?.trim() || meeting.council_name;
   return (
@@ -163,7 +177,8 @@ export function NextMeetingPriorityCard({
             type="button"
             size="sm"
             className="min-h-9 text-xs"
-            onClick={onOpenMeeting}
+            data-testid="councils-next-meeting-open"
+            onClick={() => onOpenMeeting(meeting.meeting_id)}
           >
             فتح الاجتماع
           </Button>
@@ -183,13 +198,22 @@ export function NextMeetingPriorityCard({
               size="sm"
               variant="outline"
               className="min-h-9 text-xs"
-              onClick={onOpenMeeting}
+              data-testid="councils-next-meeting-view-agenda"
+              onClick={() => onViewAgenda(meeting.meeting_id)}
             >
               عرض جدول الأعمال
             </Button>
           )}
         </div>
       </div>
+      {intakeNotice ? (
+        <p
+          data-testid="councils-next-meeting-intake-notice"
+          className="mt-3 rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+        >
+          {intakeNotice}
+        </p>
+      ) : null}
     </SectionShell>
   );
 }
