@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { useNativeAppShell } from "@/hooks/use-native-app-shell";
+import { MobileAppLockProvider } from "@/components/mobile/MobileAppLockProvider";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
