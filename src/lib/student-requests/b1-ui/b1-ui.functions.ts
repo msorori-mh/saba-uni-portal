@@ -116,6 +116,8 @@ const submitSchema = z
   .object({
     requestId: z.string().uuid(),
     expectedUpdatedAt: z.string().min(1),
+    /** Single-use biometric step-up proof issued by the server (native app). */
+    stepUpProof: z.string().min(16).max(512).nullish(),
   })
   .strict();
 
