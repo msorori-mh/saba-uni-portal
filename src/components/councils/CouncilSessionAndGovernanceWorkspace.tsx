@@ -50,7 +50,13 @@ import {
 } from "@/lib/councils-c4-c8.functions";
 import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
 import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
+import {
+  LIVE_SESSION_INTERVAL_MS,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
 import { useServerFn } from "@tanstack/react-start";
+
 
 interface CouncilSessionWorkspaceProps {
   meetingId: string;
