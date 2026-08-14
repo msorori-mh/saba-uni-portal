@@ -154,8 +154,9 @@ export function CouncilVotingControl({
           <Vote className="w-4 h-4 text-indigo-600" />
           <span>حالة التصويت والمداولة:</span>
           <Badge variant="outline" className="text-indigo-600 dark:text-indigo-400">
-            {sessionStatus}
+            {agendaSessionStatusLabel(sessionStatus)}
           </Badge>
+
         </div>
 
         {/* Chair Controls */}
