@@ -84,6 +84,10 @@ export type CouncilMeetingCardProps = {
   canRecordAttendance?: boolean;
   onManageAgenda: (meetingId: string) => void;
   onUpdated: () => void;
+  /** Highlights this card when the user navigated to this specific meeting. */
+  focused?: boolean;
+  /** Opens the inline agenda list immediately for this meeting. */
+  autoExpandAgenda?: boolean;
 };
 
 export function CouncilMeetingCard({
@@ -94,6 +98,8 @@ export function CouncilMeetingCard({
   canRecordAttendance = false,
   onManageAgenda,
   onUpdated,
+  focused = false,
+  autoExpandAgenda = false,
 }: CouncilMeetingCardProps) {
   const updateMeeting = useServerFn(updateCouncilMeeting);
   const transitionMeeting = useServerFn(transitionMyCouncilMeeting);
