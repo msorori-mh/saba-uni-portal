@@ -275,7 +275,17 @@ CREATE OR REPLACE FUNCTION public.submit_b1_student_request_atomic(
   p_step_up_payload_hash text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_sensitive boolean := p_canonical_code IN (
+    'file_withdrawal', 'enrollment_suspension', 'department_transfer',
+    'final_chance', 'excused_absence'
+  );
 BEGIN
+  -- Sensitive services cannot be submitted without a server-issued step-up proof.
+  IF v_sensitive AND p_step_up_proof IS NULL THEN
+    RAISE EXCEPTION 'STEP_UP_PROOF_REQUIRED';
+  END IF;
+
   IF p_step_up_proof IS NOT NULL THEN
     -- Payload binding: `p_step_up_payload_hash` is recomputed server-side (in
     -- the authenticated server function, from the persisted draft payload) with
@@ -296,7 +306,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.submit_b1_student_request_atomic(
-  uuid, text, jsonb, timestamptz, uuid[], text, text) FROM PUBLIC, anon;
+  uuid, text, jsonb, timestamptz, uuid[], text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_b1_student_request_atomic(
   uuid, text, jsonb, timestamptz, uuid[], text, text) TO authenticated;
 
