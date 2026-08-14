@@ -210,6 +210,61 @@ function MobileStudentRequests() {
   );
 }
 
+function ServiceCard({
+  type,
+}: {
+  type: {
+    code: string;
+    name_ar: string;
+    description_ar: string | null;
+    requires_attachment?: boolean;
+  };
+}) {
+  const canonical = normalizeStudentRequestTypeCode(type.code);
+  const body = (
+    <>
+      <div className="min-w-0">
+        <div className="text-sm font-bold text-primary truncate">{type.name_ar}</div>
+        {type.description_ar && (
+          <div className="text-[11px] text-muted-foreground line-clamp-2">
+            {type.description_ar}
+          </div>
+        )}
+        {type.requires_attachment && (
+          <div className="text-[10px] font-bold text-amber-800 mt-1">يتطلب إرفاق مستند</div>
+        )}
+      </div>
+      <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-bold">
+        <Plus className="h-3 w-3" /> تقديم
+      </span>
+    </>
+  );
+  const className =
+    "rounded-2xl border border-border bg-card shadow-card p-3 flex items-center justify-between gap-2 active:scale-[0.99] transition-transform";
+
+  if (isB1ServiceCode(canonical)) {
+    return (
+      <Link
+        to="/mobile/student/requests/b1/$service"
+        params={{ service: canonical }}
+        className={className}
+      >
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <Link
+      to="/mobile/student/requests/new"
+      search={{ type: canonical }}
+      className={className}
+    >
+      {body}
+    </Link>
+  );
+}
+
+
 function ErrorBox({
   message,
   onRetry,
