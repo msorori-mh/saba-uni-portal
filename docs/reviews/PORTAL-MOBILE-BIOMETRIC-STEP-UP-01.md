@@ -38,7 +38,12 @@
 
 مسودة واحدة forward-only: `docs/migration-drafts/PORTAL-MOBILE-BIOMETRIC-STEP-UP-01.sql`
 (`student_trusted_devices`, `step_up_challenges`, `step_up_proofs`, RPCs،
-وoverload لـ `submit_b1_student_request_atomic` يستهلك الإثبات).
+وoverload لـ `submit_b1_student_request_atomic`):
+- الخدمات الحساسة الخمس ترفض أي إرسال بدون `step_up_proof` صالح.
+- `consume_step_up_proof` تتحقق من تطابق (user, device, action, request, payload_hash)
+  وتُلغي إثبات القناة الويبية (`device_id = 'web'`) دون فحص صف جهاز (لأنه
+  مرتبط بإعادة مصادقة كلمة المرور على الخادم).
+- `mint_step_up_proof` مقتصرة على `service_role` فقط.
 لا تُطبَّق إلا بتصريح إنتاجي صريح.
 
 ## الخصوصية
