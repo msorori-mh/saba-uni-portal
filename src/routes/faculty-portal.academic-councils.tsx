@@ -92,12 +92,17 @@ function FacultyAcademicCouncilsPage() {
     refetchOnWindowFocus: false,
   });
 
+  // Live-polled so a meeting flipping to `in_session` is picked up within ~5s.
+  const meetingsLiveInterval = useLivePollInterval(
+    true,
+    COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  );
   const meetingsQuery = useQuery({
     queryKey: ["faculty", "my-council-meetings-v2"],
     queryFn: () => fetchMeetings(),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    ...liveQueryOptions(meetingsLiveInterval),
   });
+
 
   const topicsQuery = useQuery({
     queryKey: ["faculty", "my-council-topics"],
