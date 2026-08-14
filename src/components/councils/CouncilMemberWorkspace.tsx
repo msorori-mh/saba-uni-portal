@@ -136,71 +136,54 @@ export function CouncilMemberWorkspace({
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Live session summary — meeting-scoped. The full agenda lives inside
+              the meeting workspace so agendas of different meetings never mix. */}
+          <Card className={liveMeeting ? "border-primary/50 bg-primary/5" : undefined}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <ListChecks className="h-4 w-4" />
-                جدول الأعمال
+                الجلسة الحالية
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {(data.agenda_items ?? []).length === 0 ? (
-                <EmptyItem text="لا توجد بنود في جدول الأعمال." />
+              {!liveMeeting ? (
+                <EmptyItem text="لا توجد جلسة منعقدة الآن. افتح اجتماعاً من تبويب الاجتماعات لعرض جدول أعماله." />
               ) : (
-                (data.agenda_items as Array<{
-                  agenda_item_id: string;
-                  title: string;
-                  order_index: number;
-                  session_status: string;
-                  is_approved: boolean;
-                }>).slice(0, 6).map((i) => (
-                  <div
-                    key={i.agenda_item_id}
-                    className="flex items-center justify-between rounded-md border border-border p-2 text-xs"
-                  >
-                    <p className="font-bold">
-                      {i.order_index}. {i.title}
+                <>
+                  <p className="text-xs font-bold">{liveMeeting.title}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatDateTime(liveMeeting.scheduled_at)}
+                  </p>
+                  {openVotes.length > 0 ? (
+                    <div className="rounded-md border border-primary/40 bg-primary/10 p-2 text-xs">
+                      <p className="font-bold text-primary flex items-center gap-1.5">
+                        <Vote className="h-3.5 w-3.5" />
+                        تصويت مطلوب: {openVotes[0].title}
+                      </p>
+                      <Badge variant="default" className="mt-1.5">
+                        {agendaSessionStatusLabel(openVotes[0].session_status)}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      لا يوجد تصويت مفتوح حالياً.
                     </p>
-                    <Badge variant={i.is_approved ? "secondary" : "outline"}>
-                      {statusLabel(i.session_status)}
-                    </Badge>
-                  </div>
-                ))
+                  )}
+                  {onEnterMeeting ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="min-h-9 text-xs w-full"
+                      onClick={() => onEnterMeeting(liveMeeting.meeting_id)}
+                    >
+                      {openVotes.length > 0 ? "صوّت الآن — دخول الجلسة" : "دخول الجلسة"}
+                    </Button>
+                  ) : null}
+                </>
               )}
             </CardContent>
           </Card>
 
-          {!readOnly ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Vote className="h-4 w-4" />
-                  تصويت مطلوب
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {(data.open_votes ?? []).length === 0 ? (
-                  <EmptyItem text="لا يوجد تصويت مفتوح حالياً." />
-                ) : (
-                  (data.open_votes as Array<{
-                    agenda_item_id: string;
-                    title: string;
-                    session_status: string;
-                  }>).map((v) => (
-                    <div
-                      key={v.agenda_item_id}
-                      className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
-                    >
-                      <p className="font-bold text-primary">{v.title}</p>
-                      <Badge variant="secondary" className="mt-1.5">
-                        {statusLabel(v.session_status)}
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          ) : null}
 
           <Card>
             <CardHeader className="pb-2">
