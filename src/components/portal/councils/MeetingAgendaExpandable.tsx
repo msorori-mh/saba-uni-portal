@@ -4,17 +4,28 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ListChecks } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
+import {
+  LIVE_SESSION_INTERVAL_MS,
+  agendaSessionStatusLabel,
+  agendaSessionStatusTone,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
 import { AGENDA_LOAD_FAILED_UI, CompactEmpty } from "./shared";
 
 export function MeetingAgendaExpandable({
   meetingId,
   autoExpand = false,
+  live = false,
 }: {
   meetingId: string;
   /** Opens the agenda immediately (used when the user asked for this meeting's agenda). */
   autoExpand?: boolean;
+  /** Poll item states every 2s while the meeting is in session. */
+  live?: boolean;
 }) {
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
+  const liveInterval = useLivePollInterval(live, LIVE_SESSION_INTERVAL_MS);
   const [expanded, setExpanded] = useState(autoExpand);
 
   useEffect(() => {
@@ -24,7 +35,7 @@ export function MeetingAgendaExpandable({
     queryKey: ["faculty", "meeting-agenda", meetingId],
     queryFn: () => fetchAgenda({ data: { meetingId } }),
     enabled: expanded,
-    staleTime: 15_000,
+    ...liveQueryOptions(liveInterval),
   });
   const items = agendaQuery.data?.items ?? [];
 
@@ -54,11 +65,27 @@ export function MeetingAgendaExpandable({
               {items.map((item) => (
                 <li
                   key={item.id}
-                  className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-2 text-[11px]"
+                  className={
+                    agendaSessionStatusTone(item.session_status) === "active"
+                      ? "rounded-md border-2 border-primary bg-primary/10 px-2.5 py-2 text-[11px] shadow-sm"
+                      : agendaSessionStatusTone(item.session_status) === "success"
+                        ? "rounded-md border border-emerald-500/50 bg-emerald-500/10 px-2.5 py-2 text-[11px]"
+                        : "rounded-md border border-border/70 bg-muted/10 px-2.5 py-2 text-[11px]"
+                  }
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono font-bold text-primary">{item.order_index}.</span>
                     <span className="font-medium text-foreground">{item.title}</span>
+                    <Badge
+                      variant={
+                        agendaSessionStatusTone(item.session_status) === "active"
+                          ? "default"
+                          : "outline"
+                      }
+                      className="text-[9px]"
+                    >
+                      {agendaSessionStatusLabel(item.session_status)}
+                    </Badge>
                     {item.is_approved ? (
                       <Badge variant="secondary" className="text-[9px]">
                         معتمد
