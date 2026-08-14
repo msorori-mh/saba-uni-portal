@@ -121,7 +121,31 @@ export function buildMobileStudentServices(
   return items;
 }
 
-/** «المزيد» hub content — the full catalog, minus anything in the bottom bar. */
+/** Keys promoted to the home dashboard grid (max 8 cards incl. bottom-nav shortcuts). */
+export const MOBILE_HOME_SERVICE_KEYS: readonly MobileServiceKey[] = [
+  "grades",
+  "study-plan",
+  "materials",
+  "notifications",
+  "reports",
+] as const;
+
+/**
+ * Home dashboard services — primary academic surfaces only.
+ * Account-level items (بياناتي / الإعدادات) live in «المزيد», never on home.
+ */
+export function buildMobileHomeServices(input: MobileServicesInput): MobileServiceItem[] {
+  const order = new Map(MOBILE_HOME_SERVICE_KEYS.map((k, i) => [k, i] as const));
+  return buildMobileStudentServices(input)
+    .filter((item) => order.has(item.key))
+    .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+}
+
+/**
+ * «المزيد» hub content — secondary items only.
+ * Excludes the bottom navigation and anything already promoted to the home grid,
+ * so the two surfaces never duplicate each other.
+ */
 export function buildMobileMoreHub(input: MobileServicesInput): MobileServiceItem[] {
   const bottom = new Set<string>(MOBILE_BOTTOM_NAV_TARGETS);
   return buildMobileStudentServices(input).filter((item) => !bottom.has(item.to));
