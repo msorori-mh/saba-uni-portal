@@ -359,3 +359,33 @@ export const getMyCouncilVoteFn = createServerFn({ method: "GET" })
       cast_at: (row?.cast_at as string | undefined) ?? null,
     };
   });
+
+/**
+ * Live vote progress for an agenda item: how many eligible voters exist,
+ * how many have cast, and whether the chair may close yet.
+ * Never returns an individual vote direction.
+ * Backed by RPC get_agenda_item_vote_progress
+ * (draft: docs/migration-drafts/COUNCILS-VOTE-COMPLETION-GUARD-04.sql).
+ */
+export const getAgendaItemVoteProgressFn = createServerFn({ method: "GET" })
+  .validator((d: { agenda_item_id: string }) => d)
+  .handler(async ({ data, request }) => {
+    const { supabase } = await requireSupabaseAuth(request);
+    const { data: row, error } = await (supabase as any).rpc("get_agenda_item_vote_progress", {
+      p_agenda_item_id: data.agenda_item_id,
+    });
+    if (error) {
+      // The guard migration may not be applied yet: degrade to "unknown"
+      // instead of breaking the live session UI.
+      return null;
+    }
+    const p = (row ?? {}) as Record<string, unknown>;
+    return {
+      eligible: Number(p["eligible"] ?? 0),
+      cast: Number(p["cast"] ?? 0),
+      pending: Number(p["pending"] ?? 0),
+      can_close: Boolean(p["can_close"]),
+      viewer_is_eligible: Boolean(p["viewer_is_eligible"]),
+      viewer_has_voted: Boolean(p["viewer_has_voted"]),
+    };
+  });
