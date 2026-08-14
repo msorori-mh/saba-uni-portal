@@ -75,6 +75,7 @@ export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => beginChallengeSchema.parse(input))
   .handler(async ({ data, context }): Promise<StepUpChallenge> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Verify the device is trusted for this user.
     const { data: device, error: deviceError } = await supabaseAdmin
       .from("student_trusted_devices")
