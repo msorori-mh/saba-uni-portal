@@ -11,13 +11,22 @@ import {
   Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCouncilMemberWorkspaceFn } from "@/lib/councils-c9.functions";
+import {
+  COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  agendaSessionStatusLabel,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
 
 interface CouncilMemberWorkspaceProps {
   councilId: string;
   councilName: string;
   readOnly?: boolean;
+  /** Opens the meeting workspace for the live session. */
+  onEnterMeeting?: (meetingId: string) => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -31,15 +40,17 @@ const STATUS_LABELS: Record<string, string> = {
   minutes_locked: "محضر مقفل",
   archived: "مؤرشف",
   cancelled: "ملغى",
-  pending: "معلّق",
+  pending: "بانتظار المناقشة",
   in_discussion: "قيد المناقشة",
-  voting_open: "تصويت مفتوح",
-  resolved: "مُبت فيه",
+  voting_open: "التصويت مفتوح",
+  voting_closed: "انتهى التصويت",
+  resolved: "تم البت",
 };
 
 function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
+
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
@@ -65,16 +76,35 @@ export function CouncilMemberWorkspace({
   councilId,
   councilName,
   readOnly = false,
+  onEnterMeeting,
 }: CouncilMemberWorkspaceProps) {
   const fetchWorkspace = useServerFn(getCouncilMemberWorkspaceFn);
+  const liveInterval = useLivePollInterval(
+    Boolean(councilId),
+    COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  );
   const query = useQuery({
     queryKey: ["council-member-workspace", councilId],
     queryFn: () => fetchWorkspace({ data: { council_id: councilId } }),
-    staleTime: 15_000,
-    refetchOnWindowFocus: false,
+    ...liveQueryOptions(liveInterval),
   });
 
   const data = (query.data ?? {}) as Record<string, unknown[]>;
+
+  const meetings = (data.upcoming_meetings ?? []) as Array<{
+    meeting_id: string;
+    meeting_number: number;
+    title: string;
+    scheduled_at: string;
+    status: string;
+  }>;
+  const liveMeeting = meetings.find((m) => m.status === "in_session") ?? null;
+  const openVotes = (data.open_votes ?? []) as Array<{
+    agenda_item_id: string;
+    title: string;
+    session_status: string;
+  }>;
+
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -136,71 +166,54 @@ export function CouncilMemberWorkspace({
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Live session summary — meeting-scoped. The full agenda lives inside
+              the meeting workspace so agendas of different meetings never mix. */}
+          <Card className={liveMeeting ? "border-primary/50 bg-primary/5" : undefined}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <ListChecks className="h-4 w-4" />
-                جدول الأعمال
+                الجلسة الحالية
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {(data.agenda_items ?? []).length === 0 ? (
-                <EmptyItem text="لا توجد بنود في جدول الأعمال." />
+              {!liveMeeting ? (
+                <EmptyItem text="لا توجد جلسة منعقدة الآن. افتح اجتماعاً من تبويب الاجتماعات لعرض جدول أعماله." />
               ) : (
-                (data.agenda_items as Array<{
-                  agenda_item_id: string;
-                  title: string;
-                  order_index: number;
-                  session_status: string;
-                  is_approved: boolean;
-                }>).slice(0, 6).map((i) => (
-                  <div
-                    key={i.agenda_item_id}
-                    className="flex items-center justify-between rounded-md border border-border p-2 text-xs"
-                  >
-                    <p className="font-bold">
-                      {i.order_index}. {i.title}
+                <>
+                  <p className="text-xs font-bold">{liveMeeting.title}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatDateTime(liveMeeting.scheduled_at)}
+                  </p>
+                  {openVotes.length > 0 ? (
+                    <div className="rounded-md border border-primary/40 bg-primary/10 p-2 text-xs">
+                      <p className="font-bold text-primary flex items-center gap-1.5">
+                        <Vote className="h-3.5 w-3.5" />
+                        تصويت مطلوب: {openVotes[0].title}
+                      </p>
+                      <Badge variant="default" className="mt-1.5">
+                        {agendaSessionStatusLabel(openVotes[0].session_status)}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      لا يوجد تصويت مفتوح حالياً.
                     </p>
-                    <Badge variant={i.is_approved ? "secondary" : "outline"}>
-                      {statusLabel(i.session_status)}
-                    </Badge>
-                  </div>
-                ))
+                  )}
+                  {onEnterMeeting ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="min-h-9 text-xs w-full"
+                      onClick={() => onEnterMeeting(liveMeeting.meeting_id)}
+                    >
+                      {openVotes.length > 0 ? "صوّت الآن — دخول الجلسة" : "دخول الجلسة"}
+                    </Button>
+                  ) : null}
+                </>
               )}
             </CardContent>
           </Card>
 
-          {!readOnly ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Vote className="h-4 w-4" />
-                  تصويت مطلوب
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {(data.open_votes ?? []).length === 0 ? (
-                  <EmptyItem text="لا يوجد تصويت مفتوح حالياً." />
-                ) : (
-                  (data.open_votes as Array<{
-                    agenda_item_id: string;
-                    title: string;
-                    session_status: string;
-                  }>).map((v) => (
-                    <div
-                      key={v.agenda_item_id}
-                      className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
-                    >
-                      <p className="font-bold text-primary">{v.title}</p>
-                      <Badge variant="secondary" className="mt-1.5">
-                        {statusLabel(v.session_status)}
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          ) : null}
 
           <Card>
             <CardHeader className="pb-2">

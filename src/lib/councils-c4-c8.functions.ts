@@ -335,3 +335,27 @@ export const exportApprovedCouncilMinutesPdfFn = createServerFn({ method: "POST"
       base64: btoa(binary),
     };
   });
+
+/**
+ * Server-backed "did I already vote on this agenda item?".
+ * Reads the caller's own row from academic_council_votes under RLS
+ * (policy allows `voter_user_id = auth.uid()`), so the member's vote
+ * survives a page reload instead of living only in local state.
+ */
+export const getMyCouncilVoteFn = createServerFn({ method: "GET" })
+  .validator((d: { agenda_item_id: string }) => d)
+  .handler(async ({ data, request }) => {
+    const { supabase, userId } = await requireSupabaseAuth(request);
+    const { data: row, error } = await supabase
+      .from("academic_council_votes")
+      .select("vote_value, cast_at")
+      .eq("agenda_item_id", data.agenda_item_id)
+      .eq("voter_user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return {
+      has_voted: Boolean(row),
+      vote_value: (row?.vote_value as "yes" | "no" | "abstain" | undefined) ?? null,
+      cast_at: (row?.cast_at as string | undefined) ?? null,
+    };
+  });

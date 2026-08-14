@@ -513,6 +513,7 @@ function FacultyAcademicCouncilsPage() {
                         councilId={selectedMembership.council_id}
                         councilName={selectedMembership.council_name}
                         readOnly={selectedRole === "viewer"}
+                        onEnterMeeting={openMeetingWorkspace}
                       />
                     )}
                   </SectionShell>

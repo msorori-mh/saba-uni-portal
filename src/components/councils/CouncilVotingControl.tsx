@@ -11,7 +11,14 @@ import {
   calculateAgendaItemResultFn,
   resolveAgendaItemFn,
   getCouncilVoteResultFn,
+  getMyCouncilVoteFn,
 } from "@/lib/councils-c4-c8.functions";
+import {
+  LIVE_SESSION_INTERVAL_MS,
+  agendaSessionStatusLabel,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
 
 interface CouncilVotingControlProps {
   agendaItemId: string;
@@ -32,13 +39,38 @@ export function CouncilVotingControl({
 }: CouncilVotingControlProps) {
   const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const [userVote, setUserVote] = useState<"yes" | "no" | "abstain" | null>(null);
+  const [localVote, setLocalVote] = useState<"yes" | "no" | "abstain" | null>(null);
+
+  const isLiveItem =
+    sessionStatus === "voting_open" ||
+    sessionStatus === "in_discussion" ||
+    sessionStatus === "voting_closed";
+  const liveInterval = useLivePollInterval(isLiveItem, LIVE_SESSION_INTERVAL_MS);
 
   const voteResultQuery = useQuery({
     queryKey: ["council-vote-result", agendaItemId],
     queryFn: () => getCouncilVoteResultFn({ data: { agenda_item_id: agendaItemId } }),
     enabled: Boolean(agendaItemId) && (sessionStatus === "voting_closed" || sessionStatus === "resolved"),
+    ...liveQueryOptions(sessionStatus === "voting_closed" ? liveInterval : false),
   });
+
+  // Server-backed: the member's own vote, so it survives a reload and never
+  // claims "not voted" when the database says otherwise.
+  const myVoteQuery = useQuery({
+    queryKey: ["council-my-vote", agendaItemId],
+    queryFn: () => getMyCouncilVoteFn({ data: { agenda_item_id: agendaItemId } }),
+    enabled: Boolean(agendaItemId) && isEligibleMember && sessionStatus === "voting_open",
+    ...liveQueryOptions(liveInterval),
+  });
+
+  const serverVote = myVoteQuery.data?.vote_value ?? null;
+  const userVote = serverVote ?? localVote;
+  const voteStateUnknown =
+    isEligibleMember &&
+    sessionStatus === "voting_open" &&
+    !localVote &&
+    (myVoteQuery.isLoading || myVoteQuery.isError);
+
 
   async function handleOpenVote() {
     setLoading(true);
@@ -58,9 +90,11 @@ export function CouncilVotingControl({
     setLoading(true);
     try {
       await castCouncilVoteFn({ data: { agenda_item_id: agendaItemId, vote_value: val } });
-      setUserVote(val);
+      setLocalVote(val);
       toast.success("تم تسجيل صوتك بنجاح");
       qc.invalidateQueries();
+      void myVoteQuery.refetch();
+
     } catch (err: any) {
       toast.error(err.message || "تعذر تسجيل الصوت");
     } finally {
@@ -120,8 +154,9 @@ export function CouncilVotingControl({
           <Vote className="w-4 h-4 text-indigo-600" />
           <span>حالة التصويت والمداولة:</span>
           <Badge variant="outline" className="text-indigo-600 dark:text-indigo-400">
-            {sessionStatus}
+            {agendaSessionStatusLabel(sessionStatus)}
           </Badge>
+
         </div>
 
         {/* Chair Controls */}
@@ -158,11 +193,14 @@ export function CouncilVotingControl({
       {/* Member Live Voting Bar */}
       {sessionStatus === "voting_open" && isEligibleMember && (
         <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded border border-indigo-200 dark:border-indigo-800 space-y-2">
-          <p className="font-semibold text-indigo-900 dark:text-indigo-200">التصويت مفتوح حالياً — اختر صوتك:</p>
+          <p className="font-semibold text-indigo-900 dark:text-indigo-200">
+            {userVote ? "التصويت مفتوح حالياً" : "صوّت الآن — التصويت مفتوح على هذا البند"}
+          </p>
+
           <div className="flex items-center gap-2">
             <Button
               onClick={() => handleCastVote("yes")}
-              disabled={loading || Boolean(userVote)}
+              disabled={loading || Boolean(userVote) || voteStateUnknown}
               size="sm"
               className={`flex-1 h-8 text-xs font-bold ${
                 userVote === "yes" ? "bg-emerald-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -173,7 +211,7 @@ export function CouncilVotingControl({
             </Button>
             <Button
               onClick={() => handleCastVote("no")}
-              disabled={loading || Boolean(userVote)}
+              disabled={loading || Boolean(userVote) || voteStateUnknown}
               size="sm"
               className={`flex-1 h-8 text-xs font-bold ${
                 userVote === "no" ? "bg-rose-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"
@@ -184,7 +222,7 @@ export function CouncilVotingControl({
             </Button>
             <Button
               onClick={() => handleCastVote("abstain")}
-              disabled={loading || Boolean(userVote)}
+              disabled={loading || Boolean(userVote) || voteStateUnknown}
               size="sm"
               variant="outline"
               className={`flex-1 h-8 text-xs font-bold ${userVote === "abstain" ? "bg-slate-200" : ""}`}
@@ -193,11 +231,16 @@ export function CouncilVotingControl({
               امتناع
             </Button>
           </div>
-          {userVote && (
+          {userVote ? (
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium" aria-live="polite">
               تم تسجيل صوتك: {userVote === "yes" ? "موافق" : userVote === "no" ? "غير موافق" : "امتناع"}.
             </p>
-          )}
+          ) : voteStateUnknown ? (
+            <p className="text-[11px] text-muted-foreground" aria-live="polite">
+              جارٍ التحقق من حالة تصويتك…
+            </p>
+          ) : null}
+
         </div>
       )}
 
