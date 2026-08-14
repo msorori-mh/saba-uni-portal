@@ -188,12 +188,14 @@ DECLARE
   v_token text := encode(gen_random_bytes(32), 'hex');
   v_expires timestamptz := now() + interval '120 seconds';
 BEGIN
-  UPDATE public.step_up_challenges
+  -- Columns are alias-qualified: this function has OUT parameters named
+  -- `proof_token`/`expires_at`, so unqualified references would be ambiguous.
+  UPDATE public.step_up_challenges AS ch
      SET consumed_at = now()
-   WHERE id = p_challenge_id
-     AND consumed_at IS NULL
-     AND expires_at > now()
-  RETURNING * INTO c;
+   WHERE ch.id = p_challenge_id
+     AND ch.consumed_at IS NULL
+     AND ch.expires_at > now()
+  RETURNING ch.* INTO c;
 
   IF c.id IS NULL THEN
     RAISE EXCEPTION 'CHALLENGE_INVALID';
