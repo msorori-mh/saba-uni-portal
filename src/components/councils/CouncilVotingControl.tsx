@@ -193,7 +193,10 @@ export function CouncilVotingControl({
       {/* Member Live Voting Bar */}
       {sessionStatus === "voting_open" && isEligibleMember && (
         <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded border border-indigo-200 dark:border-indigo-800 space-y-2">
-          <p className="font-semibold text-indigo-900 dark:text-indigo-200">التصويت مفتوح حالياً — اختر صوتك:</p>
+          <p className="font-semibold text-indigo-900 dark:text-indigo-200">
+            {userVote ? "التصويت مفتوح حالياً" : "صوّت الآن — التصويت مفتوح على هذا البند"}
+          </p>
+
           <div className="flex items-center gap-2">
             <Button
               onClick={() => handleCastVote("yes")}
