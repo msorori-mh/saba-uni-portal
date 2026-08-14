@@ -314,13 +314,10 @@ function FacultyAcademicCouncilsPage() {
               </p>
             </div>
           </div>
+          {/* IA_02: the authorization-audit route stays reachable directly,
+              but it is no longer surfaced inside the member workspace header. */}
           <div className="flex items-center gap-2 shrink-0">
             <CouncilNotificationBell />
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/faculty-portal/academic-councils/authorization-audit">
-                فحص الصلاحيات
-              </Link>
-            </Button>
           </div>
         </header>
 
