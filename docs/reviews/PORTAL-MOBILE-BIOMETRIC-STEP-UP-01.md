@@ -21,15 +21,18 @@
    - «تسجيل الخروج من هذا الجهاز» و«من جميع الأجهزة».
 
 4. **Step-up قبل العمليات الحساسة** — الخدمات الخمس فقط
-   `file_withdrawal`, `enrollment_suspension`, `department_transfer`,
-   `final_chance`, `excused_absence`.
-   - عرض ملخص الإجراء وآثاره ⇒ بصمة ⇒ توقيع رسالة تتضمن
-     `version|challenge|nonce|user|device|action|request|payload_hash|expiry`.
-   - التحقق من التوقيع (ECDSA P-256) يتم على الخادم في
-     `step-up-verify.functions.ts`؛ Postgres لا يملك بدائية ECDSA.
-   - إصدار Proof قصير العمر ووحيد الاستخدام عبر `mint_step_up_proof`
-     (`service_role` فقط)، ويُستهلك ذريًا داخل نفس معاملة الإرسال.
-   - إلغاء البصمة ⇒ صفر استدعاءات لـ submit RPC (مثبت باختبار).
+    `file_withdrawal`, `enrollment_suspension`, `department_transfer`,
+    `final_chance`, `excused_absence`.
+    - عرض ملخص الإجراء وآثاره ⇒ قناة native تستخدم بصمة، قناة web تستخدم إعادة
+      مصادقة كلمة المرور مباشرةً على الخادم (لا يتم إرسال أي شيء إيجابي للعميل
+      قبل التحقق).
+    - التحدي (challenge) يُنشأ على الخادم: `beginStepUpChallengeFn` تحسب
+      `payload_hash` من المسودة المخزنة، لذا لا يمكن للعميل تمرير hash معدّل.
+    - التوقيع (ECDSA P-256) يتم التحقق منه على الخادم في
+      `step-up-verify.functions.ts`؛ Postgres لا يملك بدائية ECDSA.
+    - إصدار Proof قصير العمر ووحيد الاستخدام عبر `mint_step_up_proof`
+      (`service_role` فقط)، ويُستهلك ذريًا داخل نفس معاملة الإرسال.
+    - إلغاء البصمة/كلمة المرور ⇒ صفر استدعاءات لـ submit RPC (مثبت باختبار).
 
 ## قاعدة البيانات
 
