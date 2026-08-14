@@ -244,13 +244,16 @@ BEGIN
      AND action_code = p_action_code
      AND request_id = p_request_id
      AND payload_hash = p_payload_hash
-  RETURNING * INTO p;
+   RETURNING * INTO p;
 
   IF p.proof_token IS NULL THEN
     RAISE EXCEPTION 'STEP_UP_PROOF_INVALID';
   END IF;
 
-  IF NOT EXISTS (
+  -- Web channel proofs are bound to a fresh server-side password re-auth; no
+  -- device row exists for them. Native channel proofs must still prove the
+  -- device is trusted (not revoked) at consumption time.
+  IF p.device_id != 'web' AND NOT EXISTS (
     SELECT 1 FROM public.student_trusted_devices d
      WHERE d.user_id = p.user_id AND d.device_id = p.device_id AND d.revoked_at IS NULL
   ) THEN
