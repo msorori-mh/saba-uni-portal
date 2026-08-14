@@ -41,10 +41,13 @@ import { B1RequestSummary } from "./B1RequestSummary";
 import { B1ServiceHeader } from "./B1ServiceHeader";
 import { B1SubmissionConfirmation } from "./B1SubmissionConfirmation";
 import { StepUpConfirmDialog } from "@/components/security/StepUpConfirmDialog";
-import { supabase } from "@/integrations/supabase/client";
 import { isBiometricRuntimeAvailable } from "@/lib/native/biometrics";
 import { isStepUpSensitiveService, STEP_UP_MESSAGES_AR } from "@/lib/security/step-up-contract";
-import { performStepUp, type StepUpRpcClient } from "@/lib/security/step-up-client";
+import { performStepUp } from "@/lib/security/step-up-client";
+import {
+  getCurrentUserIdForStepUp,
+  stepUpRpcClient,
+} from "@/lib/security/step-up-browser";
 import { B1SuccessState } from "./B1SuccessState";
 import {
   describeError,
@@ -54,15 +57,6 @@ import {
 
 const AUTOSAVE_MS = 1000;
 
-const stepUpRpcClient: StepUpRpcClient = {
-  rpc: (fn, args) =>
-    (
-      supabase.rpc as unknown as (
-        name: string,
-        params: Record<string, unknown>,
-      ) => Promise<{ data: unknown; error: { message?: string } | null }>
-    )(fn, args),
-};
 const MAX_SIZE_MB = SECURE_ATTACHMENT_MAX_BYTES / (1024 * 1024);
 
 export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1CanonicalCode }) {
@@ -355,8 +349,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     setStepUpBusy(true);
     setStepUpError(null);
     try {
-      const { data: auth } = await supabase.auth.getUser();
-      const userId = auth.user?.id;
+      const userId = await getCurrentUserIdForStepUp();
       if (!userId) {
         setStepUpError(STEP_UP_MESSAGES_AR.failed);
         return;
