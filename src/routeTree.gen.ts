@@ -138,6 +138,7 @@ import { Route as StudentRequestsIdRouteImport } from './routes/student.requests
 import { Route as StudentRequestsNewRouteImport } from './routes/student.requests.new'
 import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
 import { Route as MobileStudentDocumentsIndexRouteImport } from './routes/mobile.student.documents.index'
+import { Route as MobileStudentDocumentsIdRouteImport } from './routes/mobile.student.documents.$id'
 import { Route as MobileStudentGraduationProjectsIndexRouteImport } from './routes/mobile.student.graduation-projects.index'
 import { Route as MobileStudentGraduationProjectsProjectIdRouteImport } from './routes/mobile.student.graduation-projects.$projectId'
 import { Route as MobileStudentMaterialsIndexRouteImport } from './routes/mobile.student.materials.index'
@@ -890,6 +891,12 @@ const MobileStudentDocumentsIndexRoute =
     path: '/documents/',
     getParentRoute: () => MobileStudentRoute,
   } as any)
+const MobileStudentDocumentsIdRoute =
+  MobileStudentDocumentsIdRouteImport.update({
+    id: '/documents/$id',
+    path: '/documents/$id',
+    getParentRoute: () => MobileStudentRoute,
+  } as any)
 const MobileStudentGraduationProjectsIndexRoute =
   MobileStudentGraduationProjectsIndexRouteImport.update({
     id: '/graduation-projects/',
@@ -1092,6 +1099,7 @@ export interface FileRoutesByFullPath {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/mobile/student/documents/$id': typeof MobileStudentDocumentsIdRoute
   '/mobile/student/graduation-projects/$projectId': typeof MobileStudentGraduationProjectsProjectIdRoute
   '/mobile/student/materials/$sectionId': typeof MobileStudentMaterialsSectionIdRoute
   '/mobile/student/requests/$id': typeof MobileStudentRequestsIdRoute
@@ -1232,6 +1240,7 @@ export interface FileRoutesByTo {
   '/student/materials': typeof StudentMaterialsIndexRoute
   '/student/requests': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/mobile/student/documents/$id': typeof MobileStudentDocumentsIdRoute
   '/mobile/student/graduation-projects/$projectId': typeof MobileStudentGraduationProjectsProjectIdRoute
   '/mobile/student/materials/$sectionId': typeof MobileStudentMaterialsSectionIdRoute
   '/mobile/student/requests/$id': typeof MobileStudentRequestsIdRoute
@@ -1382,6 +1391,7 @@ export interface FileRoutesById {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types_/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/mobile/student/documents/$id': typeof MobileStudentDocumentsIdRoute
   '/mobile/student/graduation-projects/$projectId': typeof MobileStudentGraduationProjectsProjectIdRoute
   '/mobile/student/materials/$sectionId': typeof MobileStudentMaterialsSectionIdRoute
   '/mobile/student/requests/$id': typeof MobileStudentRequestsIdRoute
@@ -1533,6 +1543,7 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types/$id/workflow'
+    | '/mobile/student/documents/$id'
     | '/mobile/student/graduation-projects/$projectId'
     | '/mobile/student/materials/$sectionId'
     | '/mobile/student/requests/$id'
@@ -1673,6 +1684,7 @@ export interface FileRouteTypes {
     | '/student/materials'
     | '/student/requests'
     | '/admin/request-types/$id/workflow'
+    | '/mobile/student/documents/$id'
     | '/mobile/student/graduation-projects/$projectId'
     | '/mobile/student/materials/$sectionId'
     | '/mobile/student/requests/$id'
@@ -1822,6 +1834,7 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types_/$id/workflow'
+    | '/mobile/student/documents/$id'
     | '/mobile/student/graduation-projects/$projectId'
     | '/mobile/student/materials/$sectionId'
     | '/mobile/student/requests/$id'
@@ -2816,6 +2829,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentDocumentsIndexRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/mobile/student/documents/$id': {
+      id: '/mobile/student/documents/$id'
+      path: '/documents/$id'
+      fullPath: '/mobile/student/documents/$id'
+      preLoaderRoute: typeof MobileStudentDocumentsIdRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
     '/mobile/student/graduation-projects/': {
       id: '/mobile/student/graduation-projects/'
       path: '/graduation-projects'
@@ -3244,6 +3264,7 @@ interface MobileStudentRouteChildren {
   MobileStudentSettingsRoute: typeof MobileStudentSettingsRoute
   MobileStudentStudyPlanRoute: typeof MobileStudentStudyPlanRoute
   MobileStudentIndexRoute: typeof MobileStudentIndexRoute
+  MobileStudentDocumentsIdRoute: typeof MobileStudentDocumentsIdRoute
   MobileStudentGraduationProjectsProjectIdRoute: typeof MobileStudentGraduationProjectsProjectIdRoute
   MobileStudentMaterialsSectionIdRoute: typeof MobileStudentMaterialsSectionIdRoute
   MobileStudentDocumentsIndexRoute: typeof MobileStudentDocumentsIndexRoute
@@ -3265,6 +3286,7 @@ const MobileStudentRouteChildren: MobileStudentRouteChildren = {
   MobileStudentSettingsRoute: MobileStudentSettingsRoute,
   MobileStudentStudyPlanRoute: MobileStudentStudyPlanRoute,
   MobileStudentIndexRoute: MobileStudentIndexRoute,
+  MobileStudentDocumentsIdRoute: MobileStudentDocumentsIdRoute,
   MobileStudentGraduationProjectsProjectIdRoute:
     MobileStudentGraduationProjectsProjectIdRoute,
   MobileStudentMaterialsSectionIdRoute: MobileStudentMaterialsSectionIdRoute,

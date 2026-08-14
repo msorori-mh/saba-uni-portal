@@ -161,13 +161,14 @@ function MobileStudentDocuments() {
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void openExternalUrl(`/document-view/${d.id}`)}
+                <Link
+                  to="/mobile/student/documents/$id"
+                  params={{ id: d.id }}
+                  data-testid="mobile-document-open"
                   className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
                 >
                   <Eye className="h-3.5 w-3.5" /> عرض الوثيقة
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() =>
