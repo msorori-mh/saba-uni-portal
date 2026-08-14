@@ -221,11 +221,54 @@ function FacultyAcademicCouncilsPage() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [agendaMeetingId, setAgendaMeetingId] = useState<string | null>(null);
   const [agendaOpen, setAgendaOpen] = useState(false);
+  const [focusMeetingId, setFocusMeetingId] = useState<string | null>(null);
+  const [agendaExpandMeetingId, setAgendaExpandMeetingId] = useState<string | null>(null);
 
   const openAgenda = (meetingId: string) => {
     setAgendaMeetingId(meetingId);
     setAgendaOpen(true);
   };
+
+  const scrollToMeetingCard = (meetingId: string) => {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      const el = document.getElementById(`council-meeting-card-${meetingId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      (el as HTMLElement).focus({ preventScroll: true });
+    }, 120);
+  };
+
+  const openMeeting = (meetingId: string) => {
+    setWorkspaceTab("meetings");
+    setAgendaExpandMeetingId(null);
+    setFocusMeetingId(meetingId);
+    scrollToMeetingCard(meetingId);
+  };
+
+  const viewMeetingAgenda = (meetingId: string) => {
+    setWorkspaceTab("meetings");
+    setFocusMeetingId(meetingId);
+    setAgendaExpandMeetingId(meetingId);
+    scrollToMeetingCard(meetingId);
+  };
+
+  const openIntakeQuery = useQuery({
+    queryKey: ["faculty", "open-intake-meetings"],
+    queryFn: () => fetchOpenIntakeMeetings(),
+    enabled: submitEligibleMemberships.length > 0,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const openIntakeMeetings = openIntakeQuery.data ?? [];
+  const hasOpenIntake = openIntakeMeetings.length > 0;
+  const intakeNoticeForNextMeeting =
+    nextMeeting &&
+    !openIntakeMeetings.some((m) => m.meeting_id === nextMeeting.meeting_id) &&
+    (GOVERNANCE_MEETING_STATUSES as readonly string[]).includes(nextMeeting.status)
+      ? INTAKE_CLOSED_NOTICE
+      : null;
+
 
   const pageLoading =
     membershipsQuery.isLoading && meetingsQuery.isLoading && topicsQuery.isLoading;
