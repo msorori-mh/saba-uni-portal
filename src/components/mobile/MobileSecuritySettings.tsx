@@ -9,6 +9,7 @@ import {
   revokeAllDevices,
   revokeThisDevice,
 } from "@/lib/security/device-trust-client";
+import { registerTrustedDeviceFn } from "@/lib/security/device-trust.functions";
 import type { StepUpRpcClient } from "@/lib/security/step-up-client";
 
 const rpcClient: StepUpRpcClient = {
