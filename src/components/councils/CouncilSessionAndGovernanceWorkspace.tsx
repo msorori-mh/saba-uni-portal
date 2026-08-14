@@ -550,6 +550,17 @@ export function CouncilSessionAndGovernanceWorkspace({
               </Button>
             </div>
           </div>
+        ) : !canWriteAgenda ? (
+          <div className="space-y-2" data-testid="council-minutes-readonly">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">
+              {minutesData?.body?.trim()
+                ? minutesData.body
+                : "لم يُعتمد محضر هذا الاجتماع بعد. سيظهر النص هنا فور اعتماده وقفله رسمياً."}
+            </div>
+            <p className="text-xs text-slate-500">
+              العرض للاطلاع فقط — تحرير المحضر من صلاحية رئيس المجلس وأمين السر.
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             <Textarea
@@ -557,42 +568,39 @@ export function CouncilSessionAndGovernanceWorkspace({
               onChange={(e) => setMinutesBody(e.target.value)}
               placeholder="اكتب بنود وقرارات ومداولات محضر الاجتماع هنا..."
               rows={5}
-              disabled={!canWriteAgenda}
               className="dir-rtl text-right font-sans"
             />
-            {canWriteAgenda && (
-              <div className="flex items-center gap-2 justify-end">
+            <div className="flex items-center gap-2 justify-end">
+              <Button
+                onClick={handleSaveMinutesDraft}
+                disabled={loadingAction === "save_minutes"}
+                variant="outline"
+                size="sm"
+              >
+                حفظ المسودة
+              </Button>
+              {isSecretary && (
                 <Button
-                  onClick={handleSaveMinutesDraft}
-                  disabled={loadingAction === "save_minutes"}
-                  variant="outline"
+                  onClick={handleSubmitMinutesReview}
+                  disabled={loadingAction === "submit_minutes"}
                   size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  حفظ المسودة
+                  تقديم للمراجعة
                 </Button>
-                {isSecretary && (
-                  <Button
-                    onClick={handleSubmitMinutesReview}
-                    disabled={loadingAction === "submit_minutes"}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    تقديم للمراجعة
-                  </Button>
-                )}
-                {isChair && (
-                  <Button
-                    onClick={handleLockMinutes}
-                    disabled={loadingAction === "lock_minutes"}
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                  >
-                    <Lock className="w-4 h-4 ml-1.5" />
-                    اعتماد وقفل المحضر رسمياً
-                  </Button>
-                )}
-              </div>
-            )}
+              )}
+              {isChair && (
+                <Button
+                  onClick={handleLockMinutes}
+                  disabled={loadingAction === "lock_minutes"}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                >
+                  <Lock className="w-4 h-4 ml-1.5" />
+                  اعتماد وقفل المحضر رسمياً
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
