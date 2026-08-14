@@ -522,6 +522,7 @@ function FacultyAcademicCouncilsPage() {
                         councilName={selectedMembership.council_name}
                         readOnly={selectedRole === "viewer"}
                         onEnterMeeting={openMeetingWorkspace}
+                        onOpenDecisions={() => setWorkspaceTab("decisions")}
                         liveMeeting={
                           liveMeeting
                             ? {
