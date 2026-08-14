@@ -457,8 +457,11 @@ export function CouncilMeetingCard({
         ) : null}
       </dl>
 
-      {!canManageAgenda ? (
-        <MeetingAgendaExpandable meetingId={meeting.meeting_id} />
+      {!canManageAgenda || autoExpandAgenda ? (
+        <MeetingAgendaExpandable
+          meetingId={meeting.meeting_id}
+          autoExpand={autoExpandAgenda}
+        />
       ) : null}
 
       <Dialog open={editOpen} onOpenChange={(next) => !next && !editBusy && setEditOpen(false)}>
