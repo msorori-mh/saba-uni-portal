@@ -62,6 +62,12 @@ import { CouncilNotificationBell } from "@/components/councils/CouncilNotificati
 import { CouncilChairDashboard } from "@/components/councils/CouncilChairDashboard";
 import { CouncilSecretaryDashboard } from "@/components/councils/CouncilSecretaryDashboard";
 import { CouncilMemberWorkspace } from "@/components/councils/CouncilMemberWorkspace";
+import {
+  COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  liveQueryOptions,
+  useLivePollInterval,
+} from "@/lib/councils-live";
+
 import { CouncilResponsibleActorView } from "@/components/councils/CouncilResponsibleActorView";
 import { CouncilReportsView } from "@/components/councils/CouncilReportsView";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,12 +98,17 @@ function FacultyAcademicCouncilsPage() {
     refetchOnWindowFocus: false,
   });
 
+  // Live-polled so a meeting flipping to `in_session` is picked up within ~5s.
+  const meetingsLiveInterval = useLivePollInterval(
+    true,
+    COUNCIL_LIVE_INDICATORS_INTERVAL_MS,
+  );
   const meetingsQuery = useQuery({
     queryKey: ["faculty", "my-council-meetings-v2"],
     queryFn: () => fetchMeetings(),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    ...liveQueryOptions(meetingsLiveInterval),
   });
+
 
   const topicsQuery = useQuery({
     queryKey: ["faculty", "my-council-topics"],
@@ -514,7 +525,19 @@ function FacultyAcademicCouncilsPage() {
                         councilName={selectedMembership.council_name}
                         readOnly={selectedRole === "viewer"}
                         onEnterMeeting={openMeetingWorkspace}
+                        liveMeeting={
+                          liveMeeting
+                            ? {
+                                meeting_id: liveMeeting.meeting_id,
+                                title:
+                                  liveMeeting.meeting_title?.trim() ||
+                                  `اجتماع رقم ${liveMeeting.meeting_number}`,
+                                scheduled_at: liveMeeting.scheduled_at ?? null,
+                              }
+                            : null
+                        }
                       />
+
                     )}
                   </SectionShell>
                 ) : null}

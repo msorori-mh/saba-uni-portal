@@ -21,13 +21,30 @@ import {
   useLivePollInterval,
 } from "@/lib/councils-live";
 
+/**
+ * Authoritative live-session descriptor supplied by the page. The page derives
+ * it from the full council meeting list, so it stays visible even after the
+ * scheduled time has passed — unlike `upcoming_meetings`, which is time-bound.
+ */
+export interface CouncilLiveMeetingRef {
+  meeting_id: string;
+  title: string;
+  scheduled_at: string | null;
+}
+
 interface CouncilMemberWorkspaceProps {
   councilId: string;
   councilName: string;
   readOnly?: boolean;
   /** Opens the meeting workspace for the live session. */
   onEnterMeeting?: (meetingId: string) => void;
+  /**
+   * When provided, this is the single source of truth for the "current session"
+   * card. The `upcoming_meetings` scan is only a fallback for other callers.
+   */
+  liveMeeting?: CouncilLiveMeetingRef | null;
 }
+
 
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "مجدول",
@@ -77,6 +94,7 @@ export function CouncilMemberWorkspace({
   councilName,
   readOnly = false,
   onEnterMeeting,
+  liveMeeting: liveMeetingProp,
 }: CouncilMemberWorkspaceProps) {
   const fetchWorkspace = useServerFn(getCouncilMemberWorkspaceFn);
   const liveInterval = useLivePollInterval(
@@ -98,7 +116,13 @@ export function CouncilMemberWorkspace({
     scheduled_at: string;
     status: string;
   }>;
-  const liveMeeting = meetings.find((m) => m.status === "in_session") ?? null;
+  // Fallback only: `upcoming_meetings` drops a meeting once its scheduled time
+  // has passed, even while it is still in session.
+  const fallbackLiveMeeting: CouncilLiveMeetingRef | null =
+    meetings.find((m) => m.status === "in_session") ?? null;
+  const liveMeeting: CouncilLiveMeetingRef | null =
+    liveMeetingProp !== undefined ? liveMeetingProp : fallbackLiveMeeting;
+
   const openVotes = (data.open_votes ?? []) as Array<{
     agenda_item_id: string;
     title: string;
