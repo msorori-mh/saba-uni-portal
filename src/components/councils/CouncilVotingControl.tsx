@@ -90,9 +90,11 @@ export function CouncilVotingControl({
     setLoading(true);
     try {
       await castCouncilVoteFn({ data: { agenda_item_id: agendaItemId, vote_value: val } });
-      setUserVote(val);
+      setLocalVote(val);
       toast.success("تم تسجيل صوتك بنجاح");
       qc.invalidateQueries();
+      void myVoteQuery.refetch();
+
     } catch (err: any) {
       toast.error(err.message || "تعذر تسجيل الصوت");
     } finally {
