@@ -7826,6 +7826,92 @@ export type Database = {
           },
         ]
       }
+      step_up_challenges: {
+        Row: {
+          action_code: string
+          consumed_at: string | null
+          created_at: string
+          device_id: string
+          expires_at: string
+          id: string
+          nonce: string
+          payload_hash: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          action_code: string
+          consumed_at?: string | null
+          created_at?: string
+          device_id: string
+          expires_at: string
+          id?: string
+          nonce: string
+          payload_hash: string
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          action_code?: string
+          consumed_at?: string | null
+          created_at?: string
+          device_id?: string
+          expires_at?: string
+          id?: string
+          nonce?: string
+          payload_hash?: string
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      step_up_proofs: {
+        Row: {
+          action_code: string
+          challenge_id: string | null
+          consumed_at: string | null
+          created_at: string
+          device_id: string
+          expires_at: string
+          payload_hash: string
+          proof_token: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          action_code: string
+          challenge_id?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          device_id: string
+          expires_at: string
+          payload_hash: string
+          proof_token: string
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          action_code?: string
+          challenge_id?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          device_id?: string
+          expires_at?: string
+          payload_hash?: string
+          proof_token?: string
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_up_proofs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "step_up_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_academic_status: {
         Row: {
           academic_year_id: string
@@ -9271,6 +9357,42 @@ export type Database = {
           },
         ]
       }
+      student_trusted_devices: {
+        Row: {
+          algorithm: string
+          created_at: string
+          device_id: string
+          id: string
+          platform: string
+          public_key: string
+          revoked_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          algorithm?: string
+          created_at?: string
+          device_id: string
+          id?: string
+          platform?: string
+          public_key: string
+          revoked_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          algorithm?: string
+          created_at?: string
+          device_id?: string
+          id?: string
+          platform?: string
+          public_key?: string
+          revoked_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_plan_courses: {
         Row: {
           course_id: string
@@ -10343,6 +10465,15 @@ export type Database = {
           p_request_id: string
         }
         Returns: Json
+      }
+      consume_step_up_proof: {
+        Args: {
+          p_action_code: string
+          p_payload_hash: string
+          p_proof_token: string
+          p_request_id: string
+        }
+        Returns: undefined
       }
       council_add_manual_agenda_item: {
         Args: {
@@ -11959,6 +12090,20 @@ export type Database = {
         }
         Returns: Json
       }
+      issue_step_up_challenge: {
+        Args: {
+          p_action_code: string
+          p_device_id: string
+          p_payload_hash: string
+          p_request_id: string
+        }
+        Returns: {
+          challenge_id: string
+          device_id: string
+          expires_at: string
+          nonce: string
+        }[]
+      }
       link_faculty_profile_account: {
         Args: { p_auth_user_id: string; p_profile_id: string }
         Returns: undefined
@@ -12052,6 +12197,13 @@ export type Database = {
         Args: { p_meeting_id: string }
         Returns: boolean
       }
+      mint_step_up_proof: {
+        Args: { p_challenge_id: string }
+        Returns: {
+          expires_at: string
+          proof_token: string
+        }[]
+      }
       open_agenda_item_vote: {
         Args: { p_agenda_item_id: string }
         Returns: Json
@@ -12115,6 +12267,15 @@ export type Database = {
           p_sha256?: string
         }
         Returns: string
+      }
+      register_student_device: {
+        Args: {
+          p_algorithm: string
+          p_device_id: string
+          p_platform: string
+          p_public_key: string
+        }
+        Returns: undefined
       }
       reject_student_request_attachment: {
         Args: { p_attachment_id: string; p_rejection_code: string }
@@ -12328,6 +12489,11 @@ export type Database = {
         }
         Returns: string
       }
+      revoke_all_student_devices: { Args: never; Returns: undefined }
+      revoke_student_device: {
+        Args: { p_device_id: string }
+        Returns: undefined
+      }
       save_b1_request_draft_for_student: {
         Args: {
           p_expected_updated_at: string
@@ -12371,7 +12537,30 @@ export type Database = {
         Args: { _profile_status: string; _request_audience: string }
         Returns: boolean
       }
-      submit_b1_student_request_atomic: {
+      submit_b1_student_request_atomic:
+        | {
+            Args: {
+              p_attachment_ids: string[]
+              p_canonical_code: string
+              p_expected_updated_at: string
+              p_form_data: Json
+              p_request_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_attachment_ids: string[]
+              p_canonical_code: string
+              p_expected_updated_at: string
+              p_form_data: Json
+              p_request_id: string
+              p_step_up_payload_hash: string
+              p_step_up_proof: string
+            }
+            Returns: Json
+          }
+      submit_b1_student_request_atomic_core: {
         Args: {
           p_attachment_ids?: string[]
           p_canonical_code: string
