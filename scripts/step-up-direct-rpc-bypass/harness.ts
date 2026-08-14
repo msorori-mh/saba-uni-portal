@@ -95,6 +95,26 @@ const PRIVILEGE_TARGETS: Record<string, [string, string]> = {
   ],
   authenticated_consume: ["authenticated", "public.consume_step_up_proof(text,text,uuid,text)"],
   authenticated_mint: ["authenticated", "public.mint_step_up_proof(uuid)"],
+  authenticated_register_device: [
+    "authenticated",
+    "public.register_student_device(text,text,text,text)",
+  ],
+  authenticated_issue_challenge: [
+    "authenticated",
+    "public.issue_step_up_challenge(text,text,uuid,text)",
+  ],
+  authenticated_revoke_device: ["authenticated", "public.revoke_student_device(text)"],
+  authenticated_revoke_all_devices: ["authenticated", "public.revoke_all_student_devices()"],
+  service_role_register_device: [
+    "service_role",
+    "public.register_student_device(text,text,text,text)",
+  ],
+  service_role_issue_challenge: [
+    "service_role",
+    "public.issue_step_up_challenge(text,text,uuid,text)",
+  ],
+  anon_register_device: ["anon", "public.register_student_device(text,text,text,text)"],
+  anon_issue_challenge: ["anon", "public.issue_step_up_challenge(text,text,uuid,text)"],
   anon_5arg: [
     "anon",
     "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
@@ -103,6 +123,12 @@ const PRIVILEGE_TARGETS: Record<string, [string, string]> = {
     "anon",
     "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[],text,text)",
   ],
+};
+
+// `has_function_privilege('public', ...)` answers the PUBLIC pseudo-role.
+const PUBLIC_PRIVILEGE_TARGETS: Record<string, string> = {
+  public_register_device: "public.register_student_device(text,text,text,text)",
+  public_issue_challenge: "public.issue_step_up_challenge(text,text,uuid,text)",
 };
 
 export async function runDirectRpcBypassMatrix(): Promise<BypassMatrix> {
@@ -180,11 +206,35 @@ export async function runDirectRpcBypassMatrix(): Promise<BypassMatrix> {
          '{}'::jsonb, now(), '{}'::uuid[], '${proof2}', '${"c".repeat(64)}')`,
     );
 
+    // Trust enrollment must be unreachable from the client role: registration
+    // and challenge issuance only happen through server functions.
+    cases["AUTHENTICATED_REGISTER_DEVICE_DIRECT"] = await asStudent(
+      `SELECT public.register_student_device('dev-2', '${"A".repeat(64)}',
+         'SHA256withECDSA', 'android')`,
+    );
+    cases["AUTHENTICATED_ISSUE_CHALLENGE_DIRECT"] = await asStudent(
+      `SELECT * FROM public.issue_step_up_challenge('dev-1', 'submit_file_withdrawal',
+         '${REQ_A}'::uuid, '${HASH_A}')`,
+    );
+    cases["AUTHENTICATED_REVOKE_DEVICE_DIRECT"] = await asStudent(
+      `SELECT public.revoke_student_device('dev-1')`,
+    );
+    cases["AUTHENTICATED_REVOKE_ALL_DEVICES_DIRECT"] = await asStudent(
+      `SELECT public.revoke_all_student_devices()`,
+    );
+
     const privileges: Record<string, boolean> = {};
     for (const [key, [role, target]] of Object.entries(PRIVILEGE_TARGETS)) {
       const res = await db.query<{ v: boolean }>(
         `SELECT has_function_privilege($1, $2, 'EXECUTE') AS v`,
         [role, target],
+      );
+      privileges[key] = res.rows[0]!.v;
+    }
+    for (const [key, target] of Object.entries(PUBLIC_PRIVILEGE_TARGETS)) {
+      const res = await db.query<{ v: boolean }>(
+        `SELECT has_function_privilege('public', $1, 'EXECUTE') AS v`,
+        [target],
       );
       privileges[key] = res.rows[0]!.v;
     }
@@ -196,7 +246,9 @@ export async function runDirectRpcBypassMatrix(): Promise<BypassMatrix> {
         WHERE n.nspname = 'public'
           AND p.proname IN ('submit_b1_student_request_atomic',
                             'submit_b1_student_request_atomic_core',
-                            'consume_step_up_proof', 'mint_step_up_proof')
+                            'consume_step_up_proof', 'mint_step_up_proof',
+                            'register_student_device', 'issue_step_up_challenge',
+                            'revoke_student_device', 'revoke_all_student_devices')
         ORDER BY 1`,
     );
     const proacl: Record<string, string> = {};

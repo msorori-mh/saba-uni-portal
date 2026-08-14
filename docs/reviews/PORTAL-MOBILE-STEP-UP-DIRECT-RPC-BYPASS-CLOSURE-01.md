@@ -59,3 +59,50 @@ PASS_MOBILE_STEP_UP_NO_DIRECT_RPC_BYPASS
 7_ARG_VALID_PROOF=PASS
 REPLAY=DENY
 ALL_SOURCE_TESTS=PASS
+
+---
+
+## إغلاق تسجيل الثقة (Trust Enrollment) — APPROVED_SOURCE_REMEDIATION_MOBILE_STEP_UP_TRUST_ENROLLMENT_01
+
+تسجيل الجهاز وإصدار التحدي أصبحا خادميين حصرًا عبر
+`registerTrustedDeviceFn` و`beginStepUpChallengeFn` (إعادة مصادقة بكلمة المرور،
+وبناء nonce/expiry/payload hash على الخادم)، ولم يعد لدور العميل أي وصول مباشر.
+
+### has_function_privilege (بعد تطبيق الترحيل على PostgreSQL اختباري)
+
+```
+register_student_device:    PUBLIC=DENY  anon=DENY  authenticated=DENY  service_role=ALLOW
+issue_step_up_challenge:    PUBLIC=DENY  anon=DENY  authenticated=DENY  service_role=ALLOW
+revoke_student_device:      authenticated=ALLOW
+revoke_all_student_devices: authenticated=ALLOW
+```
+
+### proacl
+
+```
+register_student_device(...)   => postgres=X/postgres | service_role=X/postgres
+issue_step_up_challenge(...)   => postgres=X/postgres | service_role=X/postgres
+revoke_student_device(text)    => postgres=X/postgres | authenticated=X/postgres
+revoke_all_student_devices()   => postgres=X/postgres | authenticated=X/postgres
+```
+
+### النتيجة
+
+```
+PASS_MOBILE_STEP_UP_TRUST_ENROLLMENT_NO_DIRECT_RPC
+
+AUTHENTICATED_REGISTER_DEVICE_DIRECT=DENY
+AUTHENTICATED_ISSUE_CHALLENGE_DIRECT=DENY
+SERVER_REAUTH_DEVICE_REGISTRATION=PASS
+SERVER_AUTHORITATIVE_CHALLENGE=PASS
+
+5_ARG_SENSITIVE_DIRECT_RPC=DENY
+7_ARG_WITHOUT_PROOF=DENY
+7_ARG_VALID_PROOF=PASS
+REPLAY=DENY
+
+PRODUCTION_WRITE=0
+MIGRATION_APPLY=0
+DEPLOY=0
+PUBLISH=0
+```

@@ -56,6 +56,21 @@ describe("step-up direct RPC bypass matrix (post-migration, real Postgres)", () 
   });
 });
 
+describe("trust enrollment is server-authoritative", () => {
+  test("AUTHENTICATED_REGISTER_DEVICE_DIRECT = DENY", () => {
+    denied("AUTHENTICATED_REGISTER_DEVICE_DIRECT", "permission denied");
+  });
+
+  test("AUTHENTICATED_ISSUE_CHALLENGE_DIRECT = DENY", () => {
+    denied("AUTHENTICATED_ISSUE_CHALLENGE_DIRECT", "permission denied");
+  });
+
+  test("device revocation stays callable by the signed-in student", () => {
+    expect(matrix.cases["AUTHENTICATED_REVOKE_DEVICE_DIRECT"]).toEqual({ ok: true });
+    expect(matrix.cases["AUTHENTICATED_REVOKE_ALL_DEVICES_DIRECT"]).toEqual({ ok: true });
+  });
+});
+
 describe("post-migration proacl", () => {
   test("execute privileges match the intended contract", () => {
     expect(matrix.privileges).toMatchObject({
@@ -66,6 +81,18 @@ describe("post-migration proacl", () => {
       authenticated_mint: false,
       anon_5arg: false,
       anon_7arg: false,
+      // trust enrollment: service_role only
+      public_register_device: false,
+      public_issue_challenge: false,
+      anon_register_device: false,
+      anon_issue_challenge: false,
+      authenticated_register_device: false,
+      authenticated_issue_challenge: false,
+      service_role_register_device: true,
+      service_role_issue_challenge: true,
+      // device revocation remains user-callable
+      authenticated_revoke_device: true,
+      authenticated_revoke_all_devices: true,
     });
   });
 
@@ -84,6 +111,18 @@ describe("post-migration proacl", () => {
         expect(acl).not.toContain("authenticated=X");
       }
       expect(acl).not.toContain("anon=X");
+    }
+  });
+
+  test("trust enrollment proacl grants execute to service_role only", () => {
+    for (const name of ["register_student_device(", "issue_step_up_challenge("]) {
+      const entry = Object.entries(matrix.proacl).find(([sig]) => sig.startsWith(name));
+      expect(entry).toBeDefined();
+      const acl = entry![1];
+      expect(acl).not.toContain("authenticated=X");
+      expect(acl).not.toContain("anon=X");
+      expect(acl).not.toMatch(/(^|\| )=X/); // no PUBLIC execute
+      expect(acl).toContain("service_role=X");
     }
   });
 });

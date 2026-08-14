@@ -215,8 +215,22 @@ $$;
 REVOKE ALL ON FUNCTION public.mint_step_up_proof(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mint_step_up_proof(uuid) TO service_role;
 
-GRANT EXECUTE ON FUNCTION public.issue_step_up_challenge(text, text, uuid, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.register_student_device(text, text, text, text) TO authenticated;
+-- Trust enrollment is server-authoritative: device registration and challenge
+-- issuance run only through Server Functions (fresh password re-authentication
+-- + server-built payload hash) using the privileged server client. No client
+-- role may reach them directly through the Data API.
+REVOKE ALL ON FUNCTION public.issue_step_up_challenge(text, text, uuid, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.issue_step_up_challenge(text, text, uuid, text)
+  TO service_role;
+REVOKE ALL ON FUNCTION public.register_student_device(text, text, text, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.register_student_device(text, text, text, text)
+  TO service_role;
+
+-- Device revocation stays directly callable by the signed-in student only.
+REVOKE ALL ON FUNCTION public.revoke_student_device(text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.revoke_all_student_devices() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.revoke_student_device(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_all_student_devices() TO authenticated;
 
