@@ -220,6 +220,31 @@ export function CouncilVotingControl({
         )}
       </div>
 
+      {/* Live completion progress — eligible voters = finalized attendance */}
+      {sessionStatus === "voting_open" && progress && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+            <span>
+              الأصوات المسجلة: <strong>{progress.cast}</strong> من{" "}
+              <strong>{progress.eligible}</strong> عضواً حاضراً
+            </span>
+            <span className={progress.can_close ? "text-emerald-600 font-semibold" : "text-amber-600"}>
+              {progress.can_close ? "اكتملت الأصوات — يمكن الإغلاق" : `بانتظار ${progress.pending} صوت`}
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+            <div
+              className={`h-full transition-all ${progress.can_close ? "bg-emerald-500" : "bg-indigo-500"}`}
+              style={{
+                width: `${progress.eligible > 0 ? Math.min(100, (progress.cast / progress.eligible) * 100) : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+
+
       {/* Member Live Voting Bar */}
       {sessionStatus === "voting_open" && isEligibleMember && (
         <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded border border-indigo-200 dark:border-indigo-800 space-y-2">
