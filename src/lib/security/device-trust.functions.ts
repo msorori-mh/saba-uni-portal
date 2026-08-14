@@ -29,6 +29,7 @@ export const registerTrustedDeviceFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => registerDeviceSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ registered: true; deviceId: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Fresh re-authentication: use the same Supabase auth endpoint the password
     // was originally issued against. A hijacked bearer token cannot do this.
     const email = context.claims?.email ?? context.user?.email;
