@@ -164,14 +164,15 @@ describe("councils IA redesign 02 — source guards", () => {
 
   it("splits meetings into four lifecycle buckets instead of upcoming/previous", () => {
     for (const bucket of ["in_session", "preparation", "completed", "archived"]) {
-      expect(MEETINGS_SRC).toContain(`councils-meetings-bucket-${bucket}`);
+      expect(MEETINGS_SRC).toContain("councils-meetings-bucket-");
+      expect(MEETINGS_SRC).toContain(`"${bucket}"`);
     }
   });
 
   it("opens exactly one meeting workspace at a time", () => {
     expect(ROUTE_SRC).toContain("CouncilMeetingWorkspacePanel");
     expect(ROUTE_SRC).toMatch(/activeMeeting \?/);
-    expect(PANEL_SRC).toContain('data-testid="councils-meeting-workspace"');
+    expect(PANEL_SRC).toContain('testId="councils-meeting-workspace"');
     expect(PANEL_SRC).toContain("الجلسة الحية والحوكمة");
   });
 
