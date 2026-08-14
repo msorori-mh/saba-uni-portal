@@ -68,9 +68,13 @@ export function MobileAppLockProvider({
   children: ReactNode;
   onSignOut: () => void | Promise<void>;
 }) {
-  const [enabled, setEnabledState] = useState(false);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
-  const [state, setState] = useState<AppLockState>("unlocked");
+  const [enabled, setEnabledState] = useState(() => readEnabled());
+  const [deviceId, setDeviceId] = useState(() => readDeviceId());
+  // Cold start: begin covered so student data is never rendered before the
+  // lock state is confirmed. If the feature is disabled, FOREGROUND will unlock.
+  const [state, setState] = useState<AppLockState>(() =>
+    readEnabled() ? "covered" : "unlocked",
+  );
   const [unlocking, setUnlocking] = useState(false);
   const [errorAr, setErrorAr] = useState<string | null>(null);
   const enabledRef = useRef(false);
@@ -79,8 +83,9 @@ export function MobileAppLockProvider({
   const available = isBiometricRuntimeAvailable();
 
   useEffect(() => {
-    setEnabledState(readEnabled());
-    setDeviceId(readDeviceId());
+    // After the initial synchronous read, confirm the state and request a fresh
+    // biometric check if the feature was enabled before the last backgrounding.
+    dispatch({ type: "FOREGROUND" });
   }, []);
 
   const dispatch = useCallback((event: AppLockEvent) => {
