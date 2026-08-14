@@ -11,7 +11,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { openExternalUrl } from "@/lib/native/external-links";
 
-export const Route = createFileRoute("/mobile/student/documents")({
+export const Route = createFileRoute("/mobile/student/documents/")({
   head: () => ({ meta: [{ title: "الوثائق الرسمية" }] }),
   component: MobileStudentDocuments,
 });
