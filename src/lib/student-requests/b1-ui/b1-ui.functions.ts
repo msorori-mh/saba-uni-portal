@@ -157,6 +157,7 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
       formData,
       expectedUpdatedAt: data.expectedUpdatedAt,
       attachmentIds,
+      stepUpProof: data.stepUpProof ?? null,
     });
 
     if (result.success !== true) throw new Error("B1_SUBMIT_FAILED");
