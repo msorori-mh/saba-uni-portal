@@ -200,7 +200,7 @@ export function CouncilVotingControl({
           <div className="flex items-center gap-2">
             <Button
               onClick={() => handleCastVote("yes")}
-              disabled={loading || Boolean(userVote)}
+              disabled={loading || Boolean(userVote) || voteStateUnknown}
               size="sm"
               className={`flex-1 h-8 text-xs font-bold ${
                 userVote === "yes" ? "bg-emerald-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -211,7 +211,7 @@ export function CouncilVotingControl({
             </Button>
             <Button
               onClick={() => handleCastVote("no")}
-              disabled={loading || Boolean(userVote)}
+              disabled={loading || Boolean(userVote) || voteStateUnknown}
               size="sm"
               className={`flex-1 h-8 text-xs font-bold ${
                 userVote === "no" ? "bg-rose-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"
@@ -222,7 +222,7 @@ export function CouncilVotingControl({
             </Button>
             <Button
               onClick={() => handleCastVote("abstain")}
-              disabled={loading || Boolean(userVote)}
+              disabled={loading || Boolean(userVote) || voteStateUnknown}
               size="sm"
               variant="outline"
               className={`flex-1 h-8 text-xs font-bold ${userVote === "abstain" ? "bg-slate-200" : ""}`}
