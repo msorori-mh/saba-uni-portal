@@ -3,13 +3,16 @@
 -- Package: COUNCILS_VOTING_COMPLETION_NOTIFICATIONS_AND_DATE_INVARIANTS_04
 -- Part 1/3: Vote completion guard (server-side close protection)
 --
--- Contract:
---   ELIGIBLE = members recorded in the FINALIZED attendance roll with
+-- Contract (single source of truth = council_agenda_item_eligible_voters):
+--   ELIGIBLE = DISTINCT members recorded in the FINALIZED attendance roll with
 --              attendance_state IN ('present','present_remote')
---              (identical to the set cast_council_vote already accepts)
---   CAST     = rows in academic_council_votes for the agenda item
---   CLOSE_OK = ELIGIBLE > 0 AND CAST = ELIGIBLE
+--              AND an active council membership whose role can vote
+--              (chair, vice_chair, secretary, member) — 'viewer' is EXCLUDED.
+--   CAST     = votes for the agenda item cast BY THAT SAME ELIGIBLE SET
+--   CLOSE_OK = ELIGIBLE > 0 AND CAST = ELIGIBLE  (exact equality)
 --   abstain counts as a cast vote.
+--   cast_council_vote enforces membership in the same eligible set, so the
+--   voting surface, the denominator and the close guard cannot diverge.
 --
 -- Forward-only. No data mutation. No production apply in this package.
 -- =====================================================================
@@ -25,7 +28,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-  SELECT a.user_id
+  SELECT DISTINCT a.user_id
   FROM public.academic_council_agenda_items i
   JOIN public.academic_council_meetings m ON m.id = i.meeting_id
   JOIN public.academic_council_meeting_attendance_rolls r
@@ -34,11 +37,43 @@ AS $$
   JOIN public.academic_council_meeting_attendance a
     ON a.meeting_id = m.id
    AND a.attendance_state IN ('present', 'present_remote')
+  JOIN public.academic_council_members mm
+    ON mm.council_id = m.council_id
+   AND mm.user_id = a.user_id
+   AND coalesce(mm.is_active, true)
+   AND mm.role IN (
+     'chair'::public.academic_council_member_role,
+     'vice_chair'::public.academic_council_member_role,
+     'secretary'::public.academic_council_member_role,
+     'member'::public.academic_council_member_role
+   )
   WHERE i.id = p_agenda_item_id;
 $$;
 
+-- The progress/close/cast RPCs are SECURITY DEFINER and call this helper
+-- internally; end users never execute it directly.
 REVOKE ALL ON FUNCTION public.council_agenda_item_eligible_voters(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.council_agenda_item_eligible_voters(uuid) TO service_role;
+
+-- ---------------------------------------------------------------------
+-- A2) CAST is always counted against the eligible set, never raw vote rows
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.council_agenda_item_cast_count(p_agenda_item_id uuid)
+RETURNS int
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT count(DISTINCT v.voter_user_id)::int
+  FROM public.academic_council_votes v
+  JOIN public.council_agenda_item_eligible_voters(p_agenda_item_id) e
+    ON e.user_id = v.voter_user_id
+  WHERE v.agenda_item_id = p_agenda_item_id;
+$$;
+
+REVOKE ALL ON FUNCTION public.council_agenda_item_cast_count(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.council_agenda_item_cast_count(uuid) TO service_role;
 
 -- ---------------------------------------------------------------------
 -- B) Progress read model (no individual vote direction is ever exposed)
