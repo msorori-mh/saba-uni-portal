@@ -299,6 +299,12 @@ export function CouncilSessionAndGovernanceWorkspace({
   })();
 
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
+  // Live session polling: while the meeting is in session the agenda + item
+  // states (including "voting_open") refresh every 2s without a page reload.
+  const sessionLiveInterval = useLivePollInterval(
+    meetingStatus === "in_session",
+    LIVE_SESSION_INTERVAL_MS,
+  );
   const agendaQuery = useQuery({
     queryKey: ["council-session-agenda", meetingId],
     queryFn: () => fetchAgenda({ data: { meetingId } }),
@@ -308,7 +314,9 @@ export function CouncilSessionAndGovernanceWorkspace({
       (meetingStatus === "in_session" ||
         meetingStatus === "agenda_ready" ||
         meetingStatus === "minutes_locked"),
+    ...liveQueryOptions(sessionLiveInterval),
   });
+
 
   const resolvedAgendaItems = (agendaQuery.data?.items ?? []).filter(
     (item) => item.session_status === "resolved",
