@@ -726,100 +726,14 @@ export function CouncilSessionAndGovernanceWorkspace({
       </div>
 
 
-      {/* Decisions & Follow-up Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-            <Building className="w-5 h-5 text-indigo-600" />
-            <h4 className="font-bold text-md">سجل القرارات الصادرة ومتابعة التنفيذ</h4>
-          </div>
-          <Badge variant="outline">
-            إجمالي القرارات: {dashboardQuery.data?.summary?.total ?? 0}
-          </Badge>
-        </div>
+      {/* IA_02: council-level decisions are rendered once, in the council "القرارات" tab. */}
+      <p
+        data-testid="council-decisions-moved-note"
+        className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-xs text-slate-600 dark:text-slate-300"
+      >
+        سجل القرارات الصادرة ومتابعة التنفيذ يُعرض على مستوى المجلس في تبويب «القرارات».
+      </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(dashboardQuery.data?.decisions ?? []).map((dec: any) => (
-            <div
-              key={dec.decision_id}
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400 font-bold">
-                  {dec.canonical_number || dec.decision_id.slice(0, 8)}
-                </span>
-                <Badge
-                  className={
-                    dec.status === "completed"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : dec.status === "in_progress"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  }
-                >
-                  {dec.status === "completed"
-                    ? "مكتمل"
-                    : dec.status === "in_progress"
-                      ? "قيد التنفيذ"
-                      : dec.status === "blocked"
-                        ? "متعثّر"
-                        : dec.status === "issued"
-                          ? "صادر"
-                          : dec.status === "assigned"
-                            ? "مُسند"
-                            : dec.status}
-                </Badge>
-              </div>
-
-              <h5 className="font-bold text-slate-900 dark:text-slate-100 text-sm">{dec.title}</h5>
-              <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{dec.body}</p>
-
-              {dec.responsible_unit && (
-                <p className="text-xs text-slate-500">
-                  الجهة المكلفة: <span className="font-semibold text-slate-700 dark:text-slate-300">{dec.responsible_unit}</span>
-                </p>
-              )}
-
-              {dec.execution_note && (
-                <div className="p-2 bg-white dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-                  ملاحظة التنفيذ: {dec.execution_note}
-                </div>
-              )}
-
-              {/* Action for responsible actor or chair */}
-              {(dec.responsible_user_id === userId || isChair) && dec.status !== "completed" && (
-                <Button
-                  onClick={() => {
-                    setSelectedDecisionForFollowup(dec);
-                    setFollowupNote(dec.execution_note || "");
-                    setFollowupStatus(
-                      dec.status === "issued"
-                        ? "in_progress"
-                        : dec.status === "blocked"
-                          ? "in_progress"
-                          : dec.status === "in_progress"
-                            ? "completed"
-                            : dec.status,
-                    );
-                  }}
-                  size="sm"
-                  variant="outline"
-                  className="w-full text-xs mt-2"
-                >
-                  <UserCheck className="w-3.5 h-3.5 ml-1" />
-                  تحديث حالة ومجريات التنفيذ
-                </Button>
-              )}
-            </div>
-          ))}
-
-          {(dashboardQuery.data?.decisions ?? []).length === 0 && (
-            <div className="col-span-full py-8 text-center text-slate-400 text-sm">
-              لا توجد قرارات صادرة لهذا المجلس بعد.
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Dialog: Issue Decision — C8 requires resolved agenda_item_id after minutes_locked */}
       <Dialog
