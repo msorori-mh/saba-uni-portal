@@ -92,6 +92,7 @@ function MobileStudentLayout() {
   const displayName = (profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ")) || "الطالب";
 
   return (
+    <MobileAppLockProvider onSignOut={handleLogout}>
     <div
       dir="rtl"
       className="min-h-screen bg-surface flex flex-col"
@@ -141,6 +142,7 @@ function MobileStudentLayout() {
 
       <MobileBottomNav />
     </div>
+    </MobileAppLockProvider>
   );
 }
 
