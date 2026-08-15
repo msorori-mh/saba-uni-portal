@@ -465,6 +465,9 @@ export function CouncilSessionAndGovernanceWorkspace({
             <Vote className="w-5 h-5 text-indigo-600" />
             <h4 className="font-bold text-md">بنود الجلسة والتصويت</h4>
           </div>
+          <p className="text-[11px] text-slate-500" data-testid="council-session-badges-legend">
+            «معتمد في جدول الأعمال» تعني اعتماد إدراج البند، أما حالة الجلسة فتعني نتيجة مناقشته.
+          </p>
           {agendaQuery.isLoading ? (
             <p className="text-sm text-slate-500">جاري تحميل بنود جدول الأعمال...</p>
           ) : (agendaQuery.data?.items ?? []).length === 0 ? (
