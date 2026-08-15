@@ -7,13 +7,18 @@ DRAFTS="$ROOT/docs/migration-drafts/p1"
 PGDIR="${PGDIR:-/tmp/p1-pg17}"
 PORT="${PORT:-55432}"
 
+UID_L=$(id -u lovable); GID_L=$(id -g lovable)
+AS_PG=(setpriv --reuid="$UID_L" --regid="$GID_L" --clear-groups)
+
 rm -rf "$PGDIR"
 mkdir -p "$PGDIR"
-initdb -D "$PGDIR/data" -U postgres >/dev/null
-pg_ctl -D "$PGDIR/data" -o "-p $PORT -k $PGDIR" -l "$PGDIR/pg.log" -w start >/dev/null
-trap 'pg_ctl -D "$PGDIR/data" -m immediate stop >/dev/null 2>&1 || true' EXIT
+chown -R "$UID_L:$GID_L" "$PGDIR"
+"${AS_PG[@]}" initdb -D "$PGDIR/data" -U pg >/dev/null
+"${AS_PG[@]}" pg_ctl -D "$PGDIR/data" \
+  -o "-k $PGDIR -p $PORT -c listen_addresses=''" -l "$PGDIR/pg.log" -w start >/dev/null
+trap '"${AS_PG[@]}" pg_ctl -D "$PGDIR/data" -m immediate stop >/dev/null 2>&1 || true' EXIT
 
-export PGHOST="$PGDIR" PGPORT="$PORT" PGUSER=postgres PGDATABASE=postgres
+export PGHOST="$PGDIR" PGPORT="$PORT" PGUSER=pg PGDATABASE=postgres
 unset PGPASSWORD || true
 
 psql -Atc "select version()"
