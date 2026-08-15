@@ -18,6 +18,7 @@ import {
   PLAN_STATUS_LABELS,
   RISK_LABELS,
   type MonitoringPeriod,
+  type MonitoringRow,
 } from "@/lib/lecture-execution.functions";
 
 const RISK_STYLES: Record<string, string> = {
@@ -96,8 +97,8 @@ export function DeliveryMonitoringPanel() {
         {[
           ["المجموعات", t.sections],
           ["المخطط", t.planned],
-          ["المنفذ", t.executed],
-          ["المعوّض", t.compensated],
+          ["المنفذ (شامل التعويض)", t.executed],
+          ["منها معوّض", t.compensated],
           ["المؤجل", t.postponed],
           ["الملغى", t.cancelled],
           ["المتعذر", t.hindered],
@@ -203,8 +204,8 @@ function MonitoringTable({
             {!compact && (
               <>
                 <TableHead>المخطط</TableHead>
-                <TableHead>المنفذ</TableHead>
-                <TableHead>المعوّض</TableHead>
+                <TableHead>المنفذ (شامل التعويض)</TableHead>
+                <TableHead>منها معوّض</TableHead>
                 <TableHead>المؤجل</TableHead>
                 <TableHead>المتبقي</TableHead>
                 <TableHead>غير المعوّض</TableHead>
