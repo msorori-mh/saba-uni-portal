@@ -137,6 +137,18 @@ export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinit
     requiresArchive: true,
     legacyAliases: [],
   },
+  {
+    code: "replacement_student_card",
+    nameAr: "بطاقة طالب بدل فاقد",
+    audience: "active_student",
+    ineligibleDisplayMode: "hidden",
+    requiresAttachment: false,
+    requiresServiceWindow: false,
+    requiresFee: true,
+    producesDocument: false,
+    requiresArchive: false,
+    legacyAliases: [],
+  },
 ] as const;
 
 const DEFINITION_BY_CANONICAL = new Map<string, StudentRequestTypeDefinition>(

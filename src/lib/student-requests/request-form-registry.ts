@@ -42,7 +42,9 @@ export type RequestFormFieldDefinition = {
     | "semesters_for_year"
     | "current_student_enrollments"
     | "available_departments"
-    | "available_programs";
+    | "available_programs"
+    | "october_remaining_required_courses"
+    | "published_final_results";
   referenceDependsOnField?: string;
 };
 
@@ -68,23 +70,9 @@ export type RequestFormDefinition = {
   unavailableUntilSchemaApplied: boolean;
 };
 
-const PLACEHOLDER_SEMESTERS: readonly RequestFormFieldOption[] = [
-  { value: "placeholder_fall", labelAr: "الفصل الأول (يُحمَّل لاحقاً من السياق الأكاديمي)" },
-  { value: "placeholder_spring", labelAr: "الفصل الثاني (يُحمَّل لاحقاً من السياق الأكاديمي)" },
-  { value: "placeholder_summer", labelAr: "الفصل الصيفي (يُحمَّل لاحقاً من السياق الأكاديمي)" },
-];
+/* P1: placeholder option arrays removed — every reference list is resolved
+   server-side from authoritative tables via referenceResolverKey. */
 
-const PLACEHOLDER_COURSES: readonly RequestFormFieldOption[] = [
-  { value: "course_placeholder_1", labelAr: "— سيتم جلب المقررات من السجل الأكاديمي —" },
-];
-
-const PLACEHOLDER_DEPARTMENTS: readonly RequestFormFieldOption[] = [
-  { value: "dept_placeholder", labelAr: "— سيتم جلب الأقسام من البيانات المرجعية —" },
-];
-
-const PLACEHOLDER_PROGRAMS: readonly RequestFormFieldOption[] = [
-  { value: "prog_placeholder", labelAr: "— سيتم جلب البرامج من البيانات المرجعية —" },
-];
 
 const COPY_COUNT_OPTIONS: readonly RequestFormFieldOption[] = [
   { value: "1", labelAr: "نسخة واحدة" },
@@ -358,27 +346,33 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
 
 const GRADE_APPEAL: RequestFormDefinition = {
   code: "grade_appeal",
-  titleAr: "تظلم",
-  descriptionAr: "طلب تظلم على درجة مقرر.",
+  titleAr: "تظلم على النتيجة النهائية",
+  descriptionAr: "تظلم رسمي على نتيجة نهائية منشورة، خلال 7 أيام من تاريخ إعلانها.",
   unavailableUntilSchemaApplied: SCHEMA_PENDING,
-  warnings: ["التظلم مرتبط بفترة تفعيل ونتائج منشورة."],
+  warnings: [
+    "يُقبل التظلم فقط على النتائج النهائية المنشورة رسمياً وخلال 7 أيام من تاريخ الإعلان.",
+    "التظلم على درجات أعمال السنة خدمة منفصلة تُنفَّذ لاحقاً مع أستاذ المقرر.",
+  ],
   sections: [
     {
       fields: [
         {
-          name: "target_semester",
-          labelAr: "الفصل / الترم المستهدف",
+          name: "final_result_id",
+          labelAr: "النتيجة النهائية محل التظلم",
           type: "select",
           required: true,
-          options: PLACEHOLDER_SEMESTERS,
+          referenceResolverKey: "published_final_results",
+          helperTextAr: "تُعرض المقررات ونتائجها النهائية المنشورة ضمن مهلة التظلم فقط.",
         },
         {
-          name: "appeal_course",
-          labelAr: "المقرر محل التظلم",
-          type: "select",
-          required: true,
-          options: PLACEHOLDER_COURSES,
-          helperTextAr: "placeholder — سيُعرض المقرر من نتائج الفصل المحدد.",
+          name: "published_at_display",
+          labelAr: "تاريخ إعلان النتيجة",
+          type: "readonly",
+        },
+        {
+          name: "appeal_deadline_display",
+          labelAr: "آخر موعد للتظلم",
+          type: "readonly",
         },
         {
           name: "appeal_reason",
@@ -390,12 +384,14 @@ const GRADE_APPEAL: RequestFormDefinition = {
           name: "results_note",
           labelAr: "ملاحظة",
           type: "info",
-          defaultValue: "يُقبل التظلم فقط ضمن فترة التفعيل وبعد نشر النتائج الرسمية.",
+          defaultValue:
+            "يُراجع التظلم رئيس القسم وأستاذ المقرر، ولا يُعدَّل السجل الرسمي إلا بقرار معتمد يطبقه مسجل الكلية.",
         },
       ],
     },
   ],
 };
+
 
 const DEPARTMENT_TRANSFER: RequestFormDefinition = {
   code: "department_transfer",
@@ -462,35 +458,79 @@ const DEPARTMENT_TRANSFER: RequestFormDefinition = {
 const OCTOBER_EXAM_ENTRY: RequestFormDefinition = {
   code: "october_exam_entry_form",
   titleAr: "استمارة دخول دور أكتوبر",
-  descriptionAr: "طلب التقدم لامتحانات دور أكتوبر للمقررات المتبقية أو الراسبة.",
+  descriptionAr:
+    "التقدم لامتحانات دور أكتوبر للمقررات المتبقية لاستكمال الخطة الدراسية (المستوى الرابع، بحد أقصى 4 مقررات).",
   unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  warnings: [
+    "المقررات المعروضة تُحسب آلياً من الخطة الدراسية والنتائج المعتمدة، ويُعاد احتسابها عند الإرسال.",
+    "السداد يتم في النظام المالي الجامعي، وتكتفي البوابة بتأكيد الإيرادات باستلام السداد.",
+  ],
   sections: [
     {
       fields: [
         {
-          name: "remaining_courses",
-          labelAr: "المقررات المتبقية / الراسبة",
-          type: "multi_select",
-          required: true,
-          options: PLACEHOLDER_COURSES,
-          helperTextAr: "placeholder — ستُحمَّل من السجل الأكاديمي وفق تعريف U-OCT-1.",
+          name: "remaining_courses_summary",
+          labelAr: "عدد المقررات المتبقية",
+          type: "readonly",
         },
         {
-          name: "admin_limit_acknowledgment",
-          labelAr: "أقرّ بأن القبول النهائي يعتمد على الحد الأعلى للمقررات الذي يحدده الأدمن",
-          type: "checkbox",
+          name: "remaining_courses",
+          labelAr: "المقررات المتبقية المطلوبة",
+          type: "multi_select",
           required: true,
+          referenceResolverKey: "october_remaining_required_courses",
+          helperTextAr: "تُعرض بأسماء المقررات المعتمدة، ولا يُدخل الطالب أي معرفات.",
         },
         {
           name: "registrar_note",
           labelAr: "ملاحظة",
           type: "info",
-          defaultValue: "الكشف النهائي لدخول دور أكتوبر يُصدر من مسجل الكلية بعد مراجعة الطلب.",
+          defaultValue: "الكشف النهائي لدخول دور أكتوبر يُصدر من مسجل الكلية بعد تأكيد السداد.",
         },
       ],
     },
   ],
 };
+
+const REPLACEMENT_STUDENT_CARD: RequestFormDefinition = {
+  code: "replacement_student_card",
+  titleAr: "بطاقة طالب بدل فاقد",
+  descriptionAr: "طلب إصدار بطاقة طالب بديلة عند فقد البطاقة الأصلية.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  warnings: ["السداد يتم في النظام المالي الجامعي، وتكتفي البوابة بتأكيد الإيرادات باستلام السداد."],
+  requiredAttachments: [
+    { key: "loss_supporting_document", labelAr: "مستند مساند (اختياري)", required: false },
+  ],
+  sections: [
+    {
+      fields: [
+        { name: "student_name_display", labelAr: "اسم الطالب", type: "readonly" },
+        { name: "student_number_display", labelAr: "الرقم الجامعي", type: "readonly" },
+        { name: "department_display", labelAr: "القسم / البرنامج", type: "readonly" },
+        { name: "previous_card_number_display", labelAr: "رقم البطاقة السابقة", type: "readonly" },
+        { name: "loss_reason", labelAr: "سبب الفقد", type: "textarea", required: true },
+        {
+          name: "loss_declaration_ack",
+          labelAr: "أقرّ بصحة بيانات الفقد المذكورة أعلاه",
+          type: "checkbox",
+          required: true,
+        },
+        {
+          name: "loss_supporting_document",
+          labelAr: "مستند مساند (اختياري)",
+          type: "file",
+        },
+        {
+          name: "issuance_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue: "تُصدر البطاقة من شؤون الطلاب بعد تأكيد الإيرادات باستلام السداد.",
+        },
+      ],
+    },
+  ],
+};
+
 
 const FINAL_CHANCE: RequestFormDefinition = {
   code: "final_chance",
@@ -518,6 +558,7 @@ const FORM_BY_CANONICAL = new Map<string, RequestFormDefinition>([
   ["department_transfer", DEPARTMENT_TRANSFER],
   ["final_chance", FINAL_CHANCE],
   ["october_exam_entry_form", OCTOBER_EXAM_ENTRY],
+  ["replacement_student_card", REPLACEMENT_STUDENT_CARD],
 ]);
 
 export const CANONICAL_FORM_CODES = [...FORM_BY_CANONICAL.keys()] as const;

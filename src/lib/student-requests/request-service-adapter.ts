@@ -22,7 +22,9 @@ export type ReferenceResolverKey =
   | "semesters_for_year"
   | "current_student_enrollments"
   | "available_departments"
-  | "available_programs";
+  | "available_programs"
+  | "october_remaining_required_courses"
+  | "published_final_results";
 
 export type ReferenceOption = { value: string; labelAr: string };
 export type ReferenceDataState =

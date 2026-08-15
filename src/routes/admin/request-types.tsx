@@ -170,7 +170,7 @@ function AdminRequestTypesPage() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <ListChecks className="h-5 w-5 text-gold" />
-          <h1 className="font-display text-xl font-extrabold text-primary">أنواع الطلبات الطلابية</h1>
+          <h1 className="font-display text-xl font-extrabold text-primary">أنواع الخدمات الطلابية</h1>
         </div>
         <Button onClick={openCreate} size="sm" className="gap-1">
           <Plus className="h-4 w-4" /> إضافة نوع طلب

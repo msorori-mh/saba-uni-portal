@@ -111,7 +111,7 @@ function StudentRequestsIndexPage() {
         <div className="min-w-0">
           <h1 className="font-display text-xl sm:text-2xl font-extrabold text-primary flex items-center gap-2">
             <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gold shrink-0" />
-            <span className="leading-snug">طلبات شؤون الطلاب</span>
+            <span className="leading-snug">الخدمات الطلابية</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             اختر خدمة للتقديم أو تابع طلباتك الحالية والسابقة.

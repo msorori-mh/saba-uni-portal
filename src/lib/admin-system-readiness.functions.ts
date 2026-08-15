@@ -133,7 +133,7 @@ async function runChecks(): Promise<Section[]> {
       c("وجود درجات معتمدة (السجل الأكاديمي)", gradesApproved, "should"),
       c("وجود رسوم مرتبطة بالطلاب", fees, "must"),
       c("وجود سندات دفع مرفوعة", receipts, "should"),
-      c("نظام الطلبات الطلابية فعّال", requestTypes, "must", 3),
+      c("نظام الخدمات الطلابية فعّال", requestTypes, "must", 3),
       c("الإشعارات تصل للطلاب", notifs, "should"),
       // logical flow checks
       c("وجود مدفوعات معتمدة", payments, "should"),

@@ -11,10 +11,10 @@ type StudentRequestsNavProps = {
  * «رجوع» prefers history when available, with /student as fallback.
  */
 export function StudentRequestsNav({
-  currentLabel = "طلبات شؤون الطلاب",
+  currentLabel = "الخدمات الطلابية",
 }: StudentRequestsNavProps) {
   return (
-    <nav dir="rtl" aria-label="تنقل طلبات شؤون الطلاب" className="mb-4 space-y-2">
+    <nav dir="rtl" aria-label="تنقل الخدمات الطلابية" className="mb-4 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Link
           to="/student"

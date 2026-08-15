@@ -97,10 +97,10 @@ export function StudentRequestsPortalSummary() {
     <StandardCard id="student-requests" className="mt-6">
       <div className="space-y-1">
         <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
-          <FileText className="h-4 w-4 text-gold" /> طلبات شؤون الطلاب
+          <FileText className="h-4 w-4 text-gold" /> الخدمات الطلابية
         </h2>
         <p className="text-xs text-muted-foreground leading-5">
-          تقديم ومتابعة الخدمات والطلبات الطلابية من مكان واحد.
+          تقديم ومتابعة الخدمات والخدمات الطلابية من مكان واحد.
         </p>
       </div>
 

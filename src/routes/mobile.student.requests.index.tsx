@@ -109,7 +109,7 @@ function MobileStudentRequests() {
     <div className="px-4 py-5 space-y-5" dir="rtl">
       <header>
         <h1 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
-          <FileWarning className="h-5 w-5 text-gold" /> الطلبات الطلابية
+          <FileWarning className="h-5 w-5 text-gold" /> الخدمات الطلابية
         </h1>
         <p className="text-[11px] text-muted-foreground mt-0.5">
           قدّم طلبك وتابع حالته من هنا.
