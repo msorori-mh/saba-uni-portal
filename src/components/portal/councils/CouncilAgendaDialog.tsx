@@ -101,8 +101,13 @@ export function CouncilAgendaDialog({
     [writeMemberships],
   );
   const meeting = upcomingMeetings.find((item) => item.meeting_id === meetingId) ?? null;
-  const canWrite = Boolean(meeting && writeCouncilIds.has(meeting.council_id));
-  const canFinalize = Boolean(meeting && chairCouncilIds.has(meeting.council_id));
+  const hasWriteRole = Boolean(meeting && writeCouncilIds.has(meeting.council_id));
+  const isChairHere = Boolean(meeting && chairCouncilIds.has(meeting.council_id));
+  const agendaFrozen = isAgendaFrozen(meeting?.status);
+  /** Structural edits are only allowed during the preparation phase. */
+  const canWrite = hasWriteRole && isAgendaEditable(meeting?.status);
+  /** Finalization is only valid at `intake_closed` (backend state machine). */
+  const canFinalize = isChairHere && canFinalizeAgendaAtStatus(meeting?.status);
 
   const [manualTitle, setManualTitle] = useState("");
   const [manualNotes, setManualNotes] = useState("");
