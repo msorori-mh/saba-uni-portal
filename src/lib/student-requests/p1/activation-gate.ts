@@ -21,13 +21,18 @@ export type P1ReadinessDimension = (typeof P1_READINESS_DIMENSIONS)[number];
 export type P1Readiness = Record<P1ReadinessDimension, "PASS" | "PENDING" | "FAIL">;
 
 /**
- * Source-level readiness for P1. E2E stays PENDING until the migration package
- * is applied in production — hence activation remains gated.
+ * Source-level readiness for P1.
+ * DETAIL_MODEL and VALIDATION are closed in source: the canonical detail tables,
+ * the authoritative server-side recomputation, the workflow seeds and the
+ * replacement of the legacy grade redistribution all ship as forward-only
+ * migration drafts rehearsed on PostgreSQL 17
+ * (scripts/p1-source-closure-02-pg17). E2E stays PENDING because MIGRATION_APPLY
+ * is denied for this mission — activation therefore remains gated.
  */
 export const P1_SOURCE_READINESS: Readonly<Record<P1ServiceCode, P1Readiness>> = {
-  october_exam_entry_form: base({ E2E: "PENDING", DETAIL_MODEL: "PENDING" }),
-  replacement_student_card: base({ E2E: "PENDING", DETAIL_MODEL: "PENDING" }),
-  grade_appeal: base({ E2E: "PENDING", DETAIL_MODEL: "PENDING" }),
+  october_exam_entry_form: base({ E2E: "PENDING" }),
+  replacement_student_card: base({ E2E: "PENDING" }),
+  grade_appeal: base({ E2E: "PENDING" }),
   department_transfer: base({ E2E: "PENDING" }),
 };
 
