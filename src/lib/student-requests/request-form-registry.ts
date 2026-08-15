@@ -360,27 +360,33 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
 
 const GRADE_APPEAL: RequestFormDefinition = {
   code: "grade_appeal",
-  titleAr: "تظلم",
-  descriptionAr: "طلب تظلم على درجة مقرر.",
+  titleAr: "تظلم على النتيجة النهائية",
+  descriptionAr: "تظلم رسمي على نتيجة نهائية منشورة، خلال 7 أيام من تاريخ إعلانها.",
   unavailableUntilSchemaApplied: SCHEMA_PENDING,
-  warnings: ["التظلم مرتبط بفترة تفعيل ونتائج منشورة."],
+  warnings: [
+    "يُقبل التظلم فقط على النتائج النهائية المنشورة رسمياً وخلال 7 أيام من تاريخ الإعلان.",
+    "التظلم على درجات أعمال السنة خدمة منفصلة تُنفَّذ لاحقاً مع أستاذ المقرر.",
+  ],
   sections: [
     {
       fields: [
         {
-          name: "target_semester",
-          labelAr: "الفصل / الترم المستهدف",
+          name: "final_result_id",
+          labelAr: "النتيجة النهائية محل التظلم",
           type: "select",
           required: true,
-          options: PLACEHOLDER_SEMESTERS,
+          referenceResolverKey: "published_final_results",
+          helperTextAr: "تُعرض المقررات ونتائجها النهائية المنشورة ضمن مهلة التظلم فقط.",
         },
         {
-          name: "appeal_course",
-          labelAr: "المقرر محل التظلم",
-          type: "select",
-          required: true,
-          options: PLACEHOLDER_COURSES,
-          helperTextAr: "placeholder — سيُعرض المقرر من نتائج الفصل المحدد.",
+          name: "published_at_display",
+          labelAr: "تاريخ إعلان النتيجة",
+          type: "readonly",
+        },
+        {
+          name: "appeal_deadline_display",
+          labelAr: "آخر موعد للتظلم",
+          type: "readonly",
         },
         {
           name: "appeal_reason",
@@ -392,12 +398,14 @@ const GRADE_APPEAL: RequestFormDefinition = {
           name: "results_note",
           labelAr: "ملاحظة",
           type: "info",
-          defaultValue: "يُقبل التظلم فقط ضمن فترة التفعيل وبعد نشر النتائج الرسمية.",
+          defaultValue:
+            "يُراجع التظلم رئيس القسم وأستاذ المقرر، ولا يُعدَّل السجل الرسمي إلا بقرار معتمد يطبقه مسجل الكلية.",
         },
       ],
     },
   ],
 };
+
 
 const DEPARTMENT_TRANSFER: RequestFormDefinition = {
   code: "department_transfer",
