@@ -45,6 +45,7 @@ import {
   type MaterialScope,
   type MaterialPlanSessionOption,
   type MaterialScanState,
+  toSafeMaterialUploadMessage,
 } from "@/lib/course-materials.shared";
 
 type MaterialFileItem = {
@@ -122,7 +123,7 @@ function FacultyMaterialsSection() {
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Plus className="h-4 w-4" aria-hidden /> إضافة مادة
+            <Plus className="h-4 w-4" aria-hidden /> إضافة مادة تعليمية
           </button>
         </div>
 
@@ -416,8 +417,9 @@ function MaterialRow({
         },
       });
       onUploaded();
-    } catch {
-      setUploadErr("تعذّر رفع الملف. يرجى المحاولة مرة أخرى.");
+    } catch (err) {
+      // Preserve safe actionable server messages; internals stay hidden.
+      setUploadErr(toSafeMaterialUploadMessage(err));
     } finally {
       setUploading(false);
     }

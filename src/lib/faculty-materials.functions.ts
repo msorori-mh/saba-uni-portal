@@ -5,6 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   MATERIALS_BUCKET,
   MATERIALS_SETTINGS_KEYS,
+  MATERIAL_UPLOAD_ERRORS,
+  buildMaterialStorageObjectName,
   MATERIAL_WEEK_MAX,
   MATERIAL_WEEK_MIN,
   buildMaterialsUsageReport,
@@ -64,7 +66,7 @@ async function assertOwnsMaterial(supabase: any, materialId: string, facultyProf
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data || data.faculty_profile_id !== facultyProfileId) {
-    throw new Error("ليس لديك صلاحية على هذه المادة");
+    throw new Error(MATERIAL_UPLOAD_ERRORS.NOT_MATERIAL_OWNER);
   }
   return data as {
     id: string; course_section_id: string; status: string;
@@ -331,18 +333,18 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
     const material = await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
-    if (material.status === "archived") throw new Error("المادة مؤرشفة");
+    if (material.status === "archived") throw new Error(MATERIAL_UPLOAD_ERRORS.MATERIAL_ARCHIVED);
 
     const policy = await getEffectiveMaterialsUploadPolicy();
     if (!policy.allowedMimeTypes.includes(data.mimeType)) {
-      throw new Error("نوع الملف غير مسموح به");
+      throw new Error(MATERIAL_UPLOAD_ERRORS.MIME_NOT_ALLOWED);
     }
     const ext = data.filename.split(".").pop()?.toLowerCase() ?? "";
     if (!policy.allowedExtensions.includes(ext)) {
-      throw new Error("امتداد الملف غير مسموح به");
+      throw new Error(MATERIAL_UPLOAD_ERRORS.EXT_NOT_ALLOWED);
     }
     const buffer = Buffer.from(data.fileBase64, "base64");
-    if (buffer.byteLength <= 0) throw new Error("الملف فارغ");
+    if (buffer.byteLength <= 0) throw new Error(MATERIAL_UPLOAD_ERRORS.EMPTY_FILE);
     if (buffer.byteLength > policy.maxBytes) {
       throw new Error(`حجم الملف يتجاوز ${policy.maxMb} ميجابايت`);
     }
@@ -350,7 +352,7 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
     // Fail-closed signature gate: declared MIME must match real container bytes.
     const scanState = resolveUploadScanState(new Uint8Array(buffer), data.mimeType);
     if (scanState !== "clean") {
-      throw new Error("محتوى الملف لا يطابق نوعه المعلن ولم يجتز فحص السلامة");
+      throw new Error(MATERIAL_UPLOAD_ERRORS.SIGNATURE_MISMATCH);
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -362,13 +364,18 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
       .order("version_number", { ascending: false })
       .limit(1);
     const nextVersion = ((prev?.[0]?.version_number as number | undefined) ?? 0) + 1;
-    const safeName = sanitizeFileName(data.filename);
-    const storagePath = `${material.course_section_id}/${data.materialId}/${nextVersion}-${safeName}`;
+    // ASCII-only object key (storage rejects non-ASCII keys); the original
+    // Arabic filename is preserved in the DB row for display/download.
+    const objectName = buildMaterialStorageObjectName(nextVersion, data.filename);
+    const storagePath = `${material.course_section_id}/${data.materialId}/${objectName}`;
 
     const { error: upErr } = await (supabaseAdmin as any).storage
       .from(MATERIALS_BUCKET)
       .upload(storagePath, buffer, { contentType: data.mimeType, upsert: false });
-    if (upErr) throw new Error(upErr.message);
+    if (upErr) {
+      console.error("[materials] storage upload failed", upErr.message);
+      throw new Error(MATERIAL_UPLOAD_ERRORS.STORAGE_UNAVAILABLE);
+    }
 
     const { data: fileRow, error: insErr } = await supabaseAdmin
       .from("course_material_files")
@@ -386,7 +393,8 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
       .single();
     if (insErr) {
       await (supabaseAdmin as any).storage.from(MATERIALS_BUCKET).remove([storagePath]);
-      throw new Error(insErr.message);
+      console.error("[materials] file registration failed", insErr.message);
+      throw new Error(MATERIAL_UPLOAD_ERRORS.REGISTER_FAILED);
     }
     await supabaseAdmin.from("course_material_events").insert({
       course_material_id: data.materialId,
@@ -462,6 +470,32 @@ async function getLinkageMode(supabaseAdmin: any): Promise<LinkageMode> {
   return v === "cohort_fallback" ? "cohort_fallback" : "enrollment_only";
 }
 
+/**
+ * Publish gate (server-side, no UI bypass): requires >= 1 file row with
+ * scan_state='clean' whose storage object actually exists.
+ */
+async function assertMaterialHasCleanStoredFile(supabaseAdmin: any, materialId: string) {
+  const { data: files } = await supabaseAdmin
+    .from("course_material_files")
+    .select("id, storage_path, scan_state")
+    .eq("course_material_id", materialId)
+    .eq("scan_state", "clean");
+  const candidates = ((files ?? []) as { storage_path: string }[]).filter((f) => !!f.storage_path);
+  if (candidates.length === 0) {
+    throw new Error(MATERIAL_UPLOAD_ERRORS.PUBLISH_REQUIRES_CLEAN_FILE);
+  }
+  for (const f of candidates) {
+    const idx = f.storage_path.lastIndexOf("/");
+    const dir = idx > 0 ? f.storage_path.slice(0, idx) : "";
+    const name = idx > 0 ? f.storage_path.slice(idx + 1) : f.storage_path;
+    const { data: listed } = await (supabaseAdmin as any).storage
+      .from(MATERIALS_BUCKET)
+      .list(dir, { search: name, limit: 100 });
+    if (((listed ?? []) as { name: string }[]).some((o) => o.name === name)) return;
+  }
+  throw new Error(MATERIAL_UPLOAD_ERRORS.PUBLISH_REQUIRES_CLEAN_FILE);
+}
+
 export const publishCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ materialId: z.string().uuid() }).parse(input))
@@ -469,6 +503,10 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
     const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
     await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Authoritative publish invariant: a material may only become `published`
+    // when it already carries at least one clean, storage-backed file.
+    await assertMaterialHasCleanStoredFile(supabaseAdmin, data.materialId);
 
     // Idempotency: already published event?
     const { data: prevEvent } = await supabaseAdmin

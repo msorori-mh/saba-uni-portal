@@ -27,6 +27,56 @@ export function sanitizeFileName(name: string): string {
   return ext ? `${base}.${ext}` : base;
 }
 
+/**
+ * Object-storage keys must stay ASCII-safe: the storage API rejects keys that
+ * contain non-ASCII characters ("Invalid key"), which previously broke every
+ * upload whose original filename was Arabic. The human-readable Arabic name is
+ * still preserved in `course_material_files.original_filename`.
+ */
+export function buildMaterialStorageObjectName(versionNumber: number, name: string): string {
+  const dot = name.lastIndexOf(".");
+  const rawBase = dot > 0 ? name.slice(0, dot) : name;
+  const ext = (dot > 0 ? name.slice(dot + 1) : "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+  const base =
+    rawBase
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-{2,}/g, "-")
+      .replace(/^[-._]+|[-._]+$/g, "")
+      .slice(0, 60) || "file";
+  return ext ? `${versionNumber}-${base}.${ext}` : `${versionNumber}-${base}`;
+}
+
+/** Safe, user-facing upload failures. Never contains internals. */
+export const MATERIAL_UPLOAD_ERRORS = {
+  MIME_NOT_ALLOWED: "نوع الملف غير مسموح به",
+  EXT_NOT_ALLOWED: "امتداد الملف غير مسموح به",
+  EMPTY_FILE: "الملف فارغ",
+  SIGNATURE_MISMATCH: "محتوى الملف لا يطابق نوعه المعلن",
+  STORAGE_UNAVAILABLE: "تعذر رفع الملف إلى مخزن الملفات",
+  REGISTER_FAILED: "تعذر تسجيل الملف بعد الرفع",
+  NOT_MATERIAL_OWNER: "ليس لديك صلاحية على هذه المادة",
+  MATERIAL_ARCHIVED: "المادة مؤرشفة",
+  PUBLISH_REQUIRES_CLEAN_FILE: "لا يمكن نشر المادة قبل رفع ملف صالح واحد على الأقل",
+} as const;
+
+export const MATERIAL_UPLOAD_GENERIC_ERROR = "تعذّر رفع الملف. يرجى المحاولة مرة أخرى.";
+
+const SAFE_UPLOAD_MESSAGES: readonly string[] = Object.values(MATERIAL_UPLOAD_ERRORS);
+
+/**
+ * UI mapper: preserve safe actionable server messages, fall back to the generic
+ * one for anything unrecognized (never leak internals/stack traces/SQL).
+ */
+export function toSafeMaterialUploadMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const message = raw.trim();
+  if (!message) return MATERIAL_UPLOAD_GENERIC_ERROR;
+  if (SAFE_UPLOAD_MESSAGES.includes(message)) return message;
+  if (/^حجم الملف يتجاوز \d+(\.\d+)? ميجابايت$/.test(message)) return message;
+  return MATERIAL_UPLOAD_GENERIC_ERROR;
+}
+
+
 export const STUDY_SYSTEM_LABELS: Record<StudySystemTag, string> = {
   general: "عام",
   private: "نفقة خاصة",

@@ -86,13 +86,16 @@ export const listStudentCourseMaterials = createServerFn({ method: "POST" })
 
     const { data: materials } = await supabaseAdmin
       .from("course_materials")
-      .select("id, course_section_id, study_system")
+      .select("id, course_section_id, study_system, files:course_material_files(scan_state)")
       .in("course_section_id", ids)
       .eq("status", "published");
 
+    // Truthful counting: a published metadata-only row (no clean downloadable
+    // file) is NOT a student-visible material and must never inflate the count.
     const countBySection = new Map<string, number>();
-    for (const m of ((materials ?? []) as { course_section_id: string; study_system: StudySystemTag }[])) {
+    for (const m of ((materials ?? []) as { course_section_id: string; study_system: StudySystemTag; files: { scan_state: string | null }[] | null }[])) {
       if (!materialStudySystemMatches(m.study_system, student.study_system)) continue;
+      if (!(m.files ?? []).some((f) => isMaterialFileDownloadable(f?.scan_state))) continue;
       countBySection.set(m.course_section_id, (countBySection.get(m.course_section_id) ?? 0) + 1);
     }
 
@@ -159,7 +162,9 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
         material_scope: m.material_scope === "lecture" ? "lecture" : "general",
         planned_topics: m.plan_session_id ? (topicsBySession.get(m.plan_session_id) ?? null) : null,
         files: (m.files ?? []).filter((f) => isMaterialFileDownloadable(f?.scan_state)),
-      }));
+      }))
+      // Fail-closed: never present a published material with nothing to open.
+      .filter((m) => m.files.length > 0);
   });
 
 export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
