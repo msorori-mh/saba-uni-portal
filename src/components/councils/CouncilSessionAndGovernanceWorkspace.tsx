@@ -486,9 +486,28 @@ export function CouncilSessionAndGovernanceWorkspace({
                         <p className="font-bold text-sm text-slate-900">
                           {item.order_index}. {item.title}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          حالة البند: {sessionStatus}
-                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {item.is_approved ? (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px]"
+                              data-testid="council-session-item-approved-badge"
+                            >
+                              معتمد في جدول الأعمال
+                            </Badge>
+                          ) : null}
+                          <Badge
+                            variant={
+                              agendaSessionStatusTone(sessionStatus) === "active"
+                                ? "default"
+                                : "outline"
+                            }
+                            className="text-[10px]"
+                            data-testid="council-session-item-session-badge"
+                          >
+                            {agendaSessionStatusLabel(sessionStatus)}
+                          </Badge>
+                        </div>
                       </div>
                       {isChair && sessionStatus === "pending" && (
                         <Button
