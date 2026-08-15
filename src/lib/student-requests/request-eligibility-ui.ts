@@ -11,6 +11,21 @@ import {
   type IneligibleDisplayMode,
   type StudentRequestAudience,
 } from "@/lib/student-requests/request-type-registry";
+import {
+  DEPARTMENT_TRANSFER_LEVEL1_DENY_CODE,
+  evaluateDepartmentTransferLevelGuard,
+} from "@/lib/student-requests/p1/department-transfer-level-guard";
+import {
+  OCTOBER_DENY_MESSAGES_AR,
+  OCTOBER_DENY_REASONS,
+  OCTOBER_MAX_REMAINING_COURSES,
+  OCTOBER_REQUIRED_LEVEL,
+} from "@/lib/student-requests/p1/october-exam-entry";
+import {
+  evaluateReplacementCardEligibility,
+  REPLACEMENT_CARD_DENY_REASONS,
+} from "@/lib/student-requests/p1/replacement-student-card";
+import { FINAL_RESULT_APPEAL_WINDOW_DAYS } from "@/lib/student-requests/p1/final-result-appeal";
 
 export type UiEligibilityBadge = "available" | "needs_verification" | "blocked" | "unsupported";
 
