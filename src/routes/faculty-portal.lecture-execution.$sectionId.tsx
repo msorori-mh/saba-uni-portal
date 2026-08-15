@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import {
   getSectionDeliveryPlan,
   recordSessionExecution,
-  clearSessionExecution,
   LECTURE_EXECUTION_STATUSES,
   LECTURE_STATUS_LABELS,
   SECTION_STUDY_SYSTEM_LABELS,
@@ -241,15 +240,6 @@ function ExecutionForm({
       }),
     onSuccess: () => {
       toast.success("تم تسجيل حالة المحاضرة");
-      onSaved();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const clear = useMutation({
-    mutationFn: () => clearSessionExecution({ data: { planSessionId: session.plan_session_id } }),
-    onSuccess: () => {
-      toast.success("تم مسح التسجيل");
       onSaved();
     },
     onError: (e: Error) => toast.error(e.message),
