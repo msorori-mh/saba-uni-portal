@@ -24,6 +24,12 @@ export type StudentUiContext = {
   transferredCurrentYear?: boolean | null;
   previousSuspensionSemestersCount?: number | null;
   consecutiveSuspensionYearsCount?: number | null;
+  /** Canonical numeric academic level order (never Arabic display text). */
+  academicLevelOrder?: number | null;
+  /** Authoritative remaining required courses (server-computed). */
+  remainingRequiredCoursesCount?: number | null;
+  /** Open replacement-card service statuses for this student. */
+  openReplacementCardStatuses?: readonly string[] | null;
 };
 
 export type ServiceWindowAvailability = {
