@@ -13,11 +13,12 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Re-pinned after adding mobile document routes, settings, and the full student
-// requests sub-tree under /mobile/student. Drift verified: 148 fullPaths, all
-// unique, no duplicate "/" claimants — every delta is an intentionally added route.
+// Re-pinned during PORTAL_REFORM_P1_STUDENT_SERVICES_SOURCE_CLOSURE_02 after the
+// approved lecture-monitoring parity report route was added. Drift verified:
+// 150 fullPaths (was 148), all unique, exactly one "/" claimant, and the only
+// delta is /faculty-portal/lecture-monitoring plus its /parity child.
 const ROUTE_SEMANTIC_SHA256 =
-  "5e765d72e68cf8fdd3541ff776c81fe62e8fbf4418dcadcc37ea1b2331379f2d";
+  "6daad828bfd6acc8aaceac808a73ce90e5bcaf34d6fa4708a6f5d141262a883a";
 
 
 const FROZEN_GP_FULL_PATHS = [

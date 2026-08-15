@@ -100,7 +100,7 @@ export function StudentRequestsPortalSummary() {
           <FileText className="h-4 w-4 text-gold" /> الخدمات الطلابية
         </h2>
         <p className="text-xs text-muted-foreground leading-5">
-          تقديم ومتابعة الخدمات والخدمات الطلابية من مكان واحد.
+          تقديم ومتابعة الخدمات الطلابية من مكان واحد.
         </p>
       </div>
 
