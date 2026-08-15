@@ -44,7 +44,7 @@ import {
   type MaterialAccessLogEntry,
   type MaterialScope,
   type MaterialPlanSessionOption,
-  type MaterialScanState,,
+  type MaterialScanState,
   toSafeMaterialUploadMessage,
 } from "@/lib/course-materials.shared";
 
