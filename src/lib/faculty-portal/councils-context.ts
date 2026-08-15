@@ -75,9 +75,22 @@ export function scopeTopicsToCouncil(
   return topics.filter((t) => t.council_id === councilId);
 }
 
+/** Responsibility weight used only as a tie-break when no meeting is urgent. */
+const ROLE_PRIORITY: Record<string, number> = {
+  chair: 4,
+  vice_chair: 3,
+  secretary: 2,
+  member: 1,
+  viewer: 0,
+};
+
+function roleWeight(role: string): number {
+  return ROLE_PRIORITY[role] ?? 0;
+}
+
 /**
  * Default council = the one with the most operational urgency:
- * live session > nearest upcoming meeting > first membership.
+ * live session > nearest upcoming meeting > highest responsibility role.
  */
 export function pickDefaultCouncilId(
   memberships: MyCouncilMembershipV2[],
@@ -95,7 +108,10 @@ export function pickDefaultCouncilId(
     )
     .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))[0];
   if (upcoming) return upcoming.council_id;
-  return memberships[0]!.council_id;
+  const byResponsibility = [...memberships].sort(
+    (a, b) => roleWeight(b.role) - roleWeight(a.role),
+  );
+  return byResponsibility[0]!.council_id;
 }
 
 /** Operational priority for the council dashboard: live > action > next. */
