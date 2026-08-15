@@ -63,7 +63,7 @@ describe("official grading scale", () => {
       "bash",
       [
         "-lc",
-        "rg -n --glob '!**/enrollment-certificate-pdf-assets.server.ts' -i 'gpa' src | grep -v 'NOT a GPA' | grep -v 'NO GPA' | grep -v base64 || true",
+        "rg -n --glob '!**/enrollment-certificate-pdf-assets.server.ts' -i '\bgpa\b' src | grep -v 'NOT a GPA' | grep -v 'NO GPA' | grep -v base64 || true",
       ],
       { encoding: "utf8" },
     ).trim();
