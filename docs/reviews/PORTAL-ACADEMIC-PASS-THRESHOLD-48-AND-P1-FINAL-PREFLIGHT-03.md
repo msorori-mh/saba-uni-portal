@@ -79,7 +79,13 @@ Correction found by the preflight: `student_unofficial_transcript` is a view and
 
 - `bash scripts/p1-source-closure-02-pg17/run.sh` → PASS (44 cases)
 - `bun test tests/student-requests` + `tests/academic` → PASS
-- typecheck clean
+- `routeTree` semantic hash re-pinned in the second holder
+  (`tests/academic-councils/pr314-rc313-semantic-integration-remediation-03.test.ts`)
+  to `6daad828…2a883a`, matching the student-requests pin
+- typecheck clean (`tsgo --noEmit`)
+- Remaining 21 failures in `tests/academic-councils/*` are the pre-existing
+  disposable-PG17 harness cases that throw `docker is required for the PG17
+  disposable harness`; they are environment-gated and untouched by this mission
 
 ## 6. Risks / notes
 
