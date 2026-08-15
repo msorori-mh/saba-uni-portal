@@ -1676,6 +1676,7 @@ function CouncilAgendaPanel({
                               : ""}
                           </p>
                         </div>
+                        {canEditAgenda ? (
                         <div className="flex items-center gap-1 shrink-0">
                           <Button
                             type="button"
