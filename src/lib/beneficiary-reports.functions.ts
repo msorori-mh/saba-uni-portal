@@ -423,14 +423,15 @@ export const getDepartmentReportsSummary = createServerFn({ method: "POST" })
 
     const { data: dept } = await supabaseAdmin
       .from("departments")
-      .select("id, name_ar, code")
+      .select("id, name_ar")
       .eq("id", departmentId)
       .maybeSingle();
 
     const counts = await loadDepartmentScopedCounts(departmentId);
 
     return {
-      scopeLabelAr: `قسم: ${dept?.name_ar ?? departmentId}`,
+      // Never surface a raw UUID in the UI; fall back to a neutral Arabic label.
+      scopeLabelAr: dept?.name_ar ?? "نطاق قسمك",
       department: dept,
       departmentId,
       ...counts,
