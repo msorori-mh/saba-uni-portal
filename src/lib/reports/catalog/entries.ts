@@ -1214,7 +1214,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "DEPT-ACADEMIC-LOAD",
     name_ar: "لوحة رئيس القسم — العبء الأكاديمي والإسناد",
     description:
-      "أعداد طلاب/أعضاء/برامج/مقررات القسم، الإسناد، الشعب غير المسندة، وقائمة أسبوعية بالمشكلات — نطاق قسم إجباري من جهة الفاعل.",
+      "أعداد طلاب/أعضاء/برامج/مقررات القسم، الإسناد، المجموعات الدراسية غير المسندة، وقائمة أسبوعية بالمشكلات — نطاق قسم إجباري من جهة الفاعل.",
     beneficiaries: ["dept_head_coordinator"],
     required_role: ["department_head", "dean", "admin", "system_admin"],
     data_scope: "department",
