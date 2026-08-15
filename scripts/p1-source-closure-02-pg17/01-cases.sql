@@ -107,6 +107,63 @@ BEGIN
     format('SELECT public.p1_assert_october_eligibility(%L, ARRAY[]::uuid[])', v_stu),
     'OCTOBER_SELECTION_NOT_AUTHORITATIVE');
 
+  -- ===== 48% pass-mark boundary (approved policy COURSE_PASS_MARK = 48/100) =====
+  -- C2 at 47.99% must stay OUTSTANDING (still 4 remaining).
+  INSERT INTO public.course_offerings (course_id, academic_year_id, semester_id, program_id, level_id)
+  VALUES (v_course2, v_year, v_sem, v_prog, v_l4) RETURNING id INTO v_off;
+  INSERT INTO public.course_sections (course_offering_id) VALUES (v_off) RETURNING id INTO v_sec;
+  INSERT INTO public.student_enrollments (student_profile_id, course_section_id)
+  VALUES (v_stu, v_sec) RETURNING id INTO v_enr;
+  INSERT INTO public.grade_components (course_section_id, name, max_score) VALUES (v_sec,'نهائي',100)
+  RETURNING id INTO v_gc;
+  INSERT INTO public.student_grades (student_enrollment_id, grade_component_id, score, status, approved_at)
+  VALUES (v_enr, v_gc, 47.99, 'approved', now() - interval '1 day');
+  SELECT count(*) INTO v_n FROM public.p1_october_remaining_requirements(v_stu);
+  PERFORM public.t_expect('PASS-MARK 47.99 stays outstanding', v_n = 4);
+
+  -- Exactly 48.00% is PASSED → removed from remaining.
+  UPDATE public.student_grades SET score = 48.00
+  WHERE student_enrollment_id = v_enr AND grade_component_id = v_gc;
+  SELECT count(*) INTO v_n FROM public.p1_october_remaining_requirements(v_stu);
+  PERFORM public.t_expect('PASS-MARK 48.00 is passed', v_n = 3);
+
+  -- Normalized percentage when components do not total 100 (96/200 = 48.00%).
+  UPDATE public.grade_components SET max_score = 200 WHERE id = v_gc;
+  UPDATE public.student_grades SET score = 95.9
+  WHERE student_enrollment_id = v_enr AND grade_component_id = v_gc;
+  SELECT count(*) INTO v_n FROM public.p1_october_remaining_requirements(v_stu);
+  PERFORM public.t_expect('PASS-MARK normalized 47.95%% outstanding', v_n = 4);
+  UPDATE public.student_grades SET score = 96
+  WHERE student_enrollment_id = v_enr AND grade_component_id = v_gc;
+  SELECT count(*) INTO v_n FROM public.p1_october_remaining_requirements(v_stu);
+  PERFORM public.t_expect('PASS-MARK normalized 48.00%% passed', v_n = 3);
+
+  -- Repeated attempts: 47%% then 52%% → counted PASSED exactly once.
+  INSERT INTO public.course_offerings (course_id, academic_year_id, semester_id, program_id, level_id)
+  VALUES (v_course3, v_year, v_sem, v_prog, v_l4) RETURNING id INTO v_off;
+  INSERT INTO public.course_sections (course_offering_id) VALUES (v_off) RETURNING id INTO v_sec;
+  INSERT INTO public.grade_components (course_section_id, name, max_score) VALUES (v_sec,'نهائي',100)
+  RETURNING id INTO v_gc;
+  INSERT INTO public.student_enrollments (student_profile_id, course_section_id)
+  VALUES (v_stu, v_sec) RETURNING id INTO v_enr;
+  INSERT INTO public.student_grades (student_enrollment_id, grade_component_id, score, status, approved_at)
+  VALUES (v_enr, v_gc, 47, 'approved', now() - interval '3 days');
+  SELECT count(*) INTO v_n FROM public.p1_october_remaining_requirements(v_stu);
+  PERFORM public.t_expect('PASS-MARK failed attempt keeps course outstanding', v_n = 3);
+  INSERT INTO public.student_enrollments (student_profile_id, course_section_id)
+  VALUES (v_stu, v_sec) RETURNING id INTO v_enr;
+  INSERT INTO public.student_grades (student_enrollment_id, grade_component_id, score, status, approved_at)
+  VALUES (v_enr, v_gc, 52, 'approved', now() - interval '1 day');
+  SELECT count(*) INTO v_n FROM public.p1_october_remaining_requirements(v_stu);
+  PERFORM public.t_expect('PASS-MARK repeated attempt passed once', v_n = 2);
+  SELECT count(*) INTO v_n FROM unnest(public.p1_passed_course_ids(v_stu)) x WHERE x = v_course3;
+  PERFORM public.t_expect('PASS-MARK no double counting', v_n = 1);
+
+  -- Level 4 with exactly 4 genuinely remaining requirements → ELIGIBLE.
+  v_res := public.p1_assert_october_eligibility(v_stu);
+  PERFORM public.t_expect('OCT eligible with 2 remaining after 48%% policy',
+    (v_res->>'remaining_courses_count')::int = 2);
+
   -- ===== Department transfer level guard =====
   PERFORM public.t_expect('TRANSFER level 4 allowed',
     public.p1_assert_department_transfer_level(v_stu));
