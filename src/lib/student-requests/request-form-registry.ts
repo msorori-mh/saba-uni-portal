@@ -70,23 +70,9 @@ export type RequestFormDefinition = {
   unavailableUntilSchemaApplied: boolean;
 };
 
-const PLACEHOLDER_SEMESTERS: readonly RequestFormFieldOption[] = [
-  { value: "placeholder_fall", labelAr: "الفصل الأول (يُحمَّل لاحقاً من السياق الأكاديمي)" },
-  { value: "placeholder_spring", labelAr: "الفصل الثاني (يُحمَّل لاحقاً من السياق الأكاديمي)" },
-  { value: "placeholder_summer", labelAr: "الفصل الصيفي (يُحمَّل لاحقاً من السياق الأكاديمي)" },
-];
+/* P1: placeholder option arrays removed — every reference list is resolved
+   server-side from authoritative tables via referenceResolverKey. */
 
-const PLACEHOLDER_COURSES: readonly RequestFormFieldOption[] = [
-  { value: "course_placeholder_1", labelAr: "— سيتم جلب المقررات من السجل الأكاديمي —" },
-];
-
-const PLACEHOLDER_DEPARTMENTS: readonly RequestFormFieldOption[] = [
-  { value: "dept_placeholder", labelAr: "— سيتم جلب الأقسام من البيانات المرجعية —" },
-];
-
-const PLACEHOLDER_PROGRAMS: readonly RequestFormFieldOption[] = [
-  { value: "prog_placeholder", labelAr: "— سيتم جلب البرامج من البيانات المرجعية —" },
-];
 
 const COPY_COUNT_OPTIONS: readonly RequestFormFieldOption[] = [
   { value: "1", labelAr: "نسخة واحدة" },
