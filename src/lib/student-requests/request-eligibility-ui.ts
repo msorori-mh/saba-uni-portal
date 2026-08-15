@@ -172,14 +172,47 @@ function appendTypeSpecificNotices(
       notices.push("غياب بعذر يتطلب فترة تفعيل من الإدارة ومرفقات العذر.");
       break;
     case "grade_appeal":
-      notices.push("التظلم يتطلب فترة تفعيل ونتائج منشورة رسمياً.");
+      notices.push(
+        `التظلم على النتيجة النهائية متاح خلال ${FINAL_RESULT_APPEAL_WINDOW_DAYS} أيام من تاريخ إعلان النتيجة رسمياً.`,
+      );
       break;
-    case "department_transfer":
+    case "department_transfer": {
       notices.push("التحويل يتطلب مراجعة رئيس القسم ومعادلة مقررات لاحقة.");
+      const levelGuard = evaluateDepartmentTransferLevelGuard(ctx?.academicLevelOrder ?? null);
+      if (!levelGuard.ok && levelGuard.denyCode === DEPARTMENT_TRANSFER_LEVEL1_DENY_CODE) {
+        blockedReasons.push(levelGuard.messageAr);
+      }
       break;
-    case "october_exam_entry_form":
-      notices.push("استمارة دور أكتوبر تعتمد على حد أعلى للمقررات المتبقية/الراسبة يحدده الأدمن.");
+    }
+    case "october_exam_entry_form": {
+      notices.push(
+        `استمارة دور أكتوبر متاحة لطلاب المستوى الرابع بحد أقصى ${OCTOBER_MAX_REMAINING_COURSES} مقررات متبقية.`,
+      );
+      if (ctx?.academicLevelOrder != null && ctx.academicLevelOrder !== OCTOBER_REQUIRED_LEVEL) {
+        blockedReasons.push(OCTOBER_DENY_MESSAGES_AR[OCTOBER_DENY_REASONS.NOT_LEVEL_4]);
+      }
+      if (
+        ctx?.remainingRequiredCoursesCount != null
+        && ctx.remainingRequiredCoursesCount > OCTOBER_MAX_REMAINING_COURSES
+      ) {
+        blockedReasons.push(OCTOBER_DENY_MESSAGES_AR[OCTOBER_DENY_REASONS.TOO_MANY_REMAINING]);
+      }
       break;
+    }
+    case "replacement_student_card": {
+      notices.push("تُصدر البطاقة البديلة من شؤون الطلاب بعد تأكيد الإيرادات باستلام السداد.");
+      const cardEligibility = evaluateReplacementCardEligibility({
+        studentStatus: ctx?.studentStatus ?? null,
+        existingRequestStatuses: ctx?.openReplacementCardStatuses ?? [],
+      });
+      if (
+        !cardEligibility.eligible
+        && cardEligibility.denyReason === REPLACEMENT_CARD_DENY_REASONS.DUPLICATE_OPEN_REQUEST
+      ) {
+        blockedReasons.push(cardEligibility.messageAr as string);
+      }
+      break;
+    }
     default:
       break;
   }
