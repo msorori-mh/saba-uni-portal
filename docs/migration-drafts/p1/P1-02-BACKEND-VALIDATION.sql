@@ -45,7 +45,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     AND sg.status = 'approved'
 $$;
 
--- A course counts as PASSED only on an approved published result >= 60%.
+-- A course counts as PASSED only on an approved published result >= 48%
+-- (approved university pass mark = 48/100, normalized against max_total).
 CREATE OR REPLACE FUNCTION public.p1_passed_course_ids(p_student uuid)
 RETURNS uuid[]
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -57,7 +58,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   WHERE se.student_profile_id = p_student
     AND r.max_total > 0
     AND r.published_at IS NOT NULL
-    AND (r.total / r.max_total) >= 0.60
+    AND (r.total / r.max_total) >= 0.48
 $$;
 
 -- ---------------------------------------------------------------------------

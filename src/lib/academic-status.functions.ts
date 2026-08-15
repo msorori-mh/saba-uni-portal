@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hasAnyRole, STUDENT_READ_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
 
 /* ----------------------------------------------------------------------- *
  * Phase 11F — Academic Status & Graduation Engine
@@ -13,7 +14,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  * academic_levels, student_profiles). No schema changes.
  * ----------------------------------------------------------------------- */
 
-const PASS_PERCENT = 60; // course passes when component score ≥ 60% of max
+// Approved university policy: course pass mark = 48/100 (canonical constant).
+const PASS_PERCENT = COURSE_PASS_PERCENT;
 const PROBATION_GPA = 1.0;
 const WARNING_GPA = 2.0;
 const GOOD_GPA = 2.5;
@@ -121,7 +123,8 @@ async function audit(action: string, notes: string, entityId?: string) {
 
 function pctToGpa(pct: number): number {
   if (pct < PASS_PERCENT) return 0;
-  // simple piecewise: 90+→4, 80→3.5, 75→3, 70→2.5, 65→2, 60→1.5
+  // GPA band mapping is UNCHANGED academic policy (only the fail floor moved
+  // to the approved 48% pass mark); the lowest passing band stays 1.5.
   if (pct >= 95) return 4.0;
   if (pct >= 90) return 3.75;
   if (pct >= 85) return 3.5;

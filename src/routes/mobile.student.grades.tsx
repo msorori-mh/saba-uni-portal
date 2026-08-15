@@ -8,6 +8,7 @@ import {
   type CurrentTerm,
   type CurrentTermClient,
 } from "@/lib/current-term";
+import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
 
 export const Route = createFileRoute("/mobile/student/grades")({
   head: () => ({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/mobile/student/grades")({
   component: MobileStudentGradesPage,
 });
 
-const PASS_PERCENT = 60;
+const PASS_PERCENT = COURSE_PASS_PERCENT; // approved pass mark 48/100
 
 type GradeCard = {
   enrollmentId: string;

@@ -14,6 +14,8 @@ import { provenDepartmentIdsForCollege } from "@/lib/reports/scope/org-identity"
 import {
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
+import { isCoursePassed } from "@/lib/academic/pass-threshold";
+
 
 /** University-wide unscoped aggregate dumps — admin family only (no silent dean/dept widen). */
 const UNIVERSITY_WIDE_AGGREGATE_ROLES = ["system_admin", "admin"] as const;
@@ -200,7 +202,7 @@ async function fetchPerformanceReport() {
     const cur = perCourse.get(key) ?? { code: r.course_code, name: r.course_name, total: 0, pass: 0, sum: 0 };
     cur.total += 1;
     cur.sum += Number(r.percentage ?? 0);
-    if (Number(r.percentage ?? 0) >= 60) cur.pass += 1;
+    if (isCoursePassed(Number(r.percentage ?? 0))) cur.pass += 1;
     perCourse.set(key, cur);
   }
   const courseRows = Array.from(perCourse.values()).map((c) => ({
