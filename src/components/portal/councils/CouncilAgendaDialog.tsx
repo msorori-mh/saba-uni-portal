@@ -33,6 +33,13 @@ import {
   type MyCouncilMembershipV2,
 } from "@/lib/faculty-councils.functions";
 import {
+  AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI,
+  AGENDA_FROZEN_NOTICE_UI,
+  canFinalizeAgendaAtStatus,
+  isAgendaEditable,
+  isAgendaFrozen,
+} from "@/lib/councils-live";
+import {
   AGENDA_LOAD_FAILED_UI,
   AGENDA_WRITE_DENIED_UI,
   CompactEmpty,
