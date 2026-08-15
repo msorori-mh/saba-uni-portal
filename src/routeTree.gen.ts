@@ -113,6 +113,7 @@ import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './rout
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
 import { Route as FacultyPortalLectureExecutionIndexRouteImport } from './routes/faculty-portal.lecture-execution.index'
 import { Route as FacultyPortalLectureExecutionSectionIdRouteImport } from './routes/faculty-portal.lecture-execution.$sectionId'
+import { Route as FacultyPortalLectureMonitoringParityRouteImport } from './routes/faculty-portal.lecture-monitoring.parity'
 import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
 import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
@@ -756,6 +757,12 @@ const FacultyPortalLectureExecutionSectionIdRoute =
     path: '/lecture-execution/$sectionId',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
+const FacultyPortalLectureMonitoringParityRoute =
+  FacultyPortalLectureMonitoringParityRouteImport.update({
+    id: '/parity',
+    path: '/parity',
+    getParentRoute: () => FacultyPortalLectureMonitoringRoute,
+  } as any)
 const FacultyPortalMaterialsIndexRoute =
   FacultyPortalMaterialsIndexRouteImport.update({
     id: '/materials/',
@@ -1041,7 +1048,7 @@ export interface FileRoutesByFullPath {
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/department-reports': typeof FacultyPortalDepartmentReportsRoute
   '/faculty-portal/graduation-projects': typeof FacultyPortalGraduationProjectsRouteWithChildren
-  '/faculty-portal/lecture-monitoring': typeof FacultyPortalLectureMonitoringRoute
+  '/faculty-portal/lecture-monitoring': typeof FacultyPortalLectureMonitoringRouteWithChildren
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
@@ -1080,6 +1087,7 @@ export interface FileRoutesByFullPath {
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/lecture-execution/$sectionId': typeof FacultyPortalLectureExecutionSectionIdRoute
+  '/faculty-portal/lecture-monitoring/parity': typeof FacultyPortalLectureMonitoringParityRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
@@ -1187,7 +1195,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRouteWithChildren
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/department-reports': typeof FacultyPortalDepartmentReportsRoute
-  '/faculty-portal/lecture-monitoring': typeof FacultyPortalLectureMonitoringRoute
+  '/faculty-portal/lecture-monitoring': typeof FacultyPortalLectureMonitoringRouteWithChildren
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
@@ -1223,6 +1231,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/lecture-execution/$sectionId': typeof FacultyPortalLectureExecutionSectionIdRoute
+  '/faculty-portal/lecture-monitoring/parity': typeof FacultyPortalLectureMonitoringParityRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
@@ -1335,7 +1344,7 @@ export interface FileRoutesById {
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/department-reports': typeof FacultyPortalDepartmentReportsRoute
   '/faculty-portal/graduation-projects': typeof FacultyPortalGraduationProjectsRouteWithChildren
-  '/faculty-portal/lecture-monitoring': typeof FacultyPortalLectureMonitoringRoute
+  '/faculty-portal/lecture-monitoring': typeof FacultyPortalLectureMonitoringRouteWithChildren
   '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/reports': typeof FacultyPortalReportsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
@@ -1374,6 +1383,7 @@ export interface FileRoutesById {
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/lecture-execution/$sectionId': typeof FacultyPortalLectureExecutionSectionIdRoute
+  '/faculty-portal/lecture-monitoring/parity': typeof FacultyPortalLectureMonitoringParityRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
@@ -1527,6 +1537,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/lecture-execution/$sectionId'
+    | '/faculty-portal/lecture-monitoring/parity'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
@@ -1670,6 +1681,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/lecture-execution/$sectionId'
+    | '/faculty-portal/lecture-monitoring/parity'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
@@ -1820,6 +1832,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/lecture-execution/$sectionId'
+    | '/faculty-portal/lecture-monitoring/parity'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
@@ -2667,6 +2680,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalLectureExecutionSectionIdRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
+    '/faculty-portal/lecture-monitoring/parity': {
+      id: '/faculty-portal/lecture-monitoring/parity'
+      path: '/parity'
+      fullPath: '/faculty-portal/lecture-monitoring/parity'
+      preLoaderRoute: typeof FacultyPortalLectureMonitoringParityRouteImport
+      parentRoute: typeof FacultyPortalLectureMonitoringRoute
+    }
     '/faculty-portal/materials/': {
       id: '/faculty-portal/materials/'
       path: '/materials'
@@ -3105,12 +3125,27 @@ const FacultyPortalGraduationProjectsRouteWithChildren =
     FacultyPortalGraduationProjectsRouteChildren,
   )
 
+interface FacultyPortalLectureMonitoringRouteChildren {
+  FacultyPortalLectureMonitoringParityRoute: typeof FacultyPortalLectureMonitoringParityRoute
+}
+
+const FacultyPortalLectureMonitoringRouteChildren: FacultyPortalLectureMonitoringRouteChildren =
+  {
+    FacultyPortalLectureMonitoringParityRoute:
+      FacultyPortalLectureMonitoringParityRoute,
+  }
+
+const FacultyPortalLectureMonitoringRouteWithChildren =
+  FacultyPortalLectureMonitoringRoute._addFileChildren(
+    FacultyPortalLectureMonitoringRouteChildren,
+  )
+
 interface FacultyPortalRouteChildren {
   FacultyPortalAcademicCouncilsRoute: typeof FacultyPortalAcademicCouncilsRouteWithChildren
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
   FacultyPortalDepartmentReportsRoute: typeof FacultyPortalDepartmentReportsRoute
   FacultyPortalGraduationProjectsRoute: typeof FacultyPortalGraduationProjectsRouteWithChildren
-  FacultyPortalLectureMonitoringRoute: typeof FacultyPortalLectureMonitoringRoute
+  FacultyPortalLectureMonitoringRoute: typeof FacultyPortalLectureMonitoringRouteWithChildren
   FacultyPortalProcessingRequestsRoute: typeof FacultyPortalProcessingRequestsRoute
   FacultyPortalReportsRoute: typeof FacultyPortalReportsRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
@@ -3129,7 +3164,8 @@ const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalDepartmentReportsRoute: FacultyPortalDepartmentReportsRoute,
   FacultyPortalGraduationProjectsRoute:
     FacultyPortalGraduationProjectsRouteWithChildren,
-  FacultyPortalLectureMonitoringRoute: FacultyPortalLectureMonitoringRoute,
+  FacultyPortalLectureMonitoringRoute:
+    FacultyPortalLectureMonitoringRouteWithChildren,
   FacultyPortalProcessingRequestsRoute: FacultyPortalProcessingRequestsRoute,
   FacultyPortalReportsRoute: FacultyPortalReportsRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
