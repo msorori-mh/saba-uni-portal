@@ -114,8 +114,12 @@ describe("1 — level order: Attention before KPIs before All Reports", () => {
     expect(STUDENT_ROUTE).toContain("ReportsOperationalWorkspace");
     expect(STUDENT_ROUTE).toContain("StudentSelfReportsList");
     expect(STUDENT_ROUTE).not.toContain("جميع التقارير");
+    // FIX_05: the faculty hub replaces the generic catalog with role-scoped
+    // sections (my reports / my department reports) — no cross-role leakage.
+    expect(FACULTY_ROUTE).toContain("ReportsOperationalWorkspace");
+    expect(FACULTY_ROUTE).toContain("RoleScopedReportSections");
+    expect(FACULTY_ROUTE).not.toContain("جميع التقارير");
     for (const src of [
-      FACULTY_ROUTE,
       DEPT_ROUTE,
       EXEC_ROUTE,
       ADMIN_ROUTE,
@@ -357,8 +361,12 @@ describe("13 — ReportsCenter still scope-aware", () => {
   test("hubs still pass viewerScope into catalog section", () => {
     // Phase H: student hub has no client-side catalog projection at all.
     expect(STUDENT_ROUTE).not.toContain("viewerScope");
+    // FIX_05: the faculty hub replaces the generic catalog with role-scoped
+    // sections (my reports / my department reports) — no cross-role leakage.
+    expect(FACULTY_ROUTE).toContain("ReportsOperationalWorkspace");
+    expect(FACULTY_ROUTE).toContain("RoleScopedReportSections");
+    expect(FACULTY_ROUTE).not.toContain("جميع التقارير");
     for (const src of [
-      FACULTY_ROUTE,
       DEPT_ROUTE,
       EXEC_ROUTE,
       ADMIN_ROUTE,

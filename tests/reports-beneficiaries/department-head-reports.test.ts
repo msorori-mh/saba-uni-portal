@@ -47,7 +47,9 @@ describe("department head — positive visibility", () => {
   test("sees department academic load and schedule suite", () => {
     expect(DEPT.beneficiaries).toContain("dept_head_coordinator");
     expect(DEPT.required_role).toContain("department_head");
-    expect(DEPT.route).toBe("/admin/department-reports");
+    expect(DEPT.route).toContain("/admin/department-reports");
+    // FIX_05: a department head opens the faculty-portal destination, never /admin.
+    expect(DEPT.route).toContain("/faculty-portal/department-reports");
     expect(canSeeReport(DEPT, ["department_head"])).toBe(true);
     expect(canSeeReport(SCHEDULE, ["department_head"])).toBe(true);
     expect(beneficiariesForRoles(["department_head"])).toContain("dept_head_coordinator");
