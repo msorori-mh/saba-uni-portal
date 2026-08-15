@@ -818,7 +818,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     filters: ["course_section_id"],
     sensitivity: "internal",
     output_types: ["screen"],
-    route: "/faculty-portal/lecture-execution/$sectionId | /student/materials/$sectionId",
+    route: "/faculty-portal/lecture-execution | /faculty-portal/lecture-execution/$sectionId | /student/materials/$sectionId",
     tests: ["docs/reviews/PORTAL-LECTURE-EXECUTION-AND-ACADEMIC-MONITORING-FINAL-OPERATIONAL-CLOSURE-01.md"],
     dependencies: [
       "src/components/portal/CourseDeliveryPlanGrid.tsx",
@@ -1223,7 +1223,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     filters: ["department_id"],
     sensitivity: "internal",
     output_types: ["screen"],
-    route: "/admin/department-reports",
+    route: "/admin/department-reports | /faculty-portal/department-reports",
     tests: ["tests/reports-beneficiaries/department-head-reports.test.ts", "tests/reports-beneficiaries/cross-scope-negative.test.ts"],
     dependencies: ["src/lib/reports/scope/", "src/lib/reports/teaching-load.ts"],
     status: "LIVE",
