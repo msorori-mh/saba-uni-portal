@@ -29,19 +29,28 @@ function FacultyGraduationProjects() {
           </p>
         </div>
 
-        <CreateTeamPanel
-          busy={createTeam.isPending}
-          onSubmit={(input) => {
-            createTeam.mutate(input, {
-              onSuccess: (projectId) => {
-                void navigate({
-                  to: "/faculty-portal/graduation-projects/$projectId",
-                  params: { projectId },
+        {/* Advanced coordinator tool: kept collapsed so identifier fields never
+            dominate the operational view. Authorization is enforced server-side. */}
+        <details className="rounded-lg border border-border bg-muted/30 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">
+            أدوات منسق القسم — إنشاء فريق مشروع تخرج (متقدم)
+          </summary>
+          <div className="pt-3">
+            <CreateTeamPanel
+              busy={createTeam.isPending}
+              onSubmit={(input) => {
+                createTeam.mutate(input, {
+                  onSuccess: (projectId) => {
+                    void navigate({
+                      to: "/faculty-portal/graduation-projects/$projectId",
+                      params: { projectId },
+                    });
+                  },
                 });
-              },
-            });
-          }}
-        />
+              }}
+            />
+          </div>
+        </details>
         {createTeam.isError ? (
           <MvpError
             message={createTeam.error.message}
