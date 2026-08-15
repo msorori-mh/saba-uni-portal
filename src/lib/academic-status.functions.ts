@@ -607,7 +607,7 @@ export const getGraduationCandidates = createServerFn({ method: "POST" })
       .filter((x) =>
         x.progress.total_plan_hours > 0 &&
         (x.eligibility.eligible
-         || (x.progress.completion_percentage >= NEAR_COMPLETION_PCT && x.eligibility.missing_required_courses.length <= 2 && x.progress.cumulative_gpa >= WARNING_GPA))
+         || (x.progress.completion_percentage >= NEAR_COMPLETION_PCT && x.eligibility.missing_required_courses.length <= 2 && x.progress.cumulative_official_average >= PASS_PERCENT))
       )
       .sort((a, b) => b.progress.completion_percentage - a.progress.completion_percentage);
     await audit("graduation_candidates_viewed", `count=${candidates.length}`);
