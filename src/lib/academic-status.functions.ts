@@ -152,7 +152,6 @@ type EnrollmentRow = {
 type GradeRow = {
   student_enrollment_id: string;
   score: number;
-  component: { course_section_id: string; max_score: number } | null;
 };
 
 type CoursesById = Map<string, { id: string; code: string; name_ar: string; credit_hours: number }>;
