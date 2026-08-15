@@ -255,7 +255,7 @@ const SERVICE_LINKS = [
 
   {
     to: "/student/requests" as const,
-    title: "طلبات شؤون الطلاب",
+    title: "الخدمات الطلابية",
     desc: "تقديم ومتابعة الخدمات الطلابية.",
     Icon: FileText,
   },

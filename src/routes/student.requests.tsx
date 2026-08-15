@@ -7,7 +7,7 @@ export const Route = createFileRoute("/student/requests")({
 
 function StudentRequestsLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  let currentLabel = "طلبات شؤون الطلاب";
+  let currentLabel = "الخدمات الطلابية";
   if (pathname.endsWith("/requests/new") || pathname.includes("/requests/new")) {
     currentLabel = "تقديم طلب";
   } else if (/\/student\/requests\/[^/]+$/.test(pathname)) {
