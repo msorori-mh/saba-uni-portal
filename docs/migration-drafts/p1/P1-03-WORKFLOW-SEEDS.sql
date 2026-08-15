@@ -76,7 +76,10 @@ BEGIN
     JOIN public.request_processing_roles r
       ON r.unit_id = u.id AND r.code = v_step->>'role'
     WHERE u.code = v_step->>'unit'
-    ON CONFLICT DO NOTHING;
+      AND NOT EXISTS (
+        SELECT 1 FROM public.request_type_workflow_steps x
+        WHERE x.workflow_id = v_wf AND x.step_key = v_step->>'key'
+      );
 
     IF NOT EXISTS (
       SELECT 1 FROM public.request_type_workflow_steps
