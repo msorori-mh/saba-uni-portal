@@ -31,8 +31,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { portalFeatures } from "@/lib/portal-features";
 import { useStudentLogout } from "@/lib/use-student-logout";
-import {
 import { gradeArabicLabel, normalizeOfficialResult } from "@/lib/academic/grading-scale";
+import {
   resolveCanonicalCurrentFourthLevelEligibility,
   shouldShowStudentGpNav,
   type AcademicStatusTimestampRow,
