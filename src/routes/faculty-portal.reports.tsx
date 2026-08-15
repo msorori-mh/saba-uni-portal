@@ -11,9 +11,12 @@ import {
 } from "@/lib/reports/catalog";
 import { buildFacultyAttention } from "@/lib/reports/attention";
 import {
+  getDepartmentReportsSummary,
   getFacultySelfReportsSummary,
   getMyReportScope,
 } from "@/lib/beneficiary-reports.functions";
+import { buildRoleScopedReportSections } from "@/lib/reports/catalog/role-scoped-view";
+import { RoleScopedReportSections } from "@/components/reports/RoleScopedReportSections";
 
 export const Route = createFileRoute("/faculty-portal/reports")({
   head: () => ({
@@ -47,6 +50,28 @@ function FacultyReportsPage() {
   const viewerRoles = viewerScope?.roles?.length
     ? viewerScope.roles
     : ["faculty_member"];
+  const isDepartmentHead = viewerRoles.includes("department_head");
+
+  const fetchDepartmentSummary = useServerFn(getDepartmentReportsSummary);
+  const { data: departmentSummary } = useQuery({
+    queryKey: ["faculty-reports-department-name"],
+    queryFn: () => fetchDepartmentSummary({ data: {} }),
+    enabled: isDepartmentHead,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
+  });
+
+  /** Two clean groups: my own academic reports, then my department's. */
+  const scopedSections = useMemo(
+    () =>
+      viewerScope
+        ? buildRoleScopedReportSections(REPORT_CATALOG_ENTRIES, viewerScope, {
+            departmentNameAr: departmentSummary?.department?.name_ar ?? null,
+            currentRoute: "/faculty-portal/reports",
+          })
+        : [],
+    [viewerScope, departmentSummary?.department?.name_ar],
+  );
 
   const attentionItems = useMemo(
     () =>
@@ -126,13 +151,7 @@ function FacultyReportsPage() {
                 </section>
               ) : null
             }
-            catalog={{
-              entries: REPORT_CATALOG_ENTRIES,
-              viewerRoles,
-              viewerScope,
-              title: "جميع التقارير",
-              showPreparation: false,
-            }}
+            afterCatalog={<RoleScopedReportSections sections={scopedSections} />}
           />
         )}
       </div>

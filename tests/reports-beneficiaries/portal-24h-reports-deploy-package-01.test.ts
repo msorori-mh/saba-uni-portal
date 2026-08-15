@@ -56,6 +56,10 @@ describe("five report hubs — routes and three-level workspace", () => {
       // the generic "جميع التقارير" multi-beneficiary catalog.
       if (name === "student") {
         expect(src).toContain("StudentSelfReportsList");
+      } else if (name === "faculty") {
+        // FIX_05: faculty/dept-head hub uses role-scoped sections instead of
+        // the generic multi-beneficiary catalog.
+        expect(src).toContain("RoleScopedReportSections");
       } else {
         expect(src).toContain("جميع التقارير");
       }

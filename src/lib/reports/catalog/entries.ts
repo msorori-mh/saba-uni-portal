@@ -818,7 +818,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     filters: ["course_section_id"],
     sensitivity: "internal",
     output_types: ["screen"],
-    route: "/faculty-portal/lecture-execution/$sectionId | /student/materials/$sectionId",
+    route: "/faculty-portal/lecture-execution | /faculty-portal/lecture-execution/$sectionId | /student/materials/$sectionId",
     tests: ["docs/reviews/PORTAL-LECTURE-EXECUTION-AND-ACADEMIC-MONITORING-FINAL-OPERATIONAL-CLOSURE-01.md"],
     dependencies: [
       "src/components/portal/CourseDeliveryPlanGrid.tsx",
@@ -1214,7 +1214,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "DEPT-ACADEMIC-LOAD",
     name_ar: "لوحة رئيس القسم — العبء الأكاديمي والإسناد",
     description:
-      "أعداد طلاب/أعضاء/برامج/مقررات القسم، الإسناد، الشعب غير المسندة، وقائمة أسبوعية بالمشكلات — نطاق قسم إجباري من جهة الفاعل.",
+      "أعداد طلاب/أعضاء/برامج/مقررات القسم، الإسناد، المجموعات الدراسية غير المسندة، وقائمة أسبوعية بالمشكلات — نطاق قسم إجباري من جهة الفاعل.",
     beneficiaries: ["dept_head_coordinator"],
     required_role: ["department_head", "dean", "admin", "system_admin"],
     data_scope: "department",
@@ -1223,7 +1223,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     filters: ["department_id"],
     sensitivity: "internal",
     output_types: ["screen"],
-    route: "/admin/department-reports",
+    route: "/admin/department-reports | /faculty-portal/department-reports",
     tests: ["tests/reports-beneficiaries/department-head-reports.test.ts", "tests/reports-beneficiaries/cross-scope-negative.test.ts"],
     dependencies: ["src/lib/reports/scope/", "src/lib/reports/teaching-load.ts"],
     status: "LIVE",
