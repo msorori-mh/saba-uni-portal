@@ -220,7 +220,11 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   if (enrollmentIds.length) {
     const { data: gRaw } = await supabaseAdmin
       .from("student_grades")
-      .select("student_enrollment_id, score, component:grade_components(course_section_id, max_score)")
+      // No embed: `student_grades` has no PostgREST relationship to
+      // `grade_components`, so embedding silently fails the whole query and the
+      // student appears to have zero completed courses. Section totals come
+      // from `componentsBySection` below.
+      .select("student_enrollment_id, score")
       .in("student_enrollment_id", enrollmentIds)
       .eq("status", "approved");
     for (const g of (gRaw ?? []) as unknown as GradeRow[]) grades.push(g);
