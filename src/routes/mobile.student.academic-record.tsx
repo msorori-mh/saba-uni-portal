@@ -109,7 +109,7 @@ function RecordBody({ d }: { d: Awaited<ReturnType<typeof getMyProgress>> }) {
 
   return (
     <div className="space-y-4">
-      {/* Standing + GPAs */}
+      {/* Standing + official results */}
       <section className="rounded-2xl bg-primary-deep text-primary-foreground p-4 space-y-3 shadow-elegant">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-gold/80">
@@ -123,8 +123,8 @@ function RecordBody({ d }: { d: Awaited<ReturnType<typeof getMyProgress>> }) {
           {d.standing.reason}
         </p>
         <div className="grid grid-cols-2 gap-2 pt-1">
-          <GpaTile label="المعدل الفصلي" value={d.progress.current_gpa} />
-          <GpaTile label="المعدل التراكمي" value={d.progress.cumulative_gpa} />
+          <ResultTile label="النتيجة الفصلية" value={d.progress.current_official_average} />
+          <ResultTile label="النتيجة التراكمية" value={d.progress.cumulative_official_average} />
         </div>
       </section>
 
@@ -164,12 +164,12 @@ function RecordBody({ d }: { d: Awaited<ReturnType<typeof getMyProgress>> }) {
   );
 }
 
-function GpaTile({ label, value }: { label: string; value: number }) {
+function ResultTile({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg bg-primary-foreground/10 border border-gold/30 p-2.5">
       <div className="text-[10px] font-bold text-gold/90">{label}</div>
       <div dir="ltr" className="mt-0.5 font-display text-xl font-extrabold text-gold">
-        {value.toFixed(2)}
+        {value.toFixed(1)}%
       </div>
     </div>
   );

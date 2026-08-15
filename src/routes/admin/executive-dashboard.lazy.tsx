@@ -206,7 +206,7 @@ function ExecutiveDashboardPage() {
     } else if (section === "academic") {
       name = "الأداء_الأكاديمي";
       rows = [
-        { المؤشر: "متوسط GPA", القيمة: progress?.avgGpa ?? 0 },
+        { المؤشر: "متوسط النتيجة الرسمية %", القيمة: progress?.avgOfficialPercentage ?? 0 },
         { المؤشر: "الطلاب المتعثرون", القيمة: progress?.atRisk ?? 0 },
         { المؤشر: "مرشحو التخرج", القيمة: progress?.gradCandidates ?? 0 },
         { المؤشر: "قرب التخرج", القيمة: progress?.nearCompletion ?? 0 },
@@ -237,7 +237,7 @@ function ExecutiveDashboardPage() {
       rows = [
         { القسم: "طلاب", المؤشر: "الإجمالي", القيمة: analytics.students.total },
         { القسم: "طلاب", المؤشر: "النشطون", القيمة: analytics.students.active },
-        { القسم: "أكاديمي", المؤشر: "متوسط GPA", القيمة: progress?.avgGpa ?? 0 },
+        { القسم: "أكاديمي", المؤشر: "متوسط النتيجة الرسمية %", القيمة: progress?.avgOfficialPercentage ?? 0 },
         { القسم: "أكاديمي", المؤشر: "مرشحو التخرج", القيمة: progress?.gradCandidates ?? 0 },
         { القسم: "أكاديمي", المؤشر: "متعثرون", القيمة: progress?.atRisk ?? 0 },
         { القسم: "هيئة تدريس", المؤشر: "النشطون", القيمة: analytics.faculty.active },
@@ -441,8 +441,8 @@ function ExecutiveDashboardPage() {
           <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-border p-3">
-                <div className="text-[11px] font-bold text-muted-foreground">متوسط GPA</div>
-                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{progress.avgGpa.toFixed(2)}</div>
+                <div className="text-[11px] font-bold text-muted-foreground">متوسط النتيجة الرسمية</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{progress.avgOfficialPercentage.toFixed(1)}%</div>
               </div>
               <div className="rounded-lg border border-border p-3">
                 <div className="text-[11px] font-bold text-muted-foreground">المتعثرون</div>

@@ -47,7 +47,7 @@ function AdminStudentProgressPage() {
           ["البرنامج", d.student.program ?? "—"],
           ["المستوى", d.student.level ?? "غير محدد"],
           ["نسبة الإنجاز", `${d.progress.completion_percentage}%`],
-          ["المعدل التراكمي", d.progress.cumulative_gpa.toFixed(2)],
+          ["النتيجة التراكمية", `${d.progress.cumulative_official_average.toFixed(1)}%`],
           ["الحالة", d.standing.standing],
         ],
         rows: d.audit.courses.map((c) => ({
