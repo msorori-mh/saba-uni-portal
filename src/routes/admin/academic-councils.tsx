@@ -1373,6 +1373,10 @@ function CouncilAgendaPanel({
     () => councilMeetings.find((m) => m.meeting_id === selectedMeetingId) ?? null,
     [councilMeetings, selectedMeetingId],
   );
+  /** Same lifecycle rules as the faculty workspace dialog. */
+  const agendaFrozen = isAgendaFrozen(selectedMeeting?.status);
+  const canEditAgenda = isAgendaEditable(selectedMeeting?.status);
+  const canFinalizeAgenda = canFinalizeAgendaAtStatus(selectedMeeting?.status);
 
   const agendaQuery = useQuery({
     queryKey: ["admin", "academic-councils", "agenda", selectedMeetingId],
