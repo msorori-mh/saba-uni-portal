@@ -258,11 +258,70 @@ function ExecutionForm({
   const needsReason = REASON_REQUIRED.includes(status);
   const needsExecutionDate = status === "executed" || status === "compensated";
 
+  const isFinalRecorded = session.status === "executed" || session.status === "compensated";
+  const isMissedRecorded =
+    session.status === "postponed" ||
+    session.status === "hindered" ||
+    session.status === "cancelled";
+  const [compensationMode, setCompensationMode] = useState(false);
+
+  const header = (
+    <div className="text-sm font-bold text-primary">
+      المحاضرة {session.session_number} — {session.planned_title}
+    </div>
+  );
+
+  if (isFinalRecorded || (isMissedRecorded && !compensationMode)) {
+    return (
+      <div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
+        {header}
+        <p className="text-sm font-medium text-primary">
+          {session.status === "executed"
+            ? "تم تسجيل تنفيذ هذه المحاضرة، ولا يمكن تعديل السجل."
+            : session.status === "compensated"
+              ? "تم تسجيل تعويض هذه المحاضرة، ولا يمكن تعديل السجل."
+              : `تم تسجيل الحالة: ${LECTURE_STATUS_LABELS[session.status as LectureExecutionStatus]} — السجل نهائي ولا يمكن تعديله.`}
+        </p>
+        <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+          {session.execution_date && (
+            <div>
+              <dt className="inline">تاريخ التنفيذ: </dt>
+              <dd className="inline font-medium text-foreground">{session.execution_date}</dd>
+            </div>
+          )}
+          {session.compensation_date && (
+            <div>
+              <dt className="inline">تاريخ التعويض: </dt>
+              <dd className="inline font-medium text-foreground">{session.compensation_date}</dd>
+            </div>
+          )}
+          {session.reason && (
+            <div className="sm:col-span-2">
+              <dt className="inline">السبب: </dt>
+              <dd className="inline font-medium text-foreground">{session.reason}</dd>
+            </div>
+          )}
+        </dl>
+        {isMissedRecorded && (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setStatus("compensated");
+              setCompensationMode(true);
+            }}
+          >
+            تسجيل محاضرة تعويضية
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
-      <div className="text-sm font-bold text-primary">
-        المحاضرة {session.session_number} — {session.planned_title}
-      </div>
+      {header}
+
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
