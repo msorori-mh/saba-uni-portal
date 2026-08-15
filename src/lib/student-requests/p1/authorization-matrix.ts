@@ -39,14 +39,14 @@ export const P1_WORKFLOWS: Readonly<Record<P1ServiceCode, readonly P1StepDef[]>>
   ],
   grade_appeal: [
     { key: "registrar_intake", labelAr: "استقبال التظلم", unit: "registrar", role: "registrar_general", action: "review" },
-    { key: "department_head_review", labelAr: "المراجعة الأكاديمية لرئيس القسم", unit: "department_chair", role: "department_head", action: "review" },
-    { key: "instructor_review", labelAr: "مراجعة أستاذ المقرر", unit: "department_chair", role: "course_instructor", action: "review" },
-    { key: "academic_decision", labelAr: "القرار الأكاديمي المعتمد", unit: "department_chair", role: "department_head", action: "approve" },
+    { key: "department_head_review", labelAr: "المراجعة الأكاديمية لرئيس القسم", unit: "department", role: "department_head", action: "review" },
+    { key: "instructor_review", labelAr: "مراجعة أستاذ المقرر", unit: "department", role: "course_instructor", action: "review" },
+    { key: "academic_decision", labelAr: "القرار الأكاديمي المعتمد", unit: "department", role: "department_head", action: "approve" },
     { key: "registrar_apply_result", labelAr: "تطبيق النتيجة المعتمدة", unit: "registrar", role: "registrar_general", action: "apply_decision" },
     { key: "archive", labelAr: "الأرشفة", unit: "archive", role: "archive_officer", action: "archive" },
   ],
   department_transfer: [
-    { key: "target_department_head_approval", labelAr: "اعتماد رئيس القسم المطلوب", unit: "department_chair", role: "department_head", action: "approve" },
+    { key: "target_department_head_approval", labelAr: "اعتماد رئيس القسم المطلوب", unit: "department", role: "department_head", action: "approve" },
     { key: "dean_decision", labelAr: "قرار العميد", unit: "dean", role: "dean", action: "approve" },
     { key: "payment_confirmation", labelAr: "تأكيد السداد الخارجي", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
     { key: "registrar_apply", labelAr: "تطبيق قرار المسجل", unit: "registrar", role: "registrar_general", action: "apply_decision", requiresPaymentConfirmed: true },
