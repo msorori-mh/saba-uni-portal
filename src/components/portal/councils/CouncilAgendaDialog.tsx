@@ -33,6 +33,13 @@ import {
   type MyCouncilMembershipV2,
 } from "@/lib/faculty-councils.functions";
 import {
+  AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI,
+  AGENDA_FROZEN_NOTICE_UI,
+  canFinalizeAgendaAtStatus,
+  isAgendaEditable,
+  isAgendaFrozen,
+} from "@/lib/councils-live";
+import {
   AGENDA_LOAD_FAILED_UI,
   AGENDA_WRITE_DENIED_UI,
   CompactEmpty,
@@ -94,8 +101,13 @@ export function CouncilAgendaDialog({
     [writeMemberships],
   );
   const meeting = upcomingMeetings.find((item) => item.meeting_id === meetingId) ?? null;
-  const canWrite = Boolean(meeting && writeCouncilIds.has(meeting.council_id));
-  const canFinalize = Boolean(meeting && chairCouncilIds.has(meeting.council_id));
+  const hasWriteRole = Boolean(meeting && writeCouncilIds.has(meeting.council_id));
+  const isChairHere = Boolean(meeting && chairCouncilIds.has(meeting.council_id));
+  const agendaFrozen = isAgendaFrozen(meeting?.status);
+  /** Structural edits are only allowed during the preparation phase. */
+  const canWrite = hasWriteRole && isAgendaEditable(meeting?.status);
+  /** Finalization is only valid at `intake_closed` (backend state machine). */
+  const canFinalize = isChairHere && canFinalizeAgendaAtStatus(meeting?.status);
 
   const [manualTitle, setManualTitle] = useState("");
   const [manualNotes, setManualNotes] = useState("");
@@ -258,7 +270,7 @@ export function CouncilAgendaDialog({
 
   const approvedCount = agendaItems.filter((item) => item.is_approved).length;
   const allApproved = agendaItems.length > 0 && approvedCount === agendaItems.length;
-  const agendaReady = meeting?.status === "agenda_ready";
+  const agendaReady = agendaFrozen;
   const buildSteps = [
     { label: "إضافة بنود/موضوعات إلى الجدول", done: agendaItems.length > 0 },
     { label: "ترتيب البنود بالتسلسل المطلوب", done: agendaItems.length > 0 },
@@ -289,7 +301,19 @@ export function CouncilAgendaDialog({
                 {meetingStatusLabel(meeting.status)}
               </p>
             </div>
-            {!canWrite ? <ErrorBlock message={AGENDA_WRITE_DENIED_UI} /> : null}
+            {!hasWriteRole ? <ErrorBlock message={AGENDA_WRITE_DENIED_UI} /> : null}
+            {agendaFrozen ? (
+              <p
+                data-testid="council-agenda-frozen-notice"
+                className="rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+              >
+                {AGENDA_FROZEN_NOTICE_UI}
+              </p>
+            ) : hasWriteRole && isChairHere && !canFinalize ? (
+              <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                {AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI}
+              </p>
+            ) : null}
             <ol className="space-y-1.5 rounded-lg border border-border p-3 text-xs">
               <li className="text-[11px] font-bold text-primary">خطوات بناء جدول الأعمال</li>
               {buildSteps.map((step, index) => (
@@ -314,7 +338,8 @@ export function CouncilAgendaDialog({
                   type="button"
                   size="sm"
                   className="h-8 gap-1.5 text-xs"
-                  disabled={finalizeBusy || agendaItems.length === 0 || agendaReady}
+                  data-testid="council-agenda-finalize"
+                  disabled={finalizeBusy || agendaItems.length === 0}
                   onClick={() => void handleFinalize()}
                 >
                   {finalizeBusy ? (

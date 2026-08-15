@@ -48,6 +48,8 @@ import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl
 import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
 import {
   LIVE_SESSION_INTERVAL_MS,
+  agendaSessionStatusLabel,
+  agendaSessionStatusTone,
   liveQueryOptions,
   useLivePollInterval,
 } from "@/lib/councils-live";
@@ -465,6 +467,9 @@ export function CouncilSessionAndGovernanceWorkspace({
             <Vote className="w-5 h-5 text-indigo-600" />
             <h4 className="font-bold text-md">بنود الجلسة والتصويت</h4>
           </div>
+          <p className="text-[11px] text-slate-500" data-testid="council-session-badges-legend">
+            «معتمد في جدول الأعمال» تعني اعتماد إدراج البند، أما حالة الجلسة فتعني نتيجة مناقشته.
+          </p>
           {agendaQuery.isLoading ? (
             <p className="text-sm text-slate-500">جاري تحميل بنود جدول الأعمال...</p>
           ) : (agendaQuery.data?.items ?? []).length === 0 ? (
@@ -483,9 +488,28 @@ export function CouncilSessionAndGovernanceWorkspace({
                         <p className="font-bold text-sm text-slate-900">
                           {item.order_index}. {item.title}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          حالة البند: {sessionStatus}
-                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {item.is_approved ? (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px]"
+                              data-testid="council-session-item-approved-badge"
+                            >
+                              معتمد في جدول الأعمال
+                            </Badge>
+                          ) : null}
+                          <Badge
+                            variant={
+                              agendaSessionStatusTone(sessionStatus) === "active"
+                                ? "default"
+                                : "outline"
+                            }
+                            className="text-[10px]"
+                            data-testid="council-session-item-session-badge"
+                          >
+                            {agendaSessionStatusLabel(sessionStatus)}
+                          </Badge>
+                        </div>
                       </div>
                       {isChair && sessionStatus === "pending" && (
                         <Button
@@ -549,6 +573,48 @@ export function CouncilSessionAndGovernanceWorkspace({
           )}
 
         </div>
+
+        {/* Minutes lifecycle path: draft (chair+secretary write) → review (secretary submits)
+            → locked (chair approves). Explains the next actor without exposing a premature lock. */}
+        <ol
+          className="flex flex-wrap items-center gap-2 text-[11px]"
+          data-testid="council-minutes-stage-path"
+        >
+          {[
+            { key: "draft", label: "مسودة", actor: "الرئيس/أمين السر: الكتابة والحفظ" },
+            { key: "review", label: "مراجعة", actor: "أمين السر يرسل، ثم يراجع الرئيس" },
+            { key: "locked", label: "معتمد ومقفل", actor: "رئيس المجلس: الاعتماد والقفل" },
+          ].map((stage) => {
+            const active = isMinutesLocked
+              ? stage.key === "locked"
+              : isMinutesReviewStage
+                ? stage.key === "review"
+                : stage.key === "draft";
+            return (
+              <li
+                key={stage.key}
+                className={
+                  active
+                    ? "rounded-md border border-indigo-400/60 bg-indigo-50 px-2 py-1 font-bold text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
+                    : "rounded-md border border-slate-200 px-2 py-1 text-slate-500 dark:border-slate-800"
+                }
+                title={stage.actor}
+              >
+                {stage.label}
+              </li>
+            );
+          })}
+        </ol>
+
+        {isMinutesDraftStage && isChair && !isMinutesLocked ? (
+          <p
+            data-testid="council-minutes-chair-next-actor"
+            className="rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200"
+          >
+            المحضر محفوظ كمسودة. الخطوة التالية: بانتظار أمين السر لإرسال المحضر للمراجعة، وبعدها
+            سيظهر لك زر «اعتماد وقفل المحضر».
+          </p>
+        ) : null}
 
         {isMinutesLocked ? (
           <div className="space-y-3">

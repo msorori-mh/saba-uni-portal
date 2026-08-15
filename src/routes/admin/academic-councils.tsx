@@ -76,6 +76,13 @@ import {
   type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
 import {
+  AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI,
+  AGENDA_FROZEN_NOTICE_UI,
+  canFinalizeAgendaAtStatus,
+  isAgendaEditable,
+  isAgendaFrozen,
+} from "@/lib/councils-live";
+import {
   countMinutesReview,
   deriveAdminActionRequiredItems,
 } from "@/lib/admin-portal/councils-operational";
@@ -1373,6 +1380,10 @@ function CouncilAgendaPanel({
     () => councilMeetings.find((m) => m.meeting_id === selectedMeetingId) ?? null,
     [councilMeetings, selectedMeetingId],
   );
+  /** Same lifecycle rules as the faculty workspace dialog. */
+  const agendaFrozen = isAgendaFrozen(selectedMeeting?.status);
+  const canEditAgenda = isAgendaEditable(selectedMeeting?.status);
+  const canFinalizeAgenda = canFinalizeAgendaAtStatus(selectedMeeting?.status);
 
   const agendaQuery = useQuery({
     queryKey: ["admin", "academic-councils", "agenda", selectedMeetingId],
@@ -1583,21 +1594,38 @@ function CouncilAgendaPanel({
                 ({agendaItems.filter((i) => i.is_approved).length} معتمد)
               </span>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1.5"
-              disabled={finalizeBusy || selectedMeeting?.status === "agenda_ready"}
-              onClick={() => void handleFinalize()}
-            >
-              {finalizeBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              اعتماد جدول الأعمال
-            </Button>
+            {canFinalizeAgenda ? (
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                data-testid="admin-agenda-finalize"
+                disabled={finalizeBusy || agendaItems.length === 0}
+                onClick={() => void handleFinalize()}
+              >
+                {finalizeBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                اعتماد جدول الأعمال
+              </Button>
+            ) : null}
           </div>
+
+          {agendaFrozen ? (
+            <p
+              data-testid="admin-agenda-frozen-notice"
+              className="rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+            >
+              {AGENDA_FROZEN_NOTICE_UI}
+            </p>
+          ) : !canFinalizeAgenda ? (
+            <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              {AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI}
+            </p>
+          ) : null}
+
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg border border-border overflow-hidden">
@@ -1648,6 +1676,7 @@ function CouncilAgendaPanel({
                               : ""}
                           </p>
                         </div>
+                        {canEditAgenda ? (
                         <div className="flex items-center gap-1 shrink-0">
                           <Button
                             type="button"
@@ -1680,6 +1709,7 @@ function CouncilAgendaPanel({
                             تعديل
                           </Button>
                         </div>
+                        ) : null}
                       </div>
                     </li>
                   ))}
@@ -1687,6 +1717,7 @@ function CouncilAgendaPanel({
               )}
             </div>
 
+            {canEditAgenda ? (
             <div className="space-y-4">
               <div className="rounded-lg border border-border overflow-hidden">
                 <div className="bg-muted/30 px-3 py-2 text-xs font-bold text-primary border-b border-border">
@@ -1780,6 +1811,7 @@ function CouncilAgendaPanel({
                 </Button>
               </form>
             </div>
+            ) : null}
           </div>
         </>
       )}
