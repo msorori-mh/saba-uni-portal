@@ -76,6 +76,13 @@ import {
   type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
 import {
+  AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI,
+  AGENDA_FROZEN_NOTICE_UI,
+  canFinalizeAgendaAtStatus,
+  isAgendaEditable,
+  isAgendaFrozen,
+} from "@/lib/councils-live";
+import {
   countMinutesReview,
   deriveAdminActionRequiredItems,
 } from "@/lib/admin-portal/councils-operational";
