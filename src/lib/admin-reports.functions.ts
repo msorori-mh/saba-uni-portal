@@ -12,9 +12,10 @@ import {
 } from "@/lib/reports/scope";
 import { provenDepartmentIdsForCollege } from "@/lib/reports/scope/org-identity";
 import {
-import { isCoursePassed } from "@/lib/academic/pass-threshold";
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
+import { isCoursePassed } from "@/lib/academic/pass-threshold";
+
 
 /** University-wide unscoped aggregate dumps — admin family only (no silent dean/dept widen). */
 const UNIVERSITY_WIDE_AGGREGATE_ROLES = ["system_admin", "admin"] as const;
