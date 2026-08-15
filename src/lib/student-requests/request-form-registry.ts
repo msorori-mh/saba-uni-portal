@@ -572,6 +572,7 @@ const FORM_BY_CANONICAL = new Map<string, RequestFormDefinition>([
   ["department_transfer", DEPARTMENT_TRANSFER],
   ["final_chance", FINAL_CHANCE],
   ["october_exam_entry_form", OCTOBER_EXAM_ENTRY],
+  ["replacement_student_card", REPLACEMENT_STUDENT_CARD],
 ]);
 
 export const CANONICAL_FORM_CODES = [...FORM_BY_CANONICAL.keys()] as const;
