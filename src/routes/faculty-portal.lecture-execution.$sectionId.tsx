@@ -171,7 +171,8 @@ function FacultyLectureExecutionSection() {
                   <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="font-bold text-primary">تسجيل التنفيذ</h2>
                     <span className="text-xs text-muted-foreground">
-                      المنفذ {executed} من {data.plan.planned_session_count}
+                      المنفذ {executed} • المعوّض {compensated} • غير المنفذ {postponed} — من{" "}
+                      {data.plan.planned_session_count} محاضرة مخططة
                     </span>
                   </header>
                   <div className="flex flex-wrap gap-2">
