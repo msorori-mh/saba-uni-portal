@@ -59,7 +59,7 @@ function MobileStudentAcademicRecordPage() {
               سجلي الأكاديمي
             </h1>
             <p className="text-[10px] text-muted-foreground truncate">
-              ملخص المعدلات والحالة الأكاديمية والمقررات
+              ملخص النتائج الرسمية والحالة الأكاديمية والمقررات
             </p>
           </div>
         </div>

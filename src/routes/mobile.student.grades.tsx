@@ -9,6 +9,7 @@ import {
   type CurrentTermClient,
 } from "@/lib/current-term";
 import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
+import { gradeArabicLabel, normalizeOfficialResult } from "@/lib/academic/grading-scale";
 
 export const Route = createFileRoute("/mobile/student/grades")({
   head: () => ({
@@ -30,6 +31,8 @@ type GradeCard = {
   total: number;
   totalMax: number;
   percentage: number | null;
+  officialResult: number | null;
+  gradeLabel: string | null;
   status: "passed" | "failed" | "in_progress";
   details: Array<{ name: string; max: number; score: number }>;
 };
@@ -148,6 +151,8 @@ async function fetchMobileGrades(): Promise<GradesData> {
       total,
       totalMax,
       percentage,
+      officialResult: normalizeOfficialResult(percentage),
+      gradeLabel: percentage == null ? null : gradeArabicLabel(percentage),
       status,
       details: myComps.map((c) => ({
         name: c.name,
@@ -272,9 +277,14 @@ function GradeCardItem({ row }: { row: GradeCard }) {
             {row.total}
           </span>
           <span className="text-[11px] text-muted-foreground">/ {row.totalMax}</span>
-          {row.percentage != null && (
+          {row.officialResult != null && (
             <span dir="ltr" className="ms-2 rounded bg-gold/15 px-1.5 py-0.5 text-[10px] font-extrabold text-primary-deep">
-              {row.percentage}%
+              {row.officialResult}%
+            </span>
+          )}
+          {row.gradeLabel && (
+            <span className="ms-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-extrabold text-primary">
+              {row.gradeLabel}
             </span>
           )}
         </div>
