@@ -46,6 +46,8 @@ export interface ScopedReportItem {
   readonly entry: ReportEntry;
   /** Operational destination the viewer may actually open. */
   readonly route: string;
+  /** The destination is the page currently rendering the section. */
+  readonly isCurrentPage: boolean;
 }
 
 export interface ScopedReportSection {
@@ -93,6 +95,8 @@ function isPresentable(
   viewer: CatalogViewerFacts,
 ): boolean {
   if (entry.status !== "LIVE") return false;
+  // A hub page is a navigation surface, not a report.
+  if (entry.report_code.startsWith("HUB-")) return false;
   if (!canSeeReportForViewer(entry, viewer)) return false;
   const beneficiaries = new Set<string>(entry.beneficiaries);
   const allowedFacet = ROLE_SCOPED_ALLOWED_BENEFICIARIES.some((facet) =>
@@ -133,7 +137,11 @@ function sectionForEntry(
 export function buildRoleScopedReportSections(
   entries: readonly ReportEntry[],
   viewer: CatalogViewerFacts,
-  options: { readonly departmentNameAr?: string | null } = {},
+  options: {
+    readonly departmentNameAr?: string | null;
+    /** Route of the page rendering the sections — shown without a link. */
+    readonly currentRoute?: string | null;
+  } = {},
 ): ScopedReportSection[] {
   const self: ScopedReportItem[] = [];
   const department: ScopedReportItem[] = [];
@@ -143,8 +151,13 @@ export function buildRoleScopedReportSections(
     const route = resolveViewerReportRoute(entry, viewer.roles);
     if (!route) continue;
     const section = sectionForEntry(entry, viewer.roles);
-    if (section === "self") self.push({ entry, route });
-    else if (section === "department") department.push({ entry, route });
+    const item: ScopedReportItem = {
+      entry,
+      route,
+      isCurrentPage: Boolean(options.currentRoute) && route === options.currentRoute,
+    };
+    if (section === "self") self.push(item);
+    else if (section === "department") department.push(item);
   }
 
   const departmentTitle = options.departmentNameAr

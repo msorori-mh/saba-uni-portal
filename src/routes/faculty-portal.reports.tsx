@@ -67,6 +67,7 @@ function FacultyReportsPage() {
       viewerScope
         ? buildRoleScopedReportSections(REPORT_CATALOG_ENTRIES, viewerScope, {
             departmentNameAr: departmentSummary?.department?.name_ar ?? null,
+            currentRoute: "/faculty-portal/reports",
           })
         : [],
     [viewerScope, departmentSummary?.department?.name_ar],

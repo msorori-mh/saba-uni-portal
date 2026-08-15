@@ -31,8 +31,19 @@ export function RoleScopedReportSections({
         <section key={section.key} className="space-y-3" aria-label={section.titleAr}>
           <h2 className="text-lg font-bold">{section.titleAr}</h2>
           <ul className="grid gap-3 sm:grid-cols-2">
-            {section.items.map(({ entry, route }) => (
+            {section.items.map(({ entry, route, isCurrentPage }) => (
               <li key={entry.report_code}>
+                {isCurrentPage ? (
+                  <div className="flex h-full flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                    <span className="font-bold text-foreground">{entry.name_ar}</span>
+                    <span className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                      {entry.description}
+                    </span>
+                    <span className="text-xs font-bold text-primary">
+                      معروضة في هذه الصفحة
+                    </span>
+                  </div>
+                ) : (
                 <Link
                   to={route as never}
                   className="flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary"
@@ -45,6 +56,7 @@ export function RoleScopedReportSections({
                     {entry.description}
                   </span>
                 </Link>
+                )}
               </li>
             ))}
           </ul>
