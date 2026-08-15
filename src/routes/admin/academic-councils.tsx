@@ -1594,21 +1594,38 @@ function CouncilAgendaPanel({
                 ({agendaItems.filter((i) => i.is_approved).length} معتمد)
               </span>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1.5"
-              disabled={finalizeBusy || selectedMeeting?.status === "agenda_ready"}
-              onClick={() => void handleFinalize()}
-            >
-              {finalizeBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              اعتماد جدول الأعمال
-            </Button>
+            {canFinalizeAgenda ? (
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                data-testid="admin-agenda-finalize"
+                disabled={finalizeBusy || agendaItems.length === 0}
+                onClick={() => void handleFinalize()}
+              >
+                {finalizeBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                اعتماد جدول الأعمال
+              </Button>
+            ) : null}
           </div>
+
+          {agendaFrozen ? (
+            <p
+              data-testid="admin-agenda-frozen-notice"
+              className="rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+            >
+              {AGENDA_FROZEN_NOTICE_UI}
+            </p>
+          ) : !canFinalizeAgenda ? (
+            <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              {AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI}
+            </p>
+          ) : null}
+
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg border border-border overflow-hidden">
