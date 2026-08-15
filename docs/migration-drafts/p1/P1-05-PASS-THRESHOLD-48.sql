@@ -10,9 +10,17 @@
 --   public.get_admin_progress_kpis       (was >= 60 pass; GPA fail-floor 60)
 --   public.student_unofficial_transcript (was >= 50)
 --
--- GPA band mapping is NOT redesigned; only the fail floor moves to 48 so a
--- passing course can never map to 0.00. Any change to the band widths
--- requires a separate academic decision (GPA_SCALE_POLICY_REQUIRED=YES).
+-- APPROVED GRADING POLICY (P1-05 rev. 04): NO GPA / 4.0 SCALE EXISTS.
+--   raw < 48                -> FAIL   ("ضعيف"), official result = raw
+--   48 <= raw < 50          -> PASS, official result NORMALIZES TO 50 ("مقبول")
+--   50 <= official < 65     -> "مقبول"
+--   65 <= official < 80     -> "جيد"
+--   80 <= official < 90     -> "جيد جدًا"
+--   90 <= official <= 100   -> "ممتاز"
+-- All grade-point mappings are REMOVED. Aggregates use the credit-weighted
+-- OFFICIAL PERCENTAGE (avgOfficialPercentage), which is not a GPA.
+-- NOTE: new view columns (official_result, grade_label) are APPENDED at the end
+-- of the select list so CREATE OR REPLACE VIEW stays legal.
 -- Forward-only, idempotent (CREATE OR REPLACE only). No data mutation.
 -- ---------------------------------------------------------------------------
 
@@ -137,31 +145,24 @@ BEGIN
     FROM course_best cb
     JOIN public.courses c ON c.id = cb.course_id
   ),
-  course_gpa AS (
+  course_official AS (
     SELECT student_profile_id, credit_hours, status,
            CASE
              WHEN status <> 'completed' OR best_pct IS NULL THEN NULL
-             WHEN best_pct >= 95 THEN 4.00
-             WHEN best_pct >= 90 THEN 3.75
-             WHEN best_pct >= 85 THEN 3.50
-             WHEN best_pct >= 80 THEN 3.25
-             WHEN best_pct >= 75 THEN 3.00
-             WHEN best_pct >= 70 THEN 2.50
-             WHEN best_pct >= 65 THEN 2.00
-             WHEN best_pct >= 48 THEN 1.50
-             ELSE 0
-           END AS gpa_points
+             WHEN best_pct >= 48 AND best_pct < 50 THEN 50.0
+             ELSE ROUND(best_pct::numeric, 1)
+           END AS official_result
     FROM course_status
   ),
-  per_student_gpa AS (
+  per_student_official AS (
     SELECT student_profile_id,
-           CASE WHEN COALESCE(SUM(credit_hours) FILTER (WHERE gpa_points IS NOT NULL), 0) > 0
+           CASE WHEN COALESCE(SUM(credit_hours) FILTER (WHERE official_result IS NOT NULL), 0) > 0
                 THEN ROUND(
-                  (SUM(gpa_points * credit_hours) FILTER (WHERE gpa_points IS NOT NULL)
-                   / NULLIF(SUM(credit_hours) FILTER (WHERE gpa_points IS NOT NULL), 0))::numeric, 2)
-                ELSE 0 END AS cumulative_gpa,
+                  (SUM(official_result * credit_hours) FILTER (WHERE official_result IS NOT NULL)
+                   / NULLIF(SUM(credit_hours) FILTER (WHERE official_result IS NOT NULL), 0))::numeric, 1)
+                ELSE 0 END AS official_average,
            COALESCE(SUM(credit_hours) FILTER (WHERE status = 'completed'), 0)::numeric AS completed_hours
-    FROM course_gpa
+    FROM course_official
     GROUP BY student_profile_id
   ),
   plan_pick AS (
@@ -213,7 +214,7 @@ BEGIN
   ),
   agg AS (
     SELECT
-      COALESCE(psg.cumulative_gpa, 0)::numeric AS cumulative_gpa,
+      COALESCE(psg.official_average, 0)::numeric AS official_average,
       COALESCE(psg.completed_hours, 0)::numeric AS completed_hours,
       pps.total_plan_hours,
       pps.required_total,
@@ -221,14 +222,14 @@ BEGIN
       COALESCE(sl.enrollment_status, '') AS enrollment_status,
       s.profile_status
     FROM students s
-    LEFT JOIN per_student_gpa psg ON psg.student_profile_id = s.id
+    LEFT JOIN per_student_official psg ON psg.student_profile_id = s.id
     LEFT JOIN plan_per_student pps ON pps.student_profile_id = s.id
     LEFT JOIN required_passed rp   ON rp.student_profile_id  = s.id
     LEFT JOIN sas_latest sl        ON sl.student_profile_id  = s.id
   ),
   final AS (
     SELECT
-      cumulative_gpa,
+      official_average,
       CASE WHEN total_plan_hours > 0
            THEN ROUND((completed_hours / total_plan_hours) * 1000.0) / 10.0
            ELSE 0 END AS completion_percentage,
@@ -238,13 +239,13 @@ BEGIN
           AND total_plan_hours > 0
           AND completed_hours >= total_plan_hours
           AND passed_required = required_total
-          AND cumulative_gpa >= 2.0
+          AND official_average >= 48
         THEN 1 ELSE 0 END AS is_eligible
     FROM agg
   )
   SELECT jsonb_build_object(
-    'avgGpa', COALESCE(ROUND((AVG(cumulative_gpa) FILTER (WHERE cumulative_gpa > 0))::numeric, 2), 0),
-    'atRisk', COUNT(*) FILTER (WHERE cumulative_gpa > 0 AND cumulative_gpa < 2.5),
+    'avgOfficialPercentage', COALESCE(ROUND((AVG(official_average) FILTER (WHERE official_average > 0))::numeric, 1), 0),
+    'atRisk', COUNT(*) FILTER (WHERE official_average > 0 AND official_average < 65),
     'gradCandidates', COUNT(*) FILTER (WHERE is_eligible = 1),
     'nearCompletion', COUNT(*) FILTER (WHERE completion_percentage >= 80),
     'sampled', COUNT(*)
@@ -298,6 +299,20 @@ CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_to
                     WHEN at.total_max > 0::numeric AND round(at.total_score / at.total_max * 100::numeric, 2) >= 48::numeric THEN 'passed'::text
                     ELSE 'failed'::text
                 END AS course_status,
+                CASE
+                    WHEN at.total_max <= 0::numeric THEN 0::numeric
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) >= 48::numeric
+                     AND round(at.total_score / at.total_max * 100::numeric, 2) < 50::numeric THEN 50::numeric
+                    ELSE round(at.total_score / at.total_max * 100::numeric, 1)
+                END AS official_result,
+                CASE
+                    WHEN at.total_max <= 0::numeric THEN 'ضعيف'::text
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) < 48::numeric THEN 'ضعيف'::text
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) >= 90::numeric THEN 'ممتاز'::text
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) >= 80::numeric THEN 'جيد جدًا'::text
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) >= 65::numeric THEN 'جيد'::text
+                    ELSE 'مقبول'::text
+                END AS grade_label,
             se.enrollment_status,
             NULL::text AS notes
            FROM student_enrollments se
@@ -338,6 +353,8 @@ CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_to
             100::numeric AS max_score,
             100::numeric AS percentage,
             'passed'::text AS course_status,
+            100::numeric AS official_result,
+            'ممتاز'::text AS grade_label,
             'completed'::text AS enrollment_status,
             (('معادلة: '::text || sec.external_course_code) || ' — '::text) || sec.external_course_name AS notes
            FROM student_equivalency_credits sec
@@ -373,7 +390,9 @@ CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_to
     enrollment_rows.percentage,
     enrollment_rows.course_status,
     enrollment_rows.enrollment_status,
-    enrollment_rows.notes
+    enrollment_rows.notes,
+    enrollment_rows.official_result,
+    enrollment_rows.grade_label
    FROM enrollment_rows
 UNION ALL
  SELECT equivalency_rows.enrollment_id,
@@ -403,6 +422,8 @@ UNION ALL
     equivalency_rows.percentage,
     equivalency_rows.course_status,
     equivalency_rows.enrollment_status,
-    equivalency_rows.notes
+    equivalency_rows.notes,
+    equivalency_rows.official_result,
+    equivalency_rows.grade_label
    FROM equivalency_rows;
 

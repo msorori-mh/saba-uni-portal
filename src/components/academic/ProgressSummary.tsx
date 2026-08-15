@@ -1,6 +1,7 @@
 import { CheckCircle2, AlertTriangle, XCircle, CircleDashed, GraduationCap, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { standingLabel, standingTone } from "@/lib/academic-status";
+import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
 import type { StudentProgressDTO } from "@/lib/academic-status.functions";
 
 const STAT_ICONS = { completed: CheckCircle2, in_progress: CircleDashed, failed: XCircle, missing: AlertTriangle };
@@ -55,8 +56,8 @@ export function ProgressSummary({ d }: { d: StudentProgressDTO }) {
         <Stat label="الساعات المكتسبة" value={d.progress.completed_hours} accent="ok" />
         <Stat label="الساعات المتبقية" value={d.progress.remaining_hours} accent="warn" />
         <Stat label="نسبة الإنجاز" value={`${d.progress.completion_percentage}%`} accent="info" />
-        <Stat label="المعدل الحالي" value={d.progress.current_gpa.toFixed(2)} />
-        <Stat label="المعدل التراكمي" value={d.progress.cumulative_gpa.toFixed(2)} accent={d.progress.cumulative_gpa >= 2 ? "ok" : "bad"} />
+        <Stat label="النتيجة الفصلية" value={`${d.progress.current_official_average.toFixed(1)}%`} />
+        <Stat label="النتيجة التراكمية" value={`${d.progress.cumulative_official_average.toFixed(1)}%`} accent={d.progress.cumulative_official_average >= COURSE_PASS_PERCENT ? "ok" : "bad"} />
       </div>
 
       {/* Course mix */}
@@ -92,7 +93,8 @@ export function DegreeAudit({ d }: { d: StudentProgressDTO }) {
                   <th className="px-2 py-2 text-center">س.م</th>
                   <th className="px-2 py-2 text-center">النوع</th>
                   <th className="px-2 py-2 text-center">المحاولات</th>
-                  <th className="px-2 py-2 text-center">أفضل %</th>
+                  <th className="px-2 py-2 text-center">النتيجة الرسمية</th>
+                  <th className="px-2 py-2 text-center">التقدير</th>
                   <th className="px-2 py-2 text-center">الحالة</th>
                 </tr>
               </thead>
@@ -106,7 +108,8 @@ export function DegreeAudit({ d }: { d: StudentProgressDTO }) {
                       <td className="px-2 py-2 text-center">{c.credit_hours}</td>
                       <td className="px-2 py-2 text-center">{c.is_required ? "إجباري" : "اختياري"}</td>
                       <td className="px-2 py-2 text-center">{c.attempts || "—"}</td>
-                      <td className="px-2 py-2 text-center">{c.best_percentage != null ? c.best_percentage.toFixed(1) : "—"}</td>
+                      <td className="px-2 py-2 text-center">{c.official_result != null ? c.official_result.toFixed(1) : "—"}</td>
+                      <td className="px-2 py-2 text-center">{c.grade_label ?? "—"}</td>
                       <td className={cn("px-2 py-2 text-center font-bold", STAT_COLORS[c.status])}>
                         <Icon className="inline h-3.5 w-3.5 ml-1" /> {STAT_LABELS[c.status]}
                       </td>

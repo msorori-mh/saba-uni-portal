@@ -4,6 +4,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hasAnyRole, STUDENT_READ_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
+import {
+  gradeArabicLabel,
+  normalizeOfficialResult,
+  officialWeightedAverage,
+  STANDING_PROBATION_BELOW,
+  STANDING_WARNING_BELOW,
+} from "@/lib/academic/grading-scale";
 
 /* ----------------------------------------------------------------------- *
  * Phase 11F — Academic Status & Graduation Engine
@@ -15,10 +22,9 @@ import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
  * ----------------------------------------------------------------------- */
 
 // Approved university policy: course pass mark = 48/100 (canonical constant).
+// NO GPA / 4.0 SCALE EXISTS. Aggregates use the credit-weighted OFFICIAL
+// percentage defined in @/lib/academic/grading-scale.
 const PASS_PERCENT = COURSE_PASS_PERCENT;
-const PROBATION_GPA = 1.0;
-const WARNING_GPA = 2.0;
-const GOOD_GPA = 2.5;
 const NEAR_COMPLETION_PCT = 80;
 
 type Standing =
@@ -48,8 +54,9 @@ export type StudentProgressDTO = {
     failed_courses: number;
     repeated_courses: number;
     in_progress_courses: number;
-    current_gpa: number;
-    cumulative_gpa: number;
+    /** Credit-weighted average of OFFICIAL results (0..100). NOT a GPA. */
+    current_official_average: number;
+    cumulative_official_average: number;
   };
   eligibility: {
     eligible: boolean;
@@ -74,6 +81,9 @@ export type StudentProgressDTO = {
       level: string | null;
       status: "completed" | "in_progress" | "failed" | "missing";
       best_percentage: number | null;
+      /** Official reported result after 48→50 normalization. */
+      official_result: number | null;
+      grade_label: string | null;
       attempts: number;
     }>;
   };
@@ -120,20 +130,6 @@ async function audit(action: string, notes: string, entityId?: string) {
 }
 
 /* ----------------------- computation helpers ----------------------- */
-
-function pctToGpa(pct: number): number {
-  if (pct < PASS_PERCENT) return 0;
-  // GPA band mapping is UNCHANGED academic policy (only the fail floor moved
-  // to the approved 48% pass mark); the lowest passing band stays 1.5.
-  if (pct >= 95) return 4.0;
-  if (pct >= 90) return 3.75;
-  if (pct >= 85) return 3.5;
-  if (pct >= 80) return 3.25;
-  if (pct >= 75) return 3.0;
-  if (pct >= 70) return 2.5;
-  if (pct >= 65) return 2.0;
-  return 1.5;
-}
 
 type EnrollmentRow = {
   id: string;
@@ -347,9 +343,9 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
     completedHours += eq.credit_hours ?? coursesById.get(eq.course_id)?.credit_hours ?? 0;
   }
 
-  // GPAs
-  const gpaPoints = (filter: (a: Attempt) => boolean) => {
-    let pts = 0, hrs = 0;
+  // Official credit-weighted averages (percentage scale — NOT a GPA).
+  const officialAverage = (filter: (a: Attempt) => boolean) => {
+    const items: Array<{ raw: number | null; creditHours: number }> = [];
     for (const [cid, list] of attemptsByCourse) {
       const ch = coursesById.get(cid)?.credit_hours ?? 0;
       if (!ch) continue;
@@ -358,15 +354,12 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
         if (!acc) return a;
         return (a.pct > (acc.pct ?? -1)) ? a : acc;
       }, null);
-      if (chosen?.pct != null) {
-        pts += pctToGpa(chosen.pct) * ch;
-        hrs += ch;
-      }
+      if (chosen?.pct != null) items.push({ raw: chosen.pct, creditHours: ch });
     }
-    return hrs > 0 ? Math.round((pts / hrs) * 100) / 100 : 0;
+    return officialWeightedAverage(items);
   };
-  const cumulativeGpa = gpaPoints(() => true);
-  const currentGpa = gpaPoints((a) => a.isCurrent);
+  const cumulativeAverage = officialAverage(() => true);
+  const currentAverage = officialAverage((a) => a.isCurrent);
 
   // Eligibility — missing required/electives
   const missingRequired: StudentProgressDTO["eligibility"]["missing_required_courses"] = [];
@@ -383,8 +376,8 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
 
   const warnings: string[] = [];
   const missingGradReqs: string[] = [];
-  if (cumulativeGpa < WARNING_GPA && completedHours > 0) {
-    missingGradReqs.push(`المعدل التراكمي أقل من الحد الأدنى (${WARNING_GPA.toFixed(2)})`);
+  if (cumulativeAverage > 0 && cumulativeAverage < PASS_PERCENT && completedHours > 0) {
+    missingGradReqs.push(`النتيجة التراكمية أقل من درجة النجاح (${PASS_PERCENT}%)`);
   }
   if (missingHours > 0) missingGradReqs.push(`متبقي ${missingHours} ساعة دراسية`);
   if (missingRequired.length > 0) missingGradReqs.push(`${missingRequired.length} مقررات إجبارية لم تُجتَز`);
@@ -398,20 +391,21 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
     sas?.enrollment_status !== "suspended" &&
     completedHours >= totalPlanHours && totalPlanHours > 0 &&
     missingRequired.length === 0 &&
-    cumulativeGpa >= WARNING_GPA;
+    cumulativeAverage >= PASS_PERCENT;
 
-  // Standing
+  // Standing — derived from the official percentage scale (no GPA).
   let standing: Standing = "good_standing";
-  let reason = "المعدل ضمن النطاق الجيد";
+  let reason = "النتيجة التراكمية ضمن النطاق الجيد";
   if (sp.status === "graduated") { standing = "graduated"; reason = "الطالب متخرج"; }
   else if (sas?.enrollment_status === "suspended" || sp.status === "suspended") {
     standing = "suspended"; reason = "القيد موقوف";
-  } else if (cumulativeGpa > 0 && cumulativeGpa < PROBATION_GPA) {
-    standing = "probation"; reason = `المعدل التراكمي ${cumulativeGpa.toFixed(2)} أقل من ${PROBATION_GPA.toFixed(2)}`;
-  } else if (cumulativeGpa > 0 && cumulativeGpa < WARNING_GPA) {
-    standing = "probation"; reason = `المعدل التراكمي ${cumulativeGpa.toFixed(2)} يضع الطالب في تحت المراقبة الأكاديمية`;
-  } else if (cumulativeGpa > 0 && cumulativeGpa < GOOD_GPA) {
-    standing = "warning"; reason = `المعدل التراكمي ${cumulativeGpa.toFixed(2)} يتطلب تحسيناً`;
+  } else if (cumulativeAverage > 0 && cumulativeAverage < STANDING_PROBATION_BELOW) {
+    standing = "probation";
+    reason = `النتيجة التراكمية ${cumulativeAverage}% أقل من درجة النجاح ${STANDING_PROBATION_BELOW}%`;
+  } else if (failedCourses >= 3) {
+    standing = "probation"; reason = `عدد المقررات الراسبة ${failedCourses} يضع الطالب تحت المراقبة الأكاديمية`;
+  } else if (cumulativeAverage > 0 && cumulativeAverage < STANDING_WARNING_BELOW) {
+    standing = "warning"; reason = `النتيجة التراكمية ${cumulativeAverage}% تتطلب تحسيناً`;
   }
 
   // Audit course view (per-course list = plan ∪ taken ∪ equivalency)
@@ -445,6 +439,8 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
       level: pc?.level_name ?? null,
       status,
       best_percentage: best != null ? Math.round(best * 10) / 10 : null,
+      official_result: normalizeOfficialResult(best),
+      grade_label: gradeArabicLabel(best),
       attempts: attempts.length,
     });
   }
@@ -476,8 +472,8 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
       failed_courses: failedCourses,
       repeated_courses: repeatedCourses,
       in_progress_courses: inProgressCourses,
-      current_gpa: currentGpa,
-      cumulative_gpa: cumulativeGpa,
+      current_official_average: currentAverage,
+      cumulative_official_average: cumulativeAverage,
     },
     eligibility: {
       eligible,
@@ -589,7 +585,7 @@ export const getAtRiskStudents = createServerFn({ method: "POST" })
     const rows = await bulkCompute(data);
     const filtered = rows
       .filter(({ summary: x }) =>
-        x.progress.cumulative_gpa > 0 && x.progress.cumulative_gpa < WARNING_GPA
+        x.progress.cumulative_official_average > 0 && x.progress.cumulative_official_average < STANDING_WARNING_BELOW
         || x.progress.failed_courses >= 2
         || x.progress.repeated_courses >= 2
         || x.standing.standing === "probation"
@@ -611,7 +607,7 @@ export const getGraduationCandidates = createServerFn({ method: "POST" })
       .filter((x) =>
         x.progress.total_plan_hours > 0 &&
         (x.eligibility.eligible
-         || (x.progress.completion_percentage >= NEAR_COMPLETION_PCT && x.eligibility.missing_required_courses.length <= 2 && x.progress.cumulative_gpa >= WARNING_GPA))
+         || (x.progress.completion_percentage >= NEAR_COMPLETION_PCT && x.eligibility.missing_required_courses.length <= 2 && x.progress.cumulative_official_average >= PASS_PERCENT))
       )
       .sort((a, b) => b.progress.completion_percentage - a.progress.completion_percentage);
     await audit("graduation_candidates_viewed", `count=${candidates.length}`);
@@ -624,16 +620,16 @@ export const getProgressDashboardKpis = createServerFn({ method: "POST" })
     if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
     const rows = await bulkCompute({ limit: 500 });
     const summaries = rows.map((r) => r.summary);
-    const withGpa = summaries.filter((s) => s.progress.cumulative_gpa > 0);
-    const avgGpa = withGpa.length
-      ? Math.round((withGpa.reduce((a, s) => a + s.progress.cumulative_gpa, 0) / withGpa.length) * 100) / 100
+    const withResults = summaries.filter((s) => s.progress.cumulative_official_average > 0);
+    const avgOfficialPercentage = withResults.length
+      ? Math.round((withResults.reduce((a, s) => a + s.progress.cumulative_official_average, 0) / withResults.length) * 10) / 10
       : 0;
     const atRisk = summaries.filter((s) =>
-      s.progress.cumulative_gpa > 0 && s.progress.cumulative_gpa < WARNING_GPA
+      s.progress.cumulative_official_average > 0 && s.progress.cumulative_official_average < STANDING_WARNING_BELOW
       || s.standing.standing === "probation" || s.standing.standing === "warning").length;
     const grads = summaries.filter((s) => s.eligibility.eligible).length;
     const near = summaries.filter((s) => s.progress.completion_percentage >= NEAR_COMPLETION_PCT).length;
-    return { avgGpa, atRisk, gradCandidates: grads, nearCompletion: near, sampled: summaries.length };
+    return { avgOfficialPercentage, atRisk, gradCandidates: grads, nearCompletion: near, sampled: summaries.length };
   });
 
 /**
@@ -650,11 +646,11 @@ export const getAdminProgressKpisFast = createServerFn({ method: "POST" })
     const { data, error } = await context.supabase.rpc("get_admin_progress_kpis" as never, { _limit: 500 } as never);
     if (error) throw new Error(error.message);
     const k = (data ?? {}) as {
-      avgGpa?: number; atRisk?: number; gradCandidates?: number;
+      avgOfficialPercentage?: number; atRisk?: number; gradCandidates?: number;
       nearCompletion?: number; sampled?: number;
     };
     return {
-      avgGpa: Number(k.avgGpa ?? 0),
+      avgOfficialPercentage: Number(k.avgOfficialPercentage ?? 0),
       atRisk: Number(k.atRisk ?? 0),
       gradCandidates: Number(k.gradCandidates ?? 0),
       nearCompletion: Number(k.nearCompletion ?? 0),

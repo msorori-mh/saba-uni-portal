@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { portalFeatures } from "@/lib/portal-features";
 import { useStudentLogout } from "@/lib/use-student-logout";
+import { gradeArabicLabel, normalizeOfficialResult } from "@/lib/academic/grading-scale";
 import {
   resolveCanonicalCurrentFourthLevelEligibility,
   shouldShowStudentGpNav,
@@ -862,7 +863,10 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
                   {r.total}/{r.totalMax}
                 </span>
                 <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-                  {r.percentage}%
+                  {normalizeOfficialResult(r.percentage) ?? 0}%
+                </span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-bold">
+                  {gradeArabicLabel(r.percentage) ?? "—"}
                 </span>
               </div>
               <div className="mt-2 grid gap-1 sm:grid-cols-2">

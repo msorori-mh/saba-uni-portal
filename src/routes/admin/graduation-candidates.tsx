@@ -44,7 +44,7 @@ function GraduationCandidatesPage() {
       "ساعات مكتسبة": s.progress.completed_hours,
       "إجمالي الخطة": s.progress.total_plan_hours,
       "نسبة الإنجاز": `${s.progress.completion_percentage}%`,
-      "المعدل التراكمي": s.progress.cumulative_gpa.toFixed(2),
+      "النتيجة التراكمية %": s.progress.cumulative_official_average.toFixed(1),
       "إجباري ناقص": s.eligibility.missing_required_courses.length,
       "ساعات متبقية": s.eligibility.missing_hours,
       "مؤهل": s.eligibility.eligible ? "نعم" : "لا",
@@ -93,7 +93,7 @@ function GraduationCandidatesPage() {
                   <th className="px-2 py-2 text-right">البرنامج</th>
                   <th className="px-2 py-2 text-center">إنجاز %</th>
                   <th className="px-2 py-2 text-center">ساعات</th>
-                  <th className="px-2 py-2 text-center">المعدل</th>
+                  <th className="px-2 py-2 text-center">النتيجة %</th>
                   <th className="px-2 py-2 text-center">إجباري ناقص</th>
                   <th className="px-2 py-2 text-center">مؤهل</th>
                   <th className="px-2 py-2"></th>
@@ -107,7 +107,7 @@ function GraduationCandidatesPage() {
                     <td className="px-2 py-2">{s.student.program ?? "—"}</td>
                     <td className="px-2 py-2 text-center font-bold">{s.progress.completion_percentage}%</td>
                     <td className="px-2 py-2 text-center">{s.progress.completed_hours}/{s.progress.total_plan_hours}</td>
-                    <td className="px-2 py-2 text-center">{s.progress.cumulative_gpa.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-center">{s.progress.cumulative_official_average.toFixed(1)}%</td>
                     <td className="px-2 py-2 text-center">{s.eligibility.missing_required_courses.length}</td>
                     <td className="px-2 py-2 text-center">
                       {s.eligibility.eligible

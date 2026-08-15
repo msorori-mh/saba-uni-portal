@@ -15,6 +15,8 @@ import {
   resolveReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
 import { isCoursePassed } from "@/lib/academic/pass-threshold";
+import { normalizeOfficialResult } from "@/lib/academic/grading-scale";
+import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
 
 
 /** University-wide unscoped aggregate dumps — admin family only (no silent dean/dept widen). */
@@ -201,7 +203,7 @@ async function fetchPerformanceReport() {
     const key = r.course_id ?? r.course_code;
     const cur = perCourse.get(key) ?? { code: r.course_code, name: r.course_name, total: 0, pass: 0, sum: 0 };
     cur.total += 1;
-    cur.sum += Number(r.percentage ?? 0);
+    cur.sum += normalizeOfficialResult(Number(r.percentage ?? 0)) ?? 0;
     if (isCoursePassed(Number(r.percentage ?? 0))) cur.pass += 1;
     perCourse.set(key, cur);
   }
@@ -217,7 +219,7 @@ async function fetchPerformanceReport() {
   for (const r of rows) {
     const k = r.student_profile_id;
     const cur = perStudent.get(k) ?? { academic_number: r.academic_number, student_name: r.student_name, sum: 0, count: 0 };
-    cur.sum += Number(r.percentage ?? 0);
+    cur.sum += normalizeOfficialResult(Number(r.percentage ?? 0)) ?? 0;
     cur.count += 1;
     perStudent.set(k, cur);
   }
@@ -231,7 +233,7 @@ async function fetchPerformanceReport() {
     .sort((a, b) => b.average - a.average)
     .slice(0, 50)
     .map((s) => ({ ...s, status: "Ù…ØªÙÙˆÙ‚" }));
-  const atRisk = studentRows.filter((s) => s.average < 60)
+  const atRisk = studentRows.filter((s) => s.average < COURSE_PASS_PERCENT)
     .sort((a, b) => a.average - b.average)
     .slice(0, 50)
     .map((s) => ({ ...s, status: "Ù…ØªØ¹Ø«Ø±" }));

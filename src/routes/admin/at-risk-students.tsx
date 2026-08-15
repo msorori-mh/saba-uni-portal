@@ -41,7 +41,7 @@ function AtRiskStudentsPage() {
       "البرنامج": s.student.program ?? "—",
       "المستوى": s.student.level ?? "—",
       "نسبة الإنجاز": `${s.progress.completion_percentage}%`,
-      "المعدل التراكمي": s.progress.cumulative_gpa.toFixed(2),
+      "النتيجة التراكمية %": s.progress.cumulative_official_average.toFixed(1),
       "رسوب": s.progress.failed_courses,
       "إعادة": s.progress.repeated_courses,
       "الحالة": standingLabel(s.standing.standing),
@@ -93,7 +93,7 @@ function AtRiskStudentsPage() {
                   <th className="px-2 py-2 text-right">البرنامج</th>
                   <th className="px-2 py-2 text-center">المستوى</th>
                   <th className="px-2 py-2 text-center">إنجاز %</th>
-                  <th className="px-2 py-2 text-center">المعدل</th>
+                  <th className="px-2 py-2 text-center">النتيجة %</th>
                   <th className="px-2 py-2 text-center">رسوب</th>
                   <th className="px-2 py-2 text-center">إعادة</th>
                   <th className="px-2 py-2 text-center">الحالة</th>
@@ -108,7 +108,7 @@ function AtRiskStudentsPage() {
                     <td className="px-2 py-2">{s.student.program ?? "—"}</td>
                     <td className="px-2 py-2 text-center">{s.student.level ?? "—"}</td>
                     <td className="px-2 py-2 text-center">{s.progress.completion_percentage}%</td>
-                    <td className="px-2 py-2 text-center font-bold text-red-700">{s.progress.cumulative_gpa.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-center font-bold text-red-700">{s.progress.cumulative_official_average.toFixed(1)}%</td>
                     <td className="px-2 py-2 text-center">{s.progress.failed_courses}</td>
                     <td className="px-2 py-2 text-center">{s.progress.repeated_courses}</td>
                     <td className="px-2 py-2 text-center text-xs">{standingLabel(s.standing.standing)}</td>
