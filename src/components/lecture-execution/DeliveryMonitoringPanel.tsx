@@ -88,10 +88,17 @@ export function DeliveryMonitoringPanel() {
             {MONITORING_PERIOD_LABELS[p]}
           </button>
         ))}
-        <span className="ms-auto text-xs text-muted-foreground">
+        <Link
+          to="/faculty-portal/lecture-monitoring/parity"
+          className="ms-auto rounded-lg border border-border px-3 py-1 text-sm font-bold text-primary hover:bg-muted"
+        >
+          مطابقة القيم مع تفاصيل المقرر
+        </Link>
+        <span className="text-xs text-muted-foreground">
           النطاق: {data.scope === "department" ? "القسم" : "الكلية"}
         </span>
       </div>
+
 
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         {[
