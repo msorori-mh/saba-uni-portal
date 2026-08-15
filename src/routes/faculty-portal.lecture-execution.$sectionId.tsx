@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import {
   getSectionDeliveryPlan,
   recordSessionExecution,
-  clearSessionExecution,
   LECTURE_EXECUTION_STATUSES,
   LECTURE_STATUS_LABELS,
   SECTION_STUDY_SYSTEM_LABELS,
@@ -70,8 +69,10 @@ function FacultyLectureExecutionSection() {
 
   const sessions = useMemo<DeliveryPlanSession[]>(() => data?.sessions ?? [], [data]);
   const current = sessions.find((s) => s.session_number === selected) ?? null;
-  const executed = sessions.filter(
-    (s) => s.status === "executed" || s.status === "compensated",
+  const executed = sessions.filter((s) => s.status === "executed").length;
+  const compensated = sessions.filter((s) => s.status === "compensated").length;
+  const postponed = sessions.filter(
+    (s) => s.status === "postponed" || s.status === "hindered" || s.status === "cancelled",
   ).length;
   const studySystem = data?.course?.study_system;
 
@@ -169,7 +170,8 @@ function FacultyLectureExecutionSection() {
                   <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <h2 className="font-bold text-primary">تسجيل التنفيذ</h2>
                     <span className="text-xs text-muted-foreground">
-                      المنفذ {executed} من {data.plan.planned_session_count}
+                      المنفذ {executed} • المعوّض {compensated} • غير المنفذ {postponed} — من{" "}
+                      {data.plan.planned_session_count} محاضرة مخططة
                     </span>
                   </header>
                   <div className="flex flex-wrap gap-2">
@@ -243,23 +245,73 @@ function ExecutionForm({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const clear = useMutation({
-    mutationFn: () => clearSessionExecution({ data: { planSessionId: session.plan_session_id } }),
-    onSuccess: () => {
-      toast.success("تم مسح التسجيل");
-      onSaved();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const needsReason = REASON_REQUIRED.includes(status);
   const needsExecutionDate = status === "executed" || status === "compensated";
 
+  const isFinalRecorded = session.status === "executed" || session.status === "compensated";
+  const isMissedRecorded =
+    session.status === "postponed" ||
+    session.status === "hindered" ||
+    session.status === "cancelled";
+  const [compensationMode, setCompensationMode] = useState(false);
+
+  const header = (
+    <div className="text-sm font-bold text-primary">
+      المحاضرة {session.session_number} — {session.planned_title}
+    </div>
+  );
+
+  if (isFinalRecorded || (isMissedRecorded && !compensationMode)) {
+    return (
+      <div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
+        {header}
+        <p className="text-sm font-medium text-primary">
+          {session.status === "executed"
+            ? "تم تسجيل تنفيذ هذه المحاضرة، ولا يمكن تعديل السجل."
+            : session.status === "compensated"
+              ? "تم تسجيل تعويض هذه المحاضرة، ولا يمكن تعديل السجل."
+              : `تم تسجيل الحالة: ${LECTURE_STATUS_LABELS[session.status as LectureExecutionStatus]} — السجل نهائي ولا يمكن تعديله.`}
+        </p>
+        <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+          {session.execution_date && (
+            <div>
+              <dt className="inline">تاريخ التنفيذ: </dt>
+              <dd className="inline font-medium text-foreground">{session.execution_date}</dd>
+            </div>
+          )}
+          {session.compensation_date && (
+            <div>
+              <dt className="inline">تاريخ التعويض: </dt>
+              <dd className="inline font-medium text-foreground">{session.compensation_date}</dd>
+            </div>
+          )}
+          {session.reason && (
+            <div className="sm:col-span-2">
+              <dt className="inline">السبب: </dt>
+              <dd className="inline font-medium text-foreground">{session.reason}</dd>
+            </div>
+          )}
+        </dl>
+        {isMissedRecorded && (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setStatus("compensated");
+              setCompensationMode(true);
+            }}
+          >
+            تسجيل محاضرة تعويضية
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
-      <div className="text-sm font-bold text-primary">
-        المحاضرة {session.session_number} — {session.planned_title}
-      </div>
+      {header}
+
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -270,9 +322,13 @@ function ExecutionForm({
             id="status"
             value={status}
             onChange={(e) => setStatus(e.target.value as LectureExecutionStatus)}
-            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            disabled={compensationMode}
+            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-70"
           >
-            {LECTURE_EXECUTION_STATUSES.map((s) => (
+            {(compensationMode
+              ? (["compensated"] as LectureExecutionStatus[])
+              : LECTURE_EXECUTION_STATUSES
+            ).map((s) => (
               <option key={s} value={s}>
                 {LECTURE_STATUS_LABELS[s]}
               </option>
@@ -337,11 +393,11 @@ function ExecutionForm({
           ) : (
             <Save className="h-4 w-4" />
           )}
-          حفظ التسجيل
+          {compensationMode ? "حفظ التعويض" : "حفظ التسجيل"}
         </Button>
-        {session.status !== "not_recorded" && (
-          <Button variant="ghost" onClick={() => clear.mutate()} disabled={clear.isPending}>
-            مسح التسجيل
+        {compensationMode && (
+          <Button variant="ghost" onClick={() => setCompensationMode(false)}>
+            إلغاء
           </Button>
         )}
       </div>

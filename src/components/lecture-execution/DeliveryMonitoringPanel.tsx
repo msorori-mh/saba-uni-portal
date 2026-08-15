@@ -18,6 +18,7 @@ import {
   PLAN_STATUS_LABELS,
   RISK_LABELS,
   type MonitoringPeriod,
+  type MonitoringRow,
 } from "@/lib/lecture-execution.functions";
 
 const RISK_STYLES: Record<string, string> = {
@@ -64,7 +65,11 @@ export function DeliveryMonitoringPanel() {
   const data = q.data;
   if (!data) return null;
   const t = data.totals;
-  const atRisk = data.rows.filter((r) => r.risk_level === "high" || r.risk_level === "medium");
+  const plannedRows = data.rows.filter((r) => r.plan_status === "published");
+  const awaitingRows = data.rows.filter((r) => r.plan_status !== "published");
+  const atRisk = plannedRows.filter(
+    (r) => r.risk_level === "high" || r.risk_level === "medium",
+  );
 
   return (
     <div className="space-y-4">
@@ -92,8 +97,8 @@ export function DeliveryMonitoringPanel() {
         {[
           ["المجموعات", t.sections],
           ["المخطط", t.planned],
-          ["المنفذ", t.executed],
-          ["المعوّض", t.compensated],
+          ["المنفذ (شامل التعويض)", t.executed],
+          ["منها معوّض", t.compensated],
           ["المؤجل", t.postponed],
           ["الملغى", t.cancelled],
           ["المتعذر", t.hindered],
@@ -146,59 +151,102 @@ export function DeliveryMonitoringPanel() {
         )}
       </section>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>المقرر</TableHead>
-              <TableHead>المجموعة</TableHead>
-              <TableHead>القسم</TableHead>
-              <TableHead>عضو هيئة التدريس</TableHead>
-              <TableHead>الخطة</TableHead>
-              <TableHead>المخطط</TableHead>
-              <TableHead>المنفذ</TableHead>
-              <TableHead>المتبقي</TableHead>
-              <TableHead>غير المنفذ</TableHead>
-              <TableHead>غير المعوّض</TableHead>
-              <TableHead>نسبة التنفيذ</TableHead>
-              <TableHead>المخاطر</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.rows.map((r) => (
-              <TableRow key={r.course_section_id}>
-                <TableCell className="whitespace-nowrap">
-                  <span className="font-mono text-xs">{r.course_code}</span> — {r.course_name_ar}
-                </TableCell>
-                <TableCell>{r.section_code}</TableCell>
-                <TableCell>{r.department_name_ar ?? "—"}</TableCell>
-                <TableCell>{r.faculty_name || "—"}</TableCell>
-                <TableCell>{PLAN_STATUS_LABELS[r.plan_status] ?? r.plan_status}</TableCell>
-                <TableCell>{r.planned_count}</TableCell>
-                <TableCell>{r.executed_count}</TableCell>
-                <TableCell>{r.remaining_count}</TableCell>
-                <TableCell>{r.not_executed_count}</TableCell>
-                <TableCell>{r.uncompensated_count}</TableCell>
-                <TableCell className="font-bold">
-                  {r.execution_percent === null ? "—" : `${r.execution_percent}%`}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={cn("rounded px-2 py-0.5 text-xs", RISK_STYLES[r.risk_level])}
-                  >
-                    {RISK_LABELS[r.risk_level]}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <section className="space-y-2">
+        <h2 className="font-display text-base font-extrabold text-primary">
+          مجموعات لديها خطة معتمدة ({plannedRows.length})
+        </h2>
+        {plannedRows.length === 0 ? (
+          <p className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">
+            لا توجد خطط محاضرات معتمدة في هذا النطاق حتى الآن.
+          </p>
+        ) : (
+          <MonitoringTable rows={plannedRows} />
+        )}
+      </section>
+
+      {awaitingRows.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-display text-base font-extrabold text-primary">
+            مجموعات بانتظار اعتماد الخطة ({awaitingRows.length})
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            لم تُعتمد خطة محاضرات لهذه المجموعات، لذلك لا تُحتسب ضمن نسب التنفيذ.
+          </p>
+          <MonitoringTable rows={awaitingRows} compact />
+        </section>
+      )}
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <CalendarCheck className="h-3 w-3" aria-hidden /> المصدر: خطط المحاضرات وسجلات التنفيذ التي
         يعتمدها عضو هيئة التدريس المسند للمجموعة.
       </p>
+    </div>
+  );
+}
+
+function MonitoringTable({
+  rows,
+  compact = false,
+}: {
+  rows: MonitoringRow[];
+  compact?: boolean;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>المقرر</TableHead>
+            <TableHead>المجموعة</TableHead>
+            <TableHead>القسم</TableHead>
+            <TableHead>عضو هيئة التدريس</TableHead>
+            <TableHead>الخطة</TableHead>
+            {!compact && (
+              <>
+                <TableHead>المخطط</TableHead>
+                <TableHead>المنفذ (شامل التعويض)</TableHead>
+                <TableHead>منها معوّض</TableHead>
+                <TableHead>المؤجل</TableHead>
+                <TableHead>المتبقي</TableHead>
+                <TableHead>غير المعوّض</TableHead>
+                <TableHead>نسبة التنفيذ</TableHead>
+                <TableHead>المخاطر</TableHead>
+              </>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.course_section_id}>
+              <TableCell className="whitespace-nowrap">
+                <span className="font-mono text-xs">{r.course_code}</span> — {r.course_name_ar}
+              </TableCell>
+              <TableCell>{r.section_code}</TableCell>
+              <TableCell>{r.department_name_ar ?? "—"}</TableCell>
+              <TableCell>{r.faculty_name || "—"}</TableCell>
+              <TableCell>{PLAN_STATUS_LABELS[r.plan_status] ?? r.plan_status}</TableCell>
+              {!compact && (
+                <>
+                  <TableCell>{r.planned_count}</TableCell>
+                  <TableCell>{r.executed_count}</TableCell>
+                  <TableCell>{r.compensated_count}</TableCell>
+                  <TableCell>{r.postponed_count}</TableCell>
+                  <TableCell>{r.remaining_count}</TableCell>
+                  <TableCell>{r.uncompensated_count}</TableCell>
+                  <TableCell className="font-bold">
+                    {r.execution_percent === null ? "—" : `${r.execution_percent}%`}
+                  </TableCell>
+                  <TableCell>
+                    <span className={cn("rounded px-2 py-0.5 text-xs", RISK_STYLES[r.risk_level])}>
+                      {RISK_LABELS[r.risk_level]}
+                    </span>
+                  </TableCell>
+                </>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
