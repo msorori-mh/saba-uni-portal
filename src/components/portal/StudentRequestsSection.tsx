@@ -490,7 +490,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     <div id="student-requests" className="mt-6">
       <div className="flex items-center justify-between mb-3 gap-2">
         <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
-          <FileWarning className="h-4 w-4 text-gold" /> الطلبات الطلابية
+          <FileWarning className="h-4 w-4 text-gold" /> الخدمات الطلابية
         </h2>
       </div>
 
