@@ -270,7 +270,7 @@ export function CouncilAgendaDialog({
 
   const approvedCount = agendaItems.filter((item) => item.is_approved).length;
   const allApproved = agendaItems.length > 0 && approvedCount === agendaItems.length;
-  const agendaReady = meeting?.status === "agenda_ready";
+  const agendaReady = agendaFrozen;
   const buildSteps = [
     { label: "إضافة بنود/موضوعات إلى الجدول", done: agendaItems.length > 0 },
     { label: "ترتيب البنود بالتسلسل المطلوب", done: agendaItems.length > 0 },
