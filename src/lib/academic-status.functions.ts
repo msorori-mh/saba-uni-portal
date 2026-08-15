@@ -15,10 +15,9 @@ import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
  * ----------------------------------------------------------------------- */
 
 // Approved university policy: course pass mark = 48/100 (canonical constant).
+// NO GPA / 4.0 SCALE EXISTS. Aggregates use the credit-weighted OFFICIAL
+// percentage defined in @/lib/academic/grading-scale.
 const PASS_PERCENT = COURSE_PASS_PERCENT;
-const PROBATION_GPA = 1.0;
-const WARNING_GPA = 2.0;
-const GOOD_GPA = 2.5;
 const NEAR_COMPLETION_PCT = 80;
 
 type Standing =
