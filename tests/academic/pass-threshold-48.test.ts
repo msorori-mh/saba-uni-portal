@@ -71,7 +71,9 @@ describe("SQL duplication sites are pinned to 48", () => {
   });
 
   it("P1-05 corrects every backend duplication of the old pass mark", () => {
-    const sql = read("docs/migration-drafts/p1/P1-05-PASS-THRESHOLD-48.sql");
+    const raw = read("docs/migration-drafts/p1/P1-05-PASS-THRESHOLD-48.sql");
+    const sql = raw.split("\n").filter((l) => !l.trimStart().startsWith("--")).join("\n");
+    expect(raw).toContain("COURSE_PASS_MARK = 48 / 100");
     expect(sql).toContain("get_admin_dashboard_kpis");
     expect(sql).toContain("get_admin_progress_kpis");
     expect(sql).toContain("student_unofficial_transcript");
