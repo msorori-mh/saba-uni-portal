@@ -19,6 +19,8 @@
 --   90 <= official <= 100   -> "ممتاز"
 -- All grade-point mappings are REMOVED. Aggregates use the credit-weighted
 -- OFFICIAL PERCENTAGE (avgOfficialPercentage), which is not a GPA.
+-- NOTE: new view columns (official_result, grade_label) are APPENDED at the end
+-- of the select list so CREATE OR REPLACE VIEW stays legal.
 -- Forward-only, idempotent (CREATE OR REPLACE only). No data mutation.
 -- ---------------------------------------------------------------------------
 
@@ -387,10 +389,10 @@ CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_to
     enrollment_rows.max_score,
     enrollment_rows.percentage,
     enrollment_rows.course_status,
-    enrollment_rows.official_result,
-    enrollment_rows.grade_label,
     enrollment_rows.enrollment_status,
-    enrollment_rows.notes
+    enrollment_rows.notes,
+    enrollment_rows.official_result,
+    enrollment_rows.grade_label
    FROM enrollment_rows
 UNION ALL
  SELECT equivalency_rows.enrollment_id,
@@ -419,9 +421,9 @@ UNION ALL
     equivalency_rows.max_score,
     equivalency_rows.percentage,
     equivalency_rows.course_status,
-    equivalency_rows.official_result,
-    equivalency_rows.grade_label,
     equivalency_rows.enrollment_status,
-    equivalency_rows.notes
+    equivalency_rows.notes,
+    equivalency_rows.official_result,
+    equivalency_rows.grade_label
    FROM equivalency_rows;
 
