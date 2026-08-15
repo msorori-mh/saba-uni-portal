@@ -34,7 +34,7 @@ export function RoleScopedReportSections({
             {section.items.map(({ entry, route }) => (
               <li key={entry.report_code}>
                 <Link
-                  to={route}
+                  to={route as never}
                   className="flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary"
                 >
                   <span className="flex items-center justify-between gap-2">
