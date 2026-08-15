@@ -332,9 +332,13 @@ function ExecutionForm({
             id="status"
             value={status}
             onChange={(e) => setStatus(e.target.value as LectureExecutionStatus)}
-            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            disabled={compensationMode}
+            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-70"
           >
-            {LECTURE_EXECUTION_STATUSES.map((s) => (
+            {(compensationMode
+              ? (["compensated"] as LectureExecutionStatus[])
+              : LECTURE_EXECUTION_STATUSES
+            ).map((s) => (
               <option key={s} value={s}>
                 {LECTURE_STATUS_LABELS[s]}
               </option>
@@ -399,11 +403,11 @@ function ExecutionForm({
           ) : (
             <Save className="h-4 w-4" />
           )}
-          حفظ التسجيل
+          {compensationMode ? "حفظ التعويض" : "حفظ التسجيل"}
         </Button>
-        {session.status !== "not_recorded" && (
-          <Button variant="ghost" onClick={() => clear.mutate()} disabled={clear.isPending}>
-            مسح التسجيل
+        {compensationMode && (
+          <Button variant="ghost" onClick={() => setCompensationMode(false)}>
+            إلغاء
           </Button>
         )}
       </div>
