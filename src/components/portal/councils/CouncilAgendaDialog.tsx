@@ -301,7 +301,19 @@ export function CouncilAgendaDialog({
                 {meetingStatusLabel(meeting.status)}
               </p>
             </div>
-            {!canWrite ? <ErrorBlock message={AGENDA_WRITE_DENIED_UI} /> : null}
+            {!hasWriteRole ? <ErrorBlock message={AGENDA_WRITE_DENIED_UI} /> : null}
+            {agendaFrozen ? (
+              <p
+                data-testid="council-agenda-frozen-notice"
+                className="rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+              >
+                {AGENDA_FROZEN_NOTICE_UI}
+              </p>
+            ) : hasWriteRole && isChairHere && !canFinalize ? (
+              <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                {AGENDA_FINALIZE_REQUIRES_INTAKE_CLOSED_UI}
+              </p>
+            ) : null}
             <ol className="space-y-1.5 rounded-lg border border-border p-3 text-xs">
               <li className="text-[11px] font-bold text-primary">خطوات بناء جدول الأعمال</li>
               {buildSteps.map((step, index) => (
