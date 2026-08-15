@@ -32,30 +32,46 @@ FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
 WHERE p.proname LIKE 'p1\_%';
 
--- G03 — pass-threshold drift: the three backend objects P1-05 rewrites.
+-- G03 — pass-threshold drift. NOTE: in production `student_unofficial_transcript`
+-- is a VIEW, the two KPI objects are FUNCTIONS; both kinds are inspected here.
+WITH objs AS (
+  SELECT p.proname AS object_name, 'function' AS object_kind, pg_get_functiondef(p.oid) AS src
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+  WHERE p.proname IN ('get_admin_dashboard_kpis', 'get_admin_progress_kpis')
+  UNION ALL
+  SELECT c.relname, 'view', pg_get_viewdef(c.oid, true)
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+  WHERE c.relkind IN ('v', 'm') AND c.relname = 'student_unofficial_transcript'
+)
 SELECT 'G03_PASS_THRESHOLD_DRIFT' AS gate,
-       p.proname AS object_name,
-       (pg_get_functiondef(p.oid) ~ '\m(60|50)\M\s*(\)|THEN|$)') AS looks_legacy,
-       (pg_get_functiondef(p.oid) LIKE '%48%') AS has_48,
-       CASE WHEN pg_get_functiondef(p.oid) LIKE '%48%' THEN 'ALREADY_48_NO_CHANGE_NEEDED'
+       object_name,
+       object_kind,
+       (src ~ '\m(60|50)\M') AS looks_legacy,
+       (src LIKE '%48%') AS has_48,
+       CASE WHEN src LIKE '%48%' THEN 'ALREADY_48_NO_CHANGE_NEEDED'
             ELSE 'DRIFT_CONFIRMED_P1_05_REQUIRED' END AS verdict
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
-WHERE p.proname IN ('get_admin_dashboard_kpis',
-                    'get_admin_progress_kpis',
-                    'student_unofficial_transcript')
-ORDER BY p.proname;
+FROM objs
+ORDER BY object_name;
 
 -- G03b — fail closed when an expected object is missing entirely.
+WITH objs AS (
+  SELECT p.proname AS object_name
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+  WHERE p.proname IN ('get_admin_dashboard_kpis', 'get_admin_progress_kpis')
+  UNION ALL
+  SELECT c.relname
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+  WHERE c.relkind IN ('v', 'm') AND c.relname = 'student_unofficial_transcript'
+)
 SELECT 'G03B_THRESHOLD_OBJECT_COVERAGE' AS gate,
        count(*) AS found,
        CASE WHEN count(*) = 3 THEN 'PASS_ALL_THREE_PRESENT'
             ELSE 'HOLD_THRESHOLD_OBJECT_MISSING_UNPROVEN' END AS verdict
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
-WHERE p.proname IN ('get_admin_dashboard_kpis',
-                    'get_admin_progress_kpis',
-                    'student_unofficial_transcript');
+FROM objs;
 
 -- G04 — impact preview: approved results sitting in the 48..59.99 band that the
 -- legacy 60 rule mislabels as failed. READ-ONLY count, no rows exposed.
@@ -97,6 +113,16 @@ WHERE rt.code IN ('october_exam_entry_form',
                   'grade_appeal',
                   'department_transfer')
 ORDER BY rt.code;
+
+-- G06b — `grade_appeal` (final result appeal) is created by P1-03 when absent;
+-- its absence here is expected, its presence must already be hidden.
+SELECT 'G06B_FINAL_RESULT_APPEAL_TYPE' AS gate,
+       count(*) AS existing_rows,
+       coalesce(bool_or(student_visible), false) AS any_visible,
+       CASE WHEN count(*) = 0 THEN 'PASS_ABSENT_WILL_BE_SEEDED_HIDDEN'
+            WHEN bool_or(student_visible) THEN 'HOLD_ALREADY_VISIBLE_TO_STUDENTS'
+            ELSE 'PASS_PRESENT_AND_HIDDEN' END AS verdict
+FROM public.request_types WHERE code = 'grade_appeal';
 
 -- G07 — protected production records must exist and stay untouched.
 SELECT 'G07_PROTECTED_RECORDS' AS gate,
