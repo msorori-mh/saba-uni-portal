@@ -1,5 +1,6 @@
 // Phase 9A + 10A: printable official documents with QR + security banner.
 import type { ReactNode } from "react";
+import { gradeArabicLabel, normalizeOfficialResult, officialWeightedAverage } from "@/lib/academic/grading-scale";
 
 export type DocumentBase = {
   id: string;
@@ -194,9 +195,9 @@ export function OfficialTranscript({
   const passedHours = courses
     .filter((c) => c.course_status === "passed")
     .reduce((s, c) => s + Number(c.credit_hours || 0), 0);
-  const avg = courses.length > 0
-    ? Math.round((courses.reduce((s, c) => s + Number(c.percentage || 0), 0) / courses.length) * 100) / 100
-    : 0;
+  const avg = officialWeightedAverage(
+    courses.map((c) => ({ raw: Number(c.percentage || 0), creditHours: Number(c.credit_hours || 0) })),
+  );
   return (
     <article dir="rtl" className="bg-white text-foreground p-4 sm:p-8 print:p-8 max-w-4xl mx-auto print:max-w-none">
       <Header site={site} title={DOC_TYPE_LABEL.official_transcript} />
@@ -215,13 +216,14 @@ export function OfficialTranscript({
             <th className="p-2 border border-border">الرمز</th>
             <th className="p-2 border border-border">المقرر</th>
             <th className="p-2 border border-border">الساعات</th>
-            <th className="p-2 border border-border">النسبة</th>
-            <th className="p-2 border border-border">النتيجة</th>
+            <th className="p-2 border border-border">النتيجة الرسمية</th>
+            <th className="p-2 border border-border">التقدير</th>
+            <th className="p-2 border border-border">الحالة</th>
           </tr>
         </thead>
         <tbody>
           {courses.length === 0 ? (
-            <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">لا توجد مقررات معتمدة.</td></tr>
+            <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">لا توجد مقررات معتمدة.</td></tr>
           ) : courses.map((c, i) => (
             <tr key={i}>
               <td className="p-2 border border-border">{c.academic_year_name}</td>
@@ -229,7 +231,8 @@ export function OfficialTranscript({
               <td className="p-2 border border-border font-mono">{c.course_code}</td>
               <td className="p-2 border border-border">{c.course_name}</td>
               <td className="p-2 border border-border text-center">{c.credit_hours}</td>
-              <td className="p-2 border border-border text-center">{Number(c.percentage).toFixed(2)}%</td>
+              <td className="p-2 border border-border text-center">{(normalizeOfficialResult(Number(c.percentage)) ?? 0).toFixed(1)}%</td>
+              <td className="p-2 border border-border text-center">{gradeArabicLabel(Number(c.percentage)) ?? "—"}</td>
               <td className="p-2 border border-border text-center font-bold">
                 {c.course_status === "passed" ? "ناجح" : "راسب"}
               </td>
