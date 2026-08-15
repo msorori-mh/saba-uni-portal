@@ -64,7 +64,11 @@ export function DeliveryMonitoringPanel() {
   const data = q.data;
   if (!data) return null;
   const t = data.totals;
-  const atRisk = data.rows.filter((r) => r.risk_level === "high" || r.risk_level === "medium");
+  const plannedRows = data.rows.filter((r) => r.plan_status === "published");
+  const awaitingRows = data.rows.filter((r) => r.plan_status !== "published");
+  const atRisk = plannedRows.filter(
+    (r) => r.risk_level === "high" || r.risk_level === "medium",
+  );
 
   return (
     <div className="space-y-4">
