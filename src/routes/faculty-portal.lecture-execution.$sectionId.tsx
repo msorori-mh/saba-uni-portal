@@ -70,8 +70,10 @@ function FacultyLectureExecutionSection() {
 
   const sessions = useMemo<DeliveryPlanSession[]>(() => data?.sessions ?? [], [data]);
   const current = sessions.find((s) => s.session_number === selected) ?? null;
-  const executed = sessions.filter(
-    (s) => s.status === "executed" || s.status === "compensated",
+  const executed = sessions.filter((s) => s.status === "executed").length;
+  const compensated = sessions.filter((s) => s.status === "compensated").length;
+  const postponed = sessions.filter(
+    (s) => s.status === "postponed" || s.status === "hindered" || s.status === "cancelled",
   ).length;
   const studySystem = data?.course?.study_system;
 
