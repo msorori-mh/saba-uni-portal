@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, FileText, Printer, AlertTriangle } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getUnofficialTranscriptData } from "@/lib/transcript.functions";
+import { gradeArabicLabel, normalizeOfficialResult, officialWeightedAverage } from "@/lib/academic/grading-scale";
 
 export type TranscriptRow = {
   enrollment_id: string;
@@ -89,7 +90,8 @@ export function UnofficialTranscript({ studentProfileId, header }: { studentProf
     const passedHours = filtered.filter(r => r.course_status === "passed").reduce((s, r) => s + Number(r.credit_hours), 0);
     const passedCount = filtered.filter(r => r.course_status === "passed").length;
     const failedCount = filtered.filter(r => r.course_status === "failed").length;
-    const avg = filtered.length > 0 ? Math.round((filtered.reduce((s, r) => s + Number(r.percentage), 0) / filtered.length) * 100) / 100 : 0;
+    // Official (normalized) credit-weighted average — percentage scale, not a GPA.
+    const avg = officialWeightedAverage(filtered.map(r => ({ raw: Number(r.percentage), creditHours: Number(r.credit_hours) })));
     return { totalHours, passedHours, passedCount, failedCount, count: filtered.length, avg };
   }, [filtered]);
 
@@ -193,7 +195,7 @@ export function UnofficialTranscript({ studentProfileId, header }: { studentProf
                               <div className="text-[11px] text-muted-foreground">
                                 {semSum.passed_count}/{semSum.courses_count} ناجح •
                                 {" "}{semSum.passed_hours}/{semSum.registered_hours} س.م •
-                                {" "}متوسط {semSum.avg_percentage}%
+                                {" "}متوسط {normalizeOfficialResult(Number(semSum.avg_percentage)) ?? 0}%
                               </div>
                             )}
                           </div>
@@ -205,7 +207,8 @@ export function UnofficialTranscript({ studentProfileId, header }: { studentProf
                                   <Th>المقرر</Th>
                                   <Th className="text-center">س.م</Th>
                                   <Th className="text-center">الدرجة</Th>
-                                  <Th className="text-center">النسبة</Th>
+                                  <Th className="text-center">النتيجة الرسمية</Th>
+                                  <Th className="text-center">التقدير</Th>
                                   <Th className="text-center">الحالة</Th>
                                 </tr>
                               </thead>
@@ -216,7 +219,8 @@ export function UnofficialTranscript({ studentProfileId, header }: { studentProf
                                     <Td>{r.course_name}</Td>
                                     <Td className="text-center">{r.credit_hours}</Td>
                                     <Td className="text-center font-mono">{Number(r.final_score)}/{Number(r.max_score)}</Td>
-                                    <Td className="text-center font-mono">{r.percentage}%</Td>
+                                    <Td className="text-center font-mono">{normalizeOfficialResult(Number(r.percentage)) ?? 0}%</Td>
+                                    <Td className="text-center">{gradeArabicLabel(Number(r.percentage)) ?? "—"}</Td>
                                     <Td className="text-center">
                                       <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${r.course_status === "passed" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
                                         {r.course_status === "passed" ? "ناجح" : "راسب"}
