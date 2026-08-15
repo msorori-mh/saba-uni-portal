@@ -574,6 +574,48 @@ export function CouncilSessionAndGovernanceWorkspace({
 
         </div>
 
+        {/* Minutes lifecycle path: draft (chair+secretary write) → review (secretary submits)
+            → locked (chair approves). Explains the next actor without exposing a premature lock. */}
+        <ol
+          className="flex flex-wrap items-center gap-2 text-[11px]"
+          data-testid="council-minutes-stage-path"
+        >
+          {[
+            { key: "draft", label: "مسودة", actor: "الرئيس/أمين السر: الكتابة والحفظ" },
+            { key: "review", label: "مراجعة", actor: "أمين السر يرسل، ثم يراجع الرئيس" },
+            { key: "locked", label: "معتمد ومقفل", actor: "رئيس المجلس: الاعتماد والقفل" },
+          ].map((stage) => {
+            const active = isMinutesLocked
+              ? stage.key === "locked"
+              : isMinutesReviewStage
+                ? stage.key === "review"
+                : stage.key === "draft";
+            return (
+              <li
+                key={stage.key}
+                className={
+                  active
+                    ? "rounded-md border border-indigo-400/60 bg-indigo-50 px-2 py-1 font-bold text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
+                    : "rounded-md border border-slate-200 px-2 py-1 text-slate-500 dark:border-slate-800"
+                }
+                title={stage.actor}
+              >
+                {stage.label}
+              </li>
+            );
+          })}
+        </ol>
+
+        {isMinutesDraftStage && isChair && !isMinutesLocked ? (
+          <p
+            data-testid="council-minutes-chair-next-actor"
+            className="rounded-md border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200"
+          >
+            المحضر محفوظ كمسودة. الخطوة التالية: بانتظار أمين السر لإرسال المحضر للمراجعة، وبعدها
+            سيظهر لك زر «اعتماد وقفل المحضر».
+          </p>
+        ) : null}
+
         {isMinutesLocked ? (
           <div className="space-y-3">
             <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap font-mono">
