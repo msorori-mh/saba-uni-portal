@@ -1717,6 +1717,7 @@ function CouncilAgendaPanel({
               )}
             </div>
 
+            {canEditAgenda ? (
             <div className="space-y-4">
               <div className="rounded-lg border border-border overflow-hidden">
                 <div className="bg-muted/30 px-3 py-2 text-xs font-bold text-primary border-b border-border">
