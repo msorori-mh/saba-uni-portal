@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.p1_apply_final_result_decision(uuid, numeric, text) FROM anon;
