@@ -1,4 +1,4 @@
 {
   "comment": "Release stamp fallback for build sandboxes without a .git directory. Holds the source commit SHA this release was stamped from. Consumed by vite.config.ts (resolveBuildSha) only when VITE_BUILD_SHA / GITHUB_SHA / CF_PAGES_COMMIT_SHA / git rev-parse are all unavailable. Contains no secrets: a commit SHA is public by design.",
-  "sha": "b277088c7887177a121fe4324d5dc2992efdec47"
+  "sha": "3e47c1c65235f70198a507feb33b825814ab64af"
 }
