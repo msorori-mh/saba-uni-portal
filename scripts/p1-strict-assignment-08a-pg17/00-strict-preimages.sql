@@ -668,3 +668,18 @@ END $$;
 
 -- can_current_user_act_on_step: pre-P1-07 shape is irrelevant here because the
 -- rehearsal applies the P1-07 draft immediately after this file.
+
+CREATE OR REPLACE FUNCTION public.is_valid_actor_request_action(p_action text)
+RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = public AS $$
+  select p_action in (
+    'approve','reject','return','comment','request_attachment',
+    'request_payment','sign','archive','issue_document','complete','skip',
+    'review','clear','apply_decision','confirm_payment'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_b1_stored_request_type(p_request_type text)
+RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = public AS $$
+  SELECT p_request_type IN ('enrollment_suspension','excused_absence','absence_excuse',
+    'department_transfer','transfer','final_chance','extra_chance','file_withdrawal')
+$$;
