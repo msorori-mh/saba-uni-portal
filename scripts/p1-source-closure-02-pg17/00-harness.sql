@@ -155,6 +155,6 @@ FROM (VALUES
 JOIN public.request_processing_units u ON u.code = v.unit_code
 ON CONFLICT (unit_id, code) DO NOTHING;
 
-INSERT INTO public.request_types (code, name_ar, category)
-VALUES ('grade_appeal','التظلم على النتيجة النهائية','academic')
-ON CONFLICT (code) DO NOTHING;
+-- NOTE: request_types intentionally starts EMPTY, mirroring production, which
+-- carries no 'grade_appeal' row. P1-03 must create every type it seeds.
+
