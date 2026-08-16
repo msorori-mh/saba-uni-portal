@@ -19,11 +19,16 @@ WHERE u.code = 'department'
 ON CONFLICT (unit_id, code) DO NOTHING;
 
 -- Request types must exist and be active (visibility untouched).
+-- grade_appeal is the canonical FORMAL FINAL RESULT appeal type
+-- (src/lib/student-requests/p1/final-result-appeal.ts). Production may not carry
+-- the row yet, so it is created here inactive-to-students (student_visible=false).
 INSERT INTO public.request_types (code, name_ar, category, is_active, student_visible, request_audience)
 VALUES
   ('october_exam_entry_form', 'استمارة دخول دور أكتوبر', 'academic', true, false, 'active_student'),
-  ('replacement_student_card', 'بطاقة طالب بدل فاقد', 'student_services', true, false, 'active_student')
+  ('replacement_student_card', 'بطاقة طالب بدل فاقد', 'student_services', true, false, 'active_student'),
+  ('grade_appeal', 'التظلم على النتيجة النهائية', 'academic', true, false, 'active_student')
 ON CONFLICT (code) DO UPDATE SET is_active = true;
+
 
 CREATE OR REPLACE FUNCTION public.p1_seed_workflow(
   p_type_code text,
