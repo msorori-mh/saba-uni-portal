@@ -79,7 +79,12 @@ type RpcClient = {
   ) => Promise<{ data: unknown; error: RpcErrorLike | null }>;
 };
 
-/** Future atomic submit capability; false until a reviewed migration is applied. */
+/**
+ * Atomic P1 submit capability (`submit_student_request_with_details`).
+ * Ships with the P1-06 forward-only migration draft; stays `false` until that
+ * migration is applied under a controlled production window. Source never
+ * enables a runtime path whose backend contract is not live.
+ */
 export const STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE = false as const;
 
 export type AtomicStudentRequestSubmitCapability = {
@@ -97,6 +102,58 @@ export const ATOMIC_STUDENT_REQUEST_SUBMIT_CAPABILITY: AtomicStudentRequestSubmi
   supportsResubmit: true,
   available: STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE,
 };
+
+/** Services served exclusively by the atomic submit RPC (never generic create). */
+export const P1_ATOMIC_SUBMIT_SERVICES = [
+  "october_exam_entry_form",
+  "replacement_student_card",
+  "grade_appeal",
+] as const;
+
+export type P1AtomicSubmitService = (typeof P1_ATOMIC_SUBMIT_SERVICES)[number];
+
+export function isP1AtomicSubmitService(code: string): code is P1AtomicSubmitService {
+  return (P1_ATOMIC_SUBMIT_SERVICES as readonly string[]).includes(code);
+}
+
+export type AtomicSubmitInput = {
+  requestType: P1AtomicSubmitService;
+  title: string;
+  formData: Record<string, unknown>;
+  studentNotes?: string | null;
+  /** TEST_ONLY hidden-path run id; the server re-verifies actor binding. */
+  testRunId?: string | null;
+};
+
+/**
+ * One call = eligibility + request + canonical detail row + submit + workflow,
+ * inside a single backend transaction. Any failure rolls the whole thing back,
+ * so the client never has to compensate.
+ */
+export async function rpcSubmitStudentRequestWithDetails(
+  client: RpcClient,
+  input: AtomicSubmitInput,
+): Promise<
+  | { id: string; rpcUnavailable: false }
+  | { id: null; rpcUnavailable: true; error: RpcErrorLike }
+> {
+  const { data, error } = await client.rpc("submit_student_request_with_details", {
+    p_request_type: input.requestType,
+    p_title: input.title,
+    p_form_data: input.formData,
+    p_student_notes: input.studentNotes ?? null,
+    p_test_run_id: input.testRunId ?? null,
+  });
+  if (error) {
+    if (isStudentRequestCoreRpcUnavailable(error)) {
+      return { id: null, rpcUnavailable: true, error };
+    }
+    throw new Error(mapStudentRequestRpcError(error));
+  }
+  if (!data) throw new Error("تعذر إرسال الطلب");
+  return { id: String(data), rpcUnavailable: false };
+}
+
 
 export async function rpcGetAvailableRequestTypes(
   client: RpcClient,
