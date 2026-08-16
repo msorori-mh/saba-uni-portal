@@ -12460,6 +12460,10 @@ export type Database = {
       open_council_session: { Args: { p_meeting_id: string }; Returns: Json }
       p1_active_student_profile: { Args: { p_user: string }; Returns: string }
       p1_actor_is_test_only: { Args: { p_user: string }; Returns: boolean }
+      p1_apply_final_result_appeal_step: {
+        Args: { p_final_result: number; p_note?: string; p_step_id: string }
+        Returns: Json
+      }
       p1_apply_final_result_decision: {
         Args: { p_final_result: number; p_note?: string; p_request: string }
         Returns: Json
@@ -12509,6 +12513,10 @@ export type Database = {
       p1_is_atomic_submit_service: {
         Args: { p_code: string }
         Returns: boolean
+      }
+      p1_issue_replacement_card_step: {
+        Args: { p_card_serial: string; p_note?: string; p_step_id: string }
+        Returns: Json
       }
       p1_october_remaining_requirements: {
         Args: { p_student: string }
