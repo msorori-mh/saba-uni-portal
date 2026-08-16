@@ -138,3 +138,57 @@ SAFE_TO_APPLY=YES (apply order strictly P1-01 → 02 → 03 → 04 → 05, one a
 MIGRATIONS_APPLIED=0 · PRODUCTION_WRITES=0 · DEPLOY=0 · PUBLISH=0
 
 **PASS_PORTAL_REFORM_P1_FIVE_MIGRATION_FINAL_REHEARSAL_AND_PRODUCTION_GATE_05**
+
+---
+
+## 12. Re-attestation — 2026-08-16 (لا كتابة إنتاجية)
+
+### 12.1 مانع حقيقي اكتُشف في Preflight
+
+قاعدة الإنتاج **لا تحتوي على `request_types.code = 'grade_appeal'`** (12 نوعًا فقط، ولا يوجد أي كود يحتوي `appeal`).
+كان `P1-03` يزرع مسار «التظلم على النتيجة النهائية» على هذا النوع، وكان سيفشل بـ
+`P1_SEED_UNKNOWN_REQUEST_TYPE: grade_appeal`. لم يظهر ذلك سابقًا لأن harness البروفة كان
+يزرع النوع مسبقًا (سطر 158–160 من `00-harness.sql`) فأخفى الفجوة.
+
+إصلاح forward-only (بلا تعديل أي migration مطبقة):
+
+- `P1-03-WORKFLOW-SEEDS.sql`: إضافة `('grade_appeal','التظلم على النتيجة النهائية','academic', true, **false**, 'active_student')`
+  إلى INSERT الأنواع مع `ON CONFLICT (code) DO UPDATE SET is_active = true` — `student_visible` يبقى false.
+- `scripts/p1-source-closure-02-pg17/00-harness.sql`: حذف الزرع المسبق للنوع، فأصبح
+  `request_types` يبدأ فارغًا مطابقًا للإنتاج، وباتت البروفة تثبت اكتفاء P1-03 ذاتيًا.
+
+### 12.2 البصمات بعد إعادة التجميد
+
+| الملف | SHA256 |
+| --- | --- |
+| P1-01-DETAIL-MODELS.sql | 5bfa4b15f9548d281f80fef7f9b8bfb5b064305eca45308aeaf1b302eff76648 |
+| P1-02-BACKEND-VALIDATION.sql | 02dfcf494816327419169f678b6375232892cef95d087f09cd75dbfb3ffbe9be |
+| P1-03-WORKFLOW-SEEDS.sql | 4d0d3ad825a43b26a01951cac9be3b351ebf7830086b4721dd123c116fed2b19 |
+| P1-04-GRADE-APPEAL-TRIGGER-REPLACE.sql | d9b2bc25d96bbfd93540f1645d147622ce7a7deadc82fe0248422eb5ae5f6337 |
+| P1-05-PASS-THRESHOLD-48.sql | bb43939df053c81ba82b1bb8806ba252da89854c8be671e85757cd9a0f9d679f |
+
+P1_PACKAGE_SHA256 = `949094b2c312db8a23d653296a821a9844e980d9d51d7440dcae7f2110d94905`
+
+### 12.3 نتائج إعادة الإثبات
+
+- PG17: تطبيق P1-01 → P1-05 وإعادة تطبيق كل ملف = PASS، `ALL_P1_REHEARSAL_CASES_PASSED`،
+  `ALL_P1_05_CASES_PASSED`، `P1_PG17_REHEARSAL_PASS (5/5 drafts)`.
+- التقديرات: 47.99 راسب حرفيًا · 48.00 و49.99 → 50 «مقبول» · 65 «جيد» · 80 «جيد جدًا» ·
+  90 «ممتاز» · لا أي قيمة على مقياس 4 نقاط · لا معرف GPA في الدوال ولا في السجل.
+- دور أكتوبر: مستوى 4 + 4 مقررات = ALLOW · مستوى 4 + 5 = DENY · مستوى 3 = DENY.
+- التظلم النهائي: 47 → قرار 48 → نتيجة رسمية 50 «مقبول/ناجح» بدون أي تعديل على مكونات
+  أعمال الفصل، مع Audit قبل/بعد.
+- الإيرادات والتفويض: البوابة تمنع قبل التأكيد وتفتح بعده، وتتخطى الخدمة المجانية،
+  وغير المسند إليه يُرفض بـ `EXACT_PROCESSING_BINDING_REQUIRED` — DIRECT_RPC_BYPASS=ZERO.
+- Preflight إنتاجي (قراءة فقط، بعد الإصلاح): لا كائنات `p1\_%` متعارضة · لا Workflows
+  بالأكواد الثلاثة · `student_unofficial_transcript` = 28 عمودًا بلا `official_result`/`grade_label`
+  (سيُلحقان كعمودين 29/30) · جداول التفاصيل غير موجودة (سينشئها P1-01) · وحدات المعالجة
+  التسع موجودة · دور `course_instructor` غير موجود وسينشئه P1-03.
+- الانحدار: `bun test tests/student-requests` 1093/1093 · `bun test tests/academic` 194 pass
+  والفشل 21 كله harness المجالس على Docker (سابق وغير متعلق) · اختبارات التقديرات 23/23 ·
+  `bunx tsgo --noEmit` نظيف · `git diff --check` نظيف.
+
+MIGRATIONS_APPLIED=0 · PRODUCTION_WRITES=0 · DEPLOY=0 · PUBLISH=0 · student_visible غير مُعدَّل
+
+**PASS_PORTAL_REFORM_P1_FIVE_MIGRATION_FINAL_REHEARSAL_AND_PRODUCTION_GATE_05**
+**SAFE_TO_APPLY=YES**
