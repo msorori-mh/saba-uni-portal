@@ -259,7 +259,12 @@ DECLARE v_id uuid := gen_random_uuid(); v_res jsonb;
 BEGIN
   INSERT INTO public.student_requests (id, student_profile_id, request_type, request_number, title, status, form_data)
   VALUES (v_id,'77777777-7777-7777-7777-000000000001','october_exam_entry_form','SR-TESTONLY-NEW-OCT',
-    'استمارة دخول دور أكتوبر','submitted', jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'));
+    'استمارة دخول دور أكتوبر','draft', jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'));
+  INSERT INTO public.october_exam_entry_details
+    (request_id, student_profile_id, academic_year_id, semester_id, academic_level_order, remaining_courses_count)
+  VALUES (v_id,'77777777-7777-7777-7777-000000000001','66666666-6666-6666-6666-000000000001',
+    '66666666-6666-6666-6666-000000000002', 4, 2);
+  UPDATE public.student_requests SET status='submitted', submitted_at=now() WHERE id=v_id;
   v_res := public.initialize_b1_request_workflow_strict(v_id,'october_exam_entry_form');
   PERFORM public.h_assert((v_res->>'initialized')::boolean, 'strict initializer accepts october_exam_entry_form');
   PERFORM public.h_assert((SELECT count(*) FROM public.student_request_workflow_steps s
@@ -270,10 +275,11 @@ BEGIN
   v_id := gen_random_uuid();
   INSERT INTO public.student_requests (id, student_profile_id, request_type, request_number, title, status, form_data)
   VALUES (v_id,'77777777-7777-7777-7777-000000000001','grade_appeal','SR-TESTONLY-NEW-APPEAL',
-    'التظلم على النتيجة النهائية','submitted', jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'));
+    'التظلم على النتيجة النهائية','draft', jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'));
   INSERT INTO public.grade_appeal_details (request_id, student_profile_id, academic_year_id, semester_id, course_section_id, reason)
   VALUES (v_id,'77777777-7777-7777-7777-000000000001','66666666-6666-6666-6666-000000000001',
     '66666666-6666-6666-6666-000000000002','66666666-6666-6666-6666-000000000007','تظلم اختباري');
+  UPDATE public.student_requests SET status='submitted', submitted_at=now() WHERE id=v_id;
   v_res := public.initialize_b1_request_workflow_strict(v_id,'grade_appeal');
   PERFORM public.h_assert((SELECT count(*) FROM public.student_request_workflow_steps s
     WHERE s.student_request_id=v_id AND num_nonnulls(s.assigned_user_id,s.assigned_staff_profile_id,
@@ -293,10 +299,11 @@ BEGIN
   VALUES (v_sec,'66666666-6666-6666-6666-000000000006','TESTONLY-NOINSTR',NULL);
   INSERT INTO public.student_requests (id, student_profile_id, request_type, request_number, title, status, form_data)
   VALUES (v_id,'77777777-7777-7777-7777-000000000001','grade_appeal','SR-TESTONLY-NOINSTR',
-    'التظلم على النتيجة النهائية','submitted','{}'::jsonb);
+    'التظلم على النتيجة النهائية','draft','{}'::jsonb);
   INSERT INTO public.grade_appeal_details (request_id, student_profile_id, academic_year_id, semester_id, course_section_id, reason)
   VALUES (v_id,'77777777-7777-7777-7777-000000000001','66666666-6666-6666-6666-000000000001',
     '66666666-6666-6666-6666-000000000002',v_sec,'تظلم اختباري');
+  UPDATE public.student_requests SET status='submitted', submitted_at=now() WHERE id=v_id;
   BEGIN
     PERFORM public.initialize_b1_request_workflow_strict(v_id,'grade_appeal');
     v_err := 'NO_ERROR';
@@ -314,7 +321,10 @@ DECLARE v_id uuid := gen_random_uuid(); v_err text;
 BEGIN
   INSERT INTO public.student_requests (id, student_profile_id, request_type, request_number, title, status, form_data)
   VALUES (v_id,'77777777-7777-7777-7777-000000000001','replacement_student_card','SR-REAL-NOT-TESTONLY',
-    'بطاقة طالب بدل فاقد','submitted','{}'::jsonb);
+    'بطاقة طالب بدل فاقد','draft','{}'::jsonb);
+  INSERT INTO public.replacement_card_details (request_id, student_profile_id, loss_reason, loss_declaration_ack)
+  VALUES (v_id,'77777777-7777-7777-7777-000000000001','فقدان البطاقة', true);
+  UPDATE public.student_requests SET status='submitted', submitted_at=now() WHERE id=v_id;
   PERFORM public.h_seed_unassigned_runtime(v_id,'replacement_student_card_v1');
   BEGIN
     PERFORM public.p1_repair_testonly_runtime_assignments('SR-REAL-NOT-TESTONLY');
@@ -324,6 +334,7 @@ BEGIN
   PERFORM public.h_assert(v_err LIKE 'P1_REPAIR_NON_TESTONLY_REQUEST_DENIED%',
     'repair refuses a non TEST_ONLY request: ' || v_err);
   DELETE FROM public.student_request_workflow_steps WHERE student_request_id=v_id;
+  DELETE FROM public.replacement_card_details WHERE request_id=v_id;
   DELETE FROM public.student_requests WHERE id=v_id;
 END $$;
 

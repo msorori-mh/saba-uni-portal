@@ -104,13 +104,13 @@ END $$;
 INSERT INTO public.student_requests (id, student_profile_id, request_type, request_number, title, status, form_data, submitted_at)
 VALUES
   ('88888888-8888-8888-8888-000000000001','77777777-7777-7777-7777-000000000001','october_exam_entry_form',
-   'SR-20260816-14A2339B','استمارة دخول دور أكتوبر','submitted',
+   'SR-20260816-14A2339B','استمارة دخول دور أكتوبر','draft',
    jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'), now()),
   ('88888888-8888-8888-8888-000000000002','77777777-7777-7777-7777-000000000001','replacement_student_card',
-   'SR-20260816-F01018CE','بطاقة طالب بدل فاقد','submitted',
+   'SR-20260816-F01018CE','بطاقة طالب بدل فاقد','draft',
    jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'), now()),
   ('88888888-8888-8888-8888-000000000003','77777777-7777-7777-7777-000000000001','grade_appeal',
-   'SR-20260816-E852B4E3','التظلم على النتيجة النهائية','submitted',
+   'SR-20260816-E852B4E3','التظلم على النتيجة النهائية','draft',
    jsonb_build_object('p1_e2e_marker','TEST_ONLY_P1_E2E_07_'), now());
 
 INSERT INTO public.grade_appeal_details
@@ -118,6 +118,18 @@ INSERT INTO public.grade_appeal_details
 VALUES ('88888888-8888-8888-8888-000000000003','77777777-7777-7777-7777-000000000001',
   '66666666-6666-6666-6666-000000000001','66666666-6666-6666-6666-000000000002',
   '66666666-6666-6666-6666-000000000007','تظلم اختباري');
+
+INSERT INTO public.october_exam_entry_details
+  (request_id, student_profile_id, academic_year_id, semester_id, academic_level_order, remaining_courses_count)
+VALUES ('88888888-8888-8888-8888-000000000001','77777777-7777-7777-7777-000000000001',
+  '66666666-6666-6666-6666-000000000001','66666666-6666-6666-6666-000000000002', 4, 2);
+
+INSERT INTO public.replacement_card_details (request_id, student_profile_id, loss_reason, loss_declaration_ack)
+VALUES ('88888888-8888-8888-8888-000000000002','77777777-7777-7777-7777-000000000001','فقدان البطاقة', true);
+
+UPDATE public.student_requests SET status='submitted', submitted_at=now()
+WHERE id IN ('88888888-8888-8888-8888-000000000001','88888888-8888-8888-8888-000000000002',
+             '88888888-8888-8888-8888-000000000003');
 
 SELECT public.h_seed_unassigned_runtime('88888888-8888-8888-8888-000000000001','october_exam_entry_form_v1');
 SELECT public.h_seed_unassigned_runtime('88888888-8888-8888-8888-000000000002','replacement_student_card_v1');
