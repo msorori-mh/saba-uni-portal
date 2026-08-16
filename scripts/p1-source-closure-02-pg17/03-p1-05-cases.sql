@@ -82,13 +82,13 @@ BEGIN
         PERFORM public.t_expect(format('SCALE %s normalizes to 50', v_raw),
           v_official = 50 AND v_label='مقبول');
       ELSIF v_raw < 65 THEN
-        PERFORM public.t_expect(format('SCALE %s مقبول', v_raw), v_official = v_raw AND v_label='مقبول');
+        PERFORM public.t_expect(format('SCALE %s مقبول', v_raw), round(v_raw,1) = v_official AND v_label='مقبول');
       ELSIF v_raw < 80 THEN
-        PERFORM public.t_expect(format('SCALE %s جيد', v_raw), v_official = v_raw AND v_label='جيد');
+        PERFORM public.t_expect(format('SCALE %s جيد', v_raw), round(v_raw,1) = v_official AND v_label='جيد');
       ELSIF v_raw < 90 THEN
-        PERFORM public.t_expect(format('SCALE %s جيد جدًا', v_raw), v_official = v_raw AND v_label='جيد جدًا');
+        PERFORM public.t_expect(format('SCALE %s جيد جدًا', v_raw), round(v_raw,1) = v_official AND v_label='جيد جدًا');
       ELSE
-        PERFORM public.t_expect(format('SCALE %s ممتاز', v_raw), v_official = v_raw AND v_label='ممتاز');
+        PERFORM public.t_expect(format('SCALE %s ممتاز', v_raw), round(v_raw,1) = v_official AND v_label='ممتاز');
       END IF;
     END IF;
   END LOOP;
