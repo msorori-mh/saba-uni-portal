@@ -6234,6 +6234,48 @@ export type Database = {
           },
         ]
       }
+      p1_e2e_07_executions: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_request_id: string | null
+          expires_at: string
+          id: string
+          marker: string
+          run_id: string
+          service_code: string
+          starts_at: string
+          status: string
+          student_user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_request_id?: string | null
+          expires_at?: string
+          id?: string
+          marker?: string
+          run_id: string
+          service_code: string
+          starts_at?: string
+          status?: string
+          student_user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_request_id?: string | null
+          expires_at?: string
+          id?: string
+          marker?: string
+          run_id?: string
+          service_code?: string
+          starts_at?: string
+          status?: string
+          student_user_id?: string
+        }
+        Relationships: []
+      }
       payment_receipts: {
         Row: {
           amount: number
@@ -12417,6 +12459,7 @@ export type Database = {
       }
       open_council_session: { Args: { p_meeting_id: string }; Returns: Json }
       p1_active_student_profile: { Args: { p_user: string }; Returns: string }
+      p1_actor_is_test_only: { Args: { p_user: string }; Returns: boolean }
       p1_apply_final_result_decision: {
         Args: { p_final_result: number; p_note?: string; p_request: string }
         Returns: Json
@@ -12446,6 +12489,11 @@ export type Database = {
         Returns: boolean
       }
       p1_current_level_number: { Args: { p_student: string }; Returns: number }
+      p1_e2e_07_allows_hidden_submit: {
+        Args: { p_run_id: string; p_service_code: string }
+        Returns: string
+      }
+      p1_e2e_07_marker: { Args: never; Returns: string }
       p1_enrollment_result: {
         Args: { p_enrollment: string }
         Returns: {
@@ -12458,6 +12506,10 @@ export type Database = {
         Args: { p_enrollment: string }
         Returns: string
       }
+      p1_is_atomic_submit_service: {
+        Args: { p_code: string }
+        Returns: boolean
+      }
       p1_october_remaining_requirements: {
         Args: { p_student: string }
         Returns: {
@@ -12468,6 +12520,10 @@ export type Database = {
         }[]
       }
       p1_passed_course_ids: { Args: { p_student: string }; Returns: string[] }
+      p1_request_has_canonical_detail: {
+        Args: { p_code: string; p_request_id: string }
+        Returns: boolean
+      }
       persist_b1_draft_form_and_details: {
         Args: {
           p_canonical: string
@@ -12861,6 +12917,16 @@ export type Database = {
       submit_student_request: {
         Args: { p_request_id: string }
         Returns: boolean
+      }
+      submit_student_request_with_details: {
+        Args: {
+          p_form_data?: Json
+          p_request_type: string
+          p_student_notes?: string
+          p_test_run_id?: string
+          p_title: string
+        }
+        Returns: string
       }
       submit_student_request_with_secure_attachments: {
         Args: { p_attachment_ids: string[]; p_request_id: string }
