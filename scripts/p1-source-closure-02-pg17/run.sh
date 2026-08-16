@@ -49,4 +49,5 @@ psql -v ON_ERROR_STOP=1 -q -f "$DRAFTS/P1-05-PASS-THRESHOLD-48.sql"
 
 psql -v ON_ERROR_STOP=1 -q -f "$HARNESS/01-cases.sql"
 psql -v ON_ERROR_STOP=1 -q -f "$HARNESS/03-p1-05-cases.sql"
+psql -v ON_ERROR_STOP=1 -q -f "$HARNESS/04-status-parity-cases.sql"
 echo "P1_PG17_REHEARSAL_PASS (5/5 drafts)"
