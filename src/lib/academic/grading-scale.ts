@@ -33,7 +33,9 @@ export const FAIL_GRADE_LABEL = "ضعيف" as const;
 export function normalizeOfficialResult(raw: number | null | undefined): number | null {
   if (raw == null || Number.isNaN(Number(raw))) return null;
   const value = Number(raw);
-  if (value >= COURSE_PASS_PERCENT && value < OFFICIAL_PASS_FLOOR) return OFFICIAL_PASS_FLOOR;
+  // Failing results are reported verbatim (2 decimals, e.g. 47.99 stays 47.99).
+  if (value < COURSE_PASS_PERCENT) return Math.round(value * 100) / 100;
+  if (value < OFFICIAL_PASS_FLOOR) return OFFICIAL_PASS_FLOOR;
   return Math.round(value * 10) / 10;
 }
 
