@@ -301,8 +301,9 @@ CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_to
                 END AS course_status,
                 CASE
                     WHEN at.total_max <= 0::numeric THEN 0::numeric
-                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) >= 48::numeric
-                     AND round(at.total_score / at.total_max * 100::numeric, 2) < 50::numeric THEN 50::numeric
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) < 48::numeric
+                      THEN round(at.total_score / at.total_max * 100::numeric, 2)
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) < 50::numeric THEN 50::numeric
                     ELSE round(at.total_score / at.total_max * 100::numeric, 1)
                 END AS official_result,
                 CASE
