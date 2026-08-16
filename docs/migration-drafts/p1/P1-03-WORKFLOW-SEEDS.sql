@@ -56,7 +56,8 @@ BEGIN
     INSERT INTO public.request_type_workflows
       (request_type_id, code, name_ar, version, status, is_active, published_at, change_note)
     VALUES
-      (v_type, p_wf_code, p_wf_name, 1, 'published', true, now(), 'P1 source closure 02 seed')
+      -- canonical executable workflow state; production CHECK allows draft|active|retired
+      (v_type, p_wf_code, p_wf_name, 1, 'active', true, now(), 'P1 source closure 02 seed')
     RETURNING id INTO v_wf;
   END IF;
 

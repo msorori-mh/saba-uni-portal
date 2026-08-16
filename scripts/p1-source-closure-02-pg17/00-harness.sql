@@ -115,7 +115,9 @@ CREATE TABLE IF NOT EXISTS public.request_processing_assignments (
 CREATE TABLE IF NOT EXISTS public.request_type_workflows (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), request_type_id uuid NOT NULL, code text NOT NULL,
   name_ar text NOT NULL, version integer NOT NULL DEFAULT 1, status text NOT NULL DEFAULT 'draft',
-  is_active boolean NOT NULL DEFAULT false, published_at timestamptz, change_note text);
+  is_active boolean NOT NULL DEFAULT false, published_at timestamptz, change_note text,
+  -- production parity: request_type_workflows_status_chk
+  CONSTRAINT request_type_workflows_status_chk CHECK (status = ANY (ARRAY['draft'::text,'active'::text,'retired'::text])));
 
 CREATE TABLE IF NOT EXISTS public.request_type_workflow_steps (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), workflow_id uuid NOT NULL, step_key text NOT NULL,
