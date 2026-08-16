@@ -113,6 +113,7 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
       "utf8",
     );
     expect(docs).toContain("لا توجد وثائق رسمية صادرة لك حالياً.");
-    expect(docs).toContain("يمكنك طلب الوثائق المتاحة من قسم طلبات شؤون الطلاب.");
+    // P1 approved terminology: «الخدمات الطلابية» replaces «طلبات شؤون الطلاب».
+    expect(docs).toContain("يمكنك طلب الوثائق المتاحة من قسم الخدمات الطلابية.");
   });
 });
