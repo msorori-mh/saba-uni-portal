@@ -9971,11 +9971,13 @@ export type Database = {
           enrollment_id: string | null
           enrollment_status: string | null
           final_score: number | null
+          grade_label: string | null
           level_id: string | null
           level_name: string | null
           level_number: number | null
           max_score: number | null
           notes: string | null
+          official_result: number | null
           percentage: number | null
           program_id: string | null
           program_name: string | null
