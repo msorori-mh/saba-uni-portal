@@ -3807,16 +3807,24 @@ export type Database = {
       grade_appeal_details: {
         Row: {
           academic_year_id: string
+          appeal_kind: string
+          appeal_window_end: string | null
+          approved_final_result: number | null
           approved_total_score: number | null
+          course_id: string | null
           course_section_id: string
           created_at: string
           current_grade_status: string | null
           current_grade_total: number | null
+          final_result_published_at: string | null
           grades_applied_at: string | null
           id: string
           notes: string | null
+          previous_final_result: number | null
           reason: string
           request_id: string
+          result_change_applied_at: string | null
+          result_change_applied_by: string | null
           semester_id: string
           student_enrollment_id: string | null
           student_profile_id: string
@@ -3824,16 +3832,24 @@ export type Database = {
         }
         Insert: {
           academic_year_id: string
+          appeal_kind?: string
+          appeal_window_end?: string | null
+          approved_final_result?: number | null
           approved_total_score?: number | null
+          course_id?: string | null
           course_section_id: string
           created_at?: string
           current_grade_status?: string | null
           current_grade_total?: number | null
+          final_result_published_at?: string | null
           grades_applied_at?: string | null
           id?: string
           notes?: string | null
+          previous_final_result?: number | null
           reason: string
           request_id: string
+          result_change_applied_at?: string | null
+          result_change_applied_by?: string | null
           semester_id: string
           student_enrollment_id?: string | null
           student_profile_id: string
@@ -3841,16 +3857,24 @@ export type Database = {
         }
         Update: {
           academic_year_id?: string
+          appeal_kind?: string
+          appeal_window_end?: string | null
+          approved_final_result?: number | null
           approved_total_score?: number | null
+          course_id?: string | null
           course_section_id?: string
           created_at?: string
           current_grade_status?: string | null
           current_grade_total?: number | null
+          final_result_published_at?: string | null
           grades_applied_at?: string | null
           id?: string
           notes?: string | null
+          previous_final_result?: number | null
           reason?: string
           request_id?: string
+          result_change_applied_at?: string | null
+          result_change_applied_by?: string | null
           semester_id?: string
           student_enrollment_id?: string | null
           student_profile_id?: string
@@ -3863,6 +3887,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "academic_years"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_id"]
           },
           {
             foreignKeyName: "grade_appeal_details_course_section_id_fkey"
@@ -5935,6 +5973,90 @@ export type Database = {
         }
         Relationships: []
       }
+      october_exam_entry_details: {
+        Row: {
+          academic_level_order: number
+          academic_year_id: string | null
+          approved_list_generated_at: string
+          created_at: string
+          eligibility_snapshot: Json
+          eligible_requirement_ids: string[]
+          id: string
+          remaining_courses_count: number
+          request_id: string
+          selected_requirement_ids: string[]
+          semester_id: string | null
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          academic_level_order: number
+          academic_year_id?: string | null
+          approved_list_generated_at?: string
+          created_at?: string
+          eligibility_snapshot?: Json
+          eligible_requirement_ids?: string[]
+          id?: string
+          remaining_courses_count: number
+          request_id: string
+          selected_requirement_ids?: string[]
+          semester_id?: string | null
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          academic_level_order?: number
+          academic_year_id?: string | null
+          approved_list_generated_at?: string
+          created_at?: string
+          eligibility_snapshot?: Json
+          eligible_requirement_ids?: string[]
+          id?: string
+          remaining_courses_count?: number
+          request_id?: string
+          selected_requirement_ids?: string[]
+          semester_id?: string | null
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "october_exam_entry_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "october_exam_entry_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "october_exam_entry_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "october_exam_entry_details_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "october_exam_entry_details_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       official_documents: {
         Row: {
           created_at: string
@@ -6670,6 +6792,79 @@ export type Database = {
           user_agent_hash?: string | null
         }
         Relationships: []
+      }
+      replacement_card_details: {
+        Row: {
+          card_issued_at: string | null
+          card_issued_by: string | null
+          created_at: string
+          id: string
+          issued_card_serial: string | null
+          loss_declaration_ack: boolean
+          loss_incident_date: string | null
+          loss_reason: string
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
+          previous_card_serial: string | null
+          request_id: string
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          card_issued_at?: string | null
+          card_issued_by?: string | null
+          created_at?: string
+          id?: string
+          issued_card_serial?: string | null
+          loss_declaration_ack?: boolean
+          loss_incident_date?: string | null
+          loss_reason: string
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          previous_card_serial?: string | null
+          request_id: string
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          card_issued_at?: string | null
+          card_issued_by?: string | null
+          created_at?: string
+          id?: string
+          issued_card_serial?: string | null
+          loss_declaration_ack?: boolean
+          loss_incident_date?: string | null
+          loss_reason?: string
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          previous_card_serial?: string | null
+          request_id?: string
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_card_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_card_details_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "replacement_card_details_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       request_eligibility_rule_catalog: {
         Row: {
@@ -12219,6 +12414,54 @@ export type Database = {
         Returns: string
       }
       open_council_session: { Args: { p_meeting_id: string }; Returns: Json }
+      p1_active_student_profile: { Args: { p_user: string }; Returns: string }
+      p1_assert_department_transfer_level: {
+        Args: { p_student: string }
+        Returns: boolean
+      }
+      p1_assert_final_result_appeal_eligibility: {
+        Args: { p_enrollment: string; p_now?: string; p_student: string }
+        Returns: Json
+      }
+      p1_assert_october_eligibility: {
+        Args: { p_selected?: string[]; p_student: string }
+        Returns: Json
+      }
+      p1_assert_payment_confirmed: {
+        Args: { p_request: string }
+        Returns: boolean
+      }
+      p1_assert_replacement_card_eligibility: {
+        Args: { p_student: string }
+        Returns: boolean
+      }
+      p1_assert_step_actor: {
+        Args: { p_actor?: string; p_request: string; p_step_key: string }
+        Returns: boolean
+      }
+      p1_current_level_number: { Args: { p_student: string }; Returns: number }
+      p1_enrollment_result: {
+        Args: { p_enrollment: string }
+        Returns: {
+          max_total: number
+          published_at: string
+          total: number
+        }[]
+      }
+      p1_final_result_published_at: {
+        Args: { p_enrollment: string }
+        Returns: string
+      }
+      p1_october_remaining_requirements: {
+        Args: { p_student: string }
+        Returns: {
+          course_code: string
+          course_id: string
+          course_name_ar: string
+          requirement_id: string
+        }[]
+      }
+      p1_passed_course_ids: { Args: { p_student: string }; Returns: string[] }
       persist_b1_draft_form_and_details: {
         Args: {
           p_canonical: string
