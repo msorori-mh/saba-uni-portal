@@ -9971,11 +9971,13 @@ export type Database = {
           enrollment_id: string | null
           enrollment_status: string | null
           final_score: number | null
+          grade_label: string | null
           level_id: string | null
           level_name: string | null
           level_number: number | null
           max_score: number | null
           notes: string | null
+          official_result: number | null
           percentage: number | null
           program_id: string | null
           program_name: string | null
@@ -12415,6 +12417,10 @@ export type Database = {
       }
       open_council_session: { Args: { p_meeting_id: string }; Returns: Json }
       p1_active_student_profile: { Args: { p_user: string }; Returns: string }
+      p1_apply_final_result_decision: {
+        Args: { p_final_result: number; p_note?: string; p_request: string }
+        Returns: Json
+      }
       p1_assert_department_transfer_level: {
         Args: { p_student: string }
         Returns: boolean
