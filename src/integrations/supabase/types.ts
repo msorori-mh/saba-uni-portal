@@ -12414,6 +12414,54 @@ export type Database = {
         Returns: string
       }
       open_council_session: { Args: { p_meeting_id: string }; Returns: Json }
+      p1_active_student_profile: { Args: { p_user: string }; Returns: string }
+      p1_assert_department_transfer_level: {
+        Args: { p_student: string }
+        Returns: boolean
+      }
+      p1_assert_final_result_appeal_eligibility: {
+        Args: { p_enrollment: string; p_now?: string; p_student: string }
+        Returns: Json
+      }
+      p1_assert_october_eligibility: {
+        Args: { p_selected?: string[]; p_student: string }
+        Returns: Json
+      }
+      p1_assert_payment_confirmed: {
+        Args: { p_request: string }
+        Returns: boolean
+      }
+      p1_assert_replacement_card_eligibility: {
+        Args: { p_student: string }
+        Returns: boolean
+      }
+      p1_assert_step_actor: {
+        Args: { p_actor?: string; p_request: string; p_step_key: string }
+        Returns: boolean
+      }
+      p1_current_level_number: { Args: { p_student: string }; Returns: number }
+      p1_enrollment_result: {
+        Args: { p_enrollment: string }
+        Returns: {
+          max_total: number
+          published_at: string
+          total: number
+        }[]
+      }
+      p1_final_result_published_at: {
+        Args: { p_enrollment: string }
+        Returns: string
+      }
+      p1_october_remaining_requirements: {
+        Args: { p_student: string }
+        Returns: {
+          course_code: string
+          course_id: string
+          course_name_ar: string
+          requirement_id: string
+        }[]
+      }
+      p1_passed_course_ids: { Args: { p_student: string }; Returns: string[] }
       persist_b1_draft_form_and_details: {
         Args: {
           p_canonical: string
