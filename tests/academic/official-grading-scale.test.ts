@@ -23,8 +23,8 @@ describe("official grading scale", () => {
     expect(OFFICIAL_PASS_FLOOR).toBe(50);
   });
 
-  it("fails below 48 without normalization", () => {
-    expect(normalizeOfficialResult(47.99)).toBe(48); // rounded display only
+  it("fails below 48 and reports the failing result verbatim", () => {
+    expect(normalizeOfficialResult(47.99)).toBe(47.99); // failing results never round up
     expect(gradeArabicLabel(47.99)).toBe(FAIL_GRADE_LABEL);
     expect(gradeArabicLabel(0)).toBe(FAIL_GRADE_LABEL);
     expect(officialCourseResult(47.99).passed).toBe(false);

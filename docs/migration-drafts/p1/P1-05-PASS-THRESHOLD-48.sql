@@ -258,14 +258,24 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_totals AS (
+CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH applied_appeals AS (
+         SELECT DISTINCT ON (gad.student_enrollment_id)
+            gad.student_enrollment_id,
+            gad.approved_final_result
+           FROM grade_appeal_details gad
+          WHERE gad.result_change_applied_at IS NOT NULL
+            AND gad.student_enrollment_id IS NOT NULL
+            AND gad.approved_final_result IS NOT NULL
+          ORDER BY gad.student_enrollment_id, gad.result_change_applied_at DESC
+        ), approved_totals AS (
          SELECT sg.student_enrollment_id,
-            sum(sg.score) AS total_score,
+            COALESCE(aa.approved_final_result, sum(sg.score)) AS total_score,
             sum(gc.max_score) AS total_max
            FROM student_grades sg
              JOIN grade_components gc ON gc.id = sg.grade_component_id
+             LEFT JOIN applied_appeals aa ON aa.student_enrollment_id = sg.student_enrollment_id
           WHERE sg.status = 'approved'::text
-          GROUP BY sg.student_enrollment_id
+          GROUP BY sg.student_enrollment_id, aa.approved_final_result
         ), enrollment_rows AS (
          SELECT se.id AS enrollment_id,
             sp.id AS student_profile_id,
@@ -301,8 +311,9 @@ CREATE OR REPLACE VIEW public.student_unofficial_transcript AS  WITH approved_to
                 END AS course_status,
                 CASE
                     WHEN at.total_max <= 0::numeric THEN 0::numeric
-                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) >= 48::numeric
-                     AND round(at.total_score / at.total_max * 100::numeric, 2) < 50::numeric THEN 50::numeric
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) < 48::numeric
+                      THEN round(at.total_score / at.total_max * 100::numeric, 2)
+                    WHEN round(at.total_score / at.total_max * 100::numeric, 2) < 50::numeric THEN 50::numeric
                     ELSE round(at.total_score / at.total_max * 100::numeric, 1)
                 END AS official_result,
                 CASE
