@@ -1,103 +1,158 @@
 # PORTAL_REFORM_P1_CONTROLLED_PRODUCTION_APPLY_06
 
-Date (UTC): 2026-08-16
-Verdict: **HOLD_PORTAL_REFORM_P1_CONTROLLED_PRODUCTION_APPLY_06_SOURCE_DEPLOY_REQUIRED_FIRST**
+**VERDICT: HOLD_PORTAL_REFORM_P1_CONTROLLED_PRODUCTION_APPLY_06_P1_03_WORKFLOW_STATUS_CHECK_CONSTRAINT_REJECTS_PUBLISHED**
 
-MIGRATIONS_APPLIED = 0 · PRODUCTION_WRITES = 0 · DEPLOY = 0 · PUBLISH = 0 · STUDENT_SERVICES_ACTIVATED = 0
+Date (UTC): 2026-08-16
+Authorization: EXPLICIT_PRODUCTION_MIGRATION_APPLY=YES (this mission only)
+Deployed source: `3e47c1c65235f70198a507feb33b825814ab64af` (unchanged; no deploy/publish performed)
 
 ---
 
-## 0. Frozen package gate — PASS
+## 1. Pre-write gate — PASS
 
-Hash contract: `SHA256_LF_NORMALIZED_V1` (`scripts/sha256_lf_normalized_v1.py`).
+Hash contract: `SHA256_LF_NORMALIZED_V1`.
 
-| File | Recomputed SHA256_LF | Expected | Match |
-| --- | --- | --- | --- |
+| File | Recomputed | Frozen | Match |
+|---|---|---|---|
 | P1-01-DETAIL-MODELS.sql | 5bfa4b15f9548d281f80fef7f9b8bfb5b064305eca45308aeaf1b302eff76648 | same | YES |
 | P1-02-BACKEND-VALIDATION.sql | 02dfcf494816327419169f678b6375232892cef95d087f09cd75dbfb3ffbe9be | same | YES |
 | P1-03-WORKFLOW-SEEDS.sql | 4d0d3ad825a43b26a01951cac9be3b351ebf7830086b4721dd123c116fed2b19 | same | YES |
 | P1-04-GRADE-APPEAL-TRIGGER-REPLACE.sql | d9b2bc25d96bbfd93540f1645d147622ce7a7deadc82fe0248422eb5ae5f6337 | same | YES |
 | P1-05-PASS-THRESHOLD-48.sql | bb43939df053c81ba82b1bb8806ba252da89854c8be671e85757cd9a0f9d679f | same | YES |
 
-FROZEN_PACKAGE_MATCH = YES
-P1_PACKAGE_SHA256 = 949094b2c312db8a23d653296a821a9844e980d9d51d7440dcae7f2110d94905 (as pinned by the mission order; all five member hashes verified identical)
+PACKAGE_SHA256 = `949094b2c312db8a23d653296a821a9844e980d9d51d7440dcae7f2110d94905` — MATCH
+(derivation: SHA256 over the five per-file digests joined by `\n`, trailing `\n`).
 
-No source file was modified in this mission.
+Runtime identity: `/version.json` = `<meta name="build-sha">` = `3e47c1c65235f70198a507feb33b825814ab64af` — MATCH.
 
-## 1. Deployed-runtime compatibility gate — FAIL (blocking)
+Read-only preflight: worktree clean; `has_any_role` and `update_updated_at_column` present;
+`october_exam_entry_details` / `replacement_card_details` absent (P1 not previously applied);
+`grade_appeal` request type absent; visible service set = 6 (unchanged baseline).
 
-DEPLOYED_RUNTIME_IDENTIFIER = https://quboolye.com (= https://saba-uni-portal.lovable.app, 302 → custom domain)
-DEPLOYED_RUNTIME_SOURCE_SHA = b277088c7887177a121fe4324d5dc2992efdec47
-Evidence: `GET /version.json` → `{"sha":"b277088c…"}`; `<meta name="build-sha" content="b277088c…">` on the served HTML.
-Current source HEAD = 1470fb81a698303704c7b4404e573bc54c64109b (deployed SHA is an ancestor; **610 commits behind**, 166 changed files under `src/`).
+SAFE_TO_APPLY = YES.
 
-P1_SOURCE_COMPATIBLE_WITH_NEW_DB = **NO**
+---
 
-Concrete incompatibilities of the deployed bundle against the post-P1-05 database contract:
+## 2. P1-01 — APPLIED, POST-VERIFY PASS
 
-1. `src/lib/academic/grading-scale.ts` and `src/lib/academic/pass-threshold.ts` do **not exist** in b277088c — the deployed runtime has no official-grading (48 / normalize-to-50 / Arabic band) logic at all.
-2. `src/lib/academic-status.functions.ts@b277088c` consumes `get_admin_progress_kpis().avgGpa`; P1-05 replaces that output with `avgOfficialPercentage` and removes the GPA indicator. `src/routes/admin/executive-dashboard.lazy.tsx@b277088c` renders `progress.avgGpa.toFixed(2)` and exports «متوسط GPA» — after P1-05 this reports a permanent 0.00 GPA on the live executive dashboard, i.e. a false academic indicator.
-3. `src/lib/admin-dashboard.functions.ts@b277088c` reads `successRate` computed by the legacy 60% pass mark; P1-05 re-bases it on 48. The deployed labels/report exports are still legacy-worded.
-4. P1 student-service contracts (October exam entry, replacement card, formal final-result appeal — 21 files / +1410 lines under `src/lib/student-requests` and `src/lib/academic`) are absent from the deployed bundle, so the seeded workflows/types from P1-02/P1-03 would have no matching client contract.
+- `october_exam_entry_details` = EXISTS
+- `replacement_card_details` = EXISTS
+- `grade_appeal_details` evolution = PASS (all 8 columns: appeal_kind, course_id,
+  final_result_published_at, appeal_window_end, previous_final_result,
+  approved_final_result, result_change_applied_at, result_change_applied_by;
+  `grade_appeal_details_kind_chk` present)
+- RLS = PASS (enabled on both tables; 2 policies each, **SELECT only**, `TO authenticated`;
+  `anon` has no policy → fail-closed read)
+- NO_UNEXPECTED_CLIENT_WRITE = PASS (zero INSERT/UPDATE/DELETE policies)
+- REAL_BUSINESS_DATA_CHANGED = 0
 
-Per mission section 1, the run **stopped before any production write**. No preflight write, no migration, no ledger entry.
+**Documented environmental deviation (not a blocker):** this project has schema-wide
+`ALTER DEFAULT PRIVILEGES` that grant broad table privileges to `anon`/`authenticated`
+on every new `public` table (identical to all pre-existing tables, e.g. `grade_appeal_details`).
+The frozen `GRANT SELECT`-only intent is therefore superseded at ACL level, but write access
+remains fail-closed through RLS because no write policy exists. Same applies to function
+`EXECUTE` ACLs in P1-02.
 
-## 2–13. Not executed
+---
 
-Sections 2 through 13 were not run because section 1 mandates an unconditional stop.
+## 3. P1-02 — APPLIED, POST-VERIFY PASS
 
-## Report fields
+All 12 functions installed, all `SECURITY DEFINER`, all `STABLE`, `search_path = public`:
+
+p1_active_student_profile, p1_current_level_number, p1_enrollment_result,
+p1_passed_course_ids, p1_october_remaining_requirements, p1_assert_october_eligibility,
+p1_assert_replacement_card_eligibility, p1_final_result_published_at,
+p1_assert_final_result_appeal_eligibility, p1_assert_department_transfer_level,
+p1_assert_step_actor, p1_assert_payment_confirmed.
+
+**SOURCE_EQUIVALENCE = PASS (12/12).** Each installed `prosrc` is byte-identical
+(SHA256) to the corresponding body in the frozen draft, so the behavioural matrix proven in
+`PORTAL_REFORM_P1_FIVE_MIGRATION_FINAL_REHEARSAL_AND_PRODUCTION_GATE_05` (PG17, 36 cases:
+Level4+≤4 ALLOW / >4 DENY / non-Level4 DENY / 47.99 outstanding / 48+ passed /
+manipulated selection DENY; replacement card active + duplicate DENY; transfer Level1 DENY;
+appeal own-published-only + 7-day window + duplicate DENY) applies unchanged to the
+installed objects.
+
+Direct behavioural execution against production was **not** performed by design and by
+constraint: the available read roles cannot `EXECUTE` these functions
+(`permission denied for function …`), and exercising them with new data would have required
+creating student requests / grades, which this mission forbids.
+DIRECT_RPC_BYPASS = ZERO (no role-based bypass path exists in `p1_assert_step_actor`;
+direct assignment or exact unit+role binding only).
+
+---
+
+## 4. P1-03 — FAILED, ROLLED BACK — **MISSION BLOCKER**
+
+Exact production error:
 
 ```
-FROZEN_PACKAGE_MATCH=YES
-P1_PACKAGE_SHA256=949094b2c312db8a23d653296a821a9844e980d9d51d7440dcae7f2110d94905
-DEPLOYED_RUNTIME_IDENTIFIER=https://quboolye.com (saba-uni-portal.lovable.app)
-DEPLOYED_RUNTIME_SOURCE_SHA=b277088c7887177a121fe4324d5dc2992efdec47
-P1_SOURCE_COMPATIBLE_WITH_NEW_DB=NO
-DEPLOYED_RUNTIME_COMPATIBILITY=FAIL
-PRE_APPLY_PREFLIGHT=NOT_RUN
-SAFE_TO_APPLY=NOT_EVALUATED
-P1_01_VERSION=NOT_CREATED
-P1_01_APPLY=NOT_RUN
-P1_01_POSTVERIFY=NOT_RUN
-P1_02_VERSION=NOT_CREATED
-P1_02_APPLY=NOT_RUN
-P1_02_POSTVERIFY=NOT_RUN
-P1_03_VERSION=NOT_CREATED
-P1_03_APPLY=NOT_RUN
-P1_03_POSTVERIFY=NOT_RUN
-GRADE_APPEAL_TYPE_CREATED=NO
-GRADE_APPEAL_VISIBLE=FALSE (unchanged; type still absent in production)
-P1_04_VERSION=NOT_CREATED
-P1_04_APPLY=NOT_RUN
-P1_04_POSTVERIFY=NOT_RUN
-P1_05_VERSION=NOT_CREATED
-P1_05_APPLY=NOT_RUN
-P1_05_POSTVERIFY=NOT_RUN
-OFFICIAL_GRADING_SCALE=NOT_APPLIED_TO_PRODUCTION
-GPA_ACTIVE=UNCHANGED_LEGACY (production still legacy; no P1 change made)
-AUTHZ_SMOKE=NOT_RUN
-DIRECT_RPC_BYPASS=NOT_RUN
-MIGRATION_LEDGER=UNCHANGED (0 new entries)
-REAL_STUDENT_REQUESTS_CREATED=0
-REAL_STUDENT_RESULTS_CHANGED=0
-REAL_GRADE_COMPONENTS_CHANGED=0
-REAL_STUDENT_PROFILES_CHANGED=0
-REAL_FINANCIAL_ROWS_CREATED=0
-STUDENT_VISIBLE_ROWS_CHANGED=0
-STUDENT_REQUEST_TESTS=NOT_RUN (no source change this mission)
-ACADEMIC_TESTS=NOT_RUN
-MOBILE_TESTS=NOT_RUN
-TYPECHECK=NOT_RUN
-BUILD=NOT_RUN
-DIFF_CHECK=CLEAN (no source modified)
-DEPLOY=0
-PUBLISH=0
-STUDENT_SERVICES_ACTIVATED=0
+ERROR: 23514: new row for relation "request_type_workflows"
+violates check constraint "request_type_workflows_status_chk"
+DETAIL: Failing row contains (…, october_exam_entry_form_v1, …, 1, published, t, …)
+CONTEXT: PL/pgSQL function p1_seed_workflow(text,text,text,jsonb) line 17
 ```
 
-FINAL: **HOLD_PORTAL_REFORM_P1_CONTROLLED_PRODUCTION_APPLY_06_SOURCE_DEPLOY_REQUIRED_FIRST**
+Root cause:
 
-## Required unblocking step (owner decision, not performed here)
+```sql
+-- production constraint
+CHECK (status = ANY (ARRAY['draft'::text, 'active'::text, 'retired'::text]))
+```
 
-Deploy/publish the current P1-closed source (HEAD `1470fb81`, or the reviewed release SHA of your choice containing `src/lib/academic/grading-scale.ts`, `pass-threshold.ts`, and the P1 service contracts), verify the runtime SHA via `/version.json`, then reissue `PORTAL_REFORM_P1_CONTROLLED_PRODUCTION_APPLY_06`. The frozen five-file package needs no changes.
+The frozen P1-03 seeds `status = 'published'`, which production rejects. The rehearsal
+cluster did not carry this constraint, so the mismatch was invisible in PG17.
+
+Post-failure state verification (fully rolled back, **no partial apply**):
+
+- `request_types.grade_appeal` = ABSENT
+- `request_processing_roles.course_instructor` (department) = ABSENT
+- workflows `october_exam_entry_form_v1` / `replacement_student_card_v1` /
+  `final_result_appeal_v1` = ABSENT
+- helper `p1_seed_workflow` = ABSENT (not left behind)
+
+Execution stopped immediately per mission rule. **P1-04 and P1-05 were NOT applied.**
+
+---
+
+## 5. Final production state and invariants
+
+Migration ledger:
+
+| Migration | State |
+|---|---|
+| P1-01 | APPLIED |
+| P1-02 | APPLIED |
+| P1-03 | NOT APPLIED (failed, rolled back) |
+| P1-04 | NOT APPLIED (blocked) |
+| P1-05 | NOT APPLIED (blocked) |
+
+Invariants (pre vs post, identical):
+
+- DIRECT_RPC_BYPASS = ZERO
+- STUDENT_VISIBLE_ROWS_CHANGED = 0 (visible set still: department_transfer,
+  enrollment_certificate, enrollment_suspension, excused_absence, file_withdrawal, final_chance)
+- STUDENT_REQUESTS_CREATED = 0 (72 → 72)
+- REAL_STUDENT_RESULTS_CHANGED = 0 (student_grades 123 → 123)
+- GRADE_COMPONENTS_CHANGED = 0 (114 → 114)
+- STUDENT_PROFILES_CHANGED = 0 (867 → 867)
+- FINANCIAL_ROWS_CREATED = 0 (student_fees 0, student_payments 0)
+- SERVICES_ACTIVATED = 0, SOURCE_DEPLOYED = 0, PUBLISH = 0, P2_STARTED = NO
+- enrollment_certificate service = untouched
+
+---
+
+## 6. Required unblock (needs new owner authorization)
+
+The frozen package cannot proceed unmodified. Two forward-only options, neither executed:
+
+1. **Re-freeze P1-03** with `status = 'active'` (the production-legal value that means a live
+   workflow in this schema), recompute P1-03 and PACKAGE_SHA256, re-rehearse on a PG17 clone
+   that carries `request_type_workflows_status_chk`, then resume from P1-03.
+2. **Widen the constraint first** with a separate forward-only migration adding `'published'`
+   to the allowed set, then apply the frozen P1-03 byte-exact.
+
+Option 1 is preferred: it keeps a single canonical status vocabulary and avoids two synonyms
+for the same lifecycle state.
+
+**FINAL: HOLD_PORTAL_REFORM_P1_CONTROLLED_PRODUCTION_APPLY_06_P1_03_WORKFLOW_STATUS_CHECK_CONSTRAINT_REJECTS_PUBLISHED**
