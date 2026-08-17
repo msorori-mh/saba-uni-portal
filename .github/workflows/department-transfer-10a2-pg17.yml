@@ -1,0 +1,83 @@
+name: Department Transfer 10A2 PG17 Readiness
+
+on:
+  pull_request:
+    paths:
+      - "docs/department-transfer-10a1/**"
+      - "scripts/department-transfer-10a1/**"
+      - "tests/student-requests/department-transfer-schema-rpc-readiness-10a1.test.ts"
+      - "tests/b1-rpc-matrix/pg/**"
+      - "tests/b1-integrated-runtime/pg/**"
+      - ".github/workflows/department-transfer-10a2-pg17.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-contract:
+    name: 10A1 source package contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Focused package test
+        run: bun test tests/student-requests/department-transfer-schema-rpc-readiness-10a1.test.ts
+      - name: Full student request regression
+        run: bun test tests/student-requests
+      - name: Typecheck
+        run: bunx tsc --noEmit --pretty false --incremental false
+      - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: bun run build
+      - name: Diff check
+        run: git diff --check
+
+  pg17-disposable:
+    name: PG17 disposable direct RPC matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_department_transfer_pg17
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci_department_transfer_pg17
+      PGMAINTENANCE_DB: postgres
+      PG_TARGET_DISPOSABLE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure psql client and PowerShell
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v psql >/dev/null || { sudo apt-get update; sudo apt-get install -y postgresql-client; }
+          command -v pwsh >/dev/null
+          psql --version
+          pwsh --version
+      - name: Run clean apply and direct matrix
+        shell: pwsh
+        run: ./scripts/department-transfer-10a1/run-pg17-harness.ps1
