@@ -81,25 +81,25 @@ type RpcClient = {
 
 /**
  * Atomic P1 submit capability (`submit_student_request_with_details`).
- * Ships with the P1-06 forward-only migration draft; stays `false` until that
- * migration is applied under a controlled production window. Source never
- * enables a runtime path whose backend contract is not live.
+ * P1-06 (atomic submit), P1-07 (transitions/specialized actions), P1-08 (strict
+ * runtime assignment) and P1-09 (audit column fix) are APPLIED in production and
+ * attested read-only, so the source capability gate is now open.
  */
-export const STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE = false as const;
+export const STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE = true as const;
 
 export type AtomicStudentRequestSubmitCapability = {
   rpcName: "submit_student_request_with_details";
   transactionRequired: true;
   validatesBeforeWorkflow: true;
-  supportsResubmit: true;
-  available: false;
+  supportsResubmit: false;
+  available: true;
 };
 
 export const ATOMIC_STUDENT_REQUEST_SUBMIT_CAPABILITY: AtomicStudentRequestSubmitCapability = {
   rpcName: "submit_student_request_with_details",
   transactionRequired: true,
   validatesBeforeWorkflow: true,
-  supportsResubmit: true,
+  supportsResubmit: false,
   available: STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE,
 };
 
