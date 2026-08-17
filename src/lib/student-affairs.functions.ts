@@ -688,6 +688,8 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const profile = await currentStudentProfile(context.userId);
     const requestType = normalizeStudentRequestTypeCode(data.requestType);
+    // P1 atomic services have no generic draft-create path — fail closed.
+    if (isP1AtomicSubmitService(requestType)) throw new Error("P1_ATOMIC_SUBMIT_REQUIRED");
     await assertStudentEligibleForRequestType(context.supabase, requestType);
     const adapter = getRequestServiceAdapter(requestType);
     if (adapter) {
