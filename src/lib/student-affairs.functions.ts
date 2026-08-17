@@ -8,6 +8,8 @@ import {
   rpcGetAvailableRequestTypes,
   rpcGetMyStudentRequests,
   rpcSubmitStudentRequest,
+  rpcSubmitStudentRequestWithDetails,
+  isP1AtomicSubmitService,
   STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG,
   STUDENT_REQUEST_SERVICE_UPDATING_MSG,
 } from "@/lib/student-request-rpc";
@@ -474,6 +476,54 @@ export async function submitCanonicalStudentRequestCore(input: {
   if (!validation.ok) throw new Error(validation.message);
 
   const profile = await currentStudentProfile(input.userId);
+
+  // P1 atomic path: the live RPC owns eligibility + create + details + strict
+  // workflow init + submit inside ONE transaction. No generic create/submit,
+  // no fallback, no client-side duplication of that logic.
+  if (isP1AtomicSubmitService(validation.normalized.requestTypeCode)) {
+    if (validation.normalized.existingRequestId) {
+      // The live atomic RPC has no canonical resubmit contract — fail closed.
+      throw new Error("P1_RESUBMIT_NOT_SUPPORTED");
+    }
+    const p1Payload = buildStudentRequestSubmitPayload(validation.normalized);
+    const atomic = await rpcSubmitStudentRequestWithDetails(input.sessionClient, {
+      requestType: validation.normalized.requestTypeCode,
+      title: p1Payload.title,
+      formData: p1Payload.formData,
+      studentNotes: p1Payload.studentNotes,
+      testRunId: null,
+    });
+    if (atomic.rpcUnavailable) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+
+    const p1Created = await loadCreatedRequestMeta(atomic.id);
+    await insertEvent({
+      requestId: atomic.id,
+      actorId: input.userId,
+      eventType: "submitted",
+      fromStatus: "draft",
+      toStatus: "submitted",
+      payload: {
+        request_type: validation.normalized.requestTypeCode,
+        client_request_id: validation.normalized.clientRequestId,
+      },
+    });
+    await audit({
+      actorId: input.userId,
+      requestId: atomic.id,
+      action: "request_submitted",
+      oldValues: { status: "draft" },
+      newValues: { status: "submitted", request_type: validation.normalized.requestTypeCode },
+    });
+    return {
+      id: p1Created.id,
+      requestNumber: (p1Created as { request_number?: string | null }).request_number ?? null,
+      status: (p1Created as { status?: string | null }).status ?? "submitted",
+      submitted: true,
+      workflowInitialized: false,
+      clientRequestId: validation.normalized.clientRequestId,
+    };
+  }
+
   await assertStudentEligibleForRequestType(input.sessionClient, validation.normalized.requestTypeCode);
   const b1Adapter = getRequestServiceAdapter(validation.normalized.requestTypeCode);
   if (b1Adapter) {

@@ -84,6 +84,12 @@ const COPY_COUNT_OPTIONS: readonly RequestFormFieldOption[] = [
 
 const SCHEMA_PENDING = true;
 
+/**
+ * P1 atomic services whose backend contract (P1-01..P1-09) is live in
+ * production and E2E-attested — their forms are fully available in source.
+ */
+const P1_ATOMIC_SCHEMA_APPLIED = false;
+
 const ENROLLMENT_SUSPENSION: RequestFormDefinition = {
   code: "enrollment_suspension",
   titleAr: "وقف القيد",
@@ -348,7 +354,7 @@ const GRADE_APPEAL: RequestFormDefinition = {
   code: "grade_appeal",
   titleAr: "تظلم على النتيجة النهائية",
   descriptionAr: "تظلم رسمي على نتيجة نهائية منشورة، خلال 7 أيام من تاريخ إعلانها.",
-  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  unavailableUntilSchemaApplied: P1_ATOMIC_SCHEMA_APPLIED,
   warnings: [
     "يُقبل التظلم فقط على النتائج النهائية المنشورة رسمياً وخلال 7 أيام من تاريخ الإعلان.",
     "التظلم على درجات أعمال السنة خدمة منفصلة تُنفَّذ لاحقاً مع أستاذ المقرر.",
@@ -460,7 +466,7 @@ const OCTOBER_EXAM_ENTRY: RequestFormDefinition = {
   titleAr: "استمارة دخول دور أكتوبر",
   descriptionAr:
     "التقدم لامتحانات دور أكتوبر للمقررات المتبقية لاستكمال الخطة الدراسية (المستوى الرابع، بحد أقصى 4 مقررات).",
-  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  unavailableUntilSchemaApplied: P1_ATOMIC_SCHEMA_APPLIED,
   warnings: [
     "المقررات المعروضة تُحسب آلياً من الخطة الدراسية والنتائج المعتمدة، ويُعاد احتسابها عند الإرسال.",
     "السداد يتم في النظام المالي الجامعي، وتكتفي البوابة بتأكيد الإيرادات باستلام السداد.",
@@ -496,7 +502,7 @@ const REPLACEMENT_STUDENT_CARD: RequestFormDefinition = {
   code: "replacement_student_card",
   titleAr: "بطاقة طالب بدل فاقد",
   descriptionAr: "طلب إصدار بطاقة طالب بديلة عند فقد البطاقة الأصلية.",
-  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  unavailableUntilSchemaApplied: P1_ATOMIC_SCHEMA_APPLIED,
   warnings: ["السداد يتم في النظام المالي الجامعي، وتكتفي البوابة بتأكيد الإيرادات باستلام السداد."],
   requiredAttachments: [
     { key: "loss_supporting_document", labelAr: "مستند مساند (اختياري)", required: false },
@@ -509,6 +515,8 @@ const REPLACEMENT_STUDENT_CARD: RequestFormDefinition = {
         { name: "department_display", labelAr: "القسم / البرنامج", type: "readonly" },
         { name: "previous_card_number_display", labelAr: "رقم البطاقة السابقة", type: "readonly" },
         { name: "loss_reason", labelAr: "سبب الفقد", type: "textarea", required: true },
+        { name: "loss_incident_date", labelAr: "تاريخ الفقد", type: "date" },
+        { name: "previous_card_serial", labelAr: "الرقم التسلسلي للبطاقة السابقة", type: "text" },
         {
           name: "loss_declaration_ack",
           labelAr: "أقرّ بصحة بيانات الفقد المذكورة أعلاه",
