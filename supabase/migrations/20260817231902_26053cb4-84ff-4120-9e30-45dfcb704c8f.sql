@@ -1,0 +1,1 @@
+UPDATE public.request_types SET name_ar = 'تقديم تظلم' WHERE code = 'grade_appeal';
