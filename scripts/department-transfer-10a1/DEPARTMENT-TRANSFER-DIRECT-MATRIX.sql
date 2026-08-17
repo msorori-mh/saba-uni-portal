@@ -22,6 +22,8 @@ DECLARE
   step public.student_request_workflow_steps%rowtype;
   actor uuid;
   action text;
+  assigned_role text;
+  processing_unit text;
   i integer;
   step_count integer;
   expected_keys text[] := ARRAY[
@@ -165,12 +167,58 @@ BEGIN
     IF step.id IS NULL THEN
       RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_STOPPED_EARLY';
     END IF;
-    actor := CASE step.step_key
-      WHEN 'student_affairs_intake' THEN u_sa_spec
-      WHEN 'source_department_head_approval' THEN u_chair_it
-      WHEN 'target_department_head_approval' THEN u_chair_cs
-      WHEN 'dean_approval' THEN u_dean
-    END;
+    SELECT
+      COALESCE(
+        step.assigned_user_id,
+        (SELECT sp.user_id FROM public.staff_profiles sp WHERE sp.id = step.assigned_staff_profile_id),
+        (SELECT fp.user_id FROM public.faculty_profiles fp WHERE fp.id = step.assigned_faculty_profile_id),
+        (SELECT pa.user_id FROM public.position_assignments pa WHERE pa.id = step.assigned_position_assignment_id),
+        CASE rpa.assignment_type
+          WHEN 'user' THEN rpa.user_id
+          WHEN 'staff_profile' THEN (SELECT sp.user_id FROM public.staff_profiles sp WHERE sp.id = rpa.staff_profile_id)
+          WHEN 'faculty_profile' THEN (SELECT fp.user_id FROM public.faculty_profiles fp WHERE fp.id = rpa.faculty_profile_id)
+          WHEN 'position_assignment' THEN (SELECT pa.user_id FROM public.position_assignments pa WHERE pa.id = rpa.position_assignment_id)
+        END
+      ),
+       rpu.code,
+       rpr.code
+    INTO actor, processing_unit, assigned_role
+    FROM public.request_processing_units rpu
+    JOIN public.request_processing_roles rpr ON rpr.id = step.processing_role_id
+    LEFT JOIN LATERAL (
+      SELECT a.*
+      FROM public.request_processing_assignments a
+      WHERE a.unit_id = step.processing_unit_id
+        AND a.role_id = step.processing_role_id
+        AND a.is_active = true
+        AND (a.starts_at IS NULL OR a.starts_at <= now())
+        AND (a.ends_at IS NULL OR a.ends_at > now())
+        AND (
+          step.step_key NOT IN ('source_department_head_approval', 'target_department_head_approval')
+          OR a.department_id = (
+            SELECT CASE step.step_key
+              WHEN 'source_department_head_approval' THEN d.current_department_id
+              WHEN 'target_department_head_approval' THEN d.requested_department_id
+            END
+            FROM public.transfer_request_details d
+            WHERE d.request_id = payment_req
+          )
+        )
+      ORDER BY a.id
+      LIMIT 1
+    ) rpa ON true
+    WHERE rpu.id = step.processing_unit_id;
+    IF actor IS NULL OR processing_unit IS NULL OR assigned_role IS NULL THEN
+      RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_ASSIGNMENT_REQUIRED step=% unit=% role=% actor=%',
+        step.step_key, processing_unit, assigned_role, actor;
+    END IF;
+    PERFORM b1_e2e.note(
+      format('department_transfer/direct_rpc/payment_fixture_assignment/%s', step.step_key),
+      'catalog',
+      true,
+      format('assigned_user_id=%s assigned_role=%s processing_unit_id=%s step_key=%s actor=%s',
+        step.assigned_user_id, assigned_role, step.processing_unit_id, step.step_key, actor)
+    );
     action := CASE step.step_key
       WHEN 'student_affairs_intake' THEN 'review'
       WHEN 'source_department_head_approval' THEN 'approve'
@@ -181,6 +229,10 @@ BEGIN
       RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_UNEXPECTED_STEP_%', step.step_key;
     END IF;
     PERFORM b1_e2e.set_uid(actor);
+    IF NOT public.user_matches_workflow_runtime_step(step.id) THEN
+      RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_ACTOR_NOT_ASSIGNED step=% actor=% unit=% role=%',
+        step.step_key, actor, processing_unit, assigned_role;
+    END IF;
     PERFORM public.act_on_b1_student_request_step_atomic(step.id, action, 'e2e active payment fixture');
   END LOOP;
 
