@@ -10,7 +10,7 @@
  */
 
 export const FINAL_RESULT_APPEAL_CODE = "grade_appeal" as const;
-export const FINAL_RESULT_APPEAL_TITLE_AR = "تظلم على النتيجة النهائية";
+export const FINAL_RESULT_APPEAL_TITLE_AR = "تقديم تظلم";
 export const FINAL_RESULT_APPEAL_WINDOW_DAYS = 7 as const;
 
 export const FINAL_RESULT_APPEAL_DENY_REASONS = {

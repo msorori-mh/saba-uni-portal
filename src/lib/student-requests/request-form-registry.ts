@@ -352,7 +352,7 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
 
 const GRADE_APPEAL: RequestFormDefinition = {
   code: "grade_appeal",
-  titleAr: "تظلم على النتيجة النهائية",
+  titleAr: "تقديم تظلم",
   descriptionAr: "تظلم رسمي على نتيجة نهائية منشورة، خلال 7 أيام من تاريخ إعلانها.",
   unavailableUntilSchemaApplied: P1_ATOMIC_SCHEMA_APPLIED,
   warnings: [
