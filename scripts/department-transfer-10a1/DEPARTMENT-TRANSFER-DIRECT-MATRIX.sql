@@ -7,12 +7,22 @@ DECLARE
   u_student uuid := '11111111-1111-4111-8111-111111111101';
   u_other uuid := '11111111-1111-4111-8111-111111111102';
   u_sa_spec uuid := '22222222-2222-4222-8222-222222222201';
+  u_chair_cs uuid := '22222222-2222-4222-8222-22222222220b';
+  u_chair_it uuid := '22222222-2222-4222-8222-22222222220c';
   u_admin uuid := '22222222-2222-4222-8222-22222222220e';
   u_dean uuid := '22222222-2222-4222-8222-22222222220f';
   u_registrar uuid := '22222222-2222-4222-8222-222222222203';
   req uuid;
+  payment_req uuid;
   first_step uuid;
   payment_step uuid;
+  att uuid;
+  expected_version timestamptz;
+  v jsonb;
+  step public.student_request_workflow_steps%rowtype;
+  actor uuid;
+  action text;
+  i integer;
   step_count integer;
   expected_keys text[] := ARRAY[
     'student_affairs_intake',
@@ -112,8 +122,87 @@ BEGIN
     format('select public.act_on_b1_student_request_step_atomic(%L::uuid,%L,%L,%L::jsonb)', first_step, 'review', 'bad', '{"forged":true}'),
     '%B1_%', req);
 
+  -- Build an independent request and stop at an active payment step. The
+  -- existing lifecycle request is completed by this point, so it cannot prove
+  -- wrong-actor authorization for the payment RPC.
+  PERFORM b1_e2e.set_uid(u_student);
+  v := public.create_b1_request_draft_for_student('department_transfer', 'e2e-direct-payment-active');
+  payment_req := (v->>'requestId')::uuid;
+  expected_version := (v->>'updatedAt')::timestamptz;
+  v := public.create_student_request_attachment_upload_intent(
+    payment_req, 'secondary_certificate', 'direct-payment.pdf', 'application/pdf', 4096, null);
+  att := (v->>'attachment_id')::uuid;
+  BEGIN
+    INSERT INTO storage.objects(bucket_id, name, owner, metadata)
+    VALUES (
+      coalesce(v->>'storage_bucket', 'student-request-secure-attachments'),
+      v->>'storage_object_path',
+      u_student,
+      jsonb_build_object('size', 4096, 'mimetype', 'application/pdf')
+    );
+    PERFORM public.complete_student_request_attachment_upload(att);
+  EXCEPTION WHEN OTHERS THEN
+    UPDATE public.student_request_attachment_uploads
+       SET upload_status = 'attached'
+     WHERE id = att;
+  END;
+  v := public.save_b1_request_draft_for_student(
+    payment_req,
+    jsonb_build_object(
+      'target_department_id', '55555555-5555-4555-8555-555555555501',
+      'target_program_id', '66666666-6666-4666-8666-666666666601',
+      'transfer_reason', 'independent payment authorization probe',
+      'secondary_certificate_file', jsonb_build_array(att)
+    ),
+    expected_version,
+    null
+  );
+  v := public.submit_b1_student_request_atomic(
+    payment_req, 'department_transfer', v->'formData', (v->>'updatedAt')::timestamptz, array[att]);
+
+  FOR i IN 1..4 LOOP
+    SELECT * INTO step FROM b1_e2e.active_step(payment_req);
+    IF step.id IS NULL THEN
+      RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_STOPPED_EARLY';
+    END IF;
+    actor := CASE step.step_key
+      WHEN 'student_affairs_intake' THEN u_sa_spec
+      WHEN 'source_department_head_approval' THEN u_chair_it
+      WHEN 'target_department_head_approval' THEN u_chair_cs
+      WHEN 'dean_approval' THEN u_dean
+    END;
+    action := CASE step.step_key
+      WHEN 'student_affairs_intake' THEN 'review'
+      WHEN 'source_department_head_approval' THEN 'approve'
+      WHEN 'target_department_head_approval' THEN 'approve'
+      WHEN 'dean_approval' THEN 'approve'
+    END;
+    IF actor IS NULL OR action IS NULL THEN
+      RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_UNEXPECTED_STEP_%', step.step_key;
+    END IF;
+    PERFORM b1_e2e.set_uid(actor);
+    PERFORM public.act_on_b1_student_request_step_atomic(step.id, action, 'e2e active payment fixture');
+  END LOOP;
+
+  SELECT s.id INTO payment_step
+  FROM public.student_request_workflow_steps s
+  WHERE s.student_request_id = payment_req
+    AND s.step_key = 'payment_confirmation'
+    AND s.status = 'active';
+  IF payment_step IS NULL THEN
+    RAISE EXCEPTION 'DEPARTMENT_TRANSFER_PAYMENT_FIXTURE_ACTIVE_STEP_REQUIRED';
+  END IF;
+  PERFORM b1_e2e.note(
+    'department_transfer/direct_rpc/payment_fixture_active',
+    'catalog',
+    EXISTS (
+      SELECT 1 FROM public.student_request_workflow_steps s
+      WHERE s.id = payment_step AND s.status = 'active' AND s.step_key = 'payment_confirmation'
+    ),
+    format('request=%s step=%s status=active wrong_actor=%s', payment_req, payment_step, u_other)
+  );
   PERFORM b1_e2e.expect_deny(
     'department_transfer/direct_rpc/payment_replay_wrong_actor', 'action', u_other,
     format('select public.record_external_university_payment_confirmation(%L::uuid,%L)', payment_step, 'forged payment'),
-    '%B1_%', req);
+    '%DIRECT_PAYMENT_ASSIGNEE_REQUIRED%', payment_req);
 END $$;
