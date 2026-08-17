@@ -3,6 +3,7 @@
 do $$
 declare
   u_student uuid := '11111111-1111-4111-8111-111111111101';
+  u_final_chance_student uuid := '11111111-1111-4111-8111-111111111102';
   u_sa_spec uuid := '22222222-2222-4222-8222-222222222201';
   u_sa_mgr uuid := '22222222-2222-4222-8222-222222222202';
   u_registrar uuid := '22222222-2222-4222-8222-222222222203';
@@ -294,7 +295,9 @@ begin
   -- 4) final_chance (+ payment)
   -- =====================================================================
   service := 'final_chance';
-  perform b1_e2e.set_uid(u_student);
+  -- Use the independent active academic-status fixture; the first student
+  -- was intentionally suspended by service 1 above.
+  perform b1_e2e.set_uid(u_final_chance_student);
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
   expected_version := (v->>'updatedAt')::timestamptz;
