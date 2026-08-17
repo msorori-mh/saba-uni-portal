@@ -12493,6 +12493,14 @@ export type Database = {
         Returns: boolean
       }
       p1_current_level_number: { Args: { p_student: string }; Returns: number }
+      p1_current_user_is_appeal_section_instructor: {
+        Args: { p_step_id: string }
+        Returns: boolean
+      }
+      p1_current_user_matches_appeal_department_scope: {
+        Args: { p_step_id: string }
+        Returns: boolean
+      }
       p1_e2e_07_allows_hidden_submit: {
         Args: { p_run_id: string; p_service_code: string }
         Returns: string
@@ -12508,6 +12516,18 @@ export type Database = {
       }
       p1_final_result_published_at: {
         Args: { p_enrollment: string }
+        Returns: string
+      }
+      p1_grade_appeal_department: {
+        Args: { p_request_id: string }
+        Returns: string
+      }
+      p1_grade_appeal_section_faculty: {
+        Args: { p_request_id: string }
+        Returns: string
+      }
+      p1_grade_appeal_section_id: {
+        Args: { p_request_id: string }
         Returns: string
       }
       p1_is_atomic_submit_service: {
@@ -12528,8 +12548,29 @@ export type Database = {
         }[]
       }
       p1_passed_course_ids: { Args: { p_student: string }; Returns: string[] }
+      p1_repair_testonly_runtime_assignments: {
+        Args: { p_request_number: string }
+        Returns: Json
+      }
       p1_request_has_canonical_detail: {
         Args: { p_code: string; p_request_id: string }
+        Returns: boolean
+      }
+      p1_runtime_step_department_scope: {
+        Args: {
+          p_canonical_code: string
+          p_request_id: string
+          p_step_key: string
+        }
+        Returns: string
+      }
+      p1_step_is_contextual_instructor: {
+        Args: {
+          p_canonical_code: string
+          p_role_code: string
+          p_step_key: string
+          p_unit_code: string
+        }
         Returns: boolean
       }
       persist_b1_draft_form_and_details: {
