@@ -259,7 +259,7 @@ describe("B1 chance compatibility and submit extension", () => {
   it("exposes an optional non-runtime persistence plan without breaking legacy RPC", () => {
     expect(buildStudentRequestDetailPersistencePlan("extra_chance")).toMatchObject({ canonicalCode: "final_chance", runtimeAvailable: false });
     expect(buildStudentRequestDetailPersistencePlan("enrollment_certificate")).toBeNull();
-    expect(ATOMIC_STUDENT_REQUEST_SUBMIT_CAPABILITY).toMatchObject({ available: false, transactionRequired: true, validatesBeforeWorkflow: true });
+    expect(ATOMIC_STUDENT_REQUEST_SUBMIT_CAPABILITY).toMatchObject({ available: true, transactionRequired: true, validatesBeforeWorkflow: true });
   });
   it("keeps the SQL source a non-applied draft with no invented financial values", () => {
     const sql = readFileSync(join(process.cwd(), "docs", "migration-drafts", "REQUEST-B1-SHARED-FOUNDATION-SOURCE-01.sql"), "utf8");
