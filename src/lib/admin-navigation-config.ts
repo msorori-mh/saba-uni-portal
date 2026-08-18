@@ -210,6 +210,7 @@ export const ADMIN_NAV_LEGACY_SIDEBAR_PATHS = [
   "/admin/study-plans",
   "/admin/course-offerings",
   "/admin/enrollments",
+  "/admin/lecture-execution",
   "/admin/grades",
   "/admin/transcripts",
   "/admin/imports",
@@ -217,6 +218,7 @@ export const ADMIN_NAV_LEGACY_SIDEBAR_PATHS = [
   "/admin/at-risk-students",
   "/admin/academic-councils",
   "/admin/graduation-projects",
+  "/admin/graduation-project-policies",
 
   "/admin/graduates-affairs",
   "/admin/graduates-affairs-workflows",
