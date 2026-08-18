@@ -37,7 +37,7 @@ export function B1StudentServiceList() {
 
   return (
     <section dir="rtl" data-testid="b1-student-service-list" className="space-y-3">
-      <h2 className="font-display text-base font-extrabold text-primary">الخدمات الأكاديمية</h2>
+      <h2 className="font-display text-base font-extrabold text-primary">الحالة والقيد الأكاديمي</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {services.map((service) => (
           <article
@@ -56,7 +56,7 @@ export function B1StudentServiceList() {
                   params={{ service: service.code }}
                   className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
                 >
-                  بدء الطلب
+                  تقديم طلب
                 </Link>
               </div>
             </div>
