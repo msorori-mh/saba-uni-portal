@@ -127,7 +127,8 @@ describe("PWA registration surfaces", () => {
   });
 
   test("root layout registers portal PWA and mounts install prompt", () => {
-    expect(root).toContain("registerPortalPWA");
+    expect(root).toContain('import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa"');
+    expect(root).toContain("registerPortalPWA();");
     expect(root).toContain("PortalInstallPrompt");
     expect(root).toContain('rel: "manifest", href: "/manifest.webmanifest"');
     expect(root).toContain('name: "theme-color", content: "#061F33"');
@@ -142,9 +143,10 @@ describe("PWA registration surfaces", () => {
     expect(portalLogin).toContain('apple-mobile-web-app-title", content: "بوابة الكلية"');
   });
 
-  test("existing /mobile/student remains functional with portal SW registration", () => {
+  test("existing /mobile/student relies on the root registration without duplicating it", () => {
     expect(mobileStudent).toContain('createFileRoute("/mobile/student")');
-    expect(mobileStudent).toContain("registerPortalPWA()");
+    expect(root).toContain("registerPortalPWA();");
+    expect(mobileStudent).not.toContain("registerPortalPWA");
     expect(mobileStudent).toContain('rel: "manifest", href: "/manifest.webmanifest"');
     expect(mobileStudent).toContain("/mobile/student-login");
   });
