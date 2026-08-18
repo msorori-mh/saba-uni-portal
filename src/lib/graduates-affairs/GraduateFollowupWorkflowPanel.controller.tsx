@@ -307,7 +307,7 @@ export function GraduateFollowupWorkflowPanelController() {
         </div>
         {/* Create new type */}
         <div className="mt-4 rounded-lg border p-3">
-          <h4 className="text-sm font-bold">نوع متابعة جديد</h3>
+          <h4 className="text-sm font-bold">نوع متابعة جديد</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Input placeholder="الرمز (بالإنجليزية)" value={typeForm.code} onChange={(e) => setTypeForm((f) => ({ ...f, code: e.target.value }))} />
             <Input placeholder="الاسم بالعربية" value={typeForm.labelAr} onChange={(e) => setTypeForm((f) => ({ ...f, labelAr: e.target.value }))} />
