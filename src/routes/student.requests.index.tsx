@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ClipboardList, FileText, Loader2, Plus, Wallet } from "lucide-react";
+import { ClipboardList, FileText, Loader2, Wallet } from "lucide-react";
 import { getStudentRequestTypesForStudent } from "@/lib/student-affairs.functions";
 import { getMyStudentRequestsWithProgress } from "@/lib/student-requests/student-tracking.functions";
 import {
@@ -100,10 +101,7 @@ function StudentRequestsIndexPage() {
     ),
   );
 
-  const scrollToServices = () => {
-    const el = document.getElementById("available-services");
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const [activeTab, setActiveTab] = useState<"services" | "requests">("services");
 
   return (
     <div dir="rtl" className="space-y-6">
@@ -117,21 +115,56 @@ function StudentRequestsIndexPage() {
             اختر خدمة للتقديم أو تابع طلباتك الحالية والسابقة.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={scrollToServices}
-          className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
-        >
-          <Plus className="h-4 w-4" /> طلب جديد
-        </button>
       </header>
 
+      <nav
+        aria-label="أقسام الخدمات الطلابية"
+        role="tablist"
+        className="grid grid-cols-2 rounded-xl border border-border bg-muted/30 p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "services"}
+          aria-controls="student-services-panel"
+          onClick={() => setActiveTab("services")}
+          className={`rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+            activeTab === "services"
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted-foreground hover:text-primary"
+          }`}
+        >
+          الخدمات المتاحة
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "requests"}
+          aria-controls="student-requests-panel"
+          onClick={() => setActiveTab("requests")}
+          className={`rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+            activeTab === "requests"
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted-foreground hover:text-primary"
+          }`}
+        >
+          طلباتي
+          {!requestsLoading && requests.length > 0 ? (
+            <span className="mr-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 text-xs text-primary">
+              {requests.length}
+            </span>
+          ) : null}
+        </button>
+      </nav>
+
+      {activeTab === "services" ? (
+        <>
       {/* —— الخدمات المتاحة —— */}
-      <section id="available-services" className="scroll-mt-4 space-y-3">
+      <section id="student-services-panel" role="tabpanel" className="space-y-3">
         <div>
           <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-gold" />
-            الخدمات المتاحة
+            الوثائق والإفادات والشكاوى
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             اختر الخدمة التي ترغب في تقديم طلب بشأنها.
@@ -217,9 +250,12 @@ function StudentRequestsIndexPage() {
       </section>
 
       <B1StudentServiceList />
+        </>
+      ) : null}
 
       {/* —— طلباتي —— */}
-      <section className="space-y-3">
+      {activeTab === "requests" ? (
+      <section id="student-requests-panel" role="tabpanel" className="space-y-3">
         <div>
           <h2 className="font-display text-base font-bold text-primary">طلباتي</h2>
           <p className="mt-1 text-sm text-muted-foreground">الطلبات الحالية والسابقة.</p>
@@ -405,6 +441,7 @@ function StudentRequestsIndexPage() {
           ) : null}
         </div>
       </section>
+      ) : null}
     </div>
   );
 }
