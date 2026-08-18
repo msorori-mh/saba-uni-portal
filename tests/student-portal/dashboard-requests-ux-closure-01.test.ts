@@ -145,18 +145,23 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).not.toMatch(/service_role|as\s+student_profile_id\s*:/);
   });
 
-  it("7 — back link to /student and طلب جديد scrolls to services (no duplicate طلباتي CTA)", () => {
+  it("7 — requests are isolated in a dedicated accessible tab", () => {
     const nav = readFileSync(join(ROOT, "src/components/portal/StudentRequestsNav.tsx"), "utf8");
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
     const layout = readFileSync(join(ROOT, "src/routes/student.requests.tsx"), "utf8");
     expect(nav).toContain('to="/student"');
     expect(nav).toContain("العودة إلى بوابة الطالب");
     expect(layout).toContain("StudentRequestsNav");
-    expect(page).toContain("available-services");
-    expect(page).toContain("طلب جديد");
-    expect(page).toContain("scrollToServices");
-    // Must not re-link to /student/requests as «طلباتي» on the same page
-    expect(page).not.toMatch(/to="\/student\/requests"[^>]*>\s*طلباتي/);
+    expect(page).toContain('useState<"services" | "requests">("services")');
+    expect(page).toContain('aria-label="أقسام الخدمات الطلابية"');
+    expect(page).toContain('role="tab"');
+    expect(page).toContain('aria-selected={activeTab === "services"}');
+    expect(page).toContain('aria-selected={activeTab === "requests"}');
+    expect(page).toContain('{activeTab === "services" ? (');
+    expect(page).toContain('{activeTab === "requests" ? (');
+    expect(page).toContain("طلباتي");
+    expect(page).toContain("{requests.length}");
+    expect(page).not.toContain("scrollToServices");
   });
 
   it("8 — طلب جديد / تقديم طلب opens type selection path", () => {
