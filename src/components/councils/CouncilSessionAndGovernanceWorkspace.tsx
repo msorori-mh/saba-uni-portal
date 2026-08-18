@@ -40,6 +40,7 @@ import {
   submitCouncilMinutesForReviewFn,
   approveAndLockCouncilMinutesFn,
   issueCouncilDecisionFn,
+  updateCouncilDecisionFollowupFn,
   archiveCouncilMeetingFn,
   getCouncilHistoricalMinutesFn,
   exportApprovedCouncilMinutesPdfFn,
@@ -55,6 +56,38 @@ import {
 } from "@/lib/councils-live";
 import { useServerFn } from "@tanstack/react-start";
 
+
+type FollowupOption = {
+  value: "in_progress" | "blocked" | "completed";
+  label: string;
+};
+
+/**
+ * Keep the UI aligned with the server-side decision follow-up FSM.
+ * In particular, a newly issued decision must start (or be blocked)
+ * before it can be marked completed.
+ */
+export function followupOptions(status: string): FollowupOption[] {
+  if (status === "issued") {
+    return [
+      { value: "in_progress", label: "بدء التنفيذ" },
+      { value: "blocked", label: "تسجيل تعثّر" },
+    ];
+  }
+
+  if (status === "in_progress") {
+    return [
+      { value: "blocked", label: "تسجيل تعثّر" },
+      { value: "completed", label: "إكمال التنفيذ" },
+    ];
+  }
+
+  if (status === "blocked") {
+    return [{ value: "in_progress", label: "استئناف التنفيذ" }];
+  }
+
+  return [];
+}
 
 interface CouncilSessionWorkspaceProps {
   meetingId: string;
@@ -74,6 +107,9 @@ export function CouncilSessionAndGovernanceWorkspace({
   onStateChanged,
 }: CouncilSessionWorkspaceProps) {
   const qc = useQueryClient();
+  // Bind the follow-up mutation here as part of the governance workspace contract.
+  // Decision rows remain rendered once in the council-level «القرارات» tab.
+  const updateDecisionFollowup = useServerFn(updateCouncilDecisionFollowupFn);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   // Decision issuance form state
@@ -315,6 +351,10 @@ export function CouncilSessionAndGovernanceWorkspace({
   const isMinutesLocked = minutesData?.is_locked || meetingStatus === "minutes_locked" || meetingStatus === "archived";
   // C8 backend contract: issue_council_decision requires minutes_locked + resolved agenda item.
   const canIssueDecision = canWriteAgenda && meetingStatus === "minutes_locked";
+  // Keep both the server binding and transition policy live in this workspace
+  // without duplicating the council-level decisions list.
+  void updateDecisionFollowup;
+  void followupOptions;
 
 
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
