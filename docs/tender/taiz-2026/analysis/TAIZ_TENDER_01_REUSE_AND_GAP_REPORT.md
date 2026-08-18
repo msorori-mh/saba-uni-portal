@@ -1,8 +1,8 @@
 # تقرير التدقيق الفني: إعادة الاستخدام وتحليل الفجوات لمستودع البوابة
 ## TAIZ-TENDER-01 — REUSE & GAP ANALYSIS REPORT
 
-> **المستودع المدقق (قراءة فقط):** `msorori-mh/saba-uni-portal`  
-> **الفرع:** `docs/taiz-tender-prebid-01` | **BASE_SHA:** `b8b356044686082e880475041e17cfb7ffe05eab`  
+> **المستودع المدقق (قراءة فقط):** `msorori-mh/saba-uni-portal`
+> **الفرع:** `docs/taiz-tender-prebid-01` | **BASE_SHA:** `b8b356044686082e880475041e17cfb7ffe05eab`
 > **المرجع التعاقدي:** كراسة المناقصة العامة رقم 2/2026 لجامعة تعز (42 صفحة).
 
 ---

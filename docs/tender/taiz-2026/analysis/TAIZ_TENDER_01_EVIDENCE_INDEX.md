@@ -1,7 +1,7 @@
 # فهرس الأدلة البرمجية والوثائقية لمناقصة جامعة تعز 2/2026
 ## TAIZ-TENDER-01 — CODEBASE EVIDENCE & REPOSITORY INDEX
 
-> **المستودع:** `msorori-mh/saba-uni-portal` | **الفرع:** `docs/taiz-tender-prebid-01`  
+> **المستودع:** `msorori-mh/saba-uni-portal` | **الفرع:** `docs/taiz-tender-prebid-01`
 > **الهدف:** توفير فهرس متكامل يربط كل متطلب من متطلبات المناقصة بالمسارات والملفات والاختبارات الدقيقة داخل المستودع، أو تحديد المتطلب الوثائقي الخارجي.
 
 ---
