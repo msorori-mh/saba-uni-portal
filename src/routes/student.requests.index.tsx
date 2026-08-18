@@ -148,7 +148,7 @@ function StudentRequestsIndexPage() {
               : "text-muted-foreground hover:text-primary"
           }`}
         >
-          طلباتي
+          طلباتي السابقة
           {!requestsLoading && requests.length > 0 ? (
             <span className="mr-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 text-xs text-primary">
               {requests.length}
