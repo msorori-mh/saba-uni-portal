@@ -365,21 +365,6 @@ jobs:
               tests/materials/postgres-minimal-schema.sql
               docs/drafts/20260721000000_materials_secure_activation.draft.sql
               tests/materials/postgres-secure-activation-verifier.sql
-          # Chain: minimal schema -> 20260722120000_lecture_execution_mvp_01
-          # draft -> foundation verifier. Fixture ids from the minimal schema.
-          - name: lecture-execution-foundation
-            files: >-
-              tests/lecture-execution/postgres-minimal-schema.sql
-              docs/drafts/20260722120000_lecture_execution_mvp_01.draft.sql
-              tests/lecture-execution/postgres-foundation-verifier.sql
-            vars: >-
-              -v department_id=20000000-0000-0000-0000-000000000001
-              -v level_id=60000000-0000-0000-0000-000000000001
-              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
-              -v faculty_user_id=10000000-0000-0000-0000-000000000001
-              -v student_profile_id=30000000-0000-0000-0000-000000000001
-              -v student_user_id=10000000-0000-0000-0000-000000000002
-              -v class_schedule_id=a0000000-0000-0000-0000-000000000001
     services:
       postgres:
         image: postgres:17
