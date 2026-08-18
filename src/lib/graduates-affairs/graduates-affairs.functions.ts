@@ -32,7 +32,6 @@ import {
 import {
   GraduatesAffairsRpcClient,
   GraduatesAffairsRpcError,
-  mapGraduatesAffairsRpcError,
 } from "@/lib/graduates-affairs/rpc";
 
 export {
