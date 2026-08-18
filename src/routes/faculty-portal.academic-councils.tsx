@@ -312,6 +312,10 @@ function FacultyAcademicCouncilsPage() {
               <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
                 إدارة عضويتك واجتماعاتك وموضوعات المجالس الأكاديمية من مكان واحد.
               </p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+                إدارة الجلسة والتصويت والمحضر والقرارات والأرشفة متاح وفق دورك المعتمد في المجلس.
+                تستند الصلاحيات والخيارات المتاحة إلى دورك المعتمد في كل مجلس.
+              </p>
             </div>
           </div>
           {/* IA_02: the authorization-audit route stays reachable directly,
