@@ -154,7 +154,10 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(layout).toContain("StudentRequestsNav");
     expect(page).toContain('useState<"services" | "requests">("services")');
     expect(page).toContain('aria-label="أقسام الخدمات الطلابية"');
+    expect(page).toContain('role="tablist"');
     expect(page).toContain('role="tab"');
+    expect(page).toContain('role="tabpanel"');
+    expect(page).toContain("الوثائق والإفادات والشكاوى");
     expect(page).toContain('aria-selected={activeTab === "services"}');
     expect(page).toContain('aria-selected={activeTab === "requests"}');
     expect(page).toContain('{activeTab === "services" ? (');
