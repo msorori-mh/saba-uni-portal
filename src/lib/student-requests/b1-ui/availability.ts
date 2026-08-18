@@ -1,8 +1,8 @@
 /**
  * Maps backend available-request-type rows onto B1ServiceAvailability.
  *
- * studentVisible comes only from backend inclusion (get_available filters
- * student_visible=true). runtimeAvailable is NEVER hardcoded true — it follows
+ * studentVisible comes only from backend inclusion and its authoritative
+ * is_eligible/is_disabled decision. runtimeAvailable is NEVER hardcoded true — it follows
  * secure-read capability readiness (available + service listed + create_draft open).
  */
 
