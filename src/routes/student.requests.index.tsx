@@ -35,6 +35,21 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "مكتمل",
 };
 
+const GENERAL_SERVICE_DISPLAY_ORDER = [
+  "enrollment_certificate",
+  "replacement_student_card",
+  "grade_appeal",
+  "october_exam_entry_form",
+] as const;
+
+function getGeneralServiceDisplayRank(code: string): number {
+  const normalized = normalizeStudentRequestTypeCode(code);
+  const rank = GENERAL_SERVICE_DISPLAY_ORDER.indexOf(
+    normalized as (typeof GENERAL_SERVICE_DISPLAY_ORDER)[number],
+  );
+  return rank === -1 ? GENERAL_SERVICE_DISPLAY_ORDER.length : rank;
+}
+
 type RequestRow = {
   id: string;
   request_number: string | null;
@@ -95,10 +110,15 @@ function StudentRequestsIndexPage() {
     retry: 1,
   });
 
-  const services = filterAvailableRequestTypesForStudentPage(
-    filterStudentRequestTypesForDisplay(
-      typeRows as Parameters<typeof filterStudentRequestTypesForDisplay>[0],
+  const services = [
+    ...filterAvailableRequestTypesForStudentPage(
+      filterStudentRequestTypesForDisplay(
+        typeRows as Parameters<typeof filterStudentRequestTypesForDisplay>[0],
+      ),
     ),
+  ].sort(
+    (left, right) =>
+      getGeneralServiceDisplayRank(left.code) - getGeneralServiceDisplayRank(right.code),
   );
 
   const [activeTab, setActiveTab] = useState<"services" | "requests">("services");
@@ -159,7 +179,9 @@ function StudentRequestsIndexPage() {
 
       {activeTab === "services" ? (
         <>
-      {/* —— الخدمات المتاحة —— */}
+      <B1StudentServiceList />
+
+      {/* —— الوثائق والإفادات والشكاوى —— */}
       <section id="student-services-panel" role="tabpanel" className="space-y-3">
         <div>
           <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
@@ -248,8 +270,6 @@ function StudentRequestsIndexPage() {
           </div>
         )}
       </section>
-
-      <B1StudentServiceList />
         </>
       ) : null}
 
