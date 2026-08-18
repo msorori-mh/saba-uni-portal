@@ -542,7 +542,7 @@ const REPLACEMENT_STUDENT_CARD: RequestFormDefinition = {
 
 const FINAL_CHANCE: RequestFormDefinition = {
   code: "final_chance",
-  titleAr: "فرصة نهائية للاختبار",
+  titleAr: "فرصة أخيرة",
   descriptionAr: "طلب فرصة نهائية لأداء الاختبار فقط، بعد التحقق الأكاديمي وتأكيد المالية الخارجي.",
   unavailableUntilSchemaApplied: SCHEMA_PENDING,
   warnings: ["السداد يتم في النظام الجامعي الأساسي، ولا تسجل البوابة مبلغاً أو عملة أو فاتورة."],
