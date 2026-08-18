@@ -160,6 +160,8 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).toContain("الوثائق والإفادات والشكاوى");
     expect(page).toContain('aria-selected={activeTab === "services"}');
     expect(page).toContain('aria-selected={activeTab === "requests"}');
+    expect(page).toContain('aria-controls="student-services-panel"');
+    expect(page).toContain('aria-controls="student-requests-panel"');
     expect(page).toContain('{activeTab === "services" ? (');
     expect(page).toContain('{activeTab === "requests" ? (');
     expect(page).toContain("طلباتي");
