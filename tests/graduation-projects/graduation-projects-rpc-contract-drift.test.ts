@@ -23,8 +23,9 @@ const RUNTIME_FORBIDDEN = [
   "cleanup_gp_test_artifacts",
   "export_graduation_project_e2e_fingerprint",
   "cleanupTestArtifacts",
-  "p_fingerprint",
 ] as const;
+
+const GP_RUNTIME_FORBIDDEN = ["p_fingerprint"] as const;
 
 function listSourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -346,6 +347,19 @@ describe("Package B ↔ Package A RPC contract drift guard", () => {
       }
     }
     expect(runtimeHits).toBe(0);
+
+    // p_fingerprint belongs to the Graduation Projects Package D contract only.
+    // Keep this guard scoped to GP runtime so unrelated modules may use the same
+    // generic parameter name without producing cross-domain false positives.
+    const gpRuntimeFiles = listSourceFiles(join(ROOT, "src/lib/graduation-projects"));
+    let gpRuntimeHits = 0;
+    for (const file of gpRuntimeFiles) {
+      const text = readFileSync(file, "utf8");
+      for (const needle of GP_RUNTIME_FORBIDDEN) {
+        if (text.includes(needle)) gpRuntimeHits += 1;
+      }
+    }
+    expect(gpRuntimeHits).toBe(0);
 
     // Package D infrastructure retains the helper.
     expect(packageDCleanup).toContain("create or replace function public.cleanup_graduation_project_test_artifacts");
