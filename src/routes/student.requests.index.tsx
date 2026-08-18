@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ClipboardList, FileText, Loader2, Plus, Wallet } from "lucide-react";
+import { ClipboardList, FileText, Loader2, Wallet } from "lucide-react";
 import { getStudentRequestTypesForStudent } from "@/lib/student-affairs.functions";
 import { getMyStudentRequestsWithProgress } from "@/lib/student-requests/student-tracking.functions";
 import {
@@ -115,23 +115,18 @@ function StudentRequestsIndexPage() {
             اختر خدمة للتقديم أو تابع طلباتك الحالية والسابقة.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setActiveTab("services")}
-          className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
-        >
-          <Plus className="h-4 w-4" /> استعراض الخدمات
-        </button>
       </header>
 
       <nav
         aria-label="أقسام الخدمات الطلابية"
+        role="tablist"
         className="grid grid-cols-2 rounded-xl border border-border bg-muted/30 p-1"
       >
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === "services"}
+          aria-controls="student-services-panel"
           onClick={() => setActiveTab("services")}
           className={`rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
             activeTab === "services"
@@ -145,6 +140,7 @@ function StudentRequestsIndexPage() {
           type="button"
           role="tab"
           aria-selected={activeTab === "requests"}
+          aria-controls="student-requests-panel"
           onClick={() => setActiveTab("requests")}
           className={`rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
             activeTab === "requests"
@@ -164,11 +160,11 @@ function StudentRequestsIndexPage() {
       {activeTab === "services" ? (
         <>
       {/* —— الخدمات المتاحة —— */}
-      <section id="available-services" className="scroll-mt-4 space-y-3">
+      <section id="student-services-panel" role="tabpanel" className="space-y-3">
         <div>
           <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-gold" />
-            الخدمات المتاحة
+            الوثائق والإفادات والشكاوى
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             اختر الخدمة التي ترغب في تقديم طلب بشأنها.
@@ -259,7 +255,7 @@ function StudentRequestsIndexPage() {
 
       {/* —— طلباتي —— */}
       {activeTab === "requests" ? (
-      <section className="space-y-3">
+      <section id="student-requests-panel" role="tabpanel" className="space-y-3">
         <div>
           <h2 className="font-display text-base font-bold text-primary">طلباتي</h2>
           <p className="mt-1 text-sm text-muted-foreground">الطلبات الحالية والسابقة.</p>
