@@ -32,7 +32,6 @@ import {
 import {
   GraduatesAffairsRpcClient,
   GraduatesAffairsRpcError,
-  mapGraduatesAffairsRpcError,
 } from "@/lib/graduates-affairs/rpc";
 
 export {
@@ -475,13 +474,7 @@ export const listActiveFollowupTypesFn = createServerFn({ method: "POST" })
     if (!isPortalFeatureEnabled("staffGraduatesAffairs")) {
       throw new GraduatesAffairsRpcError(GRADUATES_AFFAIRS_FROZEN_MSG, "graduates_affairs_feature_flag_off");
     }
-    const { data, error } = await context.supabase
-      .from("graduate_followup_types")
-      .select("id, code, label_ar, description_ar")
-      .eq("is_active", true)
-      .order("code");
-    if (error) throw mapGraduatesAffairsRpcError(error);
-    return data ?? [];
+    return rpcClient(context.supabase as SessionRpc).listActiveFollowupTypes();
   });
 
 // --- GA-1/2/3 Admin server functions ---
