@@ -1,4 +1,4 @@
-# ANDROID / GOOGLE PLAY IDENTITY CONTRACT — بوابة الكلية
+# ANDROID / GOOGLE PLAY IDENTITY CONTRACT — ITCS Portal
 
 FROZEN. Any change requires explicit written authorization from the project owner.
 
@@ -8,7 +8,7 @@ FROZEN. Any change requires explicit written authorization from the project owne
 | --- | --- |
 | `applicationId` | `ye.edu.usr.fitcs.portal` |
 | `namespace` | `ye.edu.usr.fitcs.portal` |
-| App label (Arabic) | بوابة الكلية |
+| App label | ITCS Portal |
 | Play listing app | single application, created once with the applicationId above |
 
 `PACKAGE_NAME_FROZEN = YES`
@@ -19,10 +19,10 @@ fails closed on a wrong applicationId, cleartext traffic, or an undocumented per
 
 ## 2. Version contract
 
-| Field | Initial value |
+| Field | Current value |
 | --- | --- |
-| `versionCode` | `1` |
-| `versionName` | `0.1.0` |
+| `versionCode` | `2` |
+| `versionName` | `0.2.0` |
 
 Rules:
 
@@ -40,7 +40,7 @@ Rules:
 - The **upload key** is generated once, outside the repository, and stored by the
   owner in a secure vault. It is never committed.
 - The **app signing key** is held by Google Play. It is never exported into the repo.
-- No release signing is configured yet: current builds are **debug/unsigned** only.
+- Release signing is supplied only through protected CI environment secrets; no signing material is committed.
 - `.gitignore` blocks `*.jks`, `*.keystore` (except the Android SDK debug keystore),
   `key.properties`, `android/local.properties`, Play service-account JSON and Firebase
   service-account JSON.
@@ -48,7 +48,7 @@ Rules:
 ## 4. Delivery mode
 
 The Android app is a Capacitor shell around the deployed SSR portal
-(`server.url = https://saba-uni-portal.lovable.app/mobile/student-login`), HTTPS only,
+(`server.url = https://quboolye.com/mobile/student-login`), HTTPS only,
 `cleartext = false`, no SSL bypass, navigation restricted to portal + backend hosts.
 Web releases therefore reach devices without a Play update; a Play update is only
 needed when native config, identity, permissions or plugins change.
