@@ -134,7 +134,7 @@ export function Footer() {
         <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-4 text-xs text-primary-foreground/60">
           <div>{universityName} — كلية تكنولوجيا المعلومات وعلوم الحاسوب © {new Date().getFullYear()}</div>
           <div className="flex items-center gap-3 text-gold/80">
-            <a href="/privacy/" className="hover:text-gold transition-colors">سياسة الخصوصية</a>
+            <a href="/privacy" className="hover:text-gold transition-colors">سياسة الخصوصية</a>
             <span aria-hidden="true">·</span>
             <span>جميع الحقوق محفوظة</span>
           </div>
