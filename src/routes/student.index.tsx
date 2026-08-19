@@ -419,39 +419,6 @@ function StudentDashboard() {
               />
             </div>
 
-            <div className="mt-4 grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
-              {SERVICE_LINKS.filter((link) => {
-                if (link.to === "/student/graduates-affairs") {
-                  // Presentation only — backend graduate-self RPC remains authoritative.
-                  // The graduate surface belongs to graduates only (status = graduated).
-                  return profile.status === "graduated";
-                }
-                if (link.to !== "/student/graduation-projects") return true;
-                // Presentation only — backend L4 predicate remains authoritative.
-                // Hide while loading / ambiguous / non-L4 (no transient GP link).
-                return shouldShowStudentGpNav(
-                  resolveCanonicalCurrentFourthLevelEligibility(
-                    acad ? [acad as AcademicStatusTimestampRow] : [],
-                  ).eligible,
-                );
-              }).map(({ to, title, desc, Icon }) => (
-
-                <Link
-                  key={to}
-                  to={to}
-                  className="flex h-full flex-row items-start gap-3 rounded-xl border-2 border-gold/30 bg-card p-3 hover:border-gold hover:shadow-card transition-all"
-                >
-                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-bold text-primary text-sm leading-snug">{title}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground leading-5">{desc}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
             <div className="mt-6">
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarRange className="h-4 w-4 text-gold" /> الوضع الأكاديمي الحالي
@@ -491,6 +458,47 @@ function StudentDashboard() {
                 />
               </div>
             </div>
+
+            <section className="mt-6" aria-labelledby="student-primary-services-heading">
+              <h2
+                id="student-primary-services-heading"
+                className="mb-3 font-display text-base font-bold text-primary"
+              >
+                الخدمات الأساسية
+              </h2>
+              <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+              {SERVICE_LINKS.filter((link) => {
+                if (link.to === "/student/graduates-affairs") {
+                  // Presentation only — backend graduate-self RPC remains authoritative.
+                  // The graduate surface belongs to graduates only (status = graduated).
+                  return profile.status === "graduated";
+                }
+                if (link.to !== "/student/graduation-projects") return true;
+                // Presentation only — backend L4 predicate remains authoritative.
+                // Hide while loading / ambiguous / non-L4 (no transient GP link).
+                return shouldShowStudentGpNav(
+                  resolveCanonicalCurrentFourthLevelEligibility(
+                    acad ? [acad as AcademicStatusTimestampRow] : [],
+                  ).eligible,
+                );
+              }).map(({ to, title, desc, Icon }) => (
+
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex h-full flex-row items-start gap-3 rounded-xl border-2 border-gold/30 bg-card p-3 hover:border-gold hover:shadow-card transition-all"
+                >
+                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-primary text-sm leading-snug">{title}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground leading-5">{desc}</div>
+                  </div>
+                </Link>
+              ))}
+              </div>
+            </section>
 
             {portalFeatures.studentRegisteredCourses && (
               <LazyMount
