@@ -7,9 +7,9 @@
  * Contract (docs/mobile/ANDROID-PLAY-IDENTITY-CONTRACT.md):
  *   applicationId = ye.edu.usr.fitcs.portal
  *   namespace     = ye.edu.usr.fitcs.portal
- *   app label     = بوابة الكلية
- *   versionCode   = 1
- *   versionName   = 0.1.0
+ *   app label     = ITCS Portal
+ *   versionCode   = 2
+ *   versionName   = 0.2.0
  *
  * It also fails closed on: wrong applicationId, cleartext traffic enabled,
  * and any Android permission outside the documented allowlist.
@@ -18,9 +18,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const APPLICATION_ID = "ye.edu.usr.fitcs.portal";
-export const APP_LABEL = "بوابة الكلية";
-export const VERSION_CODE = 1;
-export const VERSION_NAME = "0.1.0";
+export const APP_LABEL = "ITCS Portal";
+export const VERSION_CODE = 2;
+export const VERSION_NAME = "0.2.0";
 /** Minimum permission set: network access only. */
 export const ALLOWED_PERMISSIONS = ["android.permission.INTERNET"];
 
