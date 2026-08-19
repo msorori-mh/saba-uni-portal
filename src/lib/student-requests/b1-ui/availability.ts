@@ -1,8 +1,8 @@
 /**
  * Maps backend available-request-type rows onto B1ServiceAvailability.
  *
- * studentVisible comes only from backend inclusion (get_available filters
- * student_visible=true). runtimeAvailable is NEVER hardcoded true — it follows
+ * studentVisible comes only from backend inclusion and its authoritative
+ * is_eligible/is_disabled decision. runtimeAvailable is NEVER hardcoded true — it follows
  * secure-read capability readiness (available + service listed + create_draft open).
  */
 
@@ -15,6 +15,9 @@ export type BackendAvailableRequestTypeRow = {
   code: string;
   name_ar?: string;
   description_ar?: string | null;
+  is_eligible?: boolean;
+  is_disabled?: boolean;
+  disabled_reason?: string | null;
 };
 
 /** Fail-closed when capability is missing/unavailable — never invent true. */
@@ -36,7 +39,13 @@ export function mapBackendRowsToB1Availability(
   const visibleCodes = new Set<B1CanonicalCode>();
   for (const row of rows) {
     const normalized = normalizeStudentRequestTypeCode(row.code);
-    if (isB1ServiceCode(normalized)) visibleCodes.add(normalized);
+    if (
+      isB1ServiceCode(normalized) &&
+      row.is_eligible !== false &&
+      row.is_disabled !== true
+    ) {
+      visibleCodes.add(normalized);
+    }
   }
 
   return B1_UI_SERVICES.map((service) => {
