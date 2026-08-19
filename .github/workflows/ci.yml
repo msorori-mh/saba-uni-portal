@@ -82,13 +82,9 @@ jobs:
           fi
 
   bun-tests:
-    name: Bun tests (tests/) · diagnostic shard ${{ matrix.shard }}
+    name: Bun tests (tests/)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [25, 89, 153, 217, 281]
     steps:
       - uses: actions/checkout@v4
 
@@ -118,19 +114,11 @@ jobs:
       - name: Run all bun test suites (fail-closed)
         run: |
           set -euo pipefail
-          mapfile -t ALL_TEST_FILES < <(find tests \( -name '*.test.ts' -o -name '*.test.tsx' \) | grep -v 'b1-definitive-operator-architecture-14' | sort)
-          TOTAL=${#ALL_TEST_FILES[@]}
-          SHARD=${{ matrix.shard }}
-          TEST_FILES=()
-          for ((INDEX=0; INDEX<TOTAL; INDEX++)); do
-            if (( INDEX % 320 == SHARD )); then
-              TEST_FILES+=("${ALL_TEST_FILES[$INDEX]}")
-            fi
-          done
+          mapfile -t TEST_FILES < <(find tests -name '*.test.ts' -o -name '*.test.tsx' | grep -v 'b1-definitive-operator-architecture-14' | sort)
           COUNT=${#TEST_FILES[@]}
-          echo "Discovered $TOTAL total test files; diagnostic shard $SHARD contains $COUNT files"
-          if [ "$TOTAL" -eq 0 ] || [ "$COUNT" -eq 0 ]; then
-            echo "::error::No test files found for diagnostic shard $SHARD — refusing to pass vacuously"
+          echo "Discovered $COUNT test files under tests/ (excluding LONGRUN-14 operator suite)"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No test files found under tests/ — refusing to pass vacuously"
             exit 1
           fi
           bun test "${TEST_FILES[@]}"
