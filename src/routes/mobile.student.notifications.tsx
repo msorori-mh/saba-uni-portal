@@ -48,7 +48,12 @@ function MobileStudentNotifications() {
       .from("notifications")
       .update({ is_read: true })
       .in("id", unread.map((n) => n.id));
-    qc.invalidateQueries({ queryKey: ["mobile-student", "notifications"] });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["mobile-student", "notifications"] }),
+      qc.invalidateQueries({
+        queryKey: ["mobile-student", "notifications", "unread-count"],
+      }),
+    ]);
   };
 
   return (
