@@ -78,11 +78,13 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
     council_name: string;
   }>;
 
-  async function handleSaveProgress(complete = false) {
+  async function handleSaveProgress(
+    nextStatus: "in_progress" | "blocked" | "completed",
+  ) {
     if (!selected) return;
     setBusy(true);
     try {
-      if (complete) {
+      if (nextStatus === "completed") {
         await completeDecision({
           data: {
             decision_id: selected.decision_id,
@@ -95,12 +97,14 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
         await updateFollowup({
           data: {
             decision_id: selected.decision_id,
-            status: "in_progress",
+            status: nextStatus,
             execution_note: note,
             evidence_metadata: { note },
           },
         });
-        toast.success("تم تحديث مجريات التنفيذ");
+        toast.success(
+          nextStatus === "blocked" ? "تم تسجيل تعثّر التنفيذ" : "تم تحديث مجريات التنفيذ",
+        );
       }
       setSelected(null);
       setNote("");
@@ -206,27 +210,47 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
                 rows={4}
                 dir="rtl"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="min-w-[8rem] flex-1"
                   disabled={busy}
-                  onClick={() => void handleSaveProgress(false)}
-                >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ التقدم"}
-                </Button>
-                <Button
-                  className="flex-1"
-                  disabled={busy}
-                  onClick={() => void handleSaveProgress(true)}
+                  onClick={() => void handleSaveProgress("in_progress")}
                 >
                   {busy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : selected.status === "issued" ? (
+                    "بدء التنفيذ"
+                  ) : selected.status === "blocked" ? (
+                    "استئناف التنفيذ"
                   ) : (
-                    <CheckCircle2 className="h-4 w-4" />
+                    "حفظ التقدم"
                   )}
-                  إكمال
                 </Button>
+                {selected.status !== "blocked" ? (
+                  <Button
+                    variant="outline"
+                    className="min-w-[8rem] flex-1"
+                    disabled={busy}
+                    onClick={() => void handleSaveProgress("blocked")}
+                  >
+                    تسجيل تعثّر
+                  </Button>
+                ) : null}
+                {selected.status === "in_progress" ? (
+                  <Button
+                    className="min-w-[8rem] flex-1"
+                    disabled={busy}
+                    onClick={() => void handleSaveProgress("completed")}
+                  >
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    إكمال
+                  </Button>
+                ) : null}
               </div>
             </div>
           ) : null}

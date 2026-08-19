@@ -71,6 +71,18 @@ describe("Academic Councils C0-C9 UI / a11y / RTL closure contracts", () => {
     expect(issuedBranch?.[1] ?? "").not.toContain('value: "completed"');
   });
 
+  it("renders only valid responsible-actor follow-up transitions", () => {
+    expect(responsible).toContain('"in_progress" | "blocked" | "completed"');
+    expect(responsible).toContain('handleSaveProgress("in_progress")');
+    expect(responsible).toContain('handleSaveProgress("blocked")');
+    expect(responsible).toContain('selected.status === "in_progress"');
+    expect(responsible).toContain('handleSaveProgress("completed")');
+    expect(responsible).toContain("بدء التنفيذ");
+    expect(responsible).toContain("استئناف التنفيذ");
+    expect(responsible).toContain("تسجيل تعثّر");
+    expect(responsible).not.toContain("handleSaveProgress(true)");
+  });
+
   it("does not expose client recipient injection on notifications", () => {
     expect(c9fn).not.toMatch(/p_recipient/);
     expect(c9fn).not.toMatch(/recipient_user_ids/);
