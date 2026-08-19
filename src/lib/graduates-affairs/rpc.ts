@@ -331,6 +331,15 @@ export class GraduatesAffairsRpcClient {
     return this.call("graduate_affairs_list_assignable_staff", {});
   }
 
+  listActiveFollowupTypes(): Promise<Array<{
+    id: string;
+    code: string;
+    label_ar: string;
+    description_ar: string | null;
+  }>> {
+    return this.call("graduate_affairs_list_active_followup_types", {});
+  }
+
   searchRecords(input: {
     programId: string | null;
     departmentId: string | null;

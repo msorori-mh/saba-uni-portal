@@ -38,6 +38,7 @@ export const GRADUATES_AFFAIRS_AUTH04_RPCS = [
   "graduate_affairs_get_graduate_file",
   "graduate_affairs_search_records",
   "graduate_affairs_list_assignable_staff",
+  "graduate_affairs_list_active_followup_types",
   "graduate_affairs_create_followup",
   "graduate_affairs_transition_followup",
   "graduate_affairs_moderate_opportunity",

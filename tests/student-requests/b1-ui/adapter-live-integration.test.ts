@@ -404,6 +404,37 @@ describe("B1 UI ↔ Backend integration bridge — allowlists & availability", (
     expect(byCode.excused_absence?.studentVisible).toBe(true);
     expect(byCode.department_transfer?.studentVisible).toBe(false);
     expect(visible.every((row) => row.runtimeAvailable === false)).toBe(true);
+
+
+    const levelOneRestricted = mapBackendRowsToB1Availability([
+      {
+        code: "enrollment_suspension",
+        name_ar: "وقف القيد",
+        is_eligible: false,
+        is_disabled: true,
+        disabled_reason: "وقف القيد غير متاح لطلاب المستوى الأول.",
+      },
+      {
+        code: "department_transfer",
+        name_ar: "تحويل من قسم إلى قسم",
+        is_eligible: false,
+        is_disabled: true,
+        disabled_reason: "التحويل بين الأقسام غير متاح لطلاب المستوى الأول.",
+      },
+      {
+        code: "final_chance",
+        name_ar: "فرصة أخيرة",
+        is_eligible: true,
+        is_disabled: false,
+        disabled_reason: null,
+      },
+    ]);
+    const restrictedByCode = Object.fromEntries(
+      levelOneRestricted.map((row) => [row.code, row]),
+    );
+    expect(restrictedByCode.enrollment_suspension?.studentVisible).toBe(false);
+    expect(restrictedByCode.department_transfer?.studentVisible).toBe(false);
+    expect(restrictedByCode.final_chance?.studentVisible).toBe(true);
   });
 });
 

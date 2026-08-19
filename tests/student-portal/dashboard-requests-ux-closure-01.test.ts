@@ -164,9 +164,35 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).toContain('aria-controls="student-requests-panel"');
     expect(page).toContain('{activeTab === "services" ? (');
     expect(page).toContain('{activeTab === "requests" ? (');
-    expect(page).toContain("طلباتي");
+    expect(page).toContain("طلباتي السابقة");
     expect(page).toContain("{requests.length}");
     expect(page).not.toContain("scrollToServices");
+  });
+
+  it("7b — academic-status services lead; documents follow in the approved order", () => {
+    const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
+    const servicesPanel = page.slice(
+      page.indexOf('{activeTab === "services" ? ('),
+      page.indexOf('{activeTab === "requests" ? ('),
+    );
+
+    expect(servicesPanel.indexOf("<B1StudentServiceList")).toBeGreaterThanOrEqual(0);
+    expect(servicesPanel.indexOf("<B1StudentServiceList")).toBeLessThan(
+      servicesPanel.indexOf("الوثائق والإفادات والشكاوى"),
+    );
+
+    const approvedOrder = [
+      '"enrollment_certificate"',
+      '"replacement_student_card"',
+      '"grade_appeal"',
+      '"october_exam_entry_form"',
+    ];
+    for (let index = 1; index < approvedOrder.length; index += 1) {
+      expect(page.indexOf(approvedOrder[index - 1]!)).toBeLessThan(
+        page.indexOf(approvedOrder[index]!),
+      );
+    }
+    expect(page).toContain("getGeneralServiceDisplayRank");
   });
 
   it("8 — طلب جديد / تقديم طلب opens type selection path", () => {
