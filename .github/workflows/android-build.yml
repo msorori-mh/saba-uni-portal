@@ -102,6 +102,33 @@ jobs:
       - name: Apply college branding (icons / splash)
         run: node scripts/mobile/apply-android-branding.mjs
 
+      - name: Prepare release signing (all-or-none)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          present=0
+          for value in "$ANDROID_KEYSTORE_BASE64" "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD"; do
+            if [ -n "$value" ]; then present=$((present + 1)); fi
+          done
+
+          if [ "$present" -eq 0 ]; then
+            echo "RELEASE_SIGNING_READY=false" >> "$GITHUB_ENV"
+            echo "Release signing secrets are absent; debug and unsigned release artifacts will be built."
+          elif [ "$present" -ne 4 ]; then
+            echo "Partial Android signing configuration detected; refusing an ambiguous release." >&2
+            exit 1
+          else
+            keystore_path="$RUNNER_TEMP/usr-portal-upload.keystore"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+            test -s "$keystore_path"
+            echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+            echo "RELEASE_SIGNING_READY=true" >> "$GITHUB_ENV"
+            echo "Release signing configuration is complete."
+          fi
+
       - name: Grant gradlew execute permission
         run: chmod +x android/gradlew
 
@@ -118,15 +145,21 @@ jobs:
         run: ./gradlew bundleDebug --no-daemon --stacktrace
 
 
-      - name: Build Release APK (unsigned — keystore not configured)
+      - name: Build Release APK (signed when secrets are configured)
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
-        continue-on-error: true
 
-      - name: Build Release AAB (unsigned)
+      - name: Build Release AAB (signed when secrets are configured)
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew bundleRelease --no-daemon --stacktrace
-        continue-on-error: true
 
       - name: List build outputs
         run: |
@@ -149,18 +182,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Upload Release APK (unsigned)
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-unsigned-apk
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: app-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Upload Release AAB (unsigned)
+      - name: Upload Release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-unsigned-aab
+          name: app-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
+            rm -f -- "$ANDROID_KEYSTORE_PATH"
+          fi
