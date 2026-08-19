@@ -39,6 +39,8 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
     expect(src).toContain("لم تقدم أي طلب حتى الآن.");
     expect(src).toContain("ابدأ بتقديم طلب جديد من الخدمات المتاحة.");
     expect(src).toContain("slice(0, 2)");
+    expect(src).toContain('"returned_for_completion", "returned"');
+    expect(src).toContain("طلبات تحتاج استكمالاً");
     expect(src).not.toContain("إدارة الطلبات");
     expect(src).not.toContain("عرض كل الطلبات");
     expect(src).not.toContain("getStudentRequestTypesForStudent");
