@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Home, CalendarClock, ClipboardList, FileText, LayoutGrid, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
@@ -67,6 +67,7 @@ function MobileStudentLayout() {
   const queryClient = useQueryClient();
   const { pathname } = useLocation();
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const authUserIdRef = useRef<string | null>(null);
 
   // Native (Capacitor/Android) app-shell: status bar, splash hide, back button.
   // No-op on the web.
@@ -78,20 +79,21 @@ function MobileStudentLayout() {
 
     void supabase.auth.getUser().then(({ data }) => {
       if (cancelled) return;
-      setAuthUserId(data.user?.id ?? null);
+      const userId = data.user?.id ?? null;
+      authUserIdRef.current = userId;
+      setAuthUserId(userId);
       if (!data.user) navigate({ to: "/mobile/student-login", replace: true });
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
       const nextUserId = session?.user.id ?? null;
-      setAuthUserId((currentUserId) => {
-        if (currentUserId && currentUserId !== nextUserId) {
-          queryClient.clear();
-          void router.invalidate();
-        }
-        return nextUserId;
-      });
+      if (authUserIdRef.current && authUserIdRef.current !== nextUserId) {
+        queryClient.clear();
+        void router.invalidate();
+      }
+      authUserIdRef.current = nextUserId;
+      setAuthUserId(nextUserId);
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
     return () => {
@@ -115,6 +117,7 @@ function MobileStudentLayout() {
     } catch {
       // Never retain the previous student's visible data if remote sign-out fails.
     } finally {
+      authUserIdRef.current = null;
       setAuthUserId(null);
       queryClient.clear();
       clearReportsLocalPreferences();
