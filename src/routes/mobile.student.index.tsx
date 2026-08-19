@@ -6,9 +6,6 @@ import {
   BookMarked,
   BookOpen,
   BarChart3,
-  CalendarClock,
-  ClipboardList,
-  FileText,
   GraduationCap,
   Loader2,
   Settings2,
@@ -42,20 +39,13 @@ const ICONS: Record<MobileServiceKey, LucideIcon> = {
   "academic-record": BookOpen,
 };
 
-/** Bottom-nav shortcuts repeated on the dashboard grid for one-tap access. */
-const PRIMARY_CARDS: { label: string; icon: LucideIcon; to: string }[] = [
-  { label: "الجدول الدراسي", icon: CalendarClock, to: "/mobile/student/schedule" },
-  { label: "الطلبات", icon: ClipboardList, to: "/mobile/student/requests" },
-  { label: "الوثائق الرسمية", icon: FileText, to: "/mobile/student/documents" },
-];
-
 function IdentityRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="min-w-0">
       <div className="text-[10px] font-bold text-primary-deep/60">{label}</div>
       <div
         dir={mono ? "ltr" : undefined}
-        className={`truncate text-[12px] font-extrabold text-primary-deep ${mono ? "font-mono text-right" : ""}`}
+        className={`text-[12px] font-extrabold leading-snug text-primary-deep ${mono ? "font-mono text-right whitespace-nowrap" : "break-words"}`}
       >
         {value}
       </div>
@@ -82,10 +72,7 @@ function MobileStudentHome() {
     isGraduate: data?.isGraduate === true,
   });
 
-  const cards = [
-    ...PRIMARY_CARDS,
-    ...services.map((s) => ({ label: s.label, icon: ICONS[s.key], to: s.to })),
-  ];
+  const cards = services.map((s) => ({ label: s.label, icon: ICONS[s.key], to: s.to }));
 
   const identity: { label: string; value: string; mono?: boolean }[] = [];
   if (profile?.academic_number)
@@ -131,7 +118,7 @@ function MobileStudentHome() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <span className="h-4 w-1 rounded-full bg-gold" />
-          <h2 className="font-display text-sm font-extrabold text-primary">الخدمات الأساسية</h2>
+          <h2 className="font-display text-sm font-extrabold text-primary">الخدمات الإضافية</h2>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {cards.map((card) => {
