@@ -4,9 +4,12 @@ import { readFileSync } from "node:fs";
 describe("Google Play public privacy policy", () => {
   const privacy = readFileSync("src/routes/privacy.tsx", "utf8");
   const footer = readFileSync("src/components/site/Footer.tsx", "utf8");
+  const routeTree = readFileSync("src/routeTree.gen.ts", "utf8");
 
   test("is a public Arabic application route with required disclosures", () => {
     expect(privacy).toContain('createFileRoute("/privacy")');
+    expect(routeTree).toContain("PrivacyRouteImport");
+    expect(routeTree).toContain("'/privacy': typeof PrivacyRoute");
     expect(privacy).toContain('dir="rtl"');
     expect(privacy).toContain("سياسة الخصوصية");
     expect(privacy).toContain("البيانات التي نعالجها");
