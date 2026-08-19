@@ -38,10 +38,11 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
     expect(src).toContain("طلباتي");
     expect(src).toContain("لم تقدم أي طلب حتى الآن.");
     expect(src).toContain("ابدأ بتقديم طلب جديد من الخدمات المتاحة.");
-    expect(src).toContain("slice(0, 3)");
+    expect(src).toContain("slice(0, 2)");
     expect(src).not.toContain("إدارة الطلبات");
     expect(src).not.toContain("عرض كل الطلبات");
-    expect(src).toContain("getStudentRequestTypesForStudent");
+    expect(src).not.toContain("getStudentRequestTypesForStudent");
+    expect(src).not.toContain('className="mt-5 border-t border-border pt-4"');
     expect(src).toContain("isError: requestsError");
   });
 
@@ -105,6 +106,19 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
     if (home.includes("/mobile/student/finance")) {
       expect(home).toContain("portalFeatures.studentFinance");
     }
+    expect(home).not.toContain("PRIMARY_CARDS");
+    expect(home).not.toContain('to: "/mobile/student/schedule"');
+    expect(home).not.toContain('to: "/mobile/student/requests"');
+    expect(home).not.toContain('to: "/mobile/student/documents"');
+    expect(home).toContain('"break-words"');
+  });
+
+  it("6b — web dashboard presents academic status before primary services", () => {
+    const page = readFileSync(join(ROOT, "src/routes/student.index.tsx"), "utf8");
+    expect(page.indexOf("الوضع الأكاديمي الحالي")).toBeLessThan(
+      page.indexOf("student-primary-services-heading"),
+    );
+    expect(page).toContain("الخدمات الأساسية");
   });
 
   it("7 — documents empty state points to student affairs requests", () => {
