@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *
  * FROZEN IDENTITY (see docs/mobile/ANDROID-PLAY-IDENTITY-CONTRACT.md):
  *   applicationId : ye.edu.usr.fitcs.portal
- *   app name      : بوابة الكلية
+ *   app name      : ITCS Portal
  *
  * Mode: remote shell (server.url) — TanStack Start is SSR, so the deployed
  * production URL is loaded inside the native WebView and web updates apply
@@ -16,7 +16,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const config: CapacitorConfig = {
   appId: "ye.edu.usr.fitcs.portal",
-  appName: "بوابة الكلية",
+  appName: "ITCS Portal",
   webDir: "mobile-shell",
   server: {
     // Canonical production origin for the native student app.
