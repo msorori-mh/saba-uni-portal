@@ -9,7 +9,7 @@
  */
 
 export const ANDROID_APPLICATION_ID = "ye.edu.usr.fitcs.portal";
-export const ANDROID_APP_DISPLAY_NAME = "بوابة الكلية";
+export const ANDROID_APP_DISPLAY_NAME = "ITCS Portal";
 
 /** Canonical student-first entry route for the native Android app. */
 export const NATIVE_HOME_ROUTE = "/mobile/student";
