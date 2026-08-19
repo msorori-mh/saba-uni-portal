@@ -18,7 +18,7 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // 150 fullPaths (was 148), all unique, exactly one "/" claimant, and the only
 // delta is /faculty-portal/lecture-monitoring plus its /parity child.
 const ROUTE_SEMANTIC_SHA256 =
-  "6daad828bfd6acc8aaceac808a73ce90e5bcaf34d6fa4708a6f5d141262a883a";
+  "78661c78207beea5b56744727914dd7471c2f96938f4a45964c178cf8e681604";
 
 
 const FROZEN_GP_FULL_PATHS = [
