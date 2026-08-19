@@ -117,6 +117,19 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
   const formSupported = isDynamicFormSupported(requestType);
   const normalizedRequestType = normalizeStudentRequestTypeCode(requestType);
   const selectedAdapter = getRequestServiceAdapter(normalizedRequestType);
+  const formReferenceKeys = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (formDefinition?.sections ?? []).flatMap((section) =>
+            section.fields.flatMap((field) =>
+              field.referenceResolverKey ? [field.referenceResolverKey] : [],
+            ),
+          ),
+        ),
+      ),
+    [formDefinition],
+  );
   const serviceActivation = selectedAdapter
     ? validateB1ServiceActivation({ requestTypeCode: normalizedRequestType })
     : { ok: true as const };
@@ -124,14 +137,25 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
     typeof formValues.target_academic_year === "string"
       ? formValues.target_academic_year
       : undefined;
-  const needsReferenceData = Boolean(selectedAdapter?.referenceResolvers.length);
+  const needsReferenceData = formReferenceKeys.length > 0;
   const {
     data: loadedReferenceData,
     isLoading: referenceDataLoading,
     error: referenceDataError,
   } = useQuery({
-    queryKey: ["student-affairs", "request-form-reference-data", selectedAcademicYear ?? null],
-    queryFn: () => referenceDataFn({ data: { academicYearId: selectedAcademicYear } }),
+    queryKey: [
+      "student-affairs",
+      "request-form-reference-data",
+      normalizedRequestType,
+      selectedAcademicYear ?? null,
+    ],
+    queryFn: () =>
+      referenceDataFn({
+        data: {
+          academicYearId: selectedAcademicYear,
+          requestTypeCode: normalizedRequestType,
+        },
+      }),
     enabled: needsReferenceData,
   });
   const referenceData = useMemo<Readonly<Record<string, ReferenceDataState>>>(
@@ -152,6 +176,16 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
         : referenceDataError
           ? { status: "error", options: [], message: (referenceDataError as Error).message }
           : { status: "ready", options: loadedReferenceData?.currentStudentEnrollments ?? [] },
+      october_remaining_required_courses: referenceDataLoading
+        ? { status: "loading", options: [] }
+        : referenceDataError
+          ? { status: "error", options: [], message: (referenceDataError as Error).message }
+          : { status: "ready", options: loadedReferenceData?.octoberRemainingCourses ?? [] },
+      published_final_results: referenceDataLoading
+        ? { status: "loading", options: [] }
+        : referenceDataError
+          ? { status: "error", options: [], message: (referenceDataError as Error).message }
+          : { status: "ready", options: loadedReferenceData?.publishedFinalResults ?? [] },
     }),
     [loadedReferenceData, referenceDataError, referenceDataLoading, selectedAcademicYear],
   );
@@ -223,6 +257,7 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
     !selectedType.is_disabled &&
     !selectedType.requires_attachment &&
     serviceActivation.ok &&
+    formReferenceKeys.every((key) => referenceData[key]?.status === "ready") &&
     (!selectedAdapter ||
       canSubmitWithReferenceData(selectedAdapter.referenceResolvers, referenceData)) &&
     eligibilityDecision.badge === "available";
