@@ -39,7 +39,7 @@ function MobileStudentReports() {
           {(error as Error).message || "تعذر تحميل التقارير"}
         </p>
       ) : (
-        <StudentSelfReportsList items={data?.items ?? []} />
+        <StudentSelfReportsList items={data?.items ?? []} title="التقارير المتاحة" />
       )}
     </div>
   );

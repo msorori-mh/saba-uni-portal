@@ -42,16 +42,9 @@ type AllowlistItem = {
 const STUDENT_SAFE_ALLOWLIST: Readonly<Record<string, AllowlistItem>> = {
   "STU-SELF-SERVICE-VIEWS": {
     title: "بياناتي الأكاديمية",
-    summary: "ملخص حالتك ومقرراتك وطلباتك ووثائقك.",
+    summary: "بياناتك الأساسية ووضعك الأكاديمي ومؤشرات مقرراتك وطلباتك ووثائقك.",
     webTo: "/student",
-    mobileTo: "/mobile/student",
-    requiresFourthLevel: false,
-  },
-  "LEC-COURSE-DELIVERY-PLAN": {
-    title: "خطة المحاضرات لمقرراتي",
-    summary: "المحاضرات المخطط لها وحالة تنفيذها في مقرراتك المسجلة.",
-    webTo: "/student/materials",
-    mobileTo: "/mobile/student/materials",
+    mobileTo: "/mobile/student/profile",
     requiresFourthLevel: false,
   },
 };

@@ -148,7 +148,8 @@ export function buildMobileHomeServices(input: MobileServicesInput): MobileServi
  */
 export function buildMobileMoreHub(input: MobileServicesInput): MobileServiceItem[] {
   const bottom = new Set<string>(MOBILE_BOTTOM_NAV_TARGETS);
+  const promoted = new Set<MobileServiceKey>(MOBILE_HOME_SERVICE_KEYS);
   return buildMobileStudentServices(input).filter(
-    (item) => !bottom.has(item.to) && item.group !== "core",
+    (item) => !bottom.has(item.to) && !promoted.has(item.key) && item.group !== "core",
   );
 }
