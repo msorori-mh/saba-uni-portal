@@ -5,6 +5,9 @@ export const LEVEL_ONE_RESTRICTED_REQUEST_TYPES = [
   "department_transfer",
 ] as const;
 
+export const OCTOBER_EXAM_LEVEL_DISABLED_REASON =
+  "استمارة دور أكتوبر متاحة لطلاب المستوى الرابع فقط.";
+
 export const LEVEL_ONE_REQUEST_DISABLED_REASONS: Record<
   (typeof LEVEL_ONE_RESTRICTED_REQUEST_TYPES)[number],
   string
@@ -24,11 +27,22 @@ export function applyLevelOneRequestTypeRestrictions<T extends AvailabilityRow>(
   rows: readonly T[],
   levelNumber: number | null,
 ): T[] {
-  if (levelNumber !== 1) return [...rows];
-
   return rows.map((row) => {
     const code = normalizeStudentRequestTypeCode(row.code);
-    if (!(LEVEL_ONE_RESTRICTED_REQUEST_TYPES as readonly string[]).includes(code)) {
+
+    if (code === "october_exam_entry_form" && levelNumber !== 4) {
+      return {
+        ...row,
+        is_eligible: false,
+        is_disabled: true,
+        disabled_reason: OCTOBER_EXAM_LEVEL_DISABLED_REASON,
+      };
+    }
+
+    if (
+      levelNumber !== 1 ||
+      !(LEVEL_ONE_RESTRICTED_REQUEST_TYPES as readonly string[]).includes(code)
+    ) {
       return row;
     }
 
