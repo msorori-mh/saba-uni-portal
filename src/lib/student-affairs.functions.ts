@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { resolveCanonicalCurrentFourthLevelEligibility } from "@/lib/graduation-projects/eligibility";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole, primaryActorRole, userRoles } from "@/lib/authz.server";
@@ -24,6 +25,7 @@ import {
   getStoredWriteCodeForRequestType,
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
+import { applyLevelOneRequestTypeRestrictions } from "@/lib/student-requests/level-eligibility";
 import {
   getRequestServiceAdapter,
   validateB1ServiceActivation,
@@ -69,6 +71,20 @@ async function currentStudentProfile(userId: string) {
   if (error) throw new Error(error.message);
   if (!data) throw new Error("لا يوجد ملف طالب مرتبط بحسابك");
   return data;
+}
+
+async function currentStudentLevelNumber(userId: string): Promise<number | null> {
+  const profile = await currentStudentProfile(userId);
+  const { data, error } = await supabaseAdmin
+    .from("student_academic_status")
+    .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
+    .eq("student_profile_id", profile.id);
+  if (error) throw new Error(error.message);
+
+  const canonical = resolveCanonicalCurrentFourthLevelEligibility(
+    (data ?? []) as Parameters<typeof resolveCanonicalCurrentFourthLevelEligibility>[0],
+  );
+  return canonical.levelNumber;
 }
 
 async function loadRequestType(code: string) {
@@ -186,20 +202,26 @@ async function initializeSteps(requestId: string, steps: WorkflowStep[]) {
 export const getStudentRequestTypesForStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const rows = await rpcGetAvailableRequestTypes(context.supabase);
-    return rows.map((row) => ({
-      id: row.id,
-      code: row.code,
-      name_ar: row.name_ar,
-      description_ar: row.description_ar,
-      requires_attachment: row.requires_attachment,
-      request_audience: row.request_audience,
-      ineligible_display_mode: row.ineligible_display_mode,
-      is_eligible: row.is_eligible,
-      is_disabled: row.is_disabled,
-      disabled_reason: row.disabled_reason,
-      sort_order: row.sort_order,
-    }));
+    const [rows, levelNumber] = await Promise.all([
+      rpcGetAvailableRequestTypes(context.supabase),
+      currentStudentLevelNumber(context.userId),
+    ]);
+    return applyLevelOneRequestTypeRestrictions(
+      rows.map((row) => ({
+        id: row.id,
+        code: row.code,
+        name_ar: row.name_ar,
+        description_ar: row.description_ar,
+        requires_attachment: row.requires_attachment,
+        request_audience: row.request_audience,
+        ineligible_display_mode: row.ineligible_display_mode,
+        is_eligible: row.is_eligible,
+        is_disabled: row.is_disabled,
+        disabled_reason: row.disabled_reason,
+        sort_order: row.sort_order,
+      })),
+      levelNumber,
+    );
   });
 
 /** Lightweight UI context from existing student_profiles (no new tables). */
@@ -223,9 +245,16 @@ export const getStudentRequestUiContext = createServerFn({ method: "POST" })
 /** Student-scoped reference data for dynamic request forms. Uses the authenticated client/RLS. */
 export const getStudentRequestFormReferenceData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ academicYearId: z.string().uuid().optional() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({
+      academicYearId: z.string().uuid().optional(),
+      requestTypeCode: z.string().max(80).optional(),
+    }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const profile = await currentStudentProfile(context.userId);
+    const requestType = normalizeStudentRequestTypeCode(data.requestTypeCode);
+
     const [yearsResult, semestersResult, enrollmentsResult] = await Promise.all([
       context.supabase.from("academic_years").select("id, name").order("start_date", { ascending: false }),
       data.academicYearId
@@ -236,6 +265,60 @@ export const getStudentRequestFormReferenceData = createServerFn({ method: "POST
     ]);
     const firstError = yearsResult.error ?? semestersResult.error ?? enrollmentsResult.error;
     if (firstError) throw new Error(firstError.message);
+
+    let octoberRemainingCourses: Array<{ value: string; labelAr: string }> = [];
+    if (requestType === "october_exam_entry_form") {
+      const { data: remaining, error } = await context.supabase.rpc(
+        "p1_october_remaining_requirements",
+        { p_student: profile.id },
+      );
+      if (error) throw new Error(error.message);
+      octoberRemainingCourses = ((remaining ?? []) as Array<{
+        requirement_id: string;
+        course_code: string;
+        course_name_ar: string;
+      }>).map((row) => ({
+        value: row.requirement_id,
+        labelAr: `${row.course_code} — ${row.course_name_ar}`,
+      }));
+    }
+
+    let publishedFinalResults: Array<{ value: string; labelAr: string }> = [];
+    if (requestType === "grade_appeal") {
+      const { data: transcript, error } = await (supabaseAdmin as any)
+        .from("student_unofficial_transcript")
+        .select(
+          "enrollment_id, course_code, course_name, academic_year_name, semester_name, official_result",
+        )
+        .eq("student_profile_id", profile.id)
+        .not("enrollment_id", "is", null);
+      if (error) throw new Error(error.message);
+
+      const eligible: Array<{ value: string; labelAr: string }> = [];
+      for (const row of (transcript ?? []) as Array<Record<string, unknown>>) {
+        const enrollmentId = typeof row.enrollment_id === "string" ? row.enrollment_id : null;
+        if (!enrollmentId) continue;
+        const check = await context.supabase.rpc(
+          "p1_assert_final_result_appeal_eligibility",
+          {
+            p_student: profile.id,
+            p_enrollment: enrollmentId,
+            p_now: new Date().toISOString(),
+          },
+        );
+        if (check.error) continue;
+
+        const course = [row.course_code, row.course_name].filter(Boolean).join(" — ");
+        const term = [row.academic_year_name, row.semester_name].filter(Boolean).join(" / ");
+        const result = row.official_result == null ? "" : ` — النتيجة ${row.official_result}`;
+        eligible.push({
+          value: enrollmentId,
+          labelAr: `${course}${result}${term ? ` — ${term}` : ""}`,
+        });
+      }
+      publishedFinalResults = eligible;
+    }
+
     return {
       academicYears: (yearsResult.data ?? []).map((row) => ({ value: row.id, labelAr: row.name })),
       semesters: (semestersResult.data ?? []).map((row) => ({ value: row.id, labelAr: row.name })),
@@ -243,11 +326,14 @@ export const getStudentRequestFormReferenceData = createServerFn({ method: "POST
         const section = row.course_section as { section_code?: string | null } | null;
         return { value: row.course_section_id, labelAr: section?.section_code ?? row.course_section_id };
       }),
+      octoberRemainingCourses,
+      publishedFinalResults,
     };
   });
 
 async function assertStudentEligibleForRequestType(
   client: { rpc: RpcClient["rpc"] },
+  userId: string,
   requestTypeCode: string,
 ): Promise<void> {
   let rows: Awaited<ReturnType<typeof rpcGetAvailableRequestTypes>>;
@@ -257,8 +343,10 @@ async function assertStudentEligibleForRequestType(
     throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
   }
 
+  const levelNumber = await currentStudentLevelNumber(userId);
+  const restrictedRows = applyLevelOneRequestTypeRestrictions(rows, levelNumber);
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
-  const match = rows.find((row) => normalizeStudentRequestTypeCode(row.code) === normalized);
+  const match = restrictedRows.find((row) => normalizeStudentRequestTypeCode(row.code) === normalized);
   if (!match) {
     throw new Error("نوع الطلب غير متاح");
   }
@@ -524,7 +612,7 @@ export async function submitCanonicalStudentRequestCore(input: {
     };
   }
 
-  await assertStudentEligibleForRequestType(input.sessionClient, validation.normalized.requestTypeCode);
+  await assertStudentEligibleForRequestType(input.sessionClient, input.userId, validation.normalized.requestTypeCode);
   const b1Adapter = getRequestServiceAdapter(validation.normalized.requestTypeCode);
   if (b1Adapter) {
     const activation = validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode });
@@ -690,7 +778,7 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
     const requestType = normalizeStudentRequestTypeCode(data.requestType);
     // P1 atomic services have no generic draft-create path — fail closed.
     if (isP1AtomicSubmitService(requestType)) throw new Error("P1_ATOMIC_SUBMIT_REQUIRED");
-    await assertStudentEligibleForRequestType(context.supabase, requestType);
+    await assertStudentEligibleForRequestType(context.supabase, context.userId, requestType);
     const adapter = getRequestServiceAdapter(requestType);
     if (adapter) {
       const activation = validateB1ServiceActivation({ requestTypeCode: requestType });

@@ -357,47 +357,39 @@ const GRADE_APPEAL: RequestFormDefinition = {
   unavailableUntilSchemaApplied: P1_ATOMIC_SCHEMA_APPLIED,
   warnings: [
     "يُقبل التظلم فقط على النتائج النهائية المنشورة رسمياً وخلال 7 أيام من تاريخ الإعلان.",
-    "التظلم على درجات أعمال السنة خدمة منفصلة تُنفَّذ لاحقاً مع أستاذ المقرر.",
+    "اختر المقرر من النتائج المؤهلة الظاهرة؛ يتحقق الخادم من الملكية والمهلة مرة أخرى عند الإرسال.",
   ],
   sections: [
     {
+      titleAr: "بيانات النتيجة محل التظلم",
       fields: [
         {
           name: "final_result_id",
-          labelAr: "النتيجة النهائية محل التظلم",
+          labelAr: "المقرر والنتيجة النهائية",
           type: "select",
           required: true,
           referenceResolverKey: "published_final_results",
-          helperTextAr: "تُعرض المقررات ونتائجها النهائية المنشورة ضمن مهلة التظلم فقط.",
-        },
-        {
-          name: "published_at_display",
-          labelAr: "تاريخ إعلان النتيجة",
-          type: "readonly",
-        },
-        {
-          name: "appeal_deadline_display",
-          labelAr: "آخر موعد للتظلم",
-          type: "readonly",
+          helperTextAr: "تظهر فقط نتائجك النهائية المنشورة التي ما زالت ضمن مهلة التظلم.",
         },
         {
           name: "appeal_reason",
           labelAr: "سبب التظلم",
           type: "textarea",
           required: true,
+          placeholderAr: "اشرح موضع الاعتراض على النتيجة بوضوح",
+          helperTextAr: "لا تطلب درجة بديلة؛ اذكر سبب طلب المراجعة فقط.",
         },
         {
           name: "results_note",
-          labelAr: "ملاحظة",
+          labelAr: "ما الذي يحدث بعد الإرسال؟",
           type: "info",
           defaultValue:
-            "يُراجع التظلم رئيس القسم وأستاذ المقرر، ولا يُعدَّل السجل الرسمي إلا بقرار معتمد يطبقه مسجل الكلية.",
+            "يراجع الطلب مسجل الكلية ثم رئيس القسم وأستاذ المقرر، ولا تتغير النتيجة إلا بقرار أكاديمي معتمد.",
         },
       ],
     },
   ],
 };
-
 
 const DEPARTMENT_TRANSFER: RequestFormDefinition = {
   code: "department_transfer",
@@ -500,39 +492,49 @@ const OCTOBER_EXAM_ENTRY: RequestFormDefinition = {
 
 const REPLACEMENT_STUDENT_CARD: RequestFormDefinition = {
   code: "replacement_student_card",
-  titleAr: "بطاقة طالب بدل فاقد",
-  descriptionAr: "طلب إصدار بطاقة طالب بديلة عند فقد البطاقة الأصلية.",
+  titleAr: "إصدار بطاقة بدل فاقد",
+  descriptionAr: "طلب إصدار بطاقة جامعية بديلة عند فقد البطاقة الحالية.",
   unavailableUntilSchemaApplied: P1_ATOMIC_SCHEMA_APPLIED,
-  warnings: ["السداد يتم في النظام المالي الجامعي، وتكتفي البوابة بتأكيد الإيرادات باستلام السداد."],
-  requiredAttachments: [
-    { key: "loss_supporting_document", labelAr: "مستند مساند (اختياري)", required: false },
+  warnings: [
+    "لا يلزم إرفاق مستند عند تقديم الطلب.",
+    "بعد اعتماد الطلب، يتم السداد وفق إجراءات النظام المالي الجامعي ثم تصدر البطاقة من شؤون الطلاب.",
   ],
   sections: [
     {
+      titleAr: "بيانات الفقد",
       fields: [
-        { name: "student_name_display", labelAr: "اسم الطالب", type: "readonly" },
-        { name: "student_number_display", labelAr: "الرقم الجامعي", type: "readonly" },
-        { name: "department_display", labelAr: "القسم / البرنامج", type: "readonly" },
-        { name: "previous_card_number_display", labelAr: "رقم البطاقة السابقة", type: "readonly" },
-        { name: "loss_reason", labelAr: "سبب الفقد", type: "textarea", required: true },
-        { name: "loss_incident_date", labelAr: "تاريخ الفقد", type: "date" },
-        { name: "previous_card_serial", labelAr: "الرقم التسلسلي للبطاقة السابقة", type: "text" },
         {
-          name: "loss_declaration_ack",
-          labelAr: "أقرّ بصحة بيانات الفقد المذكورة أعلاه",
-          type: "checkbox",
+          name: "loss_reason",
+          labelAr: "تفاصيل فقد البطاقة",
+          type: "textarea",
+          required: true,
+          placeholderAr: "اذكر باختصار أين أو كيف فُقدت البطاقة",
+          helperTextAr: "اكتب وصفاً واضحاً لا يقل عن 3 أحرف.",
+        },
+        {
+          name: "loss_incident_date",
+          labelAr: "تاريخ الفقد التقريبي",
+          type: "date",
           required: true,
         },
         {
-          name: "loss_supporting_document",
-          labelAr: "مستند مساند (اختياري)",
-          type: "file",
+          name: "previous_card_serial",
+          labelAr: "الرقم التسلسلي للبطاقة السابقة (إن كان معروفاً)",
+          type: "text",
+          placeholderAr: "اختياري",
+        },
+        {
+          name: "loss_declaration_ack",
+          labelAr: "أقرّ بصحة بيانات الفقد وأتحمل مسؤولية استخدامها",
+          type: "checkbox",
+          required: true,
         },
         {
           name: "issuance_note",
           labelAr: "ملاحظة",
           type: "info",
-          defaultValue: "تُصدر البطاقة من شؤون الطلاب بعد تأكيد الإيرادات باستلام السداد.",
+          defaultValue:
+            "تُجلب هوية الطالب ورقمه وقسمه من الحساب تلقائياً، ولا حاجة لإعادة إدخالها في الطلب.",
         },
       ],
     },
