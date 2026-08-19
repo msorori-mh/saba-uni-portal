@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/mobile/student/notifications")({
@@ -40,14 +41,32 @@ function MobileStudentNotifications() {
     },
   });
 
-  const unread = items.filter((n) => !n.is_read);
+  const { data: unreadTotal = 0 } = useQuery({
+    queryKey: ["mobile-student", "notifications", "unread-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("is_read", false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const markAll = async () => {
-    if (unread.length === 0) return;
-    await supabase
+    if (unreadTotal === 0) return;
+    const { error } = await supabase
       .from("notifications")
       .update({ is_read: true })
-      .in("id", unread.map((n) => n.id));
+      .eq("is_read", false);
+    if (error) {
+      toast.error("تعذّر تعليم الإشعارات كمقروءة. حاول مرة أخرى.");
+      return;
+    }
+    qc.setQueriesData(
+      { queryKey: ["mobile-student", "notifications", "unread-count"] },
+      0,
+    );
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["mobile-student", "notifications"] }),
       qc.invalidateQueries({
@@ -62,7 +81,7 @@ function MobileStudentNotifications() {
         <h1 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
           <Bell className="h-5 w-5 text-gold" /> الإشعارات
         </h1>
-        {unread.length > 0 && (
+        {unreadTotal > 0 && (
           <button
             type="button"
             onClick={markAll}
