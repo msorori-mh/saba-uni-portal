@@ -25,7 +25,7 @@ export function Footer() {
   const universityName = (hydrated && s.university_name_ar) || "جامعة إقليم سبأ";
 
   return (
-    <footer className="bg-primary-deep text-primary-foreground mt-20 border-t-4 border-gold">
+    <footer className="bg-primary-deep text-primary-foreground mt-8 md:mt-12 border-t-4 border-gold">
       <div className="container mx-auto grid gap-10 px-4 py-14 md:grid-cols-2 lg:grid-cols-4">
         {/* About */}
         <div>
@@ -103,7 +103,7 @@ export function Footer() {
             )}
             <li className="pt-2">
               <Link to="/contact" className="inline-flex items-center gap-2 rounded-md bg-white/10 hover:bg-gold hover:text-primary-deep transition-colors px-3 py-2 text-xs font-bold">
-                صفحة التواصل
+                تواصل معنا
               </Link>
             </li>
           </ul>
@@ -131,8 +131,19 @@ export function Footer() {
       </div>
 
       <div className="border-t border-gold/30">
-        <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-4 text-xs text-primary-foreground/60">
+        <div className="container mx-auto flex flex-col lg:flex-row items-center justify-between gap-2 px-4 py-4 text-center lg:text-start text-xs text-primary-foreground/60">
           <div>{universityName} — كلية تكنولوجيا المعلومات وعلوم الحاسوب © {new Date().getFullYear()}</div>
+          <div>
+            تم تصميم وتطوير البوابة بواسطة{" "}
+            <a
+              href="https://sys-reimagined-studio.lovable.app/"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="font-bold text-gold hover:text-gold/80 transition-colors"
+            >
+              SysTrac للأنظمة والحلول التقنية
+            </a>
+          </div>
           <div className="flex items-center gap-3 text-gold/80">
             <a href="/privacy" className="hover:text-gold transition-colors">سياسة الخصوصية</a>
             <span aria-hidden="true">·</span>

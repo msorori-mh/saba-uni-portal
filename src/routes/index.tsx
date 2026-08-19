@@ -401,7 +401,7 @@ function HomePage() {
           </div>
           <div className="mt-6 text-center">
             <Link to="/contact" className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground hover:bg-primary-deep transition-colors">
-              صفحة التواصل الكاملة <ArrowLeft className="h-4 w-4" />
+              تواصل معنا <ArrowLeft className="h-4 w-4" />
             </Link>
           </div>
         </div>
