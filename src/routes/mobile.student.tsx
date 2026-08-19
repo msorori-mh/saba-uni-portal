@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Home, CalendarClock, ClipboardList, FileText, LayoutGrid, LogOut, Loader2 } from "lucide-react";
+import { Bell, Home, CalendarClock, ClipboardList, FileText, LayoutGrid, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
@@ -111,6 +111,22 @@ function MobileStudentLayout() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: unreadNotifications = 0 } = useQuery({
+    queryKey: ["mobile-student", "notifications", "unread-count", authUserId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("is_read", false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: Boolean(authUserId),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut({ scope: "global" });
@@ -159,13 +175,21 @@ function MobileStudentLayout() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            aria-label="تسجيل الخروج"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gold/40 px-3 py-1.5 text-xs font-bold text-gold hover:bg-gold hover:text-primary-deep transition-colors"
+          <Link
+            to="/mobile/student/notifications"
+            aria-label={unreadNotifications > 0 ? `الإشعارات، ${unreadNotifications} غير مقروءة` : "الإشعارات"}
+            className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-gold/40 text-gold transition-colors hover:bg-gold hover:text-primary-deep"
           >
-            <LogOut className="h-3.5 w-3.5" /> خروج
-          </button>
+            <Bell className="h-5 w-5" />
+            {unreadNotifications > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute -left-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-extrabold leading-none text-destructive-foreground ring-2 ring-primary-deep"
+              >
+                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+              </span>
+            )}
+          </Link>
         </div>
       </header>
 
