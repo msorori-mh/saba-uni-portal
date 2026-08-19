@@ -2,10 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
-import {
-  getMyStudentServiceRequests,
-  getStudentRequestTypesForStudent,
-} from "@/lib/student-affairs.functions";
+import { getMyStudentServiceRequests } from "@/lib/student-affairs.functions";
 import { StandardCard } from "@/components/brand";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -66,8 +63,6 @@ export function filterDashboardAvailableServices(
 /** Dashboard requests hub — independent loading; failures must not break the page. */
 export function StudentRequestsPortalSummary() {
   const listFn = useServerFn(getMyStudentServiceRequests);
-  const typesFn = useServerFn(getStudentRequestTypesForStudent);
-
   const {
     data: requests = [],
     isLoading: requestsLoading,
@@ -79,19 +74,7 @@ export function StudentRequestsPortalSummary() {
     retry: 1,
   });
 
-  const {
-    data: typeRows = [],
-    isLoading: typesLoading,
-    isError: typesError,
-  } = useQuery({
-    queryKey: ["student-affairs", "available-types", "dashboard"],
-    queryFn: () => typesFn({ data: {} }),
-    staleTime: 60_000,
-    retry: 1,
-  });
-
-  const recent = requests.slice(0, 3);
-  const services = filterDashboardAvailableServices(typeRows, 4);
+  const recent = requests.slice(0, 2);
 
   return (
     <StandardCard id="student-requests" className="mt-6">
@@ -168,48 +151,6 @@ export function StudentRequestsPortalSummary() {
         )}
       </div>
 
-      <div className="mt-5 border-t border-border pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h3 className="text-sm font-bold text-primary">الخدمات المتاحة</h3>
-          <Link
-            to="/student/requests/new"
-            className="text-[11px] font-bold text-primary underline"
-          >
-            استعراض الخدمات المتاحة
-          </Link>
-        </div>
-        {typesLoading ? (
-          <div className="grid place-items-center py-4">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          </div>
-        ) : typesError ? (
-          <p className="text-xs text-muted-foreground">
-            تعذر تحميل قائمة الخدمات. استخدم «طلب جديد» لعرض المتاح.
-          </p>
-        ) : services.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            لا توجد خدمات متاحة للعرض حالياً.
-          </p>
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {services.map((s) => (
-              <li key={s.code}>
-                <Link
-                  to="/student/requests/new"
-                  className="block rounded-lg border border-border bg-background px-3 py-2 hover:border-gold/50 transition-colors"
-                >
-                  <div className="text-xs font-bold text-primary truncate">{s.name_ar}</div>
-                  {s.description_ar && (
-                    <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
-                      {s.description_ar}
-                    </div>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </StandardCard>
   );
 }
