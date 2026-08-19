@@ -245,9 +245,16 @@ export const getStudentRequestUiContext = createServerFn({ method: "POST" })
 /** Student-scoped reference data for dynamic request forms. Uses the authenticated client/RLS. */
 export const getStudentRequestFormReferenceData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ academicYearId: z.string().uuid().optional() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({
+      academicYearId: z.string().uuid().optional(),
+      requestTypeCode: z.string().max(80).optional(),
+    }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const profile = await currentStudentProfile(context.userId);
+    const requestType = normalizeStudentRequestTypeCode(data.requestTypeCode);
+
     const [yearsResult, semestersResult, enrollmentsResult] = await Promise.all([
       context.supabase.from("academic_years").select("id, name").order("start_date", { ascending: false }),
       data.academicYearId
@@ -258,6 +265,60 @@ export const getStudentRequestFormReferenceData = createServerFn({ method: "POST
     ]);
     const firstError = yearsResult.error ?? semestersResult.error ?? enrollmentsResult.error;
     if (firstError) throw new Error(firstError.message);
+
+    let octoberRemainingCourses: Array<{ value: string; labelAr: string }> = [];
+    if (requestType === "october_exam_entry_form") {
+      const { data: remaining, error } = await context.supabase.rpc(
+        "p1_october_remaining_requirements",
+        { p_student: profile.id },
+      );
+      if (error) throw new Error(error.message);
+      octoberRemainingCourses = ((remaining ?? []) as Array<{
+        requirement_id: string;
+        course_code: string;
+        course_name_ar: string;
+      }>).map((row) => ({
+        value: row.requirement_id,
+        labelAr: `${row.course_code} — ${row.course_name_ar}`,
+      }));
+    }
+
+    let publishedFinalResults: Array<{ value: string; labelAr: string }> = [];
+    if (requestType === "grade_appeal") {
+      const { data: transcript, error } = await (supabaseAdmin as any)
+        .from("student_unofficial_transcript")
+        .select(
+          "enrollment_id, course_code, course_name, academic_year_name, semester_name, official_result",
+        )
+        .eq("student_profile_id", profile.id)
+        .not("enrollment_id", "is", null);
+      if (error) throw new Error(error.message);
+
+      const eligible: Array<{ value: string; labelAr: string }> = [];
+      for (const row of (transcript ?? []) as Array<Record<string, unknown>>) {
+        const enrollmentId = typeof row.enrollment_id === "string" ? row.enrollment_id : null;
+        if (!enrollmentId) continue;
+        const check = await context.supabase.rpc(
+          "p1_assert_final_result_appeal_eligibility",
+          {
+            p_student: profile.id,
+            p_enrollment: enrollmentId,
+            p_now: new Date().toISOString(),
+          },
+        );
+        if (check.error) continue;
+
+        const course = [row.course_code, row.course_name].filter(Boolean).join(" — ");
+        const term = [row.academic_year_name, row.semester_name].filter(Boolean).join(" / ");
+        const result = row.official_result == null ? "" : ` — النتيجة ${row.official_result}`;
+        eligible.push({
+          value: enrollmentId,
+          labelAr: `${course}${result}${term ? ` — ${term}` : ""}`,
+        });
+      }
+      publishedFinalResults = eligible;
+    }
+
     return {
       academicYears: (yearsResult.data ?? []).map((row) => ({ value: row.id, labelAr: row.name })),
       semesters: (semestersResult.data ?? []).map((row) => ({ value: row.id, labelAr: row.name })),
@@ -265,6 +326,8 @@ export const getStudentRequestFormReferenceData = createServerFn({ method: "POST
         const section = row.course_section as { section_code?: string | null } | null;
         return { value: row.course_section_id, labelAr: section?.section_code ?? row.course_section_id };
       }),
+      octoberRemainingCourses,
+      publishedFinalResults,
     };
   });
 
