@@ -6,7 +6,7 @@
 |---|---|
 | اسم التطبيق | بوابة الكلية |
 | Package / appId | `ye.edu.usr.fitcs.portal` |
-| Version | `versionCode 1` / `versionName 0.1.0` |
+| Version | `versionCode 2` / `versionName 0.2.0` |
 | Min SDK | 24 |
 | Target SDK | 36 |
 | نقطة الدخول | `https://quboolye.com/mobile/student-login` |
