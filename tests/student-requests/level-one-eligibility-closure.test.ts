@@ -27,6 +27,12 @@ const rows = [
     is_disabled: false,
     disabled_reason: null,
   },
+  {
+    code: "october_exam_entry_form",
+    is_eligible: true,
+    is_disabled: false,
+    disabled_reason: null,
+  },
 ];
 
 describe("LEVEL1-STUDENT-REQUEST-ELIGIBILITY-CLOSURE-01", () => {
@@ -47,10 +53,22 @@ describe("LEVEL1-STUDENT-REQUEST-ELIGIBILITY-CLOSURE-01", () => {
     );
 
     expect(byCode.final_chance).toEqual(rows[2]);
+    expect(byCode.october_exam_entry_form?.is_eligible).toBe(false);
+    expect(byCode.october_exam_entry_form?.is_disabled).toBe(true);
   });
 
-  it("does not restrict the same services for later levels", () => {
-    expect(applyLevelOneRequestTypeRestrictions(rows, 2)).toEqual(rows);
+  it("keeps October unavailable for levels two and three", () => {
+    for (const level of [2, 3]) {
+      const byCode = Object.fromEntries(
+        applyLevelOneRequestTypeRestrictions(rows, level).map((row) => [row.code, row]),
+      );
+      expect(byCode.department_transfer).toEqual(rows[1]);
+      expect(byCode.october_exam_entry_form?.is_eligible).toBe(false);
+      expect(byCode.october_exam_entry_form?.is_disabled).toBe(true);
+    }
+  });
+
+  it("allows October and department transfer at level four", () => {
     expect(applyLevelOneRequestTypeRestrictions(rows, 4)).toEqual(rows);
   });
 
