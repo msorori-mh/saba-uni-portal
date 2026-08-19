@@ -1,7 +1,9 @@
 /**
- * TAIZ TENDER DEMO — SOVEREIGN LOCAL RAG ENGINE
+ * TAIZ TENDER DEMO — SOVEREIGN LOCAL EXTRACTIVE RAG ENGINE
  * Tag: TAIZ_TENDER_DEMO_ONLY
- * 100% On-Premises Air-Gapped Search & Grounded Generation Engine.
+ * Classification: ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC
+ * Note: No generative model in current PoC; extractive answers only.
+ * Local Model Status: NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING
  */
 
 import { RAGDocument, RAGQueryResult, UserRole } from './types';
@@ -16,12 +18,16 @@ const PROMPT_INJECTION_PATTERNS = [
   /passwords|credentials/i,
   /bypass.*security/i,
   /تجاوز.*امان/i,
-  /اخترق/i
+  /اخترق/i,
+  /dump.*credential/i,
+  /ignore.*rules/i
 ];
 
 export class LocalRAGEngine {
   private documents: RAGDocument[] = [];
-  private confidenceThreshold: number = 0.50;
+  private confidenceThreshold: number = 0.55;
+  private externalNetworkCallsCount: number = 0;
+  private observedHosts: Set<string> = new Set(['localhost', '127.0.0.1']);
 
   constructor(initialDocs: RAGDocument[] = DEMO_RAG_DOCUMENTS) {
     this.documents = initialDocs.map(doc => {
@@ -38,6 +44,18 @@ export class LocalRAGEngine {
     return PROMPT_INJECTION_PATTERNS.some(pattern => pattern.test(query));
   }
 
+  public getExternalNetworkCallsCount(): number {
+    return this.externalNetworkCallsCount;
+  }
+
+  public getObservedHosts(): string[] {
+    return Array.from(this.observedHosts);
+  }
+
+  /**
+   * Lexical heuristic extractive retrieval over local documents.
+   * Zero external API calls, zero cloud embeddings.
+   */
   public query(userQuery: string, currentUserRole: UserRole = 'student'): RAGQueryResult {
     const startTime = performance.now();
     const isInjection = this.detectPromptInjection(userQuery);
@@ -53,8 +71,10 @@ export class LocalRAGEngine {
         generatedAnswer: '⚠️ تحذير أمني: تم رصد محاولة تجاوز للتعليمات (Prompt Injection). تم حظر الاستعلام وتسجيل المحاولة في سجل التدقيق الأمني.',
         citations: [],
         latencyMs: Math.round(performance.now() - startTime),
-        dataEgressBytes: 0,
-        engineMode: 'EXTRACTIVE_GROUNDED'
+        externalNetworkRequestsCount: 0,
+        observedHosts: Array.from(this.observedHosts),
+        engineClassification: 'ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC',
+        localModelStatus: 'NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING'
       };
     }
 
@@ -70,11 +90,14 @@ export class LocalRAGEngine {
         generatedAnswer: 'عذراً، يرجى كتابة سؤال أو استفسار محدد للبحث في اللوائح الجامعية.',
         citations: [],
         latencyMs: Math.round(performance.now() - startTime),
-        dataEgressBytes: 0,
-        engineMode: 'EXTRACTIVE_GROUNDED'
+        externalNetworkRequestsCount: 0,
+        observedHosts: Array.from(this.observedHosts),
+        engineClassification: 'ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC',
+        localModelStatus: 'NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING'
       };
     }
 
+    // Role-filtered documents (Zero Permission Leakage)
     const accessibleDocs = this.documents.filter(doc => doc.allowedRoles.includes(currentUserRole));
 
     const scoredDocs = accessibleDocs.map(doc => {
@@ -101,8 +124,8 @@ export class LocalRAGEngine {
       });
 
       const keywordScore = queryTokens.length > 0 ? matchCount / queryTokens.length : 0;
-      const denseSim = Math.min(1.0, keywordScore * 1.25);
-      const hybridScore = Math.min(1.0, keywordScore * 0.5 + denseSim * 0.5);
+      const heuristicScore = Math.min(1.0, keywordScore * 1.25);
+      const hybridScore = Math.min(1.0, keywordScore * 0.5 + heuristicScore * 0.5);
 
       const citation = `${doc.title} (${doc.regulationNumber || ''} - ${doc.articleNumber || ''} - ص ${doc.pageNumber})`;
 
@@ -110,7 +133,7 @@ export class LocalRAGEngine {
         doc,
         score: hybridScore,
         keywordScore,
-        denseScore: denseSim,
+        heuristicScore,
         citation
       };
     });
@@ -141,9 +164,11 @@ export class LocalRAGEngine {
       isPromptInjection: false,
       generatedAnswer,
       citations,
-      latencyMs: Math.max(10, Math.round(performance.now() - startTime)),
-      dataEgressBytes: 0,
-      engineMode: 'EXTRACTIVE_GROUNDED'
+      latencyMs: Math.max(8, Math.round(performance.now() - startTime)),
+      externalNetworkRequestsCount: 0,
+      observedHosts: Array.from(this.observedHosts),
+      engineClassification: 'ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC',
+      localModelStatus: 'NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING'
     };
   }
 

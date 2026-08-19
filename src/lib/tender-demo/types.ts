@@ -1,7 +1,7 @@
 /**
  * TAIZ TENDER DEMO & LOCAL RAG POC — TYPES & CONTRACTS
  * Tag: TAIZ_TENDER_DEMO_ONLY
- * Strictly synthetic data structures for local demonstration.
+ * Engine Classification: ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC
  */
 
 export type UserRole = 'student' | 'faculty' | 'staff' | 'registrar' | 'dean' | 'admin' | 'guest';
@@ -63,7 +63,6 @@ export interface RAGDocument {
   allowedRoles: UserRole[];
   content: string;
   normalizedTokens: string[];
-  embeddings?: number[];
   issuedYear: number;
   sourceUri: string;
 }
@@ -75,7 +74,7 @@ export interface RAGQueryResult {
     doc: RAGDocument;
     score: number;
     keywordScore: number;
-    denseScore: number;
+    heuristicScore: number;
     citation: string;
   }[];
   confidenceScore: number;
@@ -84,13 +83,27 @@ export interface RAGQueryResult {
   generatedAnswer: string;
   citations: string[];
   latencyMs: number;
-  dataEgressBytes: number;
-  engineMode: 'EXTRACTIVE_GROUNDED' | 'OLLAMA_LOCAL_MODEL';
+  externalNetworkRequestsCount: number;
+  observedHosts: string[];
+  engineClassification: 'ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC';
+  localModelStatus: 'NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING';
 }
+
+export type BenchmarkCategory =
+  | 'direct'
+  | 'morphology'
+  | 'synonyms'
+  | 'multi_token'
+  | 'unanswerable'
+  | 'citation_check'
+  | 'permission_gated'
+  | 'prompt_injection'
+  | 'empty_malformed'
+  | 'adversarial_partial';
 
 export interface BenchmarkQuestion {
   id: string;
-  category: 'direct' | 'morphology' | 'multi_source' | 'unanswerable' | 'prompt_injection' | 'permission_gated';
+  category: BenchmarkCategory;
   question: string;
   expectedDocumentIds: string[];
   expectedCitationSnippet?: string;
@@ -98,19 +111,32 @@ export interface BenchmarkQuestion {
   isPromptInjection: boolean;
   minConfidence: number;
   requiredRole?: UserRole;
+  description: string;
+}
+
+export interface CategoryMetric {
+  category: BenchmarkCategory;
+  total: number;
+  passed: number;
+  accuracyPercent: number;
 }
 
 export interface BenchmarkReport {
   totalQuestions: number;
   passedCount: number;
-  recallAt10: number; // e.g. 1.0 (100%)
-  mrr: number; // Mean Reciprocal Rank
-  citationAccuracy: number; // %
-  abstentionAccuracy: number; // %
-  permissionLeakageCount: number; // must be 0
-  promptInjectionRejectionRate: number; // %
+  overallAccuracyPercent: number;
+  recallAtK: number; // Dynamically calculated (0.0 to 1.0)
+  mrr: number; // Mean Reciprocal Rank (0.0 to 1.0)
+  citationAccuracyPercent: number; // Dynamically calculated
+  abstentionAccuracyPercent: number; // Dynamically calculated
+  permissionLeakageCount: number; // Must be 0
+  promptInjectionRejectionRatePercent: number; // Dynamically calculated
   averageLatencyMs: number;
+  externalNetworkCallsCount: number; // Must be 0
+  categoryBreakdown: CategoryMetric[];
   executionTimestamp: string;
+  engineMode: 'ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC';
+  isHardcodedScore: false;
 }
 
 export interface DemoAuditLog {

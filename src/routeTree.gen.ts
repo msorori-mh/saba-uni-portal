@@ -28,7 +28,6 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as StudentRouteImport } from './routes/student'
-import { Route as TenderDemoRouteImport } from './routes/tender-demo'
 import { Route as VerifyDocumentRouteImport } from './routes/verify-document'
 import { Route as VersionDotjsonRouteImport } from './routes/version[.]json'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
@@ -251,11 +250,6 @@ const StaffRoute = StaffRouteImport.update({
 const StudentRoute = StudentRouteImport.update({
   id: '/student',
   path: '/student',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TenderDemoRoute = TenderDemoRouteImport.update({
-  id: '/tender-demo',
-  path: '/tender-demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
@@ -1001,7 +995,6 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
-  '/tender-demo': typeof TenderDemoRoute
   '/verify-document': typeof VerifyDocumentRoute
   '/version.json': typeof VersionDotjsonRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
@@ -1150,7 +1143,6 @@ export interface FileRoutesByTo {
   '/research': typeof ResearchRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/tender-demo': typeof TenderDemoRoute
   '/verify-document': typeof VerifyDocumentRoute
   '/version.json': typeof VersionDotjsonRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
@@ -1299,7 +1291,6 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
-  '/tender-demo': typeof TenderDemoRoute
   '/verify-document': typeof VerifyDocumentRoute
   '/version.json': typeof VersionDotjsonRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
@@ -1454,7 +1445,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/staff'
     | '/student'
-    | '/tender-demo'
     | '/verify-document'
     | '/version.json'
     | '/admin/academic-core'
@@ -1603,7 +1593,6 @@ export interface FileRouteTypes {
     | '/research'
     | '/reset-password'
     | '/sitemap.xml'
-    | '/tender-demo'
     | '/verify-document'
     | '/version.json'
     | '/admin/academic-core'
@@ -1751,7 +1740,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/staff'
     | '/student'
-    | '/tender-demo'
     | '/verify-document'
     | '/version.json'
     | '/admin/academic-core'
@@ -1905,7 +1893,6 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StaffRoute: typeof StaffRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
-  TenderDemoRoute: typeof TenderDemoRoute
   VerifyDocumentRoute: typeof VerifyDocumentRoute
   VersionDotjsonRoute: typeof VersionDotjsonRoute
   DocumentViewIdRoute: typeof DocumentViewIdRoute
@@ -2033,13 +2020,6 @@ declare module '@tanstack/react-router' {
       path: '/student'
       fullPath: '/student'
       preLoaderRoute: typeof StudentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tender-demo': {
-      id: '/tender-demo'
-      path: '/tender-demo'
-      fullPath: '/tender-demo'
-      preLoaderRoute: typeof TenderDemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify-document': {
@@ -3396,7 +3376,6 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StaffRoute: StaffRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
-  TenderDemoRoute: TenderDemoRoute,
   VerifyDocumentRoute: VerifyDocumentRoute,
   VersionDotjsonRoute: VersionDotjsonRoute,
   DocumentViewIdRoute: DocumentViewIdRoute,
