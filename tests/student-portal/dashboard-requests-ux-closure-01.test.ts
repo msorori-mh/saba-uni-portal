@@ -164,7 +164,14 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).toContain('aria-controls="student-requests-panel"');
     expect(page).toContain('{activeTab === "services" ? (');
     expect(page).toContain('{activeTab === "requests" ? (');
-    expect(page).toContain("طلباتي السابقة");
+    expect(page.match(/طلباتي السابقة/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(page).not.toMatch(/>طلباتي<\/h2>/);
+    const dashboardSummary = readFileSync(
+      join(ROOT, "src/components/portal/StudentRequestsPortalSummary.tsx"),
+      "utf8",
+    );
+    expect(dashboardSummary).toContain("طلباتي السابقة");
+    expect(dashboardSummary).not.toContain("/> طلباتي\n");
     expect(page).toContain("{requests.length}");
     expect(page).not.toContain("scrollToServices");
   });

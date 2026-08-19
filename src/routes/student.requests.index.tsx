@@ -273,11 +273,11 @@ function StudentRequestsIndexPage() {
         </>
       ) : null}
 
-      {/* —— طلباتي —— */}
+      {/* —— طلباتي السابقة —— */}
       {activeTab === "requests" ? (
       <section id="student-requests-panel" role="tabpanel" className="space-y-3">
         <div>
-          <h2 className="font-display text-base font-bold text-primary">طلباتي</h2>
+          <h2 className="font-display text-base font-bold text-primary">طلباتي السابقة</h2>
           <p className="mt-1 text-sm text-muted-foreground">الطلبات الحالية والسابقة.</p>
         </div>
 

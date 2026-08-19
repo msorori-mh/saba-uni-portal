@@ -115,7 +115,7 @@ export function StudentRequestsPortalSummary() {
           to="/student/requests"
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-bold text-primary hover:bg-secondary/50"
         >
-          <ClipboardList className="h-3.5 w-3.5" /> طلباتي
+          <ClipboardList className="h-3.5 w-3.5" /> طلباتي السابقة
         </Link>
       </div>
 
@@ -127,7 +127,7 @@ export function StudentRequestsPortalSummary() {
           </div>
         ) : requestsError ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-center text-xs text-destructive">
-            تعذر تحميل الطلبات حالياً. يمكنك المحاولة لاحقاً أو فتح صفحة طلباتي.
+            تعذر تحميل الطلبات حالياً. يمكنك المحاولة لاحقاً أو فتح صفحة طلباتي السابقة.
           </div>
         ) : recent.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center space-y-1">
