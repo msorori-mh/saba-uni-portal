@@ -66,7 +66,7 @@ export function Header() {
           </div>
           <div className="leading-tight hidden md:block min-w-0">
             <div className="font-display font-extrabold text-primary text-base lg:text-lg truncate">كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
-            <div className="text-[11px] lg:text-xs text-muted-foreground truncate">البوابة الإلكترونية — جامعة إقليم سبأ</div>
+            <div className="text-[11px] lg:text-xs text-foreground/80 font-medium truncate">البوابة الإلكترونية — جامعة إقليم سبأ</div>
           </div>
         </Link>
 

@@ -27,7 +27,7 @@ export const PerformanceQAScene: React.FC = () => {
         <button
           onClick={handleRunEvaluation}
           disabled={isRunning}
-          className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-lg hover:bg-emerald-700 transition shadow disabled:opacity-50"
+          className="px-5 py-2.5 bg-emerald-800 text-white font-bold text-sm rounded-lg hover:bg-emerald-900 transition shadow disabled:opacity-50"
         >
           {isRunning ? 'جاري تشغيل بنك الـ 32 حالة...' : '▶ تشغيل بنك التقييم (32 حالة)'}
         </button>
@@ -37,7 +37,7 @@ export const PerformanceQAScene: React.FC = () => {
         <div className="p-4 bg-white border rounded-xl shadow-sm">
           <span className="text-xs text-slate-500 block">اختبارات المستودع (Core Suite)</span>
           <span className="text-2xl font-bold text-emerald-700">1,114 / 1,114</span>
-          <span className="text-[10px] text-emerald-600 block mt-1">اجتياز 100% بنجاح</span>
+          <span className="text-[10px] text-emerald-800 block mt-1">اجتياز 100% بنجاح</span>
         </div>
         <div className="p-4 bg-white border rounded-xl shadow-sm">
           <span className="text-xs text-slate-500 block">فحص النفاذية الرقمية المؤتمت</span>
@@ -52,7 +52,7 @@ export const PerformanceQAScene: React.FC = () => {
         <div className="p-4 bg-white border rounded-xl shadow-sm">
           <span className="text-xs text-slate-500 block">معدل خروج البيانات الخارجي</span>
           <span className="text-xl font-bold text-emerald-700">0 External Requests</span>
-          <span className="text-[10px] text-emerald-600 block mt-1">NO_EXTERNAL_NETWORK_REQUESTS</span>
+          <span className="text-[10px] text-emerald-800 block mt-1">NO_EXTERNAL_NETWORK_REQUESTS</span>
         </div>
       </div>
 

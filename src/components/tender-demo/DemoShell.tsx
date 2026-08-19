@@ -32,7 +32,7 @@ export const DemoShell: React.FC = () => {
           <span>DEMO ONLY — SYNTHETIC DATA — TA'IZ UNIVERSITY PORTAL PROTOTYPE (ISOLATED WORKTREE)</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="px-2 py-0.5 rounded bg-amber-600 text-white font-mono text-[10px]">LOCAL_OFFLINE_ONLY</span>
+          <span className="px-2 py-0.5 rounded bg-slate-900 text-amber-300 font-mono text-[10px]">LOCAL_OFFLINE_ONLY</span>
           <span className="font-mono text-[10px]">Zero Production Mutation</span>
         </div>
       </div>
@@ -44,7 +44,7 @@ export const DemoShell: React.FC = () => {
           <button
             onClick={() => setActiveScene(1)}
             className={`px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
-              activeScene === 1 ? 'bg-sky-600 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+              activeScene === 1 ? 'bg-slate-900 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
             }`}
           >
             <span>🏛️</span>
@@ -53,7 +53,7 @@ export const DemoShell: React.FC = () => {
           <button
             onClick={() => setActiveScene(2)}
             className={`px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
-              activeScene === 2 ? 'bg-sky-600 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+              activeScene === 2 ? 'bg-slate-900 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
             }`}
           >
             <span>🤖</span>
@@ -62,7 +62,7 @@ export const DemoShell: React.FC = () => {
           <button
             onClick={() => setActiveScene(3)}
             className={`px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
-              activeScene === 3 ? 'bg-sky-600 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+              activeScene === 3 ? 'bg-slate-900 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
             }`}
           >
             <span>📊</span>

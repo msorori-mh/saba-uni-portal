@@ -133,7 +133,7 @@ export function Footer() {
       <div className="border-t border-gold/30">
         <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-4 text-xs text-primary-foreground/60">
           <div>{universityName} — كلية تكنولوجيا المعلومات وعلوم الحاسوب © {new Date().getFullYear()}</div>
-          <div className="text-gold/80">جميع الحقوق محفوظة</div>
+          <div className="text-amber-200">جميع الحقوق محفوظة</div>
         </div>
       </div>
     </footer>

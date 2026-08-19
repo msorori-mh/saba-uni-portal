@@ -1,41 +1,71 @@
 import { describe, it, expect } from "bun:test";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { execSync } from "node:child_process";
 
-describe("Taiz Tender Demo — Production Bundle Exclusion Audit", () => {
-  it("verifies that when demo is disabled, main/entry chunks contain ZERO synthetic corpus data or demo markers", () => {
+describe("Taiz Tender Demo — Fresh Production Bundle Exclusion & Corpus Audit (05F)", () => {
+  it("executes a fresh build with Demo-Off and verifies ZERO demo markers or corpus texts across ALL output JS files", () => {
     const root = join(import.meta.dir, "../..");
-    const outputDir = join(root, ".output", "public");
+    const outputDir = join(root, ".output");
 
-    if (!existsSync(outputDir)) {
-      // If output directory is not yet built in this run, test passes conditionally
-      return;
+    // 1. Delete previous build output to guarantee fresh evaluation
+    if (existsSync(outputDir)) {
+      rmSync(outputDir, { recursive: true, force: true });
     }
 
-    // Scan all built JS assets in public directory
+    // 2. Execute fresh production build with Demo-Off
+    console.log("[BUNDLE AUDIT 05F] Executing fresh production Demo-Off build...");
+    execSync("bun run build", {
+      cwd: root,
+      env: { ...process.env, NODE_ENV: "production", VITE_TAIZ_TENDER_DEMO: "false" },
+      stdio: "pipe"
+    });
+
+    // 3. Force directory existence check (Fail-closed: NO conditional skip, BUNDLE_SCAN_SKIPPABLE=FALSE)
+    if (!existsSync(outputDir)) {
+      throw new Error(`[FAIL CLOSED] Output directory does not exist at ${outputDir}. Fresh build failed to produce output.`);
+    }
+
+    // 4. Scan ALL .js and .mjs files without excluding ANY file
     const jsFiles: string[] = [];
     function scan(dir: string) {
       for (const item of readdirSync(dir)) {
         const full = join(dir, item);
         if (statSync(full).isDirectory()) {
           scan(full);
-        } else if (item.endsWith(".js") && !item.includes("tender-demo")) {
+        } else if (item.endsWith(".js") || item.endsWith(".mjs")) {
           jsFiles.push(full);
         }
       }
     }
     scan(outputDir);
 
-    let foundMarker = false;
+    expect(jsFiles.length).toBeGreaterThan(0);
+
+    const searchMarkers = [
+      "TAIZ_TENDER_DEMO_ONLY",
+      "ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC",
+      "كلية الطب والعلوم الصحية - موقع تجريبي",
+      "جامعة تعز - شروط التظلم من نتائج الامتحانات",
+      "doc-reg-01",
+      "MultiSiteCMSScene",
+      "PerformanceQAScene"
+    ];
+
+    const matchingFiles: { marker: string; file: string }[] = [];
+
     for (const file of jsFiles) {
       const content = readFileSync(file, "utf-8");
-      if (content.includes("TAIZ_TENDER_DEMO_ONLY") || content.includes("كلية الطب والعلوم الصحية - موقع تجريبي")) {
-        foundMarker = true;
-        break;
+      for (const marker of searchMarkers) {
+        if (content.includes(marker)) {
+          matchingFiles.push({ marker, file: file.replace(root, "") });
+        }
       }
     }
 
-    // Main / entry bundles must not contain synthetic demo corpus
-    expect(foundMarker).toBe(false);
-  });
+    console.log(`[BUNDLE AUDIT 05F] Fresh build complete. Scanned ${jsFiles.length} JS/MJS files. Excluded files: 0. Matches: ${matchingFiles.length}`);
+
+    // Assert zero matches across all scanned bundle files
+    expect(matchingFiles.length).toBe(0);
+  }, 180000);
 });

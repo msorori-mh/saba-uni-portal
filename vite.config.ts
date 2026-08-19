@@ -93,6 +93,7 @@ export default defineConfig({
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
       "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(supabasePublishableKey),
       "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha),
+      "import.meta.env.VITE_TAIZ_TENDER_DEMO": JSON.stringify(process.env.VITE_TAIZ_TENDER_DEMO ?? ""),
     },
   },
 });
