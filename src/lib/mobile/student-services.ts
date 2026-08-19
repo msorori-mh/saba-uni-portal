@@ -126,8 +126,12 @@ export const MOBILE_HOME_SERVICE_KEYS: readonly MobileServiceKey[] = [
   "grades",
   "study-plan",
   "materials",
-  "notifications",
   "reports",
+] as const;
+
+/** Header destinations are available through global shell actions, not cards. */
+export const MOBILE_HEADER_SERVICE_KEYS: readonly MobileServiceKey[] = [
+  "notifications",
 ] as const;
 
 /**
@@ -149,7 +153,12 @@ export function buildMobileHomeServices(input: MobileServicesInput): MobileServi
 export function buildMobileMoreHub(input: MobileServicesInput): MobileServiceItem[] {
   const bottom = new Set<string>(MOBILE_BOTTOM_NAV_TARGETS);
   const promoted = new Set<MobileServiceKey>(MOBILE_HOME_SERVICE_KEYS);
+  const header = new Set<MobileServiceKey>(MOBILE_HEADER_SERVICE_KEYS);
   return buildMobileStudentServices(input).filter(
-    (item) => !bottom.has(item.to) && !promoted.has(item.key) && item.group !== "core",
+    (item) =>
+      !bottom.has(item.to) &&
+      !promoted.has(item.key) &&
+      !header.has(item.key) &&
+      item.group !== "core",
   );
 }
