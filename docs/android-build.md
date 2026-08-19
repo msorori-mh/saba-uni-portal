@@ -1,10 +1,10 @@
-# بوابة الكلية — بناء تطبيق Android
+# ITCS Portal — بناء تطبيق Android
 
 ## العقد الثابت
 
 | الحقل | القيمة |
 |---|---|
-| اسم التطبيق | بوابة الكلية |
+| اسم التطبيق | ITCS Portal |
 | Package / appId | `ye.edu.usr.fitcs.portal` |
 | Version | `versionCode 2` / `versionName 0.2.0` |
 | Min SDK | 24 |

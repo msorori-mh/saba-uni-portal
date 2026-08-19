@@ -23,7 +23,7 @@ describe("native platform detection", () => {
 
   test("identity constants match the frozen Play contract", () => {
     expect(ANDROID_APPLICATION_ID).toBe("ye.edu.usr.fitcs.portal");
-    expect(ANDROID_APP_DISPLAY_NAME).toBe("بوابة الكلية");
+    expect(ANDROID_APP_DISPLAY_NAME).toBe("ITCS Portal");
   });
 
   test("root routes are the student-first entry points", () => {
@@ -86,7 +86,7 @@ describe("capacitor config contract", () => {
 
   test("frozen identity and HTTPS-only transport", () => {
     expect(config).toContain('appId: "ye.edu.usr.fitcs.portal"');
-    expect(config).toContain('appName: "بوابة الكلية"');
+    expect(config).toContain('appName: "ITCS Portal"');
     expect(config).toContain("cleartext: false");
     expect(config).toContain("allowMixedContent: false");
     expect(config).not.toContain("cleartext: true");
@@ -131,8 +131,8 @@ describe("android identity script", () => {
   const script = read("scripts/mobile/apply-android-identity.mjs");
   test("freezes identity, version and the permission allowlist", () => {
     expect(script).toContain('APPLICATION_ID = "ye.edu.usr.fitcs.portal"');
-    expect(script).toContain("VERSION_CODE = 1");
-    expect(script).toContain('VERSION_NAME = "0.1.0"');
+    expect(script).toContain("VERSION_CODE = 2");
+    expect(script).toContain('VERSION_NAME = "0.2.0"');
     expect(script).toContain('ALLOWED_PERMISSIONS = ["android.permission.INTERNET"]');
     expect(script).toContain("cleartext traffic is enabled");
   });
