@@ -159,3 +159,40 @@ describe("native shell is wired to the student surface only", () => {
     }
   });
 });
+
+
+describe("android release signing contract", () => {
+  const gradle = read("android/app/build.gradle");
+  const workflow = read(".github/workflows/android-build.yml");
+  const docs = read("docs/android-build.md");
+
+  test("Gradle accepts release signing material only from the environment", () => {
+    for (const name of [
+      "ANDROID_KEYSTORE_PATH",
+      "ANDROID_KEYSTORE_PASSWORD",
+      "ANDROID_KEY_ALIAS",
+      "ANDROID_KEY_PASSWORD",
+    ]) {
+      expect(gradle).toContain(`System.getenv("${name}")`);
+    }
+    expect(gradle).toContain("if (releaseSigningReady)");
+    expect(gradle).toContain("signingConfig signingConfigs.release");
+    expect(gradle).not.toContain("storePassword \"");
+    expect(gradle).not.toContain("keyPassword \"");
+  });
+
+  test("Actions rejects partial signing configuration and cleans temporary material", () => {
+    expect(workflow).toContain("Prepare release signing (all-or-none)");
+    expect(workflow).toContain('elif [ "$present" -ne 4 ]');
+    expect(workflow).toContain("Partial Android signing configuration detected");
+    expect(workflow).toContain("Remove temporary signing material");
+    expect(workflow).not.toContain("continue-on-error: true");
+  });
+
+  test("build guide matches the frozen Android identity and production origin", () => {
+    expect(docs).toContain("ye.edu.usr.fitcs.portal");
+    expect(docs).toContain("https://quboolye.com/mobile/student-login");
+    expect(docs).not.toContain("usr.student");
+    expect(docs).not.toContain("lovable.app");
+  });
+});
