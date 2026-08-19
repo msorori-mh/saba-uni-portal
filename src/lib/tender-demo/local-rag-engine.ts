@@ -11,16 +11,17 @@ import { tokenizeArabic } from './arabic-nlp';
 import { DEMO_RAG_DOCUMENTS } from './synthetic-data';
 
 const PROMPT_INJECTION_PATTERNS = [
-  /تجاهل.*تعليمات/i,
-  /ignore.*instruction/i,
-  /اعرض.*كلمات.*مرور/i,
-  /show.*password/i,
-  /passwords|credentials/i,
-  /bypass.*security/i,
-  /تجاوز.*امان/i,
-  /اخترق/i,
-  /dump.*credential/i,
-  /ignore.*rules/i
+  /تجاهل.*(تعليمات|ما سبق|القواعد)/i,
+  /ignore.*(instruction|rules|prompt)/i,
+  /override.*(system|prompt|security)/i,
+  /اعرض.*(كلمات.*مرور|بيانات.*سريه|ملفات.*سريه)/i,
+  /show.*(password|credentials|tokens)/i,
+  /passwords|credentials|superadmin.*token/i,
+  /bypass.*(security|filter|policy)/i,
+  /تجاوز.*(امان|الأمان|نظام|تدقيق)/i,
+  /اخترق|مخترق/i,
+  /dump.*(credential|data|tokens)/i,
+  /تصرف.*كمخترق/i
 ];
 
 export class LocalRAGEngine {

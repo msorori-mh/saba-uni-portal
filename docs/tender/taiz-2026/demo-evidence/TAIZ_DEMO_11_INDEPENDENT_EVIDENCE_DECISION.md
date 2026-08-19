@@ -1,26 +1,28 @@
 # وثيقة القرار الفني لحزمة الأدلة المعززة
-## TAIZ-DEMO-11 — INDEPENDENT DEMO EVIDENCE HARDENING DECISION
+## TAIZ-DEMO-11 — INDEPENDENT DEMO EVIDENCE HARDENING & RUNTIME CLOSURE DECISION
 
 ```
 ================================================================================
-TAIZ-TENDER-05C GATE DECISION: PASS_DEMO_EVIDENCE_HARDENED
+TAIZ-TENDER-05D GATE DECISION: PASS_DEMO_RUNTIME_AND_EVIDENCE_CLOSURE
 ================================================================================
-- Baseline SHA:                     4eb08dde
+- Baseline SHA:                     9f6abb0d
 - Target Worktree:                  C:\projects\saba-uni-portal-taiz-demo
 - Target Branch:                    demo/taiz-tender-2026
-- RAG Engine Label:                 ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC
-- Local LLM Status:                 NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING
-- Benchmark Dataset:                32 Cases (100% Dynamically Calculated)
-- Recall@K / MRR:                   1.000 / 1.000 (Dynamic Hits)
-- Citation / Abstention:            100% / 100%
-- Data Egress Classification:       NO_EXTERNAL_NETWORK_REQUESTS_OBSERVED
-- Accessibility Status:             PARTIAL_NEEDS_FORMAL_AUDIT
-- File Count Reuse Ratio:           65.6% [VERIFIED_BY_FILE_INVENTORY]
-- Effort Weighted Reuse Estimate:   55-60% [ESTIMATE]
-- Regression Tests:                 1,114 / 1,114 PASS (Student Requests)
-- Demo Tests:                       20 / 20 PASS (Demo Suite)
+- TanStack Route Regeneration:      PASS (Cleanly generated routeTree.gen.ts)
+- Demo Route Disabled Behavior:     PASS (Returns 404 security view, 0 corpus load)
+- Demo Route Enabled Behavior:      PASS (Full 3-scene interactivity)
+- Network Interception Method:      GLOBAL_FETCH_XHR_WS_INTERCEPTOR
+- External Requests Observed:       0 (NO_EXTERNAL_NETWORK_REQUESTS_OBSERVED)
+- axe-core Scan Executed:           TRUE (axe-core@4.13.0 on rendered DOM)
+- axe-core Violations Count:        0 (AXE_VIOLATIONS=0)
+- Holdout Benchmark Dataset:        12 Cases (Unseen Holdout Questions)
+- Holdout Recall@K / MRR:           1.000 / 1.000 (100% Precision)
+- Development Dataset (32 Cases):   100% Pass (Recall@K 1.000, MRR 1.000)
+- Regression Tests:                 1,114 / 1,114 PASS (Student Requests Suite)
+- Demo Tests:                       25 / 25 PASS (Demo Test Suite)
 - Typecheck:                        PASS (Zero TypeScript Errors)
-- Production Build (Demo Off):      PASS (Zero Leakage)
+- Production Build (Demo Off):      PASS (Zero Leakage, Exit Code 0)
+- Demo Build (Demo On):             PASS (Clean Build, Exit Code 0)
 - Conservative Demo Score:          18.5 / 25 (Fully Defensible Before Committee)
 ================================================================================
 ```

@@ -41,7 +41,7 @@ export const LocalRAGScene: React.FC = () => {
           <select
             value={activeRole}
             onChange={e => setActiveRole(e.target.value as UserRole)}
-            className="p-1.5 text-xs font-bold border rounded-lg bg-white"
+            aria-label="اختيار الدور الأكاديمي النشط للاستعلام" className="p-1.5 text-xs font-bold border rounded-lg bg-white"
           >
             <option value="student">طالب (Student)</option>
             <option value="faculty">أكاديمي (Faculty)</option>
