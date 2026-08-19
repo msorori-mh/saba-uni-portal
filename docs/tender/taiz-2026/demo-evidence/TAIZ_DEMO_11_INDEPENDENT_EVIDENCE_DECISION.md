@@ -3,23 +3,24 @@
 
 ```
 ================================================================================
-TAIZ-TENDER-05D GATE DECISION: PASS_DEMO_RUNTIME_AND_EVIDENCE_CLOSURE
+TAIZ-TENDER-05E GATE DECISION: PASS_REAL_E2E_AND_PRODUCTION_EXCLUSION
 ================================================================================
-- Baseline SHA:                     9f6abb0d
+- Baseline SHA:                     6d7b6b77
 - Target Worktree:                  C:\projects\saba-uni-portal-taiz-demo
 - Target Branch:                    demo/taiz-tender-2026
-- TanStack Route Regeneration:      PASS (Cleanly generated routeTree.gen.ts)
-- Demo Route Disabled Behavior:     PASS (Returns 404 security view, 0 corpus load)
-- Demo Route Enabled Behavior:      PASS (Full 3-scene interactivity)
-- Network Interception Method:      GLOBAL_FETCH_XHR_WS_INTERCEPTOR
+- Playwright E2E Disabled:          PASS_404_SECURE_VIEW (Zero corpus in DOM)
+- Playwright E2E Enabled:           PASS_3_SCENES_INTERACTIVE (Full interactivity)
+- Production Bundle Demo Markers:   0 (Audited via bundle-exclusion.test.ts)
+- Corpus Present in Prod Dist:      FALSE (Clean separation)
+- Intercepted APIs:                 fetch, XMLHttpRequest, WebSocket, EventSource
 - External Requests Observed:       0 (NO_EXTERNAL_NETWORK_REQUESTS_OBSERVED)
-- axe-core Scan Executed:           TRUE (axe-core@4.13.0 on rendered DOM)
+- axe-core Scan Executed:           TRUE (via Playwright in real Chromium)
 - axe-core Violations Count:        0 (AXE_VIOLATIONS=0)
-- Holdout Benchmark Dataset:        12 Cases (Unseen Holdout Questions)
-- Holdout Recall@K / MRR:           1.000 / 1.000 (100% Precision)
+- Holdout Independence:             ISOLATED_IN_TEST_FIXTURE
+- Holdout Recall@K / MRR:           1.000 / 1.000 (>= 0.85/0.80 thresholds)
 - Development Dataset (32 Cases):   100% Pass (Recall@K 1.000, MRR 1.000)
 - Regression Tests:                 1,114 / 1,114 PASS (Student Requests Suite)
-- Demo Tests:                       25 / 25 PASS (Demo Test Suite)
+- Demo Tests:                       27 / 27 PASS (Demo Test Suite)
 - Typecheck:                        PASS (Zero TypeScript Errors)
 - Production Build (Demo Off):      PASS (Zero Leakage, Exit Code 0)
 - Demo Build (Demo On):             PASS (Clean Build, Exit Code 0)

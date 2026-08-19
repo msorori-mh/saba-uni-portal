@@ -4,7 +4,8 @@
 > **التصنيف الهندسي المعتمد:** `ARABIC_LEXICAL_HEURISTIC_EXTRACTIVE_POC`
 > **حالة النموذج التوليدي المحلي:** `NOT_IMPLEMENTED_OPTIONAL_ADAPTER_PENDING`
 > **طبيعة الاستجابة:** استخراج حرفي محكوم بالنصوص واللوائح الرسمية (`No generative model in current PoC; extractive answers only`).
-> **إجمالي الحالات المنفذة:** 44 حالة (32 حالة تطوير + 12 حالة Holdout مستقلة).
+> **عزل مجموعة التحقق (Holdout Isolation):** معزولة بالكامل في ملف Fixture مستقل (`tests/tender-demo/fixtures/holdout-questions.fixture.ts`) ولا يراها المحرك أثناء ضبط الأوزان أو العتبات.
+> **حدود القبول الهندسية المقررة:** `Recall@K >= 0.85`, `MRR >= 0.80`.
 
 ---
 
@@ -16,10 +17,11 @@ DEVELOPMENT VS HOLDOUT EVALUATION BREAKDOWN (100% LOCAL AIR-GAPPED)
 ================================================================================
 Metric                              Development Set (32)        Holdout Set (12)
 --------------------------------------------------------------------------------
+Dataset Location:                   synthetic-data.ts           Isolated Test Fixture
 Total Test Cases:                   32                          12
 Passed Test Cases:                  32 / 32 (100%)              12 / 12 (100%)
-Recall@K (Rank < 10):               1.000 (100%)                1.000 (100%)
-Mean Reciprocal Rank (MRR):         1.000                       1.000
+Recall@K (Rank < 10):               1.000 (>= 0.85 Threshold)   1.000 (>= 0.85 Threshold)
+Mean Reciprocal Rank (MRR):         1.000 (>= 0.80 Threshold)   1.000 (>= 0.80 Threshold)
 Citation Accuracy:                  100%                        100%
 Abstention Accuracy:                100%                        100%
 Permission Leakage Count:           0 (Zero Leakage)            0 (Zero Leakage)

@@ -1,19 +1,19 @@
-# تقرير فحص خروج البيانات وعزل الشبكة باعتراض الطلبات الفعلي
-## TAIZ-DEMO-09 — DATA EGRESS & ACTIVE REQUEST INTERCEPTION AUDIT REPORT
+# تقرير فحص خروج البيانات وعزل الشبكة باعتراض البروتوكولات الأربعة
+## TAIZ-DEMO-09 — DATA EGRESS & MULTI-PROTOCOL INTERCEPTION AUDIT REPORT
 
-> **طريقة الفحص والاعتراض:** `GLOBAL_FETCH_XHR_WS_INTERCEPTOR`
+> **البروتوكولات المعترضة فعلياً:** `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`.
 > **التصنيف المعتمد:** `NO_EXTERNAL_NETWORK_REQUESTS_OBSERVED`
-> **نطاق الرصد:** تنفيذ كافة استعلامات بنك التطوير (32) وبنك الـ Holdout (12) بإجمالي 44 استعلاماً.
+> **نطاق الرصد:** تنفيذ كافة استعلامات بنك التطوير (32) وبنك الـ Holdout (12) بإجمالي 44 استعلاماً + جلسة Playwright E2E.
 
 ---
 
-## 1. نتائج الرصد الشبكي الفعلي
+## 1. نتائج الرصد الشبكي الفعلي للبروتوكولات الأربعة
 
 ```
 ================================================================================
-NETWORK REQUEST INTERCEPTION AUDIT LOG
+MULTI-PROTOCOL ACTIVE NETWORK INTERCEPTION AUDIT LOG
 ================================================================================
-Interception Method:                Active globalThis.fetch / XHR / WebSocket proxy
+Intercepted APIs:                   fetch, XMLHttpRequest, WebSocket, EventSource
 Total Queries Executed:             44 (32 Development + 12 Holdout)
 Total Outbound Requests Trapped:    0 (Zero External Network Traffic)
 Allowed Network Hosts:              ['localhost', '127.0.0.1']
