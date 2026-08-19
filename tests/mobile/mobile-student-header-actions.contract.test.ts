@@ -47,9 +47,13 @@ describe("mobile student header actions", () => {
     expect(services).toContain('!header.has(item.key)');
   });
 
-  test("refreshes the bell badge after marking notifications read", () => {
+  test("marks every unread notification, including rows older than the visible list", () => {
     expect(notifications).toContain(
       'queryKey: ["mobile-student", "notifications", "unread-count"]',
     );
+    expect(notifications).toContain('.update({ is_read: true })');
+    expect(notifications).toContain('.eq("is_read", false)');
+    expect(notifications).not.toContain('.in("id", unread.map');
+    expect(notifications).toContain("qc.setQueriesData(");
   });
 });
