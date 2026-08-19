@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Award,
   Bell,
@@ -17,6 +18,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { ANDROID_APP_DISPLAY_NAME } from "@/lib/native/platform";
 import { useMobileStudentContext } from "@/lib/mobile/student-context";
+import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
+import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
 import {
   buildMobileMoreHub,
   type MobileServiceGroup,
@@ -59,6 +62,8 @@ const GROUP_ORDER: MobileServiceGroup[] = [
 /** Additional-services hub — never duplicates the bottom navigation. */
 function MobileStudentMore() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const { data, isLoading } = useMobileStudentContext();
   const items = buildMobileMoreHub({
     gpEligible: data?.gpEligible === true,
@@ -66,8 +71,17 @@ function MobileStudentMore() {
   });
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/mobile/student-login", replace: true });
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch {
+      // Fail closed locally: the previous student's data must never remain visible.
+    } finally {
+      queryClient.clear();
+      clearReportsLocalPreferences();
+      clearSessionArtifacts();
+      await router.invalidate();
+      navigate({ to: "/mobile/student-login", replace: true });
+    }
   };
 
   if (isLoading) {
