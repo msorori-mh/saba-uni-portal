@@ -1,125 +1,93 @@
-# بوابة الطالب — Android Build (Capacitor)
+# بوابة الكلية — بناء تطبيق Android
 
-## معلومات التطبيق
+## العقد الثابت
 
 | الحقل | القيمة |
 |---|---|
-| App Name | بوابة الطالب |
-| Package / appId | `usr.student` |
-| Min SDK | 24 (Android 7.0) |
-| Target SDK | 36 (Android 16) |
-| Mode | Remote shell → `https://saba-uni-portal.lovable.app/mobile/student-login` |
-| HTTPS | إجباري (`cleartext = false`) |
-| Auth / RLS / API | بدون تغيير — نفس Supabase الحالي |
+| اسم التطبيق | بوابة الكلية |
+| Package / appId | `ye.edu.usr.fitcs.portal` |
+| Version | `versionCode 1` / `versionName 0.1.0` |
+| Min SDK | 24 |
+| Target SDK | 36 |
+| نقطة الدخول | `https://quboolye.com/mobile/student-login` |
+| الاتصال | HTTPS فقط؛ `cleartext = false` |
+| النطاق | بوابة الطالب فقط |
 
----
+لا تغيّر `appId` بعد إنشاء التطبيق في Google Play. وكل ملف يُرفع إلى Play يجب أن يحمل `versionCode` أعلى من الملف السابق.
 
-## 🚀 البناء التلقائي عبر GitHub Actions (الطريقة الموصى بها)
+## البناء عبر GitHub Actions
 
-ملف الـ Workflow: `.github/workflows/android-build.yml`
+الـWorkflow هو `.github/workflows/android-build.yml`. يعمل يدويًا، ويعمل تلقائيًا عند الدفع إلى `main` عندما تتغير ملفات التطبيق أو إعداداته.
 
-### كيف يعمل
+ينتج:
 
-- يعمل **يدوياً** من تبويب Actions على GitHub (`workflow_dispatch`).
-- يعمل **تلقائياً** عند كل push على فرع `main` يمسّ كود الواجهة أو `capacitor.config.ts`.
-- يبني Debug APK + Release APK (unsigned) + Release AAB (unsigned).
-- إذا لم يوجد `android/gradlew`، يحذف مجلد `android/` القديم (إن وُجد) ويستدعي `cap add android` تلقائياً.
+| Artifact | الاستخدام |
+|---|---|
+| `app-debug-apk` | تثبيت مباشر على جهاز اختبار |
+| `app-debug-aab` | فحص بناء Debug |
+| `app-release-apk` | Release APK؛ يكون موقعًا عند اكتمال أسرار التوقيع |
+| `app-release-aab` | Release AAB؛ يكون موقعًا وجاهزًا للاختبار الداخلي عند اكتمال الأسرار |
 
-### تشغيل البناء يدوياً
+تُحفظ Artifacts لمدة 30 يومًا.
 
-1. افتح GitHub repo → **Actions**.
-2. اختر workflow باسم **Android Build — بوابة الطالب**.
-3. اضغط **Run workflow** → اختر الفرع (عادة `main`) → **Run workflow**.
-4. انتظر اكتمال البناء (تقريباً 5–10 دقائق).
+## عقد توقيع Release
 
-### تحميل ملفات APK / AAB
+يقرأ البناء القيم من GitHub Actions Secrets فقط:
 
-بعد نجاح الـ Workflow:
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
 
-1. ادخل صفحة الـ Run.
-2. انزل إلى قسم **Artifacts** في الأسفل.
-3. حمّل أحد الملفات:
+السلوك مغلق عند الخطأ:
 
-| Artifact | الملف | الاستخدام |
-|---|---|---|
-| `app-debug-apk` | `app-debug.apk` | تثبيت مباشر للاختبار الداخلي |
-| `app-release-unsigned-apk` | `app-release-unsigned.apk` | يحتاج توقيع قبل التوزيع |
-| `app-release-unsigned-aab` | `app-release.aab` | للنشر على Google Play (بعد التوقيع) |
+- إذا غابت الأسرار الأربعة كلها، ينجح Debug ويُبنى Release غير موقع.
+- إذا وُجدت بعض الأسرار فقط، يفشل التشغيل ولا ينتج إصدارًا ملتبسًا.
+- إذا اكتملت، يُفك المفتاح مؤقتًا داخل runner، ويُوقّع Release APK/AAB، ثم يُحذف الملف المؤقت دائمًا.
 
-> Artifacts تُحفظ لمدة 30 يوماً ثم تُحذف تلقائياً.
+لا تحفظ keystore أو كلمات مروره في المستودع، ولا ترسلها في المحادثة. أدخلها من إعدادات المستودع: **Settings → Secrets and variables → Actions**. احتفظ بنسخة احتياطية مشفرة من upload key خارج GitHub.
 
-### تثبيت Debug APK على جهاز Android
+## تشغيل البناء يدويًا
 
-1. حمّل `app-debug.apk` من Artifacts على هاتفك.
-2. فعّل **Install from Unknown Sources** للمتصفح الذي حمّلت منه.
-3. افتح الملف وثبّته.
-4. عند الفتح يجب أن تظهر **شاشة دخول الطالب** مباشرة.
+1. افتح المستودع في GitHub ثم **Actions**.
+2. اختر **Android Build — بوابة الطالب**.
+3. اختر **Run workflow** وحدد الفرع.
+4. بعد النجاح، حمّل الملفات من قسم **Artifacts**.
 
-أو عبر USB ADB من الكمبيوتر:
+## تثبيت Debug APK
+
+بعد تحميل وفك ضغط `app-debug-apk`:
 
 ```bash
 adb install -r app-debug.apk
 ```
 
----
+أو انقل الملف إلى الهاتف واسمح بالتثبيت من المصدر المستخدم. عند الفتح يجب أن تظهر شاشة دخول الطالب على النطاق الرسمي.
 
-## 🔐 ملاحظات التوقيع والنشر
+## البناء المحلي
 
-- Release APK / AAB من الـ Workflow تخرج **بدون توقيع** لأن الـ keystore لم يُضف إلى GitHub Secrets بعد.
-- لا يفشل الـ Workflow عند غياب الـ keystore — يكمل بناء Debug ويرفع Release كـ unsigned.
-
-### إضافة التوقيع لاحقاً (للنشر على Google Play)
-
-1. أنشئ keystore محلياً:
+المتطلبات: Node.js 22، Bun، JDK 21، Android SDK 36.
 
 ```bash
-keytool -genkey -v -keystore saba-student.keystore \
-  -alias saba -keyalg RSA -keysize 2048 -validity 10000
-```
-
-2. ارفع الملف + كلمات السر إلى **GitHub Secrets**:
-   - `ANDROID_KEYSTORE_BASE64` (محتوى الـ keystore مُشفّر base64)
-   - `ANDROID_KEYSTORE_PASSWORD`
-   - `ANDROID_KEY_ALIAS`
-   - `ANDROID_KEY_PASSWORD`
-
-3. عدّل `android/app/build.gradle` لاستخدام `signingConfigs` تقرأ من متغيرات البيئة، وأضف خطوة في الـ Workflow تكتب الـ keystore من Secret إلى ملف قبل `assembleRelease`.
-
-> هذه الخطوات خارج نطاق المرحلة الحالية — تُضاف في مرحلة لاحقة عند جاهزية النشر على Play Store.
-
----
-
-## 🖥️ البناء محلياً (بديل اختياري)
-
-يتطلب: Android Studio + JDK 17 + Node.js 20.
-
-```bash
-npm install
-npm run build
-npx cap add android      # أول مرة فقط
-npx cap sync android
+bun install --frozen-lockfile
+bun run build
+bunx cap sync android
+node scripts/mobile/apply-android-identity.mjs
+node scripts/mobile/apply-android-branding.mjs
 cd android
-./gradlew assembleDebug     # → app/build/outputs/apk/debug/app-debug.apk
-./gradlew assembleRelease   # → app-release-unsigned.apk
-./gradlew bundleRelease     # → bundle/release/app-release.aab
+./gradlew assembleDebug
 ```
 
----
+لبناء Release موقع محليًا، مرّر متغيرات البيئة الأربعة التي يقرأها `android/app/build.gradle`، مع `ANDROID_KEYSTORE_PATH` لمسار ملف المفتاح المحلي. لا تستخدم سطر أوامر يسجل كلمات المرور في shell history.
 
-## أحجام تقديرية
+## بوابة الاختبار الداخلي
 
-| النوع | الحجم |
-|---|---|
-| Debug APK | ~6–8 MB |
-| Release APK | ~4–6 MB |
-| AAB | ~3–5 MB |
+قبل رفع AAB إلى Google Play Internal Testing يجب إثبات:
 
-الحجم صغير لأن الواجهة تُحمَّل من السيرفر (Remote shell)، أي تحديث ويب يظهر فوراً دون إعادة بناء.
+1. نجاح GitHub Actions وبناء AAB موقع.
+2. تثبيت Debug APK واختباره على جهاز Android فعلي.
+3. الدخول والخروج، الجلسة، الرجوع، الروابط الخارجية، RTL، والقياسات الأساسية.
+4. تطابق `appId` والإصدار ونقطة الدخول مع العقد أعلاه.
+5. تفعيل Play App Signing واستخدام upload key محفوظ بأمان.
 
----
-
-## نطاق الإصدار v1
-
-✅ يشمل: Login، Dashboard، Grades، Academic Record، Finance، Requests، Documents، Schedule، Splash، Deep Links.
-
-❌ مؤجّل: Push Notifications، Offline Sync، رفع السندات، تقديم الطلبات من التطبيق.
+الرفع إلى مسار Production ليس جزءًا من هذه البوابة؛ يبدأ أولًا بمسار **Internal testing**.
