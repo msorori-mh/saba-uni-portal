@@ -88,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [1, 5, 9, 13]
     steps:
       - uses: actions/checkout@v4
 
@@ -123,7 +123,7 @@ jobs:
           SHARD=${{ matrix.shard }}
           TEST_FILES=()
           for ((INDEX=0; INDEX<TOTAL; INDEX++)); do
-            if (( INDEX % 4 == SHARD )); then
+            if (( INDEX % 16 == SHARD )); then
               TEST_FILES+=("${ALL_TEST_FILES[$INDEX]}")
             fi
           done
