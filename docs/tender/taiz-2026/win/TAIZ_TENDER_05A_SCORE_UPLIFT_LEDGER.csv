@@ -1,0 +1,9 @@
+﻿Evidence_Item,Official_Criterion,Weight_Percent,Current_Verified_Points,Potential_Points_Gain,Required_Proof_Artifact,Action_Owner,Target_Deadline,Current_Status,Score_After_Closure,Dependency_Blocker,Risk_Severity
+3 Client Completion Certificates,Past Performance & References,20%,0.0,+18.0,3 Stamped Final Acceptance & Completion Certs,Project Manager,T-5 Days,PENDING_EVIDENCE,18.0 / 20,Client Bureaucracy / Signatures,CRITICAL
+8 Key Personnel Credentials,Key Personnel & Team,10%,0.0,+9.0,8 Verified CVs with PMP/TOGAF/CISSP/CKA + Letters,HR Manager,T-5 Days,TO_BE_SOURCED,9.0 / 10,Expert Signatures & Availability,CRITICAL
+2% Unconditional Bank Guarantee,Bid Bond & Eligibility,N/A (Disqualification),0.0,Pass Gate,Original Bank Letter (90 Days Validity),Finance Manager,T-3 Days,PENDING_BANK,Pass Gate,Bank Issuance & Collateral,FATAL
+5 Legal & Corporate Cards Renewed,Legal Eligibility,N/A (Disqualification),0.0,Pass Gate,5 Valid 2026 Stamped Cards & IT Commercial Register,Legal Counsel,T-5 Days,PENDING_RENEWAL,Pass Gate,Government Tax/Zakat Clearance,FATAL
+Interactive 15-20 Min Demo,Architecture & Methodology,25%,10.0,+13.5,Live Demo Walkthrough + Recorded 4K Offline Video,Solutions Architect,T-4 Days,READY_TO_BUILD,23.5 / 25,None (Internal Execution),LOW
+Local Sovereign RAG PoC Benchmark,AI & Sovereign RAG Solutions,15%,0.0,+13.5,Qdrant Local PoC + 50-Question Benchmark Report,AI Specialist,T-4 Days,READY_TO_BUILD,13.5 / 15,None (Internal Execution),LOW
+Third-Party Pentest Engagement Plan,Cybersecurity & Performance,15%,8.0,+5.5,OWASP ASVS L2 Audit Plan & Pentest Contract,Cyber Specialist,T-5 Days,PROPOSED_PLAN,13.5 / 15,Third-Party Audit Provider,MEDIUM
+32-Week WBS & 301 Migration Map,Implementation Plan & WBS,15%,6.0,+7.5,Detailed Gantt Chart + 301 Redirect ETL Scripts,DevOps / PM,T-5 Days,PROPOSED_PLAN,13.5 / 15,University Legacy DB Discovery,MEDIUM
