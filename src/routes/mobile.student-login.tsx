@@ -57,12 +57,16 @@ function MobileStudentLoginPage() {
         .select("user_id")
         .eq("user_id", data.user.id)
         .maybeSingle();
-      if (!cancelled && profile) navigate({ to: REDIRECT_AFTER_LOGIN, replace: true });
+      if (!cancelled && profile) {
+        queryClient.clear();
+        await router.invalidate();
+        navigate({ to: REDIRECT_AFTER_LOGIN, replace: true });
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, queryClient, router]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
