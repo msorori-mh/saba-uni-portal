@@ -23,6 +23,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -225,6 +226,11 @@ const NewsRoute = NewsRouteImport.update({
 const PortalLoginRoute = PortalLoginRouteImport.update({
   id: '/portal-login',
   path: '/portal-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResearchRoute = ResearchRouteImport.update({
@@ -990,6 +996,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
+  '/privacy': typeof PrivacyRoute
   '/research': typeof ResearchRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -1140,6 +1147,7 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
+  '/privacy': typeof PrivacyRoute
   '/research': typeof ResearchRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -1286,6 +1294,7 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
+  '/privacy': typeof PrivacyRoute
   '/research': typeof ResearchRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -1440,6 +1449,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/news'
     | '/portal-login'
+    | '/privacy'
     | '/research'
     | '/reset-password'
     | '/sitemap.xml'
@@ -1590,6 +1600,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/news'
     | '/portal-login'
+    | '/privacy'
     | '/research'
     | '/reset-password'
     | '/sitemap.xml'
@@ -1735,6 +1746,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/news'
     | '/portal-login'
+    | '/privacy'
     | '/research'
     | '/reset-password'
     | '/sitemap.xml'
@@ -1888,6 +1900,7 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResearchRoute: typeof ResearchRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -1985,6 +1998,13 @@ declare module '@tanstack/react-router' {
       path: '/portal-login'
       fullPath: '/portal-login'
       preLoaderRoute: typeof PortalLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/research': {
@@ -3371,6 +3391,7 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
+  PrivacyRoute: PrivacyRoute,
   ResearchRoute: ResearchRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
