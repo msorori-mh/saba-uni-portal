@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GraduationCap, Loader2, ArrowLeft, ShieldCheck, Mail } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
@@ -32,6 +33,8 @@ export const Route = createFileRoute("/mobile/student-login")({
 
 function MobileStudentLoginPage() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,12 +57,16 @@ function MobileStudentLoginPage() {
         .select("user_id")
         .eq("user_id", data.user.id)
         .maybeSingle();
-      if (!cancelled && profile) navigate({ to: REDIRECT_AFTER_LOGIN, replace: true });
+      if (!cancelled && profile) {
+        queryClient.clear();
+        await router.invalidate();
+        navigate({ to: REDIRECT_AFTER_LOGIN, replace: true });
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, queryClient, router]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -108,6 +115,10 @@ function MobileStudentLoginPage() {
         return;
       }
 
+      // A native WebView remains alive between logins. Drop every query and
+      // route match owned by the previous student before mounting the new one.
+      queryClient.clear();
+      await router.invalidate();
       navigate({ to: REDIRECT_AFTER_LOGIN, replace: true });
     } catch (err) {
       setError(friendlyAuthError(err));

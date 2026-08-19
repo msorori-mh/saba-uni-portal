@@ -1,12 +1,14 @@
-import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { Home, CalendarClock, ClipboardList, FileText, LayoutGrid, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { useNativeAppShell } from "@/hooks/use-native-app-shell";
 import { MobileAppLockProvider } from "@/components/mobile/MobileAppLockProvider";
+import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
+import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
@@ -50,44 +52,79 @@ type ShortProfile = {
   academic_number: string | null;
 };
 
-async function fetchShortProfile(): Promise<ShortProfile | null> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return null;
+async function fetchShortProfile(userId: string): Promise<ShortProfile | null> {
   const { data } = await supabase
     .from("student_profiles")
     .select("full_name_ar, academic_number")
-    .eq("user_id", auth.user.id)
+    .eq("user_id", userId)
     .maybeSingle();
   return (data as ShortProfile) ?? null;
 }
 
 function MobileStudentLayout() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const { pathname } = useLocation();
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const authUserIdRef = useRef<string | null>(null);
 
   // Native (Capacitor/Android) app-shell: status bar, splash hide, back button.
   // No-op on the web.
   useNativeAppShell(pathname);
 
   useEffect(() => {
+    let cancelled = false;
     void disablePwaInNativeShell();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+
+    void supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return;
+      const userId = data.user?.id ?? null;
+      authUserIdRef.current = userId;
+      setAuthUserId(userId);
+      if (!data.user) navigate({ to: "/mobile/student-login", replace: true });
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      const nextUserId = session?.user.id ?? null;
+      if (authUserIdRef.current && authUserIdRef.current !== nextUserId) {
+        queryClient.clear();
+        void router.invalidate();
+      }
+      authUserIdRef.current = nextUserId;
+      setAuthUserId(nextUserId);
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [navigate, queryClient, router]);
 
   const { data: profile } = useQuery({
-    queryKey: ["mobile-student", "short-profile"],
-    queryFn: fetchShortProfile,
+    queryKey: ["mobile-student", "short-profile", authUserId],
+    queryFn: () => fetchShortProfile(authUserId!),
+    enabled: Boolean(authUserId),
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/mobile/student-login", replace: true });
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch {
+      // Never retain the previous student's visible data if remote sign-out fails.
+    } finally {
+      authUserIdRef.current = null;
+      setAuthUserId(null);
+      queryClient.clear();
+      clearReportsLocalPreferences();
+      clearSessionArtifacts();
+      await router.invalidate();
+      navigate({ to: "/mobile/student-login", replace: true });
+    }
   };
 
   const displayName = (profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ")) || "الطالب";
