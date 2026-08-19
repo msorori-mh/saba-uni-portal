@@ -74,7 +74,11 @@ export function StudentRequestsPortalSummary() {
     retry: 1,
   });
 
-  const recent = requests.slice(0, 2);
+  const actionRequired = requests.filter((request) =>
+    ["returned_for_completion", "returned"].includes(request.status),
+  );
+  const recent = (actionRequired.length > 0 ? actionRequired : requests).slice(0, 2);
+  const hasActionRequired = actionRequired.length > 0;
 
   return (
     <StandardCard id="student-requests" className="mt-6">
@@ -103,7 +107,9 @@ export function StudentRequestsPortalSummary() {
       </div>
 
       <div className="mt-5">
-        <h3 className="text-sm font-bold text-primary mb-2">آخر الطلبات</h3>
+        <h3 className="text-sm font-bold text-primary mb-2">
+          {hasActionRequired ? "طلبات تحتاج استكمالاً" : "آخر الطلبات"}
+        </h3>
         {requestsLoading ? (
           <div className="grid place-items-center py-6" aria-busy="true">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
