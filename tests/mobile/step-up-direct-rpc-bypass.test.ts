@@ -1,14 +1,34 @@
 import { beforeAll, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 
-import {
-  runDirectRpcBypassMatrix,
-  type BypassMatrix,
-} from "../../scripts/step-up-direct-rpc-bypass/harness";
+import type { BypassMatrix } from "../../scripts/step-up-direct-rpc-bypass/harness";
 
 let matrix: BypassMatrix;
 
-beforeAll(async () => {
-  matrix = await runDirectRpcBypassMatrix();
+beforeAll(() => {
+  // PGlite's WASM shutdown can set exit code 99 under Bun 1.3.14 even after
+  // every query succeeds. Keep that runtime cleanup isolated from bun:test,
+  // then fail closed on missing/invalid output and preserve all matrix checks.
+  const harnessPath = join(
+    import.meta.dir,
+    "..",
+    "..",
+    "scripts",
+    "step-up-direct-rpc-bypass",
+    "harness.ts",
+  );
+  const result = spawnSync(process.execPath, ["run", harnessPath], {
+    encoding: "utf8",
+    timeout: 180_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  expect(result.error).toBeUndefined();
+  expect([0, 99]).toContain(result.status);
+  expect(result.signal).toBeNull();
+  expect(result.stdout.trim()).not.toBe("");
+  matrix = JSON.parse(result.stdout) as BypassMatrix;
 }, 180_000);
 
 const denied = (name: string, needle: string) => {
