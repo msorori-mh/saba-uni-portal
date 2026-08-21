@@ -119,11 +119,11 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: "hr",
-    label: "الهيئة التدريسية والإدارية",
+    label: "الموارد البشرية وخدمات الموظفين",
     icon: UserCog,
     items: [
       { to: "/admin/faculty-management", label: "إدارة أعضاء هيئة التدريس", icon: Users },
-      { to: "/admin/staff-management", label: "إدارة الموظفين", icon: UserCog },
+      { to: "/admin/staff-management", label: "إدارة الموظفين وخدماتهم", icon: UserCog },
       { to: "/admin/faculty", label: "صفحة هيئة التدريس بالموقع", icon: Globe },
     ],
   },
