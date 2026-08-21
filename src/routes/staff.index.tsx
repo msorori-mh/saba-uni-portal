@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { GraduationCap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StaffSelfServiceShowcase } from "@/components/staff-showcase/StaffSelfServiceShowcase";
 import { useStaffLogout } from "@/lib/use-staff-logout";
+import { portalFeatures } from "@/lib/portal-features";
 
 type StaffProfileRow = {
   employee_number: string | null;
@@ -48,7 +49,25 @@ function StaffDashboard() {
           </div>
         </div>
       ) : (
-        <StaffSelfServiceShowcase profile={profile} />
+        <>
+          <StaffSelfServiceShowcase profile={profile} />
+          {portalFeatures.staffGraduatesAffairs && (
+            <div className="container mx-auto max-w-6xl px-4 pb-8 print:hidden">
+              <Link
+                to="/staff/graduates-affairs"
+                className="flex items-center gap-3 rounded-xl border-2 border-gold/30 bg-card p-4 shadow-card transition-all hover:border-gold"
+              >
+                <GraduationCap className="h-5 w-5 shrink-0 text-gold" />
+                <div>
+                  <div className="font-bold text-primary">شؤون الخريجين</div>
+                  <div className="text-xs text-muted-foreground">
+                    مساحة العمل التشغيلية لشؤون الخريجين حسب التعيين والنطاق المعتمد.
+                  </div>
+                </div>
+              </Link>
+            </div>
+          )}
+        </>
       )}
     </PortalShell>
   );
