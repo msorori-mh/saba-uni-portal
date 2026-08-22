@@ -28,16 +28,12 @@ export const staffValueAddedProjections = {
     "id,staff_profile_id,attendance_date,check_in_at,check_out_at,worked_minutes,late_minutes,overtime_minutes,day_state",
   overtimeClaims:
     "id,claim_no,staff_profile_id,claim_kind,starts_on,ends_on,total_hours,reason,status,manager_decided_at,manager_reason,hr_decided_at,hr_reason",
-  overtimeFinancialImpact:
-    "claim_id,currency_code,hourly_rate,gross_amount,settled_at",
   trainingCourses:
     "id,code,title_ar,provider,starts_on,ends_on,total_hours,active",
   trainingEnrollments:
     "id,course_id,staff_profile_id,status,decided_at,decision_reason,completed_at",
   promotionCases:
     "id,case_no,staff_profile_id,case_kind,current_grade,proposed_grade,status,effective_on,notes",
-  promotionFinancialImpact:
-    "case_id,currency_code,current_basic,proposed_basic,retroactive_amount",
   clearanceCases:
     "id,case_no,staff_profile_id,status,reason,completed_at,custody_override,custody_override_reason",
   clearanceCheckpoints:
@@ -306,6 +302,39 @@ export async function fetchStaffEvaluations(): Promise<
         .select(staffValueAddedProjections.evaluations)
         .order("created_at", { ascending: false }),
     staffPerformanceEvaluationSchema,
+  );
+}
+
+export async function upsertEvaluationDraft(input: {
+  cycleId: string;
+  staffProfileId: string;
+  overallRating?: number | null;
+  ratingBand?:
+    | "excellent"
+    | "very_good"
+    | "good"
+    | "acceptable"
+    | "weak"
+    | null;
+  goals?: string | null;
+  strengths?: string | null;
+  improvements?: string | null;
+}) {
+  return callRpc(
+    "staff_service_upsert_evaluation_draft",
+    {
+      p_cycle_id: z.string().uuid().parse(input.cycleId),
+      p_staff_profile_id: z.string().uuid().parse(input.staffProfileId),
+      p_overall_rating:
+        input.overallRating === undefined || input.overallRating === null
+          ? null
+          : z.number().min(0).max(100).parse(input.overallRating),
+      p_rating_band: input.ratingBand ?? null,
+      p_goals: input.goals ?? null,
+      p_strengths: input.strengths ?? null,
+      p_improvements: input.improvements ?? null,
+    },
+    staffPerformanceEvaluationSchema.passthrough(),
   );
 }
 
@@ -846,6 +875,93 @@ export async function completeClearanceCase(input: {
   );
 }
 
+/**
+ * Checkpoint-owner projection. Every decider — including Finance, which has no
+ * row access to the clearance base tables — sees only the checkpoints it must
+ * decide, with the minimum case context and no free-text reasons.
+ */
+export const staffAssignedClearanceCheckpointSchema = z
+  .object({
+    checkpoint_id: z.string().uuid(),
+    case_id: z.string().uuid(),
+    case_no: z.string().min(1),
+    checkpoint_kind: z.enum([
+      "direct_manager",
+      "hr",
+      "finance",
+      "it_custody",
+      "administration",
+    ]),
+    checkpoint_status: z.enum(["pending", "cleared", "blocked"]),
+    case_status: z.enum(["in_progress", "completed", "cancelled"]),
+    opened_at: isoTimestamp,
+  })
+  .strict();
+
+export type StaffAssignedClearanceCheckpoint = z.infer<
+  typeof staffAssignedClearanceCheckpointSchema
+>;
+
+export async function fetchAssignedClearanceCheckpoints(): Promise<
+  StaffAssignedClearanceCheckpoint[]
+> {
+  return callRpc(
+    "staff_service_list_assigned_clearance_checkpoints",
+    {},
+    z.array(staffAssignedClearanceCheckpointSchema),
+  );
+}
+
+export async function openClearanceCase(input: {
+  staffProfileId: string;
+  reason: string;
+  idempotencyKey?: string;
+}) {
+  return callRpc(
+    "staff_service_open_clearance_case",
+    {
+      p_staff_profile_id: z.string().uuid().parse(input.staffProfileId),
+      p_reason: z.string().trim().min(3).max(2000).parse(input.reason),
+      p_idempotency_key: input.idempotencyKey ?? crypto.randomUUID(),
+    },
+    staffClearanceCaseSchema.passthrough(),
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 7b) Attendance oversight reporting                                  */
+/* ------------------------------------------------------------------ */
+
+export const staffAttendanceMonthReportRowSchema = z
+  .object({
+    staff_profile_id: z.string().uuid(),
+    full_name_ar: z.string().min(1),
+    present_days: z.number().int(),
+    absent_days: z.number().int(),
+    late_days: z.number().int(),
+    leave_days: z.number().int(),
+    worked_hours: numericLike,
+  })
+  .strict();
+
+export type StaffAttendanceMonthReportRow = z.infer<
+  typeof staffAttendanceMonthReportRowSchema
+>;
+
+export async function fetchStaffAttendanceMonthReport(input: {
+  year: number;
+  month: number;
+}): Promise<StaffAttendanceMonthReportRow[]> {
+  return callRpc(
+    "staff_service_list_attendance_month_report",
+    {
+      p_year: z.number().int().min(2000).max(2200).parse(input.year),
+      p_month: z.number().int().min(1).max(12).parse(input.month),
+    },
+    z.array(staffAttendanceMonthReportRowSchema),
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* 8) Audit + capabilities                                             */
 /* ------------------------------------------------------------------ */
@@ -899,6 +1015,12 @@ export const staffValueAddedCapabilitiesSchema = z
     can_manage_evaluations: z.boolean(),
     can_view_financial_impact: z.boolean(),
     can_decide_clearance: z.boolean(),
+    can_view_overtime_queue: z.boolean(),
+    can_view_clearance_cases: z.boolean(),
+    can_manage_clearance_cases: z.boolean(),
+    can_manage_promotions: z.boolean(),
+    can_manage_training: z.boolean(),
+    can_view_attendance_reports: z.boolean(),
   })
   .strict();
 
@@ -919,6 +1041,12 @@ export const STAFF_VALUE_ADDED_NO_CAPABILITIES: StaffValueAddedCapabilities = {
   can_manage_evaluations: false,
   can_view_financial_impact: false,
   can_decide_clearance: false,
+  can_view_overtime_queue: false,
+  can_view_clearance_cases: false,
+  can_manage_clearance_cases: false,
+  can_manage_promotions: false,
+  can_view_attendance_reports: false,
+  can_manage_training: false,
 };
 
 /** Boolean-only probe: UI gating never depends on another employee's row. */
