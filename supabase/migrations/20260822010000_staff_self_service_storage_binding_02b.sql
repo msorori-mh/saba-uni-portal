@@ -439,7 +439,6 @@ begin
 end;
 $$;
 
-drop policy if exists staff_service_private_insert on storage.objects;
 create policy staff_service_private_insert
   on storage.objects for insert to authenticated
   with check (
@@ -448,7 +447,6 @@ create policy staff_service_private_insert
     and public.staff_service_can_upload_object(name)
   );
 
-drop policy if exists staff_service_private_select on storage.objects;
 create policy staff_service_private_select
   on storage.objects for select to authenticated
   using (
@@ -456,9 +454,6 @@ create policy staff_service_private_select
     and name not like '%..%'
     and public.staff_service_can_download_object(name)
   );
-
-drop policy if exists staff_service_private_update on storage.objects;
-drop policy if exists staff_service_private_delete on storage.objects;
 
 revoke all on function public.staff_service_create_attachment_upload_intent(
   uuid, text, text, bigint, text, uuid
