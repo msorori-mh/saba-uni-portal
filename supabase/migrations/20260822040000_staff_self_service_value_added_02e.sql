@@ -1667,6 +1667,8 @@ revoke all on function public.staff_service_decide_clearance_checkpoint(uuid, te
 revoke all on function public.staff_service_complete_clearance_case(uuid, boolean, text) from public, anon;
 revoke all on function public.staff_service_get_value_added_capabilities() from public, anon;
 
+grant execute on function public.staff_service_manages_profile(uuid, uuid) to authenticated;
+grant execute on function public.staff_service_owns_profile(uuid, uuid) to authenticated;
 grant execute on function public.staff_service_request_employment_statement(text, text, text, text, text, uuid) to authenticated;
 grant execute on function public.staff_service_issue_document(uuid, integer) to authenticated;
 grant execute on function public.staff_service_revoke_issued_document(uuid, text) to authenticated;
