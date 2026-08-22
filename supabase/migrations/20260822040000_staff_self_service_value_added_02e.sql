@@ -1241,11 +1241,24 @@ begin
   if v_user is null then
     raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
   end if;
+  -- Certificate metadata is an atomic private-storage reference: path and
+  -- digest are either both absent or both present.  The server rejects URL
+  -- schemes, absolute/traversal paths and oversized values; the client-side
+  -- adapter is only an ergonomic duplicate of this boundary.
+  if (p_certificate_object_path is null) <> (p_certificate_sha256 is null) then
+    raise exception 'STAFF_SERVICE_TRAINING_CERTIFICATE_INVALID' using errcode = '22023';
+  end if;
   if p_certificate_sha256 is not null and p_certificate_sha256 !~ '^[a-f0-9]{64}$' then
     raise exception 'STAFF_SERVICE_TRAINING_CERTIFICATE_INVALID' using errcode = '22023';
   end if;
   if p_certificate_object_path is not null
-     and (p_certificate_object_path like '%..%' or btrim(p_certificate_object_path) = '') then
+     and (
+       btrim(p_certificate_object_path) = ''
+       or char_length(p_certificate_object_path) > 400
+       or p_certificate_object_path like '%..%'
+       or p_certificate_object_path like '/%'
+       or p_certificate_object_path ~* '^[a-z][a-z0-9+.-]*://'
+     ) then
     raise exception 'STAFF_SERVICE_TRAINING_CERTIFICATE_INVALID' using errcode = '22023';
   end if;
 
@@ -1762,7 +1775,7 @@ begin
   insert into public.staff_value_added_audit_events (
     actor_user_id, module, subject_id, event_type, metadata
   ) values (
-    v_user, 'evaluation', v_row.id, 'evaluation_draft_saved', '{}'::jsonb
+    v_user, 'performance', v_row.id, 'evaluation_draft_saved', '{}'::jsonb
   );
 
   return v_row;
@@ -2248,20 +2261,56 @@ revoke all on table public.staff_promotion_financial_impact from public, anon, a
 revoke all on table public.staff_clearance_cases from public, anon, authenticated;
 revoke all on table public.staff_clearance_checkpoints from public, anon, authenticated;
 
+-- Column-level grants are a second, independent least-privilege boundary.
+-- RLS limits rows; these grants prevent a caller from bypassing the typed
+-- projections and directly selecting token digests, private object paths,
+-- checksums, idempotency keys, verifier metadata, or internal actor fields.
 grant select on table public.staff_document_verification_probe_stats to authenticated;
-grant select on table public.staff_value_added_audit_events to authenticated;
-grant select on table public.staff_issued_documents to authenticated;
-grant select on table public.staff_performance_cycles to authenticated;
-grant select on table public.staff_performance_evaluations to authenticated;
-grant select on table public.staff_attendance_days to authenticated;
-grant select on table public.staff_overtime_claims to authenticated;
+grant select (
+  id, actor_user_id, module, subject_id, event_type, reason, occurred_at
+) on table public.staff_value_added_audit_events to authenticated;
+grant select (
+  id, reference_no, document_type, staff_profile_id, language_code, purpose,
+  destination, status, issued_at, expires_at, revoked_at, revoke_reason
+) on table public.staff_issued_documents to authenticated;
+grant select (
+  id, cycle_year, title_ar, opens_on, closes_on, status, created_at
+) on table public.staff_performance_cycles to authenticated;
+grant select (
+  id, cycle_id, staff_profile_id, overall_rating, rating_band, goals,
+  strengths, improvements, status, finalized_at, acknowledged_at,
+  employee_comment, created_at
+) on table public.staff_performance_evaluations to authenticated;
+grant select (
+  id, staff_profile_id, attendance_date, check_in_at, check_out_at,
+  worked_minutes, late_minutes, overtime_minutes, day_state
+) on table public.staff_attendance_days to authenticated;
+grant select (
+  id, claim_no, staff_profile_id, claim_kind, starts_on, ends_on, total_hours,
+  reason, status, manager_decided_at, manager_reason, hr_decided_at, hr_reason,
+  created_at
+) on table public.staff_overtime_claims to authenticated;
 grant select on table public.staff_overtime_financial_impact to authenticated;
-grant select on table public.staff_training_courses to authenticated;
-grant select on table public.staff_training_enrollments to authenticated;
-grant select on table public.staff_promotion_cases to authenticated;
+grant select (
+  id, code, title_ar, provider, starts_on, ends_on, total_hours, active
+) on table public.staff_training_courses to authenticated;
+grant select (
+  id, course_id, staff_profile_id, status, decided_at, decision_reason,
+  completed_at, created_at
+) on table public.staff_training_enrollments to authenticated;
+grant select (
+  id, case_no, staff_profile_id, case_kind, current_grade, proposed_grade,
+  status, effective_on, notes, created_at
+) on table public.staff_promotion_cases to authenticated;
 grant select on table public.staff_promotion_financial_impact to authenticated;
-grant select on table public.staff_clearance_cases to authenticated;
-grant select on table public.staff_clearance_checkpoints to authenticated;
+grant select (
+  id, case_no, staff_profile_id, status, reason, completed_at,
+  custody_override, custody_override_reason, created_at
+) on table public.staff_clearance_cases to authenticated;
+grant select (
+  id, case_id, checkpoint_kind, required_role, status, decided_at,
+  decision_reason, created_at
+) on table public.staff_clearance_checkpoints to authenticated;
 
 grant all on table public.staff_document_verification_probe_stats to service_role;
 grant all on table public.staff_value_added_audit_events to service_role;

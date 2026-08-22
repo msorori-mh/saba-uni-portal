@@ -583,6 +583,497 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- J) Identity binding + evaluation draft authoring/finalization.
+-- ---------------------------------------------------------------------------
+reset role;
+insert into public.staff_performance_cycles (
+  id, cycle_year, title_ar, opens_on, closes_on
+) values (
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', 2027, 'دورة 2027',
+  current_date - 1, current_date + 30
+);
+
+set local role authenticated;
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$
+begin
+  if public.staff_service_owns_profile(
+       '22222222-2222-4222-8222-222222222222',
+       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2') then
+    raise exception 'J_IDENTITY_ORACLE_OWNS_PROFILE';
+  end if;
+  if public.staff_service_manages_profile(
+       '33333333-3333-4333-8333-333333333333',
+       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2') then
+    raise exception 'J_IDENTITY_ORACLE_MANAGES_PROFILE';
+  end if;
+end;
+$$;
+
+set local request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+do $$
+begin
+  begin
+    perform public.staff_service_upsert_evaluation_draft(
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      90, 'excellent', 'أهداف', 'نقاط قوة', 'تحسين');
+    raise exception 'J_SELF_EVALUATION_DRAFT_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end;
+$$;
+
+set local request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
+do $$
+declare
+  v_eval public.staff_performance_evaluations;
+  v_saved public.staff_performance_evaluations;
+begin
+  v_eval := public.staff_service_upsert_evaluation_draft(
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+    90, 'excellent', 'هدف أول', 'قوة أولى', 'تحسين أول');
+
+  if v_eval.status <> 'draft' then
+    raise exception 'J_EVALUATION_DRAFT_NOT_CREATED';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',
+                     '22222222-2222-4222-8222-222222222222', true);
+  if exists (
+    select 1 from public.staff_performance_evaluations where id = v_eval.id
+  ) then
+    raise exception 'J_DRAFT_DISCLOSED_TO_EMPLOYEE';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',
+                     '33333333-3333-4333-8333-333333333333', true);
+  v_saved := public.staff_service_upsert_evaluation_draft(
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+    93, 'excellent', 'هدف محدّث', 'قوة محدّثة', 'تحسين محدّث');
+  if v_saved.id <> v_eval.id or v_saved.overall_rating <> 93 then
+    raise exception 'J_EVALUATION_DRAFT_UPDATE_BROKEN';
+  end if;
+
+  perform public.staff_service_finalize_evaluation(v_eval.id);
+  begin
+    perform public.staff_service_upsert_evaluation_draft(
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      94, 'excellent', null, null, null);
+    raise exception 'J_POST_FINALIZE_EDIT_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '40001' then null;
+  end;
+
+  if (
+    select count(*) from public.staff_value_added_audit_events
+    where module = 'performance'
+      and subject_id = v_eval.id
+      and event_type = 'evaluation_draft_saved'
+  ) <> 2 then
+    raise exception 'J_EVALUATION_DRAFT_AUDIT_COUNT_WRONG';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',
+                     '22222222-2222-4222-8222-222222222222', true);
+  if not exists (
+    select 1 from public.staff_performance_evaluations
+    where id = v_eval.id and status = 'finalized'
+  ) then
+    raise exception 'J_FINALIZED_EVALUATION_NOT_VISIBLE';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- K) Training completion: private metadata is server-enforced and immutable.
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$
+declare
+  v_enrollment public.staff_training_enrollments;
+begin
+  v_enrollment := public.staff_service_request_training_enrollment(
+    'ffffffff-ffff-4fff-8fff-fffffffffff1');
+
+  perform set_config('request.jwt.claim.sub',
+                     '44444444-4444-4444-8444-444444444444', true);
+  perform public.staff_service_decide_training_enrollment(
+    v_enrollment.id, 'approved', null);
+
+  begin
+    perform public.staff_service_complete_training_enrollment(
+      v_enrollment.id, 'https://public.invalid/cert.pdf', repeat('a', 64));
+    raise exception 'K_PUBLIC_CERTIFICATE_URL_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '22023' then null;
+  end;
+
+  begin
+    perform public.staff_service_complete_training_enrollment(
+      v_enrollment.id, 'staff/training/cert.pdf', null);
+    raise exception 'K_PARTIAL_CERTIFICATE_METADATA_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '22023' then null;
+  end;
+
+  begin
+    perform public.staff_service_complete_training_enrollment(
+      v_enrollment.id, '../cert.pdf', repeat('a', 64));
+    raise exception 'K_TRAVERSAL_CERTIFICATE_PATH_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '22023' then null;
+  end;
+
+  perform public.staff_service_complete_training_enrollment(
+    v_enrollment.id,
+    'staff/training/employee-01/cert.pdf',
+    repeat('a', 64));
+
+  begin
+    perform public.staff_service_complete_training_enrollment(
+      v_enrollment.id,
+      'staff/training/employee-01/cert.pdf',
+      repeat('a', 64));
+    raise exception 'K_TRAINING_COMPLETION_REPLAY_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '40001' then null;
+  end;
+
+  if not exists (
+    select 1 from public.staff_value_added_audit_events
+    where module = 'training' and subject_id = v_enrollment.id
+      and event_type = 'training_completed'
+  ) then
+    raise exception 'K_TRAINING_COMPLETION_NOT_AUDITED';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',
+                     '11111111-1111-4111-8111-111111111111', true);
+  begin
+    perform certificate_object_path
+    from public.staff_training_enrollments where id = v_enrollment.id;
+    raise exception 'K_PRIVATE_CERTIFICATE_PATH_DISCLOSED';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- L) Promotion/settlement authoring: idempotency and legal transitions.
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+do $$
+begin
+  begin
+    perform public.staff_service_open_promotion_case(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'promotion',
+      'الدرجة 4', 'الدرجة 5', null, gen_random_uuid());
+    raise exception 'L_SELF_PROMOTION_OPEN_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end;
+$$;
+
+set local request.jwt.claim.sub = '44444444-4444-4444-8444-444444444444';
+do $$
+declare
+  v_key uuid := gen_random_uuid();
+  v_case public.staff_promotion_cases;
+  v_replay public.staff_promotion_cases;
+begin
+  v_case := public.staff_service_open_promotion_case(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'promotion',
+    'الدرجة 4', 'الدرجة 5', 'استحقاق سنوي', v_key);
+  v_replay := public.staff_service_open_promotion_case(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'promotion',
+    'الدرجة 4', 'الدرجة 5', 'استحقاق سنوي', v_key);
+  if v_replay.id <> v_case.id then
+    raise exception 'L_PROMOTION_IDEMPOTENCY_BROKEN';
+  end if;
+
+  perform public.staff_service_update_promotion_case(
+    v_case.id, 'hr_review', null, null, null);
+  perform public.staff_service_update_promotion_case(
+    v_case.id, 'approved', null, null, null);
+  perform public.staff_service_update_promotion_case(
+    v_case.id, 'implemented', null, current_date, null);
+
+  begin
+    perform public.staff_service_update_promotion_case(
+      v_case.id, 'implemented', null, current_date, null);
+    raise exception 'L_ILLEGAL_PROMOTION_REPLAY_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '40001' then null;
+  end;
+
+  if (
+    select count(*) from public.staff_value_added_audit_events
+    where module = 'promotion' and subject_id = v_case.id
+  ) <> 4 then
+    raise exception 'L_PROMOTION_AUDIT_COUNT_WRONG';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',
+                     '11111111-1111-4111-8111-111111111111', true);
+  if exists (
+    select 1 from public.staff_promotion_cases where id = v_case.id
+  ) then
+    raise exception 'L_CROSS_EMPLOYEE_PROMOTION_DISCLOSURE';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',
+                     '22222222-2222-4222-8222-222222222222', true);
+  if not exists (
+    select 1 from public.staff_promotion_cases
+    where id = v_case.id and status = 'implemented'
+  ) then
+    raise exception 'L_OWN_PROMOTION_CASE_NOT_VISIBLE';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- M) Clearance opening is atomic, five-checkpoint and replay-safe.
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '44444444-4444-4444-8444-444444444444';
+do $$
+declare
+  v_key uuid := gen_random_uuid();
+  v_case public.staff_clearance_cases;
+  v_replay public.staff_clearance_cases;
+begin
+  v_case := public.staff_service_open_clearance_case(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'نقل وظيفي', v_key);
+  v_replay := public.staff_service_open_clearance_case(
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'نقل وظيفي', v_key);
+  if v_replay.id <> v_case.id then
+    raise exception 'M_CLEARANCE_IDEMPOTENCY_BROKEN';
+  end if;
+  if (
+    select count(*) from public.staff_clearance_checkpoints
+    where case_id = v_case.id
+  ) <> 5 then
+    raise exception 'M_CLEARANCE_FIVE_CHECKPOINTS_NOT_ATOMIC';
+  end if;
+  begin
+    perform public.staff_service_open_clearance_case(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      'معاملة مكررة', gen_random_uuid());
+    raise exception 'M_SECOND_OPEN_CLEARANCE_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '40001' then null;
+  end;
+  if not exists (
+    select 1 from public.staff_value_added_audit_events
+    where module = 'clearance' and subject_id = v_case.id
+      and event_type = 'clearance_case_opened'
+  ) then
+    raise exception 'M_CLEARANCE_OPEN_NOT_AUDITED';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- N) Attendance report is manager/HR scoped and denied to Finance/outsider.
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
+do $$
+declare
+  v_report jsonb;
+begin
+  v_report := public.staff_service_list_attendance_month_report(
+    extract(year from current_date)::int,
+    extract(month from current_date)::int);
+  if jsonb_array_length(v_report) <> 2 then
+    raise exception 'N_MANAGER_ATTENDANCE_SCOPE_WRONG';
+  end if;
+end;
+$$;
+
+set local request.jwt.claim.sub = '55555555-5555-4555-8555-555555555555';
+do $$
+begin
+  begin
+    perform public.staff_service_list_attendance_month_report(
+      extract(year from current_date)::int,
+      extract(month from current_date)::int);
+    raise exception 'N_FINANCE_ATTENDANCE_REPORT_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end;
+$$;
+
+set local request.jwt.claim.sub = '66666666-6666-4666-8666-666666666666';
+do $$
+begin
+  begin
+    perform public.staff_service_list_attendance_month_report(
+      extract(year from current_date)::int,
+      extract(month from current_date)::int);
+    raise exception 'N_OUTSIDER_ATTENDANCE_REPORT_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '42501' then null;
+  end;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- O) Finance sees projections/assigned checkpoint only, never base free text.
+-- ---------------------------------------------------------------------------
+set local request.jwt.claim.sub = '55555555-5555-4555-8555-555555555555';
+do $$
+declare
+  v_overtime jsonb := public.staff_service_list_overtime_financial_projection();
+  v_promotion jsonb := public.staff_service_list_promotion_financial_projection();
+  v_clearance jsonb := public.staff_service_list_assigned_clearance_checkpoints();
+begin
+  if exists (select 1 from public.staff_overtime_claims)
+     or exists (select 1 from public.staff_promotion_cases)
+     or exists (select 1 from public.staff_clearance_cases)
+     or exists (select 1 from public.staff_clearance_checkpoints)
+     or exists (select 1 from public.staff_performance_evaluations)
+     or exists (select 1 from public.staff_training_enrollments) then
+    raise exception 'O_FINANCE_BASE_ROW_DISCLOSURE';
+  end if;
+
+  if jsonb_array_length(v_overtime) < 1 then
+    raise exception 'O_FINANCE_OVERTIME_PROJECTION_EMPTY';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(v_overtime) item
+    where item ? 'reason' or item ? 'manager_reason'
+       or item ? 'hr_reason' or item ? 'staff_profile_id'
+  ) then
+    raise exception 'O_FINANCE_OVERTIME_PROJECTION_LEAK';
+  end if;
+
+  if jsonb_array_length(v_promotion) < 1 then
+    raise exception 'O_FINANCE_PROMOTION_PROJECTION_EMPTY';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(v_promotion) item
+    where item ? 'notes' or item ? 'staff_profile_id'
+  ) then
+    raise exception 'O_FINANCE_PROMOTION_PROJECTION_LEAK';
+  end if;
+
+  if jsonb_array_length(v_clearance) <> 1 then
+    raise exception 'O_FINANCE_CLEARANCE_PROJECTION_SCOPE_WRONG';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(v_clearance) item
+    where item ->> 'checkpoint_kind' <> 'finance'
+       or item ? 'reason' or item ? 'decision_reason'
+       or item ? 'custody_override_reason' or item ? 'staff_profile_id'
+  ) then
+    raise exception 'O_FINANCE_CLEARANCE_PROJECTION_LEAK';
+  end if;
+end;
+$$;
+
+-- Sensitive columns are not granted to the shared authenticated role at all.
+reset role;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.column_privileges
+    where table_schema = 'public' and grantee = 'authenticated'
+      and (
+        (table_name = 'staff_issued_documents'
+         and column_name in ('verification_token_digest', 'object_path'))
+        or (table_name = 'staff_training_enrollments'
+            and column_name in ('certificate_bucket',
+                                'certificate_object_path',
+                                'certificate_sha256'))
+        or (table_name = 'staff_value_added_audit_events'
+            and column_name = 'metadata')
+        or (table_name in ('staff_overtime_claims',
+                           'staff_promotion_cases',
+                           'staff_clearance_cases')
+            and column_name = 'idempotency_key')
+      )
+  ) then
+    raise exception 'O_SENSITIVE_COLUMN_GRANT_PRESENT';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- P) Public verification probe amplification is bucketed and token-free.
+-- ---------------------------------------------------------------------------
+create temporary table staff_02e_probe_snapshot (
+  failed_before bigint not null,
+  rows_before bigint not null
+) on commit drop;
+
+insert into staff_02e_probe_snapshot (failed_before, rows_before)
+select
+  coalesce((
+    select failed_attempts
+    from public.staff_document_verification_probe_stats
+    where window_start = date_trunc('hour', now())
+  ), 0),
+  (select count(*) from public.staff_document_verification_probe_stats);
+
+set local role anon;
+set local request.jwt.claim.sub = '';
+select public.staff_service_verify_issued_document(repeat('b', 64));
+select public.staff_service_verify_issued_document(repeat('b', 64));
+reset role;
+
+do $$
+declare
+  v_failed_before bigint;
+  v_rows_before bigint;
+  v_after bigint;
+  v_rows_after bigint;
+begin
+  select failed_before, rows_before
+  into v_failed_before, v_rows_before
+  from staff_02e_probe_snapshot;
+  select failed_attempts into v_after
+  from public.staff_document_verification_probe_stats
+  where window_start = date_trunc('hour', now());
+  select count(*) into v_rows_after
+  from public.staff_document_verification_probe_stats;
+
+  if v_after - v_failed_before <> 2 then
+    raise exception 'P_PROBE_COUNTER_NOT_AGGREGATED';
+  end if;
+  if v_rows_after > v_rows_before + 1 then
+    raise exception 'P_PROBE_ROW_AMPLIFICATION';
+  end if;
+  if exists (
+    select 1 from public.staff_value_added_audit_events
+    where metadata::text like '%' || repeat('b', 64) || '%'
+       or metadata ? 'verification_token'
+       or metadata ? 'verification_token_digest'
+  ) then
+    raise exception 'P_PROBE_TOKEN_MATERIAL_AUDITED';
+  end if;
+  if exists (
+    select 1
+    from public.staff_value_added_audit_events
+    where module = 'issued_document'
+      and event_type = 'document_verified'
+      and occurred_at >= date_trunc('hour', now())
+    group by subject_id
+    having count(*) > 1
+  ) then
+    raise exception 'P_SUCCESS_AUDIT_NOT_HOURLY_BOUNDED';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- G) Audit ledger is append-only and scoped.
 -- ---------------------------------------------------------------------------
 set local request.jwt.claim.sub = '77777777-7777-4777-8777-777777777777';
@@ -674,6 +1165,7 @@ begin
     from information_schema.role_table_grants
     where table_schema = 'public'
       and table_name in (
+        'staff_document_verification_probe_stats',
         'staff_value_added_audit_events',
         'staff_issued_documents',
         'staff_performance_cycles',
@@ -725,6 +1217,14 @@ begin
         'staff_service_complete_training_enrollment',
         'staff_service_decide_clearance_checkpoint',
         'staff_service_complete_clearance_case',
+        'staff_service_list_overtime_financial_projection',
+        'staff_service_list_promotion_financial_projection',
+        'staff_service_list_assigned_clearance_checkpoints',
+        'staff_service_upsert_evaluation_draft',
+        'staff_service_open_promotion_case',
+        'staff_service_update_promotion_case',
+        'staff_service_open_clearance_case',
+        'staff_service_list_attendance_month_report',
         'staff_service_get_value_added_capabilities'
       )
       and grantee in ('anon', 'PUBLIC')
