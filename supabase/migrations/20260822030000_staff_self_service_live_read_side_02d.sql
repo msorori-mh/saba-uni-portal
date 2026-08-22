@@ -43,10 +43,18 @@ create table public.staff_service_read_audit_events (
   )),
   metadata jsonb not null default '{}'::jsonb,
   occurred_at timestamptz not null default clock_timestamp(),
-  unique (actor_user_id, subject_kind, subject_id, event_type),
+  -- Uniqueness is intentionally NOT global: correspondence receipt facts are
+  -- idempotent (received/read/acknowledged happen once), while every payroll
+  -- download authorization must be appended as its own audit event.
   check (jsonb_typeof(metadata) = 'object'),
   check (octet_length(metadata::text) <= 8192)
 );
+
+create unique index staff_service_read_audit_correspondence_uq
+  on public.staff_service_read_audit_events (
+    actor_user_id, subject_id, event_type
+  )
+  where subject_kind = 'correspondence';
 
 create index staff_service_read_audit_actor_idx
   on public.staff_service_read_audit_events (actor_user_id, occurred_at desc);
@@ -118,7 +126,8 @@ begin
      jsonb_build_object('received_at', v_row.received_at)),
     (v_user, 'correspondence', p_correspondence_id, 'correspondence_read',
      jsonb_build_object('read_at', v_row.read_at))
-  on conflict (actor_user_id, subject_kind, subject_id, event_type) do nothing;
+  on conflict (actor_user_id, subject_id, event_type)
+    where subject_kind = 'correspondence' do nothing;
 
   return jsonb_build_object(
     'correspondence_id', v_row.correspondence_id,
@@ -176,7 +185,8 @@ begin
      jsonb_build_object('read_at', v_row.read_at)),
     (v_user, 'correspondence', p_correspondence_id, 'correspondence_acknowledged',
      jsonb_build_object('acknowledged_at', v_row.acknowledged_at))
-  on conflict (actor_user_id, subject_kind, subject_id, event_type) do nothing;
+  on conflict (actor_user_id, subject_id, event_type)
+    where subject_kind = 'correspondence' do nothing;
 
   return jsonb_build_object(
     'correspondence_id', v_row.correspondence_id,
@@ -239,7 +249,7 @@ begin
     v_user, 'payroll_statement', p_statement_id, 'payroll_download_authorized',
     jsonb_build_object('access_mode', v_access)
   )
-  on conflict (actor_user_id, subject_kind, subject_id, event_type) do nothing;
+  );
 
   return jsonb_build_object(
     'statement_id', v_statement.id,
