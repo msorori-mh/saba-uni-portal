@@ -94,6 +94,25 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — source contract", () 
     expect(migration).toContain("STAFF_SERVICE_CORRESPONDENCE_ACCESS_DENIED");
     expect(migration).toContain("STAFF_SERVICE_PAYROLL_ACCESS_DENIED");
     expect(migration).toContain("STAFF_SERVICE_PAYROLL_STATEMENT_NOT_PUBLISHED");
+    // The unpublished payroll gap is closed at the RLS layer, not only in RPC.
+    expect(migration).toContain(
+      "drop policy if exists staff_payroll_statements_owner_or_finance_read",
+    );
+    expect(migration).toContain(
+      "drop policy if exists staff_payroll_components_owner_or_finance_read",
+    );
+    expect(migration).toContain("and ps.published_at is not null");
+    // Payroll downloads are appended per call; only receipt facts are unique.
+    expect(migration).toContain(
+      "create unique index staff_service_read_audit_correspondence_uq",
+    );
+    expect(migration).toContain("where subject_kind = 'correspondence'");
+    expect(migration).toContain(
+      "create or replace function public.staff_service_get_current_capabilities()",
+    );
+    expect(migration).toContain(
+      "revoke all on function public.staff_service_get_current_capabilities()\n  from public, anon",
+    );
     // Monotonic: existing timestamps are never overwritten.
     expect(migration).toContain("read_at = coalesce(r.read_at, v_now)");
     expect(migration).toContain(
@@ -110,9 +129,13 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — source contract", () 
       "sha256",
       "object_path",
       "pdf_object_path",
+      "source_reference",
     ]) {
       expect(readAdapter).toContain(forbidden);
     }
+    // Circular body is the point of the inbox and is already RLS-guarded.
+    expect(readAdapter).toContain("body,importance");
+    expect(readAdapter).not.toContain('"body",\n] as const');
     // Projections are explicit column lists, never select("*").
     expect(readAdapter).not.toContain('.select("*")');
     expect(readAdapter).toContain("STAFF_READ_GENERIC_ERROR");
@@ -147,9 +170,20 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — source contract", () 
     }
     expect(dashboard).toContain("staff-self-service-live-read-dashboard");
     expect(workbench).toContain("staff-self-service-live-workbench");
-    // Admin payroll scope is proven by returned data, not a client-side role guess.
-    expect(workbench).toContain("statement.staff_profile_id !== ownProfileId.data");
+    // Section visibility comes from the boolean-only capability probe, never
+    // from the presence of another employee's row.
+    expect(workbench).toContain("fetchStaffServiceCapabilities");
+    expect(workbench).toContain("capabilities.can_view_payroll_scope");
+    expect(workbench).toContain("capabilities.can_view_hr_scope");
+    expect(workbench).toContain("capabilities.can_view_audit_scope");
+    expect(workbench).not.toContain("statement.staff_profile_id !== ownProfileId");
+    expect(workbench).toContain("staff-02d-wb-payroll-empty");
     expect(workbench).toContain("لا تملك صلاحية الاطلاع على بيانات الرواتب");
+    expect(workbench).toContain("fetchStaffCorrespondenceReceiptSummary");
+    expect(workbench).toContain("recipients_total");
+    // Employee inbox renders the circular body after opening it.
+    expect(dashboard).toContain("staff-02d-correspondence-body");
+    expect(dashboard).toContain("{letter.body}");
   });
 
   test("both surfaces stay behind the fail-closed feature flag", () => {
@@ -177,6 +211,14 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — source contract", () 
       "E_AUDIT_UPDATE_UNEXPECTED_SUCCESS",
       "F_BROAD_CLIENT_TABLE_GRANT",
       "F_ANON_RPC_GRANT",
+      "D_UNPUBLISHED_STATEMENT_DIRECT_SELECT_DISCLOSURE",
+      "D_UNPUBLISHED_COMPONENTS_DIRECT_SELECT_DISCLOSURE",
+      "D_PAYROLL_DOWNLOAD_AUDIT_NOT_APPENDED",
+      "D_CORRESPONDENCE_AUDIT_NOT_IDEMPOTENT",
+      "G_EMPLOYEE_PAYROLL_CAPABILITY_LEAK",
+      "G_MANAGER_PAYROLL_CAPABILITY_LEAK",
+      "G_FINANCE_CAPABILITY_WRONG",
+      "G_OUTSIDER_CAPABILITY_LEAK",
       "PASS_STAFF_SELF_SERVICE_PG17_LIVE_READ_SIDE_02D",
     ]) {
       expect(verifier).toContain(marker);
@@ -185,56 +227,176 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — source contract", () 
 });
 
 /**
- * Runtime gate. The sandbox has no Docker, so the disposable cluster is created
- * with initdb on a temp directory and torn down afterwards.
+ * Runtime gate — dual backend.
+ * Uses a local PostgreSQL 17 toolchain when available, otherwise a disposable
+ * `postgres:17` Docker container (the 02B pattern). If neither backend exists
+ * the test fails loudly; it never skips silently.
  */
-const dataDir = mkdtempSync(join(tmpdir(), "staff-02d-pg17-"));
-const socketDir = mkdtempSync(join(tmpdir(), "staff-02d-sock-"));
+
+type Backend = "local" | "docker";
+
+const container = `staff-self-service-02d-${Date.now()}`;
+let backend: Backend | null = null;
+let dataDir = "";
+let socketDir = "";
 let started = false;
 
-function teardown() {
-  if (started) {
-    try {
-      run("pg_ctl", ["-D", dataDir, "-m", "immediate", "stop"]);
-    } catch {
-      // Cluster may already be down.
-    }
-    started = false;
-  }
-  rmSync(dataDir, { recursive: true, force: true });
-  rmSync(socketDir, { recursive: true, force: true });
+function hasLocalPg17() {
+  const version = spawnSync("postgres", ["--version"], { encoding: "utf8" });
+  return version.status === 0 && (version.stdout ?? "").includes("17.");
+}
+
+function hasDocker() {
+  return spawnSync("docker", ["--version"], { encoding: "utf8" }).status === 0;
 }
 
 /**
- * PostgreSQL refuses to run as root, so the cluster is driven through an
- * unprivileged uid when the harness itself runs as root.
+ * PostgreSQL refuses to run as root, so a local cluster is driven through an
+ * unprivileged uid discovered from the environment (never a hard-coded one).
+ * The Docker path needs no uid juggling at all.
  */
-const RUNNER_UID = 1000;
-const asRunner =
-  process.getuid?.() === 0
-    ? [
-        "setpriv",
-        `--reuid=${RUNNER_UID}`,
-        `--regid=${RUNNER_UID}`,
-        "--clear-groups",
-      ]
-    : [];
+function unprivilegedUid(): number | null {
+  const candidates = [
+    process.env["SUDO_UID"],
+    process.env["PG_TEST_UID"],
+    "1000",
+  ].filter(Boolean) as string[];
+  for (const candidate of candidates) {
+    const uid = Number.parseInt(candidate, 10);
+    if (Number.isInteger(uid) && uid > 0) {
+      const probe = spawnSync("id", ["-u", String(uid)], { encoding: "utf8" });
+      if (probe.status === 0) return uid;
+    }
+  }
+  return null;
+}
 
-function run(command: string, args: string[]) {
+let asRunner: string[] = [];
+
+function runLocal(command: string, args: string[]) {
   const full = [...asRunner, command, ...args];
   return spawnSync(full[0]!, full.slice(1), { encoding: "utf8" });
 }
 
 function psql(sql: string): { ok: boolean; out: string } {
-  const result = spawnSync(
-    "psql",
-    ["-X", "-v", "ON_ERROR_STOP=1", "-h", socketDir, "-U", "postgres", "-d", "postgres"],
-    { input: sql, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-  );
+  const result =
+    backend === "docker"
+      ? spawnSync(
+          "docker",
+          [
+            "exec",
+            "-i",
+            container,
+            "psql",
+            "-X",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            "postgres",
+            "-d",
+            "postgres",
+          ],
+          { input: sql, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+        )
+      : spawnSync(
+          "psql",
+          [
+            "-X",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-h",
+            socketDir,
+            "-U",
+            "postgres",
+            "-d",
+            "postgres",
+          ],
+          { input: sql, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+        );
   return {
     ok: result.status === 0,
     out: `${result.stdout ?? ""}\n${result.stderr ?? ""}`,
   };
+}
+
+function teardown() {
+  if (backend === "docker") {
+    try {
+      execSync(`docker rm -f ${container}`, { stdio: "ignore" });
+    } catch {
+      // Container may not exist after a failed start.
+    }
+    return;
+  }
+  if (started) {
+    try {
+      runLocal("pg_ctl", ["-D", dataDir, "-m", "immediate", "stop"]);
+    } catch {
+      // Cluster may already be down.
+    }
+    started = false;
+  }
+  if (dataDir) rmSync(dataDir, { recursive: true, force: true });
+  if (socketDir) rmSync(socketDir, { recursive: true, force: true });
+}
+
+async function startLocal() {
+  dataDir = mkdtempSync(join(tmpdir(), "staff-02d-pg17-"));
+  socketDir = mkdtempSync(join(tmpdir(), "staff-02d-sock-"));
+  if (process.getuid?.() === 0) {
+    const uid = unprivilegedUid();
+    if (uid === null) {
+      throw new Error(
+        "local postgres backend requires a non-root uid (set PG_TEST_UID)",
+      );
+    }
+    asRunner = ["setpriv", `--reuid=${uid}`, `--regid=${uid}`, "--clear-groups"];
+    execSync(`chown -R ${uid}:${uid} ${dataDir} ${socketDir}`);
+  }
+  chmodSync(socketDir, 0o777);
+
+  const init = runLocal("initdb", [
+    "-D",
+    dataDir,
+    "-U",
+    "postgres",
+    "--auth=trust",
+  ]);
+  if (init.status !== 0) {
+    throw new Error(`initdb failed:\n${init.stdout}\n${init.stderr}`);
+  }
+  const start = runLocal("pg_ctl", [
+    "-D",
+    dataDir,
+    "-o",
+    `-k ${socketDir} -c listen_addresses=''`,
+    "-l",
+    `${dataDir}/log`,
+    "start",
+    "-w",
+  ]);
+  if (start.status !== 0) {
+    throw new Error(`pg_ctl start failed:\n${start.stdout}\n${start.stderr}`);
+  }
+  started = true;
+}
+
+async function startDocker() {
+  teardown();
+  execSync(
+    `docker run -d --name ${container} -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine`,
+    { stdio: "ignore" },
+  );
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const ready = spawnSync(
+      "docker",
+      ["exec", container, "pg_isready", "-U", "postgres"],
+      { encoding: "utf8" },
+    );
+    if (ready.status === 0 && psql("select 1;").ok) return;
+    await Bun.sleep(500);
+  }
+  throw new Error("docker postgres:17 did not become ready");
 }
 
 afterAll(teardown);
@@ -243,57 +405,46 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — PostgreSQL 17 runtime
   test(
     "applies 02A + 02B + 02D and proves the read-side security matrix",
     async () => {
-      const version = spawnSync("postgres", ["--version"], { encoding: "utf8" });
-      expect(version.stdout).toContain("17.");
-
-      if (asRunner.length > 0) {
-        execSync(`chown -R ${RUNNER_UID}:${RUNNER_UID} ${dataDir} ${socketDir}`);
+      if (hasLocalPg17()) {
+        backend = "local";
+        await startLocal();
+      } else if (hasDocker()) {
+        backend = "docker";
+        await startDocker();
+      } else {
+        throw new Error(
+          "no PostgreSQL 17 backend available: install postgres 17 locally or provide Docker",
+        );
       }
-      chmodSync(socketDir, 0o777);
 
-      const init = run("initdb", ["-D", dataDir, "-U", "postgres", "--auth=trust"]);
-      if (init.status !== 0) {
-        throw new Error(`initdb failed:\n${init.stdout}\n${init.stderr}`);
+      try {
+        const ready = psql("select version();");
+        if (!ready.ok) throw new Error(`cluster not ready:\n${ready.out}`);
+        expect(ready.out).toContain("PostgreSQL 17.");
+
+        const schema = psql(readFileSync(minimalSchemaPath, "utf8"));
+        if (!schema.ok) throw new Error(`minimal schema failed:\n${schema.out}`);
+
+        const a = psql(foundation);
+        if (!a.ok) throw new Error(`02A apply failed:\n${a.out}`);
+
+        const b = psql(storage);
+        if (!b.ok) throw new Error(`02B apply failed:\n${b.out}`);
+
+        const d = psql(migration);
+        if (!d.ok) throw new Error(`02D apply failed:\n${d.out}`);
+
+        const verification = psql(verifier);
+        if (!verification.ok) {
+          throw new Error(`02D verification failed:\n${verification.out}`);
+        }
+        expect(verification.out).toContain(
+          "PASS_STAFF_SELF_SERVICE_PG17_LIVE_READ_SIDE_02D",
+        );
+      } finally {
+        teardown();
       }
-      const start = run("pg_ctl", [
-        "-D",
-        dataDir,
-        "-o",
-        `-k ${socketDir} -c listen_addresses=''`,
-        "-l",
-        `${dataDir}/log`,
-        "start",
-        "-w",
-      ]);
-      if (start.status !== 0) {
-        throw new Error(`pg_ctl start failed:\n${start.stdout}\n${start.stderr}`);
-      }
-      started = true;
-
-      const ready = psql("select 1;");
-      if (!ready.ok) throw new Error(`cluster not ready:\n${ready.out}`);
-
-      const schema = psql(readFileSync(minimalSchemaPath, "utf8"));
-      if (!schema.ok) throw new Error(`minimal schema failed:\n${schema.out}`);
-
-      const a = psql(foundation);
-      if (!a.ok) throw new Error(`02A apply failed:\n${a.out}`);
-
-      const b = psql(storage);
-      if (!b.ok) throw new Error(`02B apply failed:\n${b.out}`);
-
-      const d = psql(migration);
-      if (!d.ok) throw new Error(`02D apply failed:\n${d.out}`);
-
-      // Idempotent re-apply of the RPC layer must not break the contract.
-      const verification = psql(verifier);
-      if (!verification.ok) {
-        throw new Error(`02D verification failed:\n${verification.out}`);
-      }
-      expect(verification.out).toContain(
-        "PASS_STAFF_SELF_SERVICE_PG17_LIVE_READ_SIDE_02D",
-      );
     },
-    240_000,
+    300_000,
   );
 });
