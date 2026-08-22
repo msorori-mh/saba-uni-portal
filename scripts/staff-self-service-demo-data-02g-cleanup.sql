@@ -28,6 +28,17 @@ delete from public.staff_leave_balances where id::text like '02a70002-%';
 delete from public.staff_service_approval_steps where id::text like '02a70011-%';
 
 -- The approved leave request records that 02G was allowed to fill a previously-null department.
+delete from public.staff_profile_departments spd
+where spd.staff_profile_id = (select id from public.staff_profiles where user_id=(select id from auth.users where lower(email)='test.employee01@staff.usr.edu.ye'))
+  and exists (
+    select 1 from public.staff_service_requests r
+    where r.id='02a70010-0000-4000-8000-000000000001'
+      and r.staff_profile_id=spd.staff_profile_id
+      and r.department_id=spd.department_id
+      and r.payload @> '{"demo_marker":"PORTAL_STAFF_SELF_SERVICE_DEMO_DATA_02G","profile_department_seeded_by_02g":true}'::jsonb
+  );
+
+select set_config('app.bypass_staff_lock','1',true);
 update public.staff_profiles sp
 set department_id = null, updated_at = clock_timestamp()
 where sp.user_id = (select id from auth.users where lower(email)='test.employee01@staff.usr.edu.ye')
@@ -37,6 +48,7 @@ where sp.user_id = (select id from auth.users where lower(email)='test.employee0
       and r.staff_profile_id=sp.id
       and r.payload @> '{"demo_marker":"PORTAL_STAFF_SELF_SERVICE_DEMO_DATA_02G","profile_department_seeded_by_02g":true}'::jsonb
   );
+select set_config('app.bypass_staff_lock','0',true);
 
 delete from public.staff_service_requests where request_no like 'TEST_ONLY_02G-%';
 delete from public.staff_service_role_assignments where id::text like '02a70001-%';
