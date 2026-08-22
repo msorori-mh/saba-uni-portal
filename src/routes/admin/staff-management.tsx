@@ -15,6 +15,7 @@ import { ProcessingRolesTab } from "@/components/admin/staff-management/Processi
 import { EmployeeServicesShowcase } from "@/components/admin/staff-management/EmployeeServicesShowcase";
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
 import { StaffSelfServiceLiveWorkbench } from "@/components/staff-showcase/StaffSelfServiceLiveWorkbench";
+import { StaffValueAddedAdminPanel } from "@/components/staff-showcase/StaffValueAddedAdminPanel";
 
 import { portalFeatures } from "@/lib/portal-features";
 
@@ -318,6 +319,9 @@ function StaffManagementPage() {
             <div className="space-y-4">
               <StaffSelfServiceLiveActions variant="approver" />
               <StaffSelfServiceLiveWorkbench />
+              {portalFeatures.staffSelfServiceValueAdded && (
+                <StaffValueAddedAdminPanel />
+              )}
             </div>
           )}
 

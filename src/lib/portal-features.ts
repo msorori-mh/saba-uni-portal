@@ -16,6 +16,8 @@ export const portalFeatures = {
   staffGraduatesAffairs: true,
   /** Staff self-service live writes — OFF until 02A/02B staged apply and release gate. */
   staffSelfServiceLive: false,
+  /** Staff value-added modules (02E) — OFF until the 02E staged apply and release gate. */
+  staffSelfServiceValueAdded: false,
 } as const;
 
 export type PortalFeatureKey = keyof typeof portalFeatures;

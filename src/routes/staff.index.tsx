@@ -6,6 +6,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { StaffSelfServiceShowcase } from "@/components/staff-showcase/StaffSelfServiceShowcase";
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
 import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
+import { StaffValueAddedEmployeePanel } from "@/components/staff-showcase/StaffValueAddedEmployeePanel";
 
 import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures } from "@/lib/portal-features";
@@ -57,6 +58,9 @@ function StaffDashboard() {
             <div className="container mx-auto max-w-[1600px] space-y-4 px-4 pt-5">
               <StaffSelfServiceLiveActions variant="employee" />
               <StaffSelfServiceLiveDashboard />
+              {portalFeatures.staffSelfServiceValueAdded && (
+                <StaffValueAddedEmployeePanel />
+              )}
             </div>
           )}
 
