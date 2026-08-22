@@ -15,13 +15,15 @@ import {
   Wallet,
 } from "lucide-react";
 import {
-  fetchOwnStaffProfileId,
+  STAFF_SERVICE_NO_CAPABILITIES,
   fetchStaffApprovalSteps,
   fetchStaffCareerHistory,
   fetchStaffCorrespondence,
+  fetchStaffCorrespondenceReceiptSummary,
   fetchStaffCustody,
   fetchStaffPayrollStatements,
   fetchStaffReadAuditEvents,
+  fetchStaffServiceCapabilities,
   fetchStaffServiceRequestRows,
 } from "@/lib/staff-self-service-read";
 
@@ -84,10 +86,11 @@ function Section({
 }
 
 export function StaffSelfServiceLiveWorkbench() {
-  const ownProfileId = useQuery({
-    queryKey: ["staff-02d", "own-profile-id"],
-    queryFn: fetchOwnStaffProfileId,
+  const capabilitiesQuery = useQuery({
+    queryKey: ["staff-02d", "capabilities"],
+    queryFn: fetchStaffServiceCapabilities,
   });
+  const capabilities = capabilitiesQuery.data ?? STAFF_SERVICE_NO_CAPABILITIES;
   const requests = useQuery({
     queryKey: ["staff-02d", "wb", "requests"],
     queryFn: fetchStaffServiceRequestRows,
@@ -99,6 +102,7 @@ export function StaffSelfServiceLiveWorkbench() {
   const payroll = useQuery({
     queryKey: ["staff-02d", "wb", "payroll"],
     queryFn: fetchStaffPayrollStatements,
+    enabled: capabilities.can_view_payroll_scope,
   });
   const career = useQuery({
     queryKey: ["staff-02d", "wb", "career"],
@@ -115,19 +119,21 @@ export function StaffSelfServiceLiveWorkbench() {
   const audit = useQuery({
     queryKey: ["staff-02d", "wb", "audit"],
     queryFn: () => fetchStaffReadAuditEvents(50),
+    enabled: capabilities.can_view_audit_scope,
+  });
+  const receiptSummary = useQuery({
+    queryKey: ["staff-02d", "wb", "correspondence-receipts"],
+    queryFn: fetchStaffCorrespondenceReceiptSummary,
   });
 
-  const loading =
-    requests.isLoading || payroll.isLoading || ownProfileId.isLoading;
+  const loading = requests.isLoading || capabilitiesQuery.isLoading;
 
   /**
-   * Finance/Admin scope is proven by data, not by a client-side role guess:
-   * only Finance or Administrator can ever read a payroll statement that does
-   * not belong to the signed-in employee.
+   * Section visibility comes from an explicit boolean-only capability probe —
+   * never inferred from the presence of another employee's row. RLS remains
+   * the real defence line; this only avoids rendering unusable sections.
    */
-  const financeScope = (payroll.data ?? []).some(
-    (statement) => statement.staff_profile_id !== ownProfileId.data,
-  );
+  const financeScope = capabilities.can_view_payroll_scope;
   const scopedPayroll = financeScope ? (payroll.data ?? []) : [];
 
   return (
@@ -187,6 +193,12 @@ export function StaffSelfServiceLiveWorkbench() {
           <p className="text-xs text-muted-foreground" data-testid="staff-02d-wb-payroll-denied">
             لا تملك صلاحية الاطلاع على بيانات الرواتب.
           </p>
+        ) : scopedPayroll.length === 0 ? (
+          <p className="text-xs text-muted-foreground" data-testid="staff-02d-wb-payroll-empty">
+            {payroll.isLoading
+              ? "جاري تحميل كشوف الرواتب ضمن نطاقك..."
+              : "لا توجد كشوف رواتب ضمن نطاقك حاليًا."}
+          </p>
         ) : (
           <>
             <div className="mb-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-bold text-primary">
@@ -214,6 +226,7 @@ export function StaffSelfServiceLiveWorkbench() {
         )}
       </Section>
 
+      {capabilities.can_view_hr_scope && (
       <div className="grid gap-4 lg:grid-cols-2">
         <Section
           title="السجل الوظيفي ضمن نطاقك"
@@ -250,6 +263,7 @@ export function StaffSelfServiceLiveWorkbench() {
           </ul>
         </Section>
       </div>
+      )}
 
       <Section
         title="التعاميم ضمن نطاقك"
@@ -260,15 +274,24 @@ export function StaffSelfServiceLiveWorkbench() {
           <p className="text-xs text-muted-foreground">لا توجد تعاميم ضمن نطاقك.</p>
         ) : (
           <ul className="space-y-1 text-xs text-muted-foreground">
-            {(letters.data ?? []).slice(0, 10).map((letter) => (
-              <li key={letter.id}>
-                {letter.reference_no} — {letter.title} ({dateLabel(letter.published_at)})
-              </li>
-            ))}
+            {(letters.data ?? []).slice(0, 10).map((letter) => {
+              const summary = (receiptSummary.data ?? []).find(
+                (row) => row.correspondence_id === letter.id,
+              );
+              return (
+                <li key={letter.id}>
+                  {letter.reference_no} — {letter.title} ({dateLabel(letter.published_at)})
+                  {" • "}
+                  المستلمون: {summary?.recipients_total ?? 0} • المقروء:{" "}
+                  {summary?.read_total ?? 0} • المؤكد: {summary?.acknowledged_total ?? 0}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Section>
 
+      {capabilities.can_view_audit_scope && (
       <Section
         title="سجل التدقيق غير القابل للتعديل"
         icon={<ShieldCheck className="h-4 w-4" aria-hidden />}
@@ -286,6 +309,7 @@ export function StaffSelfServiceLiveWorkbench() {
           </ul>
         )}
       </Section>
+      )}
     </div>
   );
 }
