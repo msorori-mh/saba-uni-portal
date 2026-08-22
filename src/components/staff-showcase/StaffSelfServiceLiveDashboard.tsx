@@ -507,6 +507,7 @@ function CorrespondencePanel({
   const [showArchived, setShowArchived] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const needle = term.trim();
@@ -606,7 +607,26 @@ function CorrespondencePanel({
               {dateLabel(letter.receipt?.read_at ?? null)} • الإقرار:{" "}
               {dateLabel(letter.receipt?.acknowledged_at ?? null)}
             </div>
+            {openId === letter.id && (
+              <p
+                data-testid="staff-02d-correspondence-body"
+                className="mt-2 whitespace-pre-wrap rounded-lg bg-background px-3 py-2 leading-6 text-foreground"
+              >
+                {letter.body}
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenId((current) => (current === letter.id ? null : letter.id))
+                }
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 font-bold"
+                aria-expanded={openId === letter.id}
+              >
+                <Mail className="h-4 w-4" aria-hidden />
+                {openId === letter.id ? "إخفاء نص التعميم" : "فتح نص التعميم"}
+              </button>
               <button
                 type="button"
                 disabled={busyId === letter.id || Boolean(letter.receipt?.read_at)}
