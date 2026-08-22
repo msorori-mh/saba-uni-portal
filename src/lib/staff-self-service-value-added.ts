@@ -605,6 +605,40 @@ export async function decideTrainingEnrollment(input: {
   );
 }
 
+/**
+ * Certificate metadata is 02B-compliant by construction: a private-bucket
+ * object path (never a URL) plus a SHA-256 digest. The bucket itself is fixed
+ * server-side, so the client can never point the record at public storage.
+ */
+export const trainingCertificateMetadataSchema = z.object({
+  objectPath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(400)
+    .refine((value) => !value.includes(".."), "INVALID_PATH")
+    .refine((value) => !/^[a-z]+:\/\//i.test(value), "PUBLIC_URL_FORBIDDEN"),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export async function completeTrainingEnrollment(input: {
+  enrollmentId: string;
+  certificate?: { objectPath: string; sha256: string } | null;
+}) {
+  const certificate = input.certificate
+    ? trainingCertificateMetadataSchema.parse(input.certificate)
+    : null;
+  return callRpc(
+    "staff_service_complete_training_enrollment",
+    {
+      p_enrollment_id: z.string().uuid().parse(input.enrollmentId),
+      p_certificate_object_path: certificate?.objectPath ?? null,
+      p_certificate_sha256: certificate?.sha256 ?? null,
+    },
+    staffTrainingEnrollmentSchema.passthrough(),
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* 6) Promotions / settlements                                         */
 /* ------------------------------------------------------------------ */
