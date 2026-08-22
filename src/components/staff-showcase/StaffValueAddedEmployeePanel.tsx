@@ -648,3 +648,37 @@ export function StaffValueAddedEmployeePanel() {
     </div>
   );
 }
+
+function AcknowledgeEvaluationForm({
+  busy,
+  onAcknowledge,
+}: {
+  busy: boolean;
+  onAcknowledge: (comment: string | null) => Promise<void>;
+}) {
+  const [comment, setComment] = useState("");
+
+  return (
+    <div
+      data-testid="staff-02e-acknowledge-form"
+      className="mt-1 grid gap-1 sm:grid-cols-3"
+    >
+      <input
+        aria-label="ملاحظة الموظف (اختيارية)"
+        placeholder="ملاحظتك على التقييم (اختياري)"
+        value={comment}
+        onChange={(event) => setComment(event.target.value)}
+        className="sm:col-span-2 rounded border border-border bg-background p-1 text-[11px]"
+      />
+      <button
+        type="button"
+        data-testid="staff-02e-acknowledge-evaluation"
+        disabled={busy}
+        onClick={() => void onAcknowledge(comment.trim() || null)}
+        className="rounded-md bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-60"
+      >
+        إقرار بالاطلاع
+      </button>
+    </div>
+  );
+}
