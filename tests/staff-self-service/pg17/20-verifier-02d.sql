@@ -111,7 +111,7 @@ $$;
 -- B) Owner read + acknowledge is monotonic and idempotent.
 -- ---------------------------------------------------------------------------
 set local role authenticated;
-set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111"}';
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 
 do $$
 declare
@@ -159,7 +159,7 @@ $$;
 -- ---------------------------------------------------------------------------
 -- C) Cross-user correspondence action is denied.
 -- ---------------------------------------------------------------------------
-set local request.jwt.claims = '{"sub":"66666666-6666-4666-8666-666666666666"}';
+set local request.jwt.claim.sub = '66666666-6666-4666-8666-666666666666';
 do $$
 begin
   begin
@@ -175,7 +175,7 @@ $$;
 -- ---------------------------------------------------------------------------
 -- D) Payroll authorization matrix: owner / finance / admin allow, others deny.
 -- ---------------------------------------------------------------------------
-set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111"}';
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 do $$
 declare v jsonb;
 begin
@@ -193,7 +193,7 @@ begin
 end;
 $$;
 
-set local request.jwt.claims = '{"sub":"55555555-5555-4555-8555-555555555555"}';
+set local request.jwt.claim.sub = '55555555-5555-4555-8555-555555555555';
 do $$
 declare v jsonb;
 begin
@@ -205,7 +205,7 @@ begin
 end;
 $$;
 
-set local request.jwt.claims = '{"sub":"77777777-7777-4777-8777-777777777777"}';
+set local request.jwt.claim.sub = '77777777-7777-4777-8777-777777777777';
 do $$
 declare v jsonb;
 begin
@@ -218,7 +218,7 @@ end;
 $$;
 
 -- Manager is NOT a payroll role.
-set local request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333"}';
+set local request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
 do $$
 begin
   begin
@@ -232,7 +232,7 @@ end;
 $$;
 
 -- Another employee cannot pull a colleague's statement.
-set local request.jwt.claims = '{"sub":"22222222-2222-4222-8222-222222222222"}';
+set local request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
 do $$
 begin
   begin
@@ -261,7 +261,7 @@ $$;
 -- ---------------------------------------------------------------------------
 -- E) Read-audit ledger is append-only and owner/admin scoped.
 -- ---------------------------------------------------------------------------
-set local request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111"}';
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 do $$
 declare
   v_own int;
