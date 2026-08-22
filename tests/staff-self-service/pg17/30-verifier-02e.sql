@@ -414,10 +414,14 @@ begin
 
   perform set_config('request.jwt.claim.sub',
                      '11111111-1111-4111-8111-111111111111', true);
-  insert into public.staff_value_added_audit_events (
-    actor_user_id, module, subject_id, event_type
-  ) select null, 'overtime', v_claim.id, 'probe'
-  where false;
+  begin
+    insert into public.staff_value_added_audit_events (
+      actor_user_id, module, subject_id, event_type
+    ) values (null, 'overtime', v_claim.id, 'forged');
+    raise exception 'E_CLIENT_AUDIT_INSERT_UNEXPECTED_SUCCESS';
+  exception
+    when sqlstate '42501' then null;
+  end;
 end;
 $$;
 
