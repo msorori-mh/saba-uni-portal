@@ -18,6 +18,8 @@ export const portalFeatures = {
   staffSelfServiceLive: false,
   /** Staff value-added modules (02E) — OFF until the 02E staged apply and release gate. */
   staffSelfServiceValueAdded: false,
+  /** Staff governance/reports/MFA (02F) — OFF until staged apply and AAL2 verification. */
+  staffSelfServiceGovernance: false,
 } as const;
 
 export type PortalFeatureKey = keyof typeof portalFeatures;
