@@ -12,6 +12,7 @@ import { deactivateStaffProfile } from "@/lib/admin-staff-deletion.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaffDeleteDialog } from "@/components/admin/staff-management/StaffDeleteDialog";
 import { ProcessingRolesTab } from "@/components/admin/staff-management/ProcessingRolesTab";
+import { EmployeeServicesShowcase } from "@/components/admin/staff-management/EmployeeServicesShowcase";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
@@ -99,10 +100,10 @@ function StaffManagementPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-extrabold text-primary flex items-center gap-2">
-            <Briefcase className="h-7 w-7" /> إدارة الموظفين
+            <Briefcase className="h-7 w-7" /> إدارة الموظفين وخدماتهم
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            إضافة موظفي الإدارة بالمسميات الوظيفية المعتمدة (مسجل الكلية، شؤون الطلاب، الخريجين، الإرشيف، المالية، المكتبة، المعامل) وإدارة حساباتهم.
+            إدارة ملفات الموظفين وحساباتهم، ومتابعة خدماتهم الذاتية والإجازات والرواتب والعُهد والأداء والتطوير.
           </p>
         </div>
         <div className="flex gap-2">
@@ -127,8 +128,9 @@ function StaffManagementPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="staff"><UsersRound className="h-4 w-4 ml-2" />الموظفون</TabsTrigger>
+          <TabsTrigger value="services"><Briefcase className="h-4 w-4 ml-2" />خدمات الموظفين</TabsTrigger>
           <TabsTrigger value="roles"><Briefcase className="h-4 w-4 ml-2" />الأدوار الوظيفية</TabsTrigger>
         </TabsList>
 
@@ -305,6 +307,10 @@ function StaffManagementPage() {
           </div>
         )}
       </div>
+        </TabsContent>
+
+        <TabsContent value="services" className="mt-6">
+          <EmployeeServicesShowcase />
         </TabsContent>
 
         <TabsContent value="roles" className="mt-6">

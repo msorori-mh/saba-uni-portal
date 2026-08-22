@@ -99,9 +99,30 @@ function openSession(): {
   child.stderr.on("data", (d) => {
     buf += d.toString();
   });
+  // Docker/psql may close stdin immediately after a deliberate SQL rejection.
+  // Capture EPIPE as session output instead of letting the stream emit an
+  // unhandled process-level error; the state assertions below remain the
+  // authoritative concurrency proof.
+  child.stdin.on("error", (error: NodeJS.ErrnoException) => {
+    buf += `\nSESSION_STDIN_ERROR:${error.code ?? "UNKNOWN"}:${error.message}\n`;
+  });
   return {
     write(sql: string) {
-      child.stdin.write(sql.endsWith("\n") ? sql : sql + "\n");
+      if (!child.stdin.writable || child.stdin.destroyed || child.stdin.writableEnded) {
+        buf += "\nSESSION_STDIN_CLOSED\n";
+        return;
+      }
+      try {
+        child.stdin.write(sql.endsWith("\n") ? sql : sql + "\n", (error) => {
+          if (error) {
+            const e = error as NodeJS.ErrnoException;
+            buf += `\nSESSION_STDIN_WRITE_ERROR:${e.code ?? "UNKNOWN"}:${e.message}\n`;
+          }
+        });
+      } catch (error) {
+        const e = error as NodeJS.ErrnoException;
+        buf += `\nSESSION_STDIN_WRITE_THROW:${e.code ?? "UNKNOWN"}:${e.message}\n`;
+      }
     },
     async waitFor(marker: string, ms = 15000) {
       const start = Date.now();
