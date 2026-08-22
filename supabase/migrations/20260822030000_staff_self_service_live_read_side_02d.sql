@@ -248,7 +248,6 @@ begin
   values (
     v_user, 'payroll_statement', p_statement_id, 'payroll_download_authorized',
     jsonb_build_object('access_mode', v_access)
-  )
   );
 
   return jsonb_build_object(
