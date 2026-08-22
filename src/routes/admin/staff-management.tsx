@@ -16,6 +16,7 @@ import { EmployeeServicesShowcase } from "@/components/admin/staff-management/Em
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
 import { StaffSelfServiceLiveWorkbench } from "@/components/staff-showcase/StaffSelfServiceLiveWorkbench";
 import { StaffValueAddedAdminPanel } from "@/components/staff-showcase/StaffValueAddedAdminPanel";
+import { StaffGovernanceAdminPanel } from "@/components/staff-showcase/StaffGovernancePanels";
 
 import { portalFeatures } from "@/lib/portal-features";
 
@@ -321,6 +322,9 @@ function StaffManagementPage() {
               <StaffSelfServiceLiveWorkbench />
               {portalFeatures.staffSelfServiceValueAdded && (
                 <StaffValueAddedAdminPanel />
+              )}
+              {portalFeatures.staffSelfServiceGovernance && (
+                <StaffGovernanceAdminPanel />
               )}
             </div>
           )}

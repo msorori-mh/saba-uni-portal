@@ -7,6 +7,7 @@ import { StaffSelfServiceShowcase } from "@/components/staff-showcase/StaffSelfS
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
 import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
 import { StaffValueAddedEmployeePanel } from "@/components/staff-showcase/StaffValueAddedEmployeePanel";
+import { StaffGovernanceEmployeePanel } from "@/components/staff-showcase/StaffGovernancePanels";
 
 import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures } from "@/lib/portal-features";
@@ -60,6 +61,9 @@ function StaffDashboard() {
               <StaffSelfServiceLiveDashboard />
               {portalFeatures.staffSelfServiceValueAdded && (
                 <StaffValueAddedEmployeePanel />
+              )}
+              {portalFeatures.staffSelfServiceGovernance && (
+                <StaffGovernanceEmployeePanel />
               )}
             </div>
           )}
