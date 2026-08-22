@@ -339,22 +339,21 @@ export function StaffValueAddedEmployeePanel() {
                       ? ` — ملاحظتك: ${item.employee_comment}`
                       : ""}
                   </p>
-                ) : (
-                  <button
-                    type="button"
-                    data-testid="staff-02e-acknowledge-evaluation"
-                    disabled={busy !== null}
-                    onClick={() =>
+                ) : item.status === "finalized" ? (
+                  <AcknowledgeEvaluationForm
+                    busy={busy !== null}
+                    onAcknowledge={(comment) =>
                       run(
                         `ack-${item.id}`,
-                        () => acknowledgeEvaluation(item.id),
+                        () => acknowledgeEvaluation(item.id, comment),
                         "تم تسجيل إقرارك بالاطلاع على التقييم.",
                       )
                     }
-                    className="mt-1 rounded-md bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-60"
-                  >
-                    إقرار بالاطلاع
-                  </button>
+                  />
+                ) : (
+                  <p className="text-muted-foreground">
+                    التقييم قيد الإعداد ولم يُعتمد بعد.
+                  </p>
                 )}
               </li>
             ))}
