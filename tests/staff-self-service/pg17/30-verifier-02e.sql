@@ -1062,6 +1062,10 @@ $$;
 -- ---------------------------------------------------------------------------
 -- G) Audit ledger is append-only and scoped.
 -- ---------------------------------------------------------------------------
+-- Section P deliberately resets to the database owner to inspect token-free
+-- probe counters. Restore the real application role before asserting RLS;
+-- otherwise the owner bypasses row-level security and produces a false leak.
+set local role authenticated;
 set local request.jwt.claim.sub = '77777777-7777-4777-8777-777777777777';
 do $$
 begin
