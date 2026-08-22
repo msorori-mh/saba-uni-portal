@@ -1280,9 +1280,20 @@ begin
     raise exception 'STAFF_SERVICE_SELF_APPROVAL_DENIED' using errcode = '42501';
   end if;
 
-  -- Only the checkpoint owner decides: no cross-checkpoint authority and no
-  -- generic administrator bypass of another unit's checkpoint.
-  if not public.staff_service_has_role(v_user, v_point.required_role, v_case.department_id) then
+  -- Only the checkpoint owner decides. This deliberately does NOT use
+  -- staff_service_has_role(): that helper answers true for any role when the
+  -- caller is an administrator, while a clearance checkpoint requires a real,
+  -- active assignment for that exact unit.
+  if not exists (
+    select 1
+    from public.staff_service_role_assignments a
+    where a.user_id = v_user
+      and a.role = v_point.required_role
+      and a.active
+      and a.valid_from <= current_date
+      and (a.valid_until is null or a.valid_until >= current_date)
+      and (a.department_id is null or a.department_id = v_case.department_id)
+  ) then
     raise exception 'STAFF_SERVICE_CHECKPOINT_OWNER_ONLY' using errcode = '42501';
   end if;
 
