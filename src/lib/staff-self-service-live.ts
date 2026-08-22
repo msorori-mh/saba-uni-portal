@@ -29,6 +29,18 @@ const downloadContractSchema = z.object({
   expires_in_seconds: z.literal(300),
 });
 
+const requestResultSchema = z.object({
+  id: z.string().uuid(),
+  request_no: z.string().min(1),
+  service_type: z.string().min(1),
+  status: z.enum(["draft", "submitted", "in_review", "approved", "rejected", "cancelled"]),
+  decision_reason: z.string().nullable().optional(),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+}).passthrough();
+
+export type StaffServiceRequestSummary = z.infer<typeof requestResultSchema>;
+
 type RpcError = { message?: string; code?: string } | null;
 type RpcResponse = Promise<{ data: unknown; error: RpcError }>;
 
@@ -36,6 +48,13 @@ const rpc = supabase.rpc as unknown as (
   functionName: string,
   params: Record<string, unknown>,
 ) => RpcResponse;
+
+type ReadQuery = {
+  select: (columns: string) => ReadQuery;
+  order: (column: string, options: { ascending: boolean }) => RpcResponse;
+};
+
+const fromReadModel = supabase.from as unknown as (table: string) => ReadQuery;
 
 const SAFE_ERROR_MESSAGES: Record<string, string> = {
   STAFF_SERVICE_AUTH_REQUIRED: "يلزم تسجيل الدخول إلى بوابة الموظفين.",
@@ -79,11 +98,15 @@ export async function submitStaffServiceRequest(input: {
     idempotencyKey: input.idempotencyKey ?? crypto.randomUUID(),
   });
 
-  return callRpc<Record<string, unknown>>("staff_service_submit_request", {
-    p_service_type: parsed.serviceType,
-    p_payload: parsed.payload,
-    p_idempotency_key: parsed.idempotencyKey,
-  });
+  return callRpc(
+    "staff_service_submit_request",
+    {
+      p_service_type: parsed.serviceType,
+      p_payload: parsed.payload,
+      p_idempotency_key: parsed.idempotencyKey,
+    },
+    requestResultSchema,
+  );
 }
 
 export async function decideStaffServiceRequest(input: {
@@ -97,12 +120,29 @@ export async function decideStaffServiceRequest(input: {
     idempotencyKey: input.idempotencyKey ?? crypto.randomUUID(),
   });
 
-  return callRpc<Record<string, unknown>>("staff_service_decide_request", {
-    p_request_id: parsed.requestId,
-    p_decision: parsed.decision,
-    p_reason: parsed.reason ?? null,
-    p_idempotency_key: parsed.idempotencyKey,
-  });
+  return callRpc(
+    "staff_service_decide_request",
+    {
+      p_request_id: parsed.requestId,
+      p_decision: parsed.decision,
+      p_reason: parsed.reason ?? null,
+      p_idempotency_key: parsed.idempotencyKey,
+    },
+    requestResultSchema,
+  );
+}
+
+export async function listAccessibleStaffServiceRequests(): Promise<
+  StaffServiceRequestSummary[]
+> {
+  const { data, error } = await fromReadModel("staff_service_requests")
+    .select(
+      "id,request_no,service_type,status,decision_reason,created_at,updated_at",
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) throwSafeRpcError(error);
+  return z.array(requestResultSchema).parse(data);
 }
 
 async function sha256Hex(file: File): Promise<string> {
@@ -188,4 +228,3 @@ export async function getStaffServiceAttachmentSignedDownload(
     expiresInSeconds: contract.expires_in_seconds,
   };
 }
-

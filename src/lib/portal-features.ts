@@ -14,6 +14,8 @@ export const portalFeatures = {
   studentGraduatesAffairs: true,
   /** Graduates-affairs staff surfaces — ON for final product operational closure. */
   staffGraduatesAffairs: true,
+  /** Staff self-service live writes — OFF until 02A/02B staged apply and release gate. */
+  staffSelfServiceLive: false,
 } as const;
 
 export type PortalFeatureKey = keyof typeof portalFeatures;
