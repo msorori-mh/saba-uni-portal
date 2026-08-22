@@ -121,7 +121,6 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorIsCreds, setErrorIsCreds] = useState(false);
   const identifierRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -143,14 +142,12 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
     setIdentifier(demo.identifier);
     setPassword(demo.password);
     setError(null);
-    setErrorIsCreds(false);
   };
 
   const doLogin = async (idValue: string, pwValue: string) => {
     if (loading) return;
     if (!idValue.trim() || !pwValue) return;
     setError(null);
-    setErrorIsCreds(false);
     setLoading(true);
     try {
       const emailError = validateUniversityLoginEmailInput(idValue);
@@ -190,8 +187,6 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
       navigate({ to: dest, replace: true });
     } catch (err) {
       const msg = friendlyAuthError(err);
-      const isCreds = /credentials|كلمة المرور|بيانات/i.test(msg);
-      setErrorIsCreds(isCreds);
       setError(msg);
       setLoading(false);
     }
@@ -253,17 +248,8 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
               {error && (
-                <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive space-y-1.5">
+                <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
                   <div>{error}</div>
-                  {errorIsCreds && (
-                    <button
-                      type="button"
-                      onClick={fillDemo}
-                      className="inline-flex items-center gap-1.5 rounded bg-gold px-2 py-1 text-[11px] font-extrabold text-primary-deep hover:brightness-110"
-                    >
-                      <Sparkles className="h-3 w-3" /> تعبئة بيانات الحساب التجريبي
-                    </button>
-                  )}
                 </div>
               )}
               <div>
