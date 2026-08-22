@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StaffSelfServiceShowcase } from "@/components/staff-showcase/StaffSelfServiceShowcase";
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
+import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
+
 import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures } from "@/lib/portal-features";
 
@@ -52,10 +54,12 @@ function StaffDashboard() {
       ) : (
         <>
           {portalFeatures.staffSelfServiceLive && (
-            <div className="container mx-auto max-w-[1600px] px-4 pt-5">
+            <div className="container mx-auto max-w-[1600px] space-y-4 px-4 pt-5">
               <StaffSelfServiceLiveActions variant="employee" />
+              <StaffSelfServiceLiveDashboard />
             </div>
           )}
+
           <StaffSelfServiceShowcase profile={profile} />
           {portalFeatures.staffGraduatesAffairs && (
             <div className="container mx-auto max-w-6xl px-4 pb-8 print:hidden">

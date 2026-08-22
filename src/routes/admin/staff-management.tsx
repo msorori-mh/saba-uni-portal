@@ -14,6 +14,8 @@ import { StaffDeleteDialog } from "@/components/admin/staff-management/StaffDele
 import { ProcessingRolesTab } from "@/components/admin/staff-management/ProcessingRolesTab";
 import { EmployeeServicesShowcase } from "@/components/admin/staff-management/EmployeeServicesShowcase";
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
+import { StaffSelfServiceLiveWorkbench } from "@/components/staff-showcase/StaffSelfServiceLiveWorkbench";
+
 import { portalFeatures } from "@/lib/portal-features";
 
 const UNLINK_LOGIN_CONFIRM =
@@ -313,8 +315,12 @@ function StaffManagementPage() {
 
         <TabsContent value="services" className="mt-6">
           {portalFeatures.staffSelfServiceLive && (
-            <StaffSelfServiceLiveActions variant="approver" />
+            <div className="space-y-4">
+              <StaffSelfServiceLiveActions variant="approver" />
+              <StaffSelfServiceLiveWorkbench />
+            </div>
           )}
+
           <EmployeeServicesShowcase />
         </TabsContent>
 
