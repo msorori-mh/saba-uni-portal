@@ -28,16 +28,12 @@ export const staffValueAddedProjections = {
     "id,staff_profile_id,attendance_date,check_in_at,check_out_at,worked_minutes,late_minutes,overtime_minutes,day_state",
   overtimeClaims:
     "id,claim_no,staff_profile_id,claim_kind,starts_on,ends_on,total_hours,reason,status,manager_decided_at,manager_reason,hr_decided_at,hr_reason",
-  overtimeFinancialImpact:
-    "claim_id,currency_code,hourly_rate,gross_amount,settled_at",
   trainingCourses:
     "id,code,title_ar,provider,starts_on,ends_on,total_hours,active",
   trainingEnrollments:
     "id,course_id,staff_profile_id,status,decided_at,decision_reason,completed_at",
   promotionCases:
     "id,case_no,staff_profile_id,case_kind,current_grade,proposed_grade,status,effective_on,notes",
-  promotionFinancialImpact:
-    "case_id,currency_code,current_basic,proposed_basic,retroactive_amount",
   clearanceCases:
     "id,case_no,staff_profile_id,status,reason,completed_at,custody_override,custody_override_reason",
   clearanceCheckpoints:
@@ -309,6 +305,39 @@ export async function fetchStaffEvaluations(): Promise<
   );
 }
 
+export async function upsertEvaluationDraft(input: {
+  cycleId: string;
+  staffProfileId: string;
+  overallRating?: number | null;
+  ratingBand?:
+    | "excellent"
+    | "very_good"
+    | "good"
+    | "acceptable"
+    | "weak"
+    | null;
+  goals?: string | null;
+  strengths?: string | null;
+  improvements?: string | null;
+}) {
+  return callRpc(
+    "staff_service_upsert_evaluation_draft",
+    {
+      p_cycle_id: z.string().uuid().parse(input.cycleId),
+      p_staff_profile_id: z.string().uuid().parse(input.staffProfileId),
+      p_overall_rating:
+        input.overallRating === undefined || input.overallRating === null
+          ? null
+          : z.number().min(0).max(100).parse(input.overallRating),
+      p_rating_band: input.ratingBand ?? null,
+      p_goals: input.goals ?? null,
+      p_strengths: input.strengths ?? null,
+      p_improvements: input.improvements ?? null,
+    },
+    staffPerformanceEvaluationSchema.passthrough(),
+  );
+}
+
 export async function finalizeEvaluation(evaluationId: string) {
   return callRpc(
     "staff_service_finalize_evaluation",
@@ -434,13 +463,26 @@ export const staffOvertimeClaimSchema = z.object({
   hr_reason: z.string().nullable(),
 });
 
-export const staffOvertimeFinancialImpactSchema = z.object({
-  claim_id: z.string().uuid(),
-  currency_code: z.literal("YER"),
-  hourly_rate: numericLike,
-  gross_amount: numericLike,
-  settled_at: isoTimestamp.nullable(),
-});
+/**
+ * Finance-safe overtime surface.
+ *
+ * Finance has NO access to `staff_overtime_claims` (reason, manager_reason,
+ * hr_reason, staff_profile_id, workflow state). It reads money only through
+ * this narrow server projection.
+ */
+export const staffOvertimeFinancialImpactSchema = z
+  .object({
+    claim_id: z.string().uuid(),
+    claim_no: z.string().min(1),
+    claim_kind: z.enum(["overtime", "assignment"]),
+    financial_status: z.enum(["approved_for_settlement", "not_settleable"]),
+    approved_total_hours: numericLike.nullable(),
+    currency_code: z.literal("YER"),
+    hourly_rate: numericLike,
+    gross_amount: numericLike,
+    settled_at: isoTimestamp.nullable(),
+  })
+  .strict();
 
 export type StaffOvertimeClaim = z.infer<typeof staffOvertimeClaimSchema>;
 export type StaffOvertimeFinancialImpact = z.infer<
@@ -459,16 +501,14 @@ export async function fetchStaffOvertimeClaims(): Promise<
   );
 }
 
-/** Finance-only projection; RLS returns nothing for other roles. */
+/** Finance/Administrator only: narrow money projection, never the base row. */
 export async function fetchStaffOvertimeFinancialImpact(): Promise<
   StaffOvertimeFinancialImpact[]
 > {
-  return readRows(
-    () =>
-      fromTable("staff_overtime_financial_impact")
-        .select(staffValueAddedProjections.overtimeFinancialImpact)
-        .order("updated_at", { ascending: false }),
-    staffOvertimeFinancialImpactSchema,
+  return callRpc(
+    "staff_service_list_overtime_financial_projection",
+    {},
+    z.array(staffOvertimeFinancialImpactSchema),
   );
 }
 
@@ -594,6 +634,40 @@ export async function decideTrainingEnrollment(input: {
   );
 }
 
+/**
+ * Certificate metadata is 02B-compliant by construction: a private-bucket
+ * object path (never a URL) plus a SHA-256 digest. The bucket itself is fixed
+ * server-side, so the client can never point the record at public storage.
+ */
+export const trainingCertificateMetadataSchema = z.object({
+  objectPath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(400)
+    .refine((value) => !value.includes(".."), "INVALID_PATH")
+    .refine((value) => !/^[a-z]+:\/\//i.test(value), "PUBLIC_URL_FORBIDDEN"),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export async function completeTrainingEnrollment(input: {
+  enrollmentId: string;
+  certificate?: { objectPath: string; sha256: string } | null;
+}) {
+  const certificate = input.certificate
+    ? trainingCertificateMetadataSchema.parse(input.certificate)
+    : null;
+  return callRpc(
+    "staff_service_complete_training_enrollment",
+    {
+      p_enrollment_id: z.string().uuid().parse(input.enrollmentId),
+      p_certificate_object_path: certificate?.objectPath ?? null,
+      p_certificate_sha256: certificate?.sha256 ?? null,
+    },
+    staffTrainingEnrollmentSchema.passthrough(),
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* 6) Promotions / settlements                                         */
 /* ------------------------------------------------------------------ */
@@ -616,13 +690,20 @@ export const staffPromotionCaseSchema = z.object({
   notes: z.string().nullable(),
 });
 
-export const staffPromotionFinancialImpactSchema = z.object({
-  case_id: z.string().uuid(),
-  currency_code: z.literal("YER"),
-  current_basic: numericLike,
-  proposed_basic: numericLike,
-  retroactive_amount: numericLike,
-});
+/** Finance-safe promotion surface: money only, never case notes. */
+export const staffPromotionFinancialImpactSchema = z
+  .object({
+    case_id: z.string().uuid(),
+    case_no: z.string().min(1),
+    case_kind: z.enum(["promotion", "settlement", "grade_adjustment"]),
+    financial_status: z.enum(["approved_for_settlement", "not_settleable"]),
+    effective_on: isoDate.nullable(),
+    currency_code: z.literal("YER"),
+    current_basic: numericLike,
+    proposed_basic: numericLike,
+    retroactive_amount: numericLike,
+  })
+  .strict();
 
 export type StaffPromotionCase = z.infer<typeof staffPromotionCaseSchema>;
 export type StaffPromotionFinancialImpact = z.infer<
@@ -641,16 +722,56 @@ export async function fetchStaffPromotionCases(): Promise<
   );
 }
 
-/** Finance-only projection; RLS returns nothing for other roles. */
+/** Finance/Administrator only: narrow money projection, never base notes. */
 export async function fetchStaffPromotionFinancialImpact(): Promise<
   StaffPromotionFinancialImpact[]
 > {
-  return readRows(
-    () =>
-      fromTable("staff_promotion_financial_impact")
-        .select(staffValueAddedProjections.promotionFinancialImpact)
-        .order("updated_at", { ascending: false }),
-    staffPromotionFinancialImpactSchema,
+  return callRpc(
+    "staff_service_list_promotion_financial_projection",
+    {},
+    z.array(staffPromotionFinancialImpactSchema),
+  );
+}
+
+export async function openPromotionCase(input: {
+  staffProfileId: string;
+  caseKind: "promotion" | "settlement" | "grade_adjustment";
+  currentGrade?: string | null;
+  proposedGrade?: string | null;
+  notes?: string | null;
+  idempotencyKey?: string;
+}) {
+  return callRpc(
+    "staff_service_open_promotion_case",
+    {
+      p_staff_profile_id: z.string().uuid().parse(input.staffProfileId),
+      p_case_kind: input.caseKind,
+      p_current_grade: input.currentGrade ?? null,
+      p_proposed_grade: input.proposedGrade ?? null,
+      p_notes: input.notes ?? null,
+      p_idempotency_key: input.idempotencyKey ?? crypto.randomUUID(),
+    },
+    staffPromotionCaseSchema.passthrough(),
+  );
+}
+
+export async function updatePromotionCase(input: {
+  caseId: string;
+  status: "hr_review" | "approved" | "rejected" | "implemented";
+  proposedGrade?: string | null;
+  effectiveOn?: string | null;
+  notes?: string | null;
+}) {
+  return callRpc(
+    "staff_service_update_promotion_case",
+    {
+      p_case_id: z.string().uuid().parse(input.caseId),
+      p_status: input.status,
+      p_proposed_grade: input.proposedGrade ?? null,
+      p_effective_on: input.effectiveOn || null,
+      p_notes: input.notes ?? null,
+    },
+    staffPromotionCaseSchema.passthrough(),
   );
 }
 
@@ -754,6 +875,93 @@ export async function completeClearanceCase(input: {
   );
 }
 
+/**
+ * Checkpoint-owner projection. Every decider — including Finance, which has no
+ * row access to the clearance base tables — sees only the checkpoints it must
+ * decide, with the minimum case context and no free-text reasons.
+ */
+export const staffAssignedClearanceCheckpointSchema = z
+  .object({
+    checkpoint_id: z.string().uuid(),
+    case_id: z.string().uuid(),
+    case_no: z.string().min(1),
+    checkpoint_kind: z.enum([
+      "direct_manager",
+      "hr",
+      "finance",
+      "it_custody",
+      "administration",
+    ]),
+    checkpoint_status: z.enum(["pending", "cleared", "blocked"]),
+    case_status: z.enum(["in_progress", "completed", "cancelled"]),
+    opened_at: isoTimestamp,
+  })
+  .strict();
+
+export type StaffAssignedClearanceCheckpoint = z.infer<
+  typeof staffAssignedClearanceCheckpointSchema
+>;
+
+export async function fetchAssignedClearanceCheckpoints(): Promise<
+  StaffAssignedClearanceCheckpoint[]
+> {
+  return callRpc(
+    "staff_service_list_assigned_clearance_checkpoints",
+    {},
+    z.array(staffAssignedClearanceCheckpointSchema),
+  );
+}
+
+export async function openClearanceCase(input: {
+  staffProfileId: string;
+  reason: string;
+  idempotencyKey?: string;
+}) {
+  return callRpc(
+    "staff_service_open_clearance_case",
+    {
+      p_staff_profile_id: z.string().uuid().parse(input.staffProfileId),
+      p_reason: z.string().trim().min(3).max(2000).parse(input.reason),
+      p_idempotency_key: input.idempotencyKey ?? crypto.randomUUID(),
+    },
+    staffClearanceCaseSchema.passthrough(),
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 7b) Attendance oversight reporting                                  */
+/* ------------------------------------------------------------------ */
+
+export const staffAttendanceMonthReportRowSchema = z
+  .object({
+    staff_profile_id: z.string().uuid(),
+    full_name_ar: z.string().min(1),
+    present_days: z.number().int(),
+    absent_days: z.number().int(),
+    late_days: z.number().int(),
+    leave_days: z.number().int(),
+    worked_hours: numericLike,
+  })
+  .strict();
+
+export type StaffAttendanceMonthReportRow = z.infer<
+  typeof staffAttendanceMonthReportRowSchema
+>;
+
+export async function fetchStaffAttendanceMonthReport(input: {
+  year: number;
+  month: number;
+}): Promise<StaffAttendanceMonthReportRow[]> {
+  return callRpc(
+    "staff_service_list_attendance_month_report",
+    {
+      p_year: z.number().int().min(2000).max(2200).parse(input.year),
+      p_month: z.number().int().min(1).max(12).parse(input.month),
+    },
+    z.array(staffAttendanceMonthReportRowSchema),
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* 8) Audit + capabilities                                             */
 /* ------------------------------------------------------------------ */
@@ -807,6 +1015,12 @@ export const staffValueAddedCapabilitiesSchema = z
     can_manage_evaluations: z.boolean(),
     can_view_financial_impact: z.boolean(),
     can_decide_clearance: z.boolean(),
+    can_view_overtime_queue: z.boolean(),
+    can_view_clearance_cases: z.boolean(),
+    can_manage_clearance_cases: z.boolean(),
+    can_manage_promotions: z.boolean(),
+    can_manage_training: z.boolean(),
+    can_view_attendance_reports: z.boolean(),
   })
   .strict();
 
@@ -827,6 +1041,12 @@ export const STAFF_VALUE_ADDED_NO_CAPABILITIES: StaffValueAddedCapabilities = {
   can_manage_evaluations: false,
   can_view_financial_impact: false,
   can_decide_clearance: false,
+  can_view_overtime_queue: false,
+  can_view_clearance_cases: false,
+  can_manage_clearance_cases: false,
+  can_manage_promotions: false,
+  can_view_attendance_reports: false,
+  can_manage_training: false,
 };
 
 /** Boolean-only probe: UI gating never depends on another employee's row. */

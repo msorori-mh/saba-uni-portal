@@ -36,6 +36,14 @@ $$;
 -- 0) Shared scope helpers + append-only value-added audit ledger
 -- ===========================================================================
 
+-- Identity-bound scope helpers.
+--
+-- They keep the (actor, subject) signature so RLS policies stay readable, but
+-- they answer ONLY about the calling identity: when `_user_id` is anything
+-- other than auth.uid() the answer is always false. This removes the
+-- identity-oracle pattern (an authenticated client cannot probe "does actor X
+-- manage profile Y?"). Every legitimate caller - RLS policies and the SECURITY
+-- DEFINER RPCs below - already passes auth.uid(), so behaviour is unchanged.
 create or replace function public.staff_service_manages_profile(
   _user_id uuid,
   _staff_profile_id uuid
@@ -46,7 +54,9 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select exists (
+  select auth.uid() is not null
+     and _user_id is not distinct from auth.uid()
+     and exists (
     select 1
     from public.staff_profiles sp
     where sp.id = _staff_profile_id
@@ -65,7 +75,9 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select exists (
+  select auth.uid() is not null
+     and _user_id is not distinct from auth.uid()
+     and exists (
     select 1 from public.staff_profiles sp
     where sp.id = _staff_profile_id and sp.user_id = _user_id
   );
@@ -139,6 +151,22 @@ create index staff_issued_documents_owner_idx
 create trigger staff_issued_documents_touch
   before update on public.staff_issued_documents
   for each row execute function public.staff_service_touch_updated_at();
+
+-- Verification amplification containment.
+--
+-- The public verifier is unauthenticated, so an attacker could otherwise force
+-- an unbounded per-attempt trail against a shared sentinel subject. Failed
+-- probes therefore write NOTHING but a bounded hourly counter (one row per
+-- hour, for the whole system), and successful verifications write at most one
+-- audit event per document per hour. No token material - neither raw token nor
+-- probe digest - is ever persisted, and the outward invalid response is
+-- byte-identical for malformed and unknown tokens.
+create table public.staff_document_verification_probe_stats (
+  window_start timestamptz primary key,
+  failed_attempts bigint not null default 0 check (failed_attempts >= 0),
+  succeeded_attempts bigint not null default 0 check (succeeded_attempts >= 0),
+  updated_at timestamptz not null default now()
+);
 
 -- ===========================================================================
 -- 2) Annual performance evaluation
@@ -321,8 +349,11 @@ create table public.staff_promotion_cases (
   )),
   effective_on date,
   notes text,
+  opened_by uuid references auth.users(id) on delete set null,
+  idempotency_key uuid,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (staff_profile_id, idempotency_key)
 );
 
 create trigger staff_promotion_cases_touch
@@ -361,8 +392,11 @@ create table public.staff_clearance_cases (
   custody_override_reason text,
   custody_override_by uuid references auth.users(id) on delete set null,
   custody_override_at timestamptz,
+  opened_by uuid references auth.users(id) on delete set null,
+  idempotency_key uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  unique (staff_profile_id, idempotency_key),
   check ((status = 'completed') = (completed_at is not null)),
   check (custody_override = false or (
     nullif(btrim(custody_override_reason), '') is not null
@@ -370,6 +404,11 @@ create table public.staff_clearance_cases (
     and custody_override_at is not null
   ))
 );
+
+-- At most one live clearance case per employee (replay-safe case opening).
+create unique index staff_clearance_cases_single_open_idx
+  on public.staff_clearance_cases (staff_profile_id)
+  where status = 'in_progress';
 
 create trigger staff_clearance_cases_touch
   before update on public.staff_clearance_cases
@@ -648,14 +687,14 @@ begin
   where verification_token_digest = v_digest;
 
   if not found then
-    insert into public.staff_value_added_audit_events (
-      actor_user_id, module, subject_id, event_type, metadata
-    ) values (
-      auth.uid(), 'issued_document',
-      '00000000-0000-0000-0000-000000000000'::uuid,
-      'document_verification_failed',
-      jsonb_build_object('result', 'invalid')
-    );
+    -- Containment: bounded hourly counter only. No per-attempt audit row, no
+    -- sentinel subject trail, no token/digest material, identical response.
+    insert into public.staff_document_verification_probe_stats as st
+      (window_start, failed_attempts)
+    values (date_trunc('hour', now()), 1)
+    on conflict (window_start) do update
+      set failed_attempts = st.failed_attempts + 1,
+          updated_at = now();
     return jsonb_build_object('result', 'invalid');
   end if;
 
@@ -672,12 +711,28 @@ begin
   -- Masked holder label: first name plus a masked remainder.
   v_holder := split_part(coalesce(v_profile.full_name_ar, ''), ' ', 1) || ' ****';
 
-  insert into public.staff_value_added_audit_events (
-    actor_user_id, module, subject_id, event_type, metadata
-  ) values (
-    auth.uid(), 'issued_document', v_doc.id, 'document_verified',
-    jsonb_build_object('result', v_result)
-  );
+  insert into public.staff_document_verification_probe_stats as st
+    (window_start, succeeded_attempts)
+  values (date_trunc('hour', now()), 1)
+  on conflict (window_start) do update
+    set succeeded_attempts = st.succeeded_attempts + 1,
+        updated_at = now();
+
+  -- Bounded: at most one verification event per document per hour.
+  if not exists (
+    select 1 from public.staff_value_added_audit_events e
+    where e.module = 'issued_document'
+      and e.subject_id = v_doc.id
+      and e.event_type = 'document_verified'
+      and e.occurred_at >= date_trunc('hour', now())
+  ) then
+    insert into public.staff_value_added_audit_events (
+      actor_user_id, module, subject_id, event_type, metadata
+    ) values (
+      auth.uid(), 'issued_document', v_doc.id, 'document_verified',
+      jsonb_build_object('result', v_result)
+    );
+  end if;
 
   return jsonb_build_object(
     'result', v_result,
@@ -1454,8 +1509,565 @@ begin
     coalesce((v_base ->> 'is_direct_manager')::boolean, false)
       or coalesce((v_base ->> 'is_hr')::boolean, false)
       or coalesce((v_base ->> 'is_finance')::boolean, false)
+      or coalesce((v_base ->> 'is_administrator')::boolean, false),
+    -- Finance is deliberately excluded from every non-financial queue below.
+    'can_view_overtime_queue',
+    coalesce((v_base ->> 'is_direct_manager')::boolean, false)
+      or coalesce((v_base ->> 'is_hr')::boolean, false)
+      or coalesce((v_base ->> 'is_administrator')::boolean, false),
+    'can_view_clearance_cases',
+    coalesce((v_base ->> 'is_direct_manager')::boolean, false)
+      or coalesce((v_base ->> 'is_hr')::boolean, false)
+      or coalesce((v_base ->> 'is_administrator')::boolean, false),
+    'can_manage_clearance_cases',
+    coalesce((v_base ->> 'is_hr')::boolean, false)
+      or coalesce((v_base ->> 'is_administrator')::boolean, false),
+    'can_manage_promotions',
+    coalesce((v_base ->> 'is_hr')::boolean, false)
+      or coalesce((v_base ->> 'is_administrator')::boolean, false),
+    'can_manage_training',
+    coalesce((v_base ->> 'is_hr')::boolean, false)
+      or coalesce((v_base ->> 'is_administrator')::boolean, false),
+    'can_view_attendance_reports',
+    coalesce((v_base ->> 'is_direct_manager')::boolean, false)
+      or coalesce((v_base ->> 'is_hr')::boolean, false)
       or coalesce((v_base ->> 'is_administrator')::boolean, false)
   );
+end;
+$$;
+
+
+-- --------------------------------------------------------------------------
+-- Finance narrow projections
+--
+-- Finance has NO row access to the operational base tables (claims, clearance
+-- cases/checkpoints, promotion cases). It reads money through these SECURITY
+-- DEFINER projections only: no free-text reason, no decision note, no
+-- attachment, no profile/contact/payroll identity ever crosses the boundary.
+-- --------------------------------------------------------------------------
+
+create or replace function public.staff_service_list_overtime_financial_projection()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  if not (
+    public.staff_service_has_role(v_user, 'finance', null)
+    or public.staff_service_is_admin(v_user)
+  ) then
+    raise exception 'STAFF_SERVICE_FINANCIAL_SCOPE_DENIED' using errcode = '42501';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(item order by item ->> 'claim_no')
+    from (
+      select jsonb_build_object(
+        'claim_id', c.id,
+        'claim_no', c.claim_no,
+        'claim_kind', c.claim_kind,
+        'financial_status', case
+          when c.status = 'hr_approved' then 'approved_for_settlement'
+          else 'not_settleable'
+        end,
+        'approved_total_hours', case when c.status = 'hr_approved' then c.total_hours end,
+        'currency_code', f.currency_code,
+        'hourly_rate', f.hourly_rate,
+        'gross_amount', f.gross_amount,
+        'settled_at', f.settled_at
+      ) as item
+      from public.staff_overtime_financial_impact f
+      join public.staff_overtime_claims c on c.id = f.claim_id
+    ) src
+  ), '[]'::jsonb);
+end;
+$$;
+
+create or replace function public.staff_service_list_promotion_financial_projection()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  if not (
+    public.staff_service_has_role(v_user, 'finance', null)
+    or public.staff_service_is_admin(v_user)
+  ) then
+    raise exception 'STAFF_SERVICE_FINANCIAL_SCOPE_DENIED' using errcode = '42501';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(item order by item ->> 'case_no')
+    from (
+      select jsonb_build_object(
+        'case_id', p.id,
+        'case_no', p.case_no,
+        'case_kind', p.case_kind,
+        'financial_status', case
+          when p.status in ('approved', 'implemented') then 'approved_for_settlement'
+          else 'not_settleable'
+        end,
+        'effective_on', p.effective_on,
+        'currency_code', f.currency_code,
+        'current_basic', f.current_basic,
+        'proposed_basic', f.proposed_basic,
+        'retroactive_amount', f.retroactive_amount
+      ) as item
+      from public.staff_promotion_financial_impact f
+      join public.staff_promotion_cases p on p.id = f.case_id
+    ) src
+  ), '[]'::jsonb);
+end;
+$$;
+
+-- Checkpoint-owner projection: every decider (including Finance) sees only the
+-- checkpoints it is itself required to decide, plus the minimum case context.
+-- HR reasons, custody override reason and unrelated checkpoints never appear.
+create or replace function public.staff_service_list_assigned_clearance_checkpoints()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(item order by item ->> 'case_no', item ->> 'checkpoint_kind')
+    from (
+      select jsonb_build_object(
+        'checkpoint_id', cp.id,
+        'case_id', c.id,
+        'case_no', c.case_no,
+        'checkpoint_kind', cp.checkpoint_kind,
+        'checkpoint_status', cp.status,
+        'case_status', c.status,
+        'opened_at', c.created_at
+      ) as item
+      from public.staff_clearance_checkpoints cp
+      join public.staff_clearance_cases c on c.id = cp.case_id
+      where c.status = 'in_progress'
+        and not public.staff_service_owns_profile(v_user, c.staff_profile_id)
+        and public.staff_service_has_role(v_user, cp.required_role, c.department_id)
+    ) src
+  ), '[]'::jsonb);
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Performance evaluation authoring (draft -> finalize)
+-- --------------------------------------------------------------------------
+
+create or replace function public.staff_service_upsert_evaluation_draft(
+  p_cycle_id uuid,
+  p_staff_profile_id uuid,
+  p_overall_rating numeric default null,
+  p_rating_band text default null,
+  p_goals text default null,
+  p_strengths text default null,
+  p_improvements text default null
+)
+returns public.staff_performance_evaluations
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_row public.staff_performance_evaluations;
+  v_cycle public.staff_performance_cycles;
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+
+  select * into v_cycle from public.staff_performance_cycles where id = p_cycle_id;
+  if not found or v_cycle.status <> 'open' then
+    raise exception 'STAFF_SERVICE_EVALUATION_CYCLE_CLOSED' using errcode = '42501';
+  end if;
+
+  if public.staff_service_owns_profile(v_user, p_staff_profile_id) then
+    raise exception 'STAFF_SERVICE_SELF_EVALUATION_DENIED' using errcode = '42501';
+  end if;
+
+  if not (
+    public.staff_service_manages_profile(v_user, p_staff_profile_id)
+    or public.staff_service_has_role(v_user, 'hr', null)
+    or public.staff_service_is_admin(v_user)
+  ) then
+    raise exception 'STAFF_SERVICE_APPROVER_SCOPE_DENIED' using errcode = '42501';
+  end if;
+
+  if p_rating_band is not null and p_rating_band not in (
+    'excellent', 'very_good', 'good', 'acceptable', 'weak'
+  ) then
+    raise exception 'STAFF_SERVICE_EVALUATION_PAYLOAD_INVALID' using errcode = '22023';
+  end if;
+  if p_overall_rating is not null and (p_overall_rating < 0 or p_overall_rating > 100) then
+    raise exception 'STAFF_SERVICE_EVALUATION_PAYLOAD_INVALID' using errcode = '22023';
+  end if;
+
+  select * into v_row
+  from public.staff_performance_evaluations
+  where cycle_id = p_cycle_id and staff_profile_id = p_staff_profile_id
+  for update;
+
+  if found and v_row.status = 'finalized' then
+    raise exception 'STAFF_SERVICE_EVALUATION_ALREADY_FINALIZED' using errcode = '40001';
+  end if;
+
+  if found then
+    update public.staff_performance_evaluations
+    set overall_rating = p_overall_rating,
+        rating_band = p_rating_band,
+        goals = p_goals,
+        strengths = p_strengths,
+        improvements = p_improvements,
+        evaluator_user_id = v_user
+    where id = v_row.id and status = 'draft'
+    returning * into v_row;
+    if not found then
+      raise exception 'STAFF_SERVICE_EVALUATION_STATE_CONFLICT' using errcode = '40001';
+    end if;
+  else
+    insert into public.staff_performance_evaluations (
+      cycle_id, staff_profile_id, evaluator_user_id,
+      overall_rating, rating_band, goals, strengths, improvements
+    ) values (
+      p_cycle_id, p_staff_profile_id, v_user,
+      p_overall_rating, p_rating_band, p_goals, p_strengths, p_improvements
+    )
+    returning * into v_row;
+  end if;
+
+  insert into public.staff_value_added_audit_events (
+    actor_user_id, module, subject_id, event_type, metadata
+  ) values (
+    v_user, 'evaluation', v_row.id, 'evaluation_draft_saved', '{}'::jsonb
+  );
+
+  return v_row;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Promotions / settlements authoring (HR / Administrator only)
+-- --------------------------------------------------------------------------
+
+create or replace function public.staff_service_open_promotion_case(
+  p_staff_profile_id uuid,
+  p_case_kind text,
+  p_current_grade text,
+  p_proposed_grade text,
+  p_notes text,
+  p_idempotency_key uuid
+)
+returns public.staff_promotion_cases
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_row public.staff_promotion_cases;
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  if p_idempotency_key is null then
+    raise exception 'STAFF_SERVICE_IDEMPOTENCY_KEY_REQUIRED' using errcode = '22023';
+  end if;
+  if p_case_kind not in ('promotion', 'settlement', 'grade_adjustment') then
+    raise exception 'STAFF_SERVICE_PROMOTION_PAYLOAD_INVALID' using errcode = '22023';
+  end if;
+  if not (
+    public.staff_service_has_role(v_user, 'hr', null)
+    or public.staff_service_is_admin(v_user)
+  ) then
+    raise exception 'STAFF_SERVICE_APPROVER_SCOPE_DENIED' using errcode = '42501';
+  end if;
+  if public.staff_service_owns_profile(v_user, p_staff_profile_id) then
+    raise exception 'STAFF_SERVICE_SELF_APPROVAL_DENIED' using errcode = '42501';
+  end if;
+  if not exists (
+    select 1 from public.staff_profiles sp
+    where sp.id = p_staff_profile_id and sp.status = 'active'
+  ) then
+    raise exception 'STAFF_SERVICE_ACTIVE_PROFILE_REQUIRED' using errcode = '42501';
+  end if;
+
+  select * into v_row
+  from public.staff_promotion_cases
+  where staff_profile_id = p_staff_profile_id
+    and idempotency_key = p_idempotency_key;
+  if found then
+    return v_row;
+  end if;
+
+  insert into public.staff_promotion_cases (
+    case_no, staff_profile_id, case_kind, current_grade, proposed_grade,
+    notes, opened_by, idempotency_key
+  ) values (
+    'PRM-' || to_char(now(), 'YYYYMMDD') || '-' ||
+      upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)),
+    p_staff_profile_id, p_case_kind, p_current_grade, p_proposed_grade,
+    nullif(btrim(coalesce(p_notes, '')), ''), v_user, p_idempotency_key
+  )
+  returning * into v_row;
+
+  insert into public.staff_value_added_audit_events (
+    actor_user_id, module, subject_id, event_type, metadata
+  ) values (
+    v_user, 'promotion', v_row.id, 'promotion_case_opened',
+    jsonb_build_object('case_kind', v_row.case_kind, 'status', v_row.status)
+  );
+
+  return v_row;
+end;
+$$;
+
+create or replace function public.staff_service_update_promotion_case(
+  p_case_id uuid,
+  p_status text,
+  p_proposed_grade text default null,
+  p_effective_on date default null,
+  p_notes text default null
+)
+returns public.staff_promotion_cases
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_row public.staff_promotion_cases;
+  v_allowed boolean;
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  if not (
+    public.staff_service_has_role(v_user, 'hr', null)
+    or public.staff_service_is_admin(v_user)
+  ) then
+    raise exception 'STAFF_SERVICE_APPROVER_SCOPE_DENIED' using errcode = '42501';
+  end if;
+
+  select * into v_row from public.staff_promotion_cases where id = p_case_id for update;
+  if not found then
+    raise exception 'STAFF_SERVICE_PROMOTION_NOT_FOUND' using errcode = '42501';
+  end if;
+  if public.staff_service_owns_profile(v_user, v_row.staff_profile_id) then
+    raise exception 'STAFF_SERVICE_SELF_APPROVAL_DENIED' using errcode = '42501';
+  end if;
+
+  v_allowed := case v_row.status
+    when 'under_study' then p_status in ('hr_review', 'rejected')
+    when 'hr_review' then p_status in ('approved', 'rejected')
+    when 'approved' then p_status = 'implemented'
+    else false
+  end;
+  if not v_allowed then
+    raise exception 'STAFF_SERVICE_PROMOTION_TRANSITION_DENIED' using errcode = '40001';
+  end if;
+  if p_status = 'implemented' and coalesce(p_effective_on, v_row.effective_on) is null then
+    raise exception 'STAFF_SERVICE_PROMOTION_PAYLOAD_INVALID' using errcode = '22023';
+  end if;
+
+  update public.staff_promotion_cases
+  set status = p_status,
+      proposed_grade = coalesce(p_proposed_grade, proposed_grade),
+      effective_on = coalesce(p_effective_on, effective_on),
+      notes = coalesce(nullif(btrim(coalesce(p_notes, '')), ''), notes)
+  where id = v_row.id and status = v_row.status
+  returning * into v_row;
+  if not found then
+    raise exception 'STAFF_SERVICE_PROMOTION_STATE_CONFLICT' using errcode = '40001';
+  end if;
+
+  insert into public.staff_value_added_audit_events (
+    actor_user_id, module, subject_id, event_type, metadata
+  ) values (
+    v_user, 'promotion', v_row.id, 'promotion_case_updated',
+    jsonb_build_object('status', v_row.status)
+  );
+
+  return v_row;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Clearance case opening (atomic: case + the five required checkpoints)
+-- --------------------------------------------------------------------------
+
+create or replace function public.staff_service_open_clearance_case(
+  p_staff_profile_id uuid,
+  p_reason text,
+  p_idempotency_key uuid
+)
+returns public.staff_clearance_cases
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_row public.staff_clearance_cases;
+  v_department uuid;
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  if p_idempotency_key is null then
+    raise exception 'STAFF_SERVICE_IDEMPOTENCY_KEY_REQUIRED' using errcode = '22023';
+  end if;
+  if nullif(btrim(coalesce(p_reason, '')), '') is null then
+    raise exception 'STAFF_SERVICE_CLEARANCE_PAYLOAD_INVALID' using errcode = '22023';
+  end if;
+  if not (
+    public.staff_service_has_role(v_user, 'hr', null)
+    or public.staff_service_is_admin(v_user)
+  ) then
+    raise exception 'STAFF_SERVICE_APPROVER_SCOPE_DENIED' using errcode = '42501';
+  end if;
+  if public.staff_service_owns_profile(v_user, p_staff_profile_id) then
+    raise exception 'STAFF_SERVICE_SELF_APPROVAL_DENIED' using errcode = '42501';
+  end if;
+
+  select department_id into v_department
+  from public.staff_profiles
+  where id = p_staff_profile_id and status = 'active';
+  if not found then
+    raise exception 'STAFF_SERVICE_ACTIVE_PROFILE_REQUIRED' using errcode = '42501';
+  end if;
+
+  select * into v_row
+  from public.staff_clearance_cases
+  where staff_profile_id = p_staff_profile_id
+    and idempotency_key = p_idempotency_key;
+  if found then
+    return v_row;
+  end if;
+
+  if exists (
+    select 1 from public.staff_clearance_cases
+    where staff_profile_id = p_staff_profile_id and status = 'in_progress'
+  ) then
+    raise exception 'STAFF_SERVICE_CLEARANCE_CASE_ALREADY_OPEN' using errcode = '40001';
+  end if;
+
+  insert into public.staff_clearance_cases (
+    case_no, staff_profile_id, department_id, reason, opened_by, idempotency_key
+  ) values (
+    'CLR-' || to_char(now(), 'YYYYMMDD') || '-' ||
+      upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)),
+    p_staff_profile_id, v_department, btrim(p_reason), v_user, p_idempotency_key
+  )
+  returning * into v_row;
+
+  insert into public.staff_clearance_checkpoints (case_id, checkpoint_kind, required_role)
+  values
+    (v_row.id, 'direct_manager', 'direct_manager'),
+    (v_row.id, 'hr', 'hr'),
+    (v_row.id, 'finance', 'finance'),
+    (v_row.id, 'it_custody', 'administrator'),
+    (v_row.id, 'administration', 'administrator');
+
+  insert into public.staff_value_added_audit_events (
+    actor_user_id, module, subject_id, event_type, metadata
+  ) values (
+    v_user, 'clearance', v_row.id, 'clearance_case_opened',
+    jsonb_build_object('checkpoints', 5)
+  );
+
+  return v_row;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Attendance oversight reporting (manager scope / HR / Administrator)
+-- --------------------------------------------------------------------------
+
+create or replace function public.staff_service_list_attendance_month_report(
+  p_year integer,
+  p_month integer
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_from date;
+  v_to date;
+begin
+  if v_user is null then
+    raise exception 'STAFF_SERVICE_AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  if p_year is null or p_month is null
+     or p_year not between 2000 and 2200 or p_month not between 1 and 12 then
+    raise exception 'STAFF_SERVICE_ATTENDANCE_RANGE_INVALID' using errcode = '22023';
+  end if;
+  if not (
+    public.staff_service_has_role(v_user, 'direct_manager', null)
+    or public.staff_service_has_role(v_user, 'hr', null)
+    or public.staff_service_is_admin(v_user)
+    or exists (
+      select 1 from public.staff_service_role_assignments a
+      where a.user_id = v_user and a.role = 'direct_manager' and a.active
+    )
+  ) then
+    raise exception 'STAFF_SERVICE_REPORT_SCOPE_DENIED' using errcode = '42501';
+  end if;
+
+  v_from := make_date(p_year, p_month, 1);
+  v_to := (v_from + interval '1 month')::date;
+
+  return coalesce((
+    select jsonb_agg(item order by item ->> 'full_name_ar')
+    from (
+      select jsonb_build_object(
+        'staff_profile_id', sp.id,
+        'full_name_ar', sp.full_name_ar,
+        'present_days', count(*) filter (where d.day_state = 'present'),
+        'absent_days', count(*) filter (where d.day_state = 'absent'),
+        'late_days', count(*) filter (where d.day_state = 'late'),
+        'leave_days', count(*) filter (where d.day_state = 'leave'),
+        'worked_hours', round(coalesce(sum(d.worked_minutes), 0) / 60.0, 2)
+      ) as item
+      from public.staff_attendance_days d
+      join public.staff_profiles sp on sp.id = d.staff_profile_id
+      where d.attendance_date >= v_from
+        and d.attendance_date < v_to
+        and (
+          public.staff_service_has_role(v_user, 'hr', null)
+          or public.staff_service_is_admin(v_user)
+          or public.staff_service_manages_profile(v_user, sp.id)
+        )
+      group by sp.id, sp.full_name_ar
+    ) src
+  ), '[]'::jsonb);
 end;
 $$;
 
@@ -1463,6 +2075,7 @@ $$;
 -- 9) RLS
 -- ===========================================================================
 
+alter table public.staff_document_verification_probe_stats enable row level security;
 alter table public.staff_value_added_audit_events enable row level security;
 alter table public.staff_issued_documents enable row level security;
 alter table public.staff_performance_cycles enable row level security;
@@ -1525,13 +2138,24 @@ create policy staff_attendance_days_scoped_read
     or public.staff_service_is_admin(auth.uid())
   );
 
+-- Finance is intentionally ABSENT here: the base claim row carries reason,
+-- manager_reason, hr_reason, staff_profile_id and workflow state, none of which
+-- Finance may see. Finance reads
+-- public.staff_service_list_overtime_financial_projection() instead.
 create policy staff_overtime_claims_scoped_read
   on public.staff_overtime_claims for select to authenticated
   using (
     public.staff_service_owns_profile(auth.uid(), staff_profile_id)
     or public.staff_service_manages_profile(auth.uid(), staff_profile_id)
     or public.staff_service_has_role(auth.uid(), 'hr', null)
-    or public.staff_service_has_role(auth.uid(), 'finance', null)
+    or public.staff_service_is_admin(auth.uid())
+  );
+
+-- Bounded verification counters: oversight roles only, never anon.
+create policy staff_document_verification_probe_stats_read
+  on public.staff_document_verification_probe_stats for select to authenticated
+  using (
+    public.staff_service_has_role(auth.uid(), 'hr', null)
     or public.staff_service_is_admin(auth.uid())
   );
 
@@ -1577,13 +2201,16 @@ create policy staff_promotion_financial_impact_finance_read
     or public.staff_service_is_admin(auth.uid())
   );
 
+-- Finance is intentionally ABSENT from the clearance base tables: it may not
+-- read the case reason, custody override reason or unrelated checkpoints. It
+-- decides its own checkpoint through
+-- public.staff_service_list_assigned_clearance_checkpoints().
 create policy staff_clearance_cases_scoped_read
   on public.staff_clearance_cases for select to authenticated
   using (
     public.staff_service_owns_profile(auth.uid(), staff_profile_id)
     or public.staff_service_manages_profile(auth.uid(), staff_profile_id)
     or public.staff_service_has_role(auth.uid(), 'hr', null)
-    or public.staff_service_has_role(auth.uid(), 'finance', null)
     or public.staff_service_is_admin(auth.uid())
   );
 
@@ -1597,7 +2224,6 @@ create policy staff_clearance_checkpoints_scoped_read
           public.staff_service_owns_profile(auth.uid(), c.staff_profile_id)
           or public.staff_service_manages_profile(auth.uid(), c.staff_profile_id)
           or public.staff_service_has_role(auth.uid(), 'hr', null)
-          or public.staff_service_has_role(auth.uid(), 'finance', null)
           or public.staff_service_is_admin(auth.uid())
         )
     )
@@ -1607,6 +2233,7 @@ create policy staff_clearance_checkpoints_scoped_read
 -- 10) Privileges — RPCs are authoritative; clients never mutate directly.
 -- ===========================================================================
 
+revoke all on table public.staff_document_verification_probe_stats from public, anon, authenticated;
 revoke all on table public.staff_value_added_audit_events from public, anon, authenticated;
 revoke all on table public.staff_issued_documents from public, anon, authenticated;
 revoke all on table public.staff_performance_cycles from public, anon, authenticated;
@@ -1621,6 +2248,7 @@ revoke all on table public.staff_promotion_financial_impact from public, anon, a
 revoke all on table public.staff_clearance_cases from public, anon, authenticated;
 revoke all on table public.staff_clearance_checkpoints from public, anon, authenticated;
 
+grant select on table public.staff_document_verification_probe_stats to authenticated;
 grant select on table public.staff_value_added_audit_events to authenticated;
 grant select on table public.staff_issued_documents to authenticated;
 grant select on table public.staff_performance_cycles to authenticated;
@@ -1635,6 +2263,7 @@ grant select on table public.staff_promotion_financial_impact to authenticated;
 grant select on table public.staff_clearance_cases to authenticated;
 grant select on table public.staff_clearance_checkpoints to authenticated;
 
+grant all on table public.staff_document_verification_probe_stats to service_role;
 grant all on table public.staff_value_added_audit_events to service_role;
 grant all on table public.staff_issued_documents to service_role;
 grant all on table public.staff_performance_cycles to service_role;
@@ -1665,6 +2294,14 @@ revoke all on function public.staff_service_decide_training_enrollment(uuid, tex
 revoke all on function public.staff_service_complete_training_enrollment(uuid, text, text) from public, anon;
 revoke all on function public.staff_service_decide_clearance_checkpoint(uuid, text, text) from public, anon;
 revoke all on function public.staff_service_complete_clearance_case(uuid, boolean, text) from public, anon;
+revoke all on function public.staff_service_list_overtime_financial_projection() from public, anon;
+revoke all on function public.staff_service_list_promotion_financial_projection() from public, anon;
+revoke all on function public.staff_service_list_assigned_clearance_checkpoints() from public, anon;
+revoke all on function public.staff_service_upsert_evaluation_draft(uuid, uuid, numeric, text, text, text, text) from public, anon;
+revoke all on function public.staff_service_open_promotion_case(uuid, text, text, text, text, uuid) from public, anon;
+revoke all on function public.staff_service_update_promotion_case(uuid, text, text, date, text) from public, anon;
+revoke all on function public.staff_service_open_clearance_case(uuid, text, uuid) from public, anon;
+revoke all on function public.staff_service_list_attendance_month_report(integer, integer) from public, anon;
 revoke all on function public.staff_service_get_value_added_capabilities() from public, anon;
 
 grant execute on function public.staff_service_manages_profile(uuid, uuid) to authenticated;
@@ -1682,6 +2319,14 @@ grant execute on function public.staff_service_decide_training_enrollment(uuid, 
 grant execute on function public.staff_service_complete_training_enrollment(uuid, text, text) to authenticated;
 grant execute on function public.staff_service_decide_clearance_checkpoint(uuid, text, text) to authenticated;
 grant execute on function public.staff_service_complete_clearance_case(uuid, boolean, text) to authenticated;
+grant execute on function public.staff_service_list_overtime_financial_projection() to authenticated;
+grant execute on function public.staff_service_list_promotion_financial_projection() to authenticated;
+grant execute on function public.staff_service_list_assigned_clearance_checkpoints() to authenticated;
+grant execute on function public.staff_service_upsert_evaluation_draft(uuid, uuid, numeric, text, text, text, text) to authenticated;
+grant execute on function public.staff_service_open_promotion_case(uuid, text, text, text, text, uuid) to authenticated;
+grant execute on function public.staff_service_update_promotion_case(uuid, text, text, date, text) to authenticated;
+grant execute on function public.staff_service_open_clearance_case(uuid, text, uuid) to authenticated;
+grant execute on function public.staff_service_list_attendance_month_report(integer, integer) to authenticated;
 grant execute on function public.staff_service_get_value_added_capabilities() to authenticated;
 
 -- Public authenticity check: intentionally reachable by anon, and intentionally
@@ -1694,6 +2339,12 @@ comment on table public.staff_value_added_audit_events is
   'Append-only 02E audit ledger; UPDATE and DELETE are rejected by triggers.';
 comment on table public.staff_overtime_financial_impact is
   'Finance-only monetary projection for overtime/assignment claims (least privilege boundary).';
+comment on table public.staff_document_verification_probe_stats is
+  'Bounded hourly counters for public verification attempts; contains audit amplification without storing token material.';
+comment on function public.staff_service_list_overtime_financial_projection() is
+  'Finance-safe overtime projection: money only, no reasons, notes, attachments or holder identity.';
+comment on function public.staff_service_list_assigned_clearance_checkpoints() is
+  'Checkpoint-owner projection: only the checkpoints the caller must decide, with minimal case context.';
 comment on table public.staff_promotion_financial_impact is
   'Finance-only monetary projection for promotion/settlement cases (least privilege boundary).';
 
