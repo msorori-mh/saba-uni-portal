@@ -293,4 +293,109 @@ grant execute on function public.staff_service_acknowledge_correspondence(uuid)
 grant execute on function public.staff_service_authorize_payroll_statement_download(uuid)
   to authenticated;
 
+-- 5) Close the unpublished-payroll disclosure gap at the RLS layer itself.
+--    Before 02D the owner could SELECT an unpublished statement (and its
+--    components) directly, even though the download RPC refused it.
+drop policy if exists staff_payroll_statements_owner_or_finance_read
+  on public.staff_payroll_statements;
+
+create policy staff_payroll_statements_owner_or_finance_read
+  on public.staff_payroll_statements for select to authenticated
+  using (
+    (
+      published_at is not null
+      and exists (
+        select 1 from public.staff_profiles sp
+        where sp.id = staff_profile_id and sp.user_id = auth.uid()
+      )
+    )
+    or public.staff_service_has_role(auth.uid(), 'finance', null)
+    or public.staff_service_is_admin(auth.uid())
+  );
+
+drop policy if exists staff_payroll_components_owner_or_finance_read
+  on public.staff_payroll_components;
+
+create policy staff_payroll_components_owner_or_finance_read
+  on public.staff_payroll_components for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.staff_payroll_statements ps
+      join public.staff_profiles sp on sp.id = ps.staff_profile_id
+      where ps.id = statement_id
+        and sp.user_id = auth.uid()
+        and ps.published_at is not null
+    )
+    or public.staff_service_has_role(auth.uid(), 'finance', null)
+    or public.staff_service_is_admin(auth.uid())
+  );
+
+-- 6) Boolean-only capability probe for the UI. Returns no names, no rows and
+--    no identifiers: it exists purely so the client can hide sections it can
+--    never use. RLS remains the real defence line.
+create or replace function public.staff_service_get_current_capabilities()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_admin boolean;
+  v_employee boolean;
+  v_manager boolean;
+  v_hr boolean;
+  v_finance boolean;
+begin
+  if v_user is null then
+    return jsonb_build_object(
+      'is_employee', false,
+      'is_direct_manager', false,
+      'is_hr', false,
+      'is_finance', false,
+      'is_administrator', false,
+      'can_view_payroll_scope', false,
+      'can_view_hr_scope', false,
+      'can_view_audit_scope', false
+    );
+  end if;
+
+  v_admin := public.staff_service_is_admin(v_user);
+
+  select exists (
+    select 1 from public.staff_profiles sp
+    where sp.user_id = v_user and sp.status = 'active'
+  ) into v_employee;
+
+  select
+    coalesce(bool_or(a.role = 'direct_manager'), false),
+    coalesce(bool_or(a.role = 'hr'), false),
+    coalesce(bool_or(a.role = 'finance'), false)
+  into v_manager, v_hr, v_finance
+  from public.staff_service_role_assignments a
+  where a.user_id = v_user
+    and a.active
+    and a.valid_from <= current_date
+    and (a.valid_until is null or a.valid_until >= current_date);
+
+  return jsonb_build_object(
+    'is_employee', v_employee,
+    'is_direct_manager', v_manager,
+    'is_hr', v_hr,
+    'is_finance', v_finance,
+    'is_administrator', v_admin,
+    'can_view_payroll_scope', v_finance or v_admin,
+    'can_view_hr_scope', v_hr or v_admin,
+    'can_view_audit_scope', v_employee or v_hr or v_finance or v_admin
+  );
+end;
+$$;
+
+revoke all on function public.staff_service_get_current_capabilities()
+  from public, anon;
+grant execute on function public.staff_service_get_current_capabilities()
+  to authenticated;
+
 commit;
