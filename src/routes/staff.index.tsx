@@ -4,6 +4,7 @@ import { GraduationCap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StaffSelfServiceShowcase } from "@/components/staff-showcase/StaffSelfServiceShowcase";
+import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
 import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures } from "@/lib/portal-features";
 
@@ -50,6 +51,11 @@ function StaffDashboard() {
         </div>
       ) : (
         <>
+          {portalFeatures.staffSelfServiceLive && (
+            <div className="container mx-auto max-w-[1600px] px-4 pt-5">
+              <StaffSelfServiceLiveActions variant="employee" />
+            </div>
+          )}
           <StaffSelfServiceShowcase profile={profile} />
           {portalFeatures.staffGraduatesAffairs && (
             <div className="container mx-auto max-w-6xl px-4 pb-8 print:hidden">
