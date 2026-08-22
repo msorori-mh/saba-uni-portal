@@ -7,15 +7,20 @@ begin
      or to_regclass('public.staff_correspondence_recipients') is null then
     raise exception 'STAFF_CORRESPONDENCE_02H_REQUIRES_02A';
   end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname='public'
+      and tablename='staff_correspondence'
+      and policyname='staff_correspondence_recipient_or_publisher_read'
+  ) then
+    raise exception 'STAFF_CORRESPONDENCE_02H_POLICY_MISSING';
+  end if;
 end
 $guard$;
 
-drop policy if exists staff_correspondence_recipient_or_publisher_read
-  on public.staff_correspondence;
-
-create policy staff_correspondence_recipient_or_publisher_read
+alter policy staff_correspondence_recipient_or_publisher_read
 on public.staff_correspondence
-for select
 to authenticated
 using (
   (
