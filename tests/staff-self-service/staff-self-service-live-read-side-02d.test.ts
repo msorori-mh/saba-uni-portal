@@ -186,9 +186,9 @@ describe("PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D — source contract", () 
     expect(dashboard).toContain("{letter.body}");
   });
 
-  test("both surfaces stay behind the fail-closed feature flag", () => {
+  test("both surfaces activate under the controlled 02G showcase flag", () => {
     const features = readFileSync(root + "/src/lib/portal-features.ts", "utf8");
-    expect(features).toContain("staffSelfServiceLive: false");
+    expect(features).toContain("staffSelfServiceLive: true");
     expect(staffRoute).toContain("<StaffSelfServiceLiveDashboard />");
     expect(staffRoute).toContain("portalFeatures.staffSelfServiceLive");
     expect(adminRoute).toContain("<StaffSelfServiceLiveWorkbench />");

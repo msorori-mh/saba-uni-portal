@@ -14,12 +14,12 @@ export const portalFeatures = {
   studentGraduatesAffairs: true,
   /** Graduates-affairs staff surfaces — ON for final product operational closure. */
   staffGraduatesAffairs: true,
-  /** Staff self-service live writes — OFF until 02A/02B staged apply and release gate. */
-  staffSelfServiceLive: false,
-  /** Staff value-added modules (02E) — OFF until the 02E staged apply and release gate. */
-  staffSelfServiceValueAdded: false,
-  /** Staff governance/reports/MFA (02F) — OFF until staged apply and AAL2 verification. */
-  staffSelfServiceGovernance: false,
+  /** Staff self-service live writes — ON for the controlled TEST_ONLY 02G showcase. */
+  staffSelfServiceLive: true,
+  /** Staff value-added modules (02E) — ON for the controlled TEST_ONLY 02G showcase. */
+  staffSelfServiceValueAdded: true,
+  /** Staff governance/reports/MFA (02F) — ON; server-side AAL2 remains fail-closed. */
+  staffSelfServiceGovernance: true,
 } as const;
 
 export type PortalFeatureKey = keyof typeof portalFeatures;

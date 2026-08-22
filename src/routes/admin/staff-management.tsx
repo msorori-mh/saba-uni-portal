@@ -318,6 +318,10 @@ function StaffManagementPage() {
         <TabsContent value="services" className="mt-6">
           {portalFeatures.staffSelfServiceLive && (
             <div className="space-y-4">
+              <div data-testid="staff-02g-admin-demo-badge" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-extrabold text-amber-950 print:hidden">
+                بيانات تجريبية للعرض
+                <span className="mr-2 text-xs font-medium">الطلبات والرواتب والتقارير الموسومة TEST_ONLY_02G ليست سجلات حقيقية.</span>
+              </div>
               <StaffSelfServiceLiveActions variant="approver" />
               <StaffSelfServiceLiveWorkbench />
               {portalFeatures.staffSelfServiceValueAdded && (

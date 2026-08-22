@@ -205,11 +205,11 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
     expect(adminPanel).not.toContain("<code>{issuedToken}</code>");
   });
 
-  test("both surfaces stay behind the fail-closed feature flag", () => {
+  test("both surfaces activate under the controlled 02G showcase flag", () => {
     const features = read("src/lib/portal-features.ts");
     const staffRoute = read("src/routes/staff.index.tsx");
     const adminRoute = read("src/routes/admin/staff-management.tsx");
-    expect(features).toContain("staffSelfServiceValueAdded: false");
+    expect(features).toContain("staffSelfServiceValueAdded: true");
     expect(staffRoute).toContain("<StaffValueAddedEmployeePanel />");
     expect(staffRoute).toContain("portalFeatures.staffSelfServiceValueAdded");
     expect(adminRoute).toContain("<StaffValueAddedAdminPanel />");

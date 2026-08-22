@@ -57,6 +57,10 @@ function StaffDashboard() {
         <>
           {portalFeatures.staffSelfServiceLive && (
             <div className="container mx-auto max-w-[1600px] space-y-4 px-4 pt-5">
+              <div data-testid="staff-02g-demo-badge" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-extrabold text-amber-950 print:hidden">
+                بيانات تجريبية للعرض
+                <span className="mr-2 text-xs font-medium">لا تمثل سجلات موارد بشرية أو مالية حقيقية.</span>
+              </div>
               <StaffSelfServiceLiveActions variant="employee" />
               <StaffSelfServiceLiveDashboard />
               {portalFeatures.staffSelfServiceValueAdded && (
