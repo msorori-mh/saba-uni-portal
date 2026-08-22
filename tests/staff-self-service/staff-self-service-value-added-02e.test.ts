@@ -110,6 +110,63 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
     expect(migration).toContain(
       "create policy staff_promotion_financial_impact_finance_read",
     );
+    expect(migration).toContain(
+      "public.staff_service_list_overtime_financial_projection()",
+    );
+    expect(migration).toContain(
+      "public.staff_service_list_promotion_financial_projection()",
+    );
+    expect(migration).toContain(
+      "Finance is intentionally ABSENT here",
+    );
+  });
+
+  test("sensitive fields are protected by column grants, not adapter convention", () => {
+    expect(migration).toContain("Column-level grants are a second");
+    expect(migration).not.toContain(
+      "grant select on table public.staff_issued_documents to authenticated;",
+    );
+    expect(migration).not.toContain(
+      "grant select on table public.staff_training_enrollments to authenticated;",
+    );
+    for (const forbidden of [
+      "verification_token_digest",
+      "certificate_object_path",
+      "certificate_sha256",
+      "idempotency_key",
+    ]) {
+      expect(adapter).toContain(forbidden);
+    }
+  });
+
+  test("authoring RPCs close evaluation, promotion, clearance and reporting flows", () => {
+    for (const rpc of [
+      "staff_service_upsert_evaluation_draft",
+      "staff_service_open_promotion_case",
+      "staff_service_update_promotion_case",
+      "staff_service_open_clearance_case",
+      "staff_service_list_attendance_month_report",
+      "staff_service_list_assigned_clearance_checkpoints",
+    ]) {
+      expect(migration).toContain(`function public.${rpc}`);
+      expect(adapter).toContain(`"${rpc}"`);
+    }
+    expect(migration).toContain("'performance', v_row.id, 'evaluation_draft_saved'");
+    expect(migration).not.toContain("'evaluation', v_row.id, 'evaluation_draft_saved'");
+  });
+
+  test("training certificate metadata is enforced server-side", () => {
+    expect(migration).toContain(
+      "(p_certificate_object_path is null) <> (p_certificate_sha256 is null)",
+    );
+    expect(migration).toContain(
+      "(status in ('approved', 'rejected', 'completed')) = (decided_at is not null)",
+    );
+    expect(migration).toContain(
+      "(certificate_object_path is null) = (certificate_sha256 is null)",
+    );
+    expect(migration).toContain("p_certificate_object_path ~*");
+    expect(migration).toContain("STAFF_SERVICE_TRAINING_CERTIFICATE_INVALID");
   });
 
   test("clearance checkpoints require a real assignment, not admin implication", () => {
@@ -142,6 +199,10 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
     expect(publicRoute).toContain("staff-02e-public-verification");
     expect(publicRoute).toContain('name: "robots", content: "noindex"');
     expect(publicRoute).not.toContain("staff_profile_id");
+    expect(adminPanel).toContain('import QRCode from "qrcode"');
+    expect(adminPanel).toContain("QRCode.toDataURL(verificationUrl");
+    expect(adminPanel).toContain("/verify-document?token=");
+    expect(adminPanel).not.toContain("<code>{issuedToken}</code>");
   });
 
   test("both surfaces stay behind the fail-closed feature flag", () => {
@@ -162,7 +223,7 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
     for (const marker of [
       "A_EMPLOYEE_SELF_ISSUE_UNEXPECTED_SUCCESS",
       "A_UNAPPROVED_REQUEST_ISSUE_UNEXPECTED_SUCCESS",
-      "B_TOKEN_STORED_IN_CLEAR",
+      "B_VERIFICATION_LEAKS_SENSITIVE_FIELDS",
       "B_REVOKED_DOCUMENT_STILL_VALID",
       "B_ANON_DOCUMENT_TABLE_READ_UNEXPECTED_SUCCESS",
       "C_SELF_FINALIZE_UNEXPECTED_SUCCESS",
@@ -177,6 +238,15 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
       "G_AUDIT_UPDATE_UNEXPECTED_SUCCESS",
       "H_OUTSIDER_CAPABILITY_LEAK",
       "I_ANON_RPC_GRANT",
+      "J_IDENTITY_ORACLE_OWNS_PROFILE",
+      "J_POST_FINALIZE_EDIT_UNEXPECTED_SUCCESS",
+      "K_PUBLIC_CERTIFICATE_URL_UNEXPECTED_SUCCESS",
+      "L_PROMOTION_IDEMPOTENCY_BROKEN",
+      "M_CLEARANCE_FIVE_CHECKPOINTS_NOT_ATOMIC",
+      "N_FINANCE_ATTENDANCE_REPORT_UNEXPECTED_SUCCESS",
+      "O_FINANCE_BASE_ROW_DISCLOSURE",
+      "O_SENSITIVE_COLUMN_GRANT_PRESENT",
+      "P_PROBE_COUNTER_NOT_AGGREGATED",
       "PASS_STAFF_SELF_SERVICE_PG17_VALUE_ADDED_02E",
     ]) {
       expect(verifier).toContain(marker);
