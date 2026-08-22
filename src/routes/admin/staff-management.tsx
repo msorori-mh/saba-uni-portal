@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaffDeleteDialog } from "@/components/admin/staff-management/StaffDeleteDialog";
 import { ProcessingRolesTab } from "@/components/admin/staff-management/ProcessingRolesTab";
 import { EmployeeServicesShowcase } from "@/components/admin/staff-management/EmployeeServicesShowcase";
+import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
+import { portalFeatures } from "@/lib/portal-features";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
@@ -310,6 +312,9 @@ function StaffManagementPage() {
         </TabsContent>
 
         <TabsContent value="services" className="mt-6">
+          {portalFeatures.staffSelfServiceLive && (
+            <StaffSelfServiceLiveActions variant="approver" />
+          )}
           <EmployeeServicesShowcase />
         </TabsContent>
 
