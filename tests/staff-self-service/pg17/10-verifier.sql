@@ -57,6 +57,7 @@ create temporary table test_staff_service_state (
 ) on commit drop;
 
 grant select, insert, update on test_staff_service_state to authenticated;
+grant select on test_staff_service_state to service_role;
 
 -- A. Employee submission creates the exact two-step workflow.
 set local role authenticated;
@@ -457,4 +458,3 @@ $$;
 select 'PASS_STAFF_SELF_SERVICE_PG17_STORAGE_BINDING_02B';
 
 rollback;
-
