@@ -168,23 +168,9 @@ begin
     raise exception 'B_TOKEN_NOT_OPAQUE';
   end if;
 
-  -- The raw token must never be stored anywhere.
-  if exists (
-    select 1 from public.staff_issued_documents
-    where id = v_doc_id and verification_token_digest = v_token
-  ) then
-    raise exception 'B_TOKEN_STORED_IN_CLEAR';
-  end if;
-
-  if not exists (
-    select 1 from public.staff_issued_documents
-    where id = v_doc_id
-      and verification_token_digest
-          = encode(sha256(convert_to(v_token, 'UTF8')), 'hex')
-  ) then
-    raise exception 'B_TOKEN_DIGEST_MISMATCH';
-  end if;
-
+  -- A successful verification proves the stored digest matches SHA-256(token).
+  -- The authenticated role intentionally cannot SELECT the digest column at
+  -- all; that independent column-privilege assertion is pinned in section O.
   v_check := public.staff_service_verify_issued_document(v_token);
   if v_check ->> 'result' <> 'valid' then
     raise exception 'B_VALID_DOCUMENT_NOT_VERIFIED';
