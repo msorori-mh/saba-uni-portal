@@ -35,9 +35,15 @@ begin
     raise exception '02G fail-closed: the test employee already belongs to another department';
   end if;
 
+  perform set_config('app.bypass_staff_lock','1',true);
   update public.staff_profiles
   set department_id = v_department, updated_at = clock_timestamp()
   where id = v_employee_profile and department_id is null;
+  perform set_config('app.bypass_staff_lock','0',true);
+
+  insert into public.staff_profile_departments (staff_profile_id, department_id)
+  values (v_employee_profile, v_department)
+  on conflict (staff_profile_id, department_id) do nothing;
 
   insert into public.staff_service_role_assignments
     (id, user_id, role, department_id, active, valid_from, granted_by)
