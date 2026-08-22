@@ -248,7 +248,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
               {error && (
-                <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
+                <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive space-y-1.5">
                   <div>{error}</div>
                 </div>
               )}
