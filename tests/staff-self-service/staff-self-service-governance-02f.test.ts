@@ -114,8 +114,8 @@ describe("PORTAL_STAFF_SELF_SERVICE_GOVERNANCE_02F — source contract", () => {
     expect(panels).not.toContain(".rpc(");
   });
 
-  test("feature flag stays fail-closed and both portals are wired", () => {
-    expect(features).toContain("staffSelfServiceGovernance: false");
+  test("feature flag activates for 02G while server-side AAL2 stays fail-closed", () => {
+    expect(features).toContain("staffSelfServiceGovernance: true");
     expect(employeeRoute).toContain("StaffGovernanceEmployeePanel");
     expect(employeeRoute).toContain(
       "portalFeatures.staffSelfServiceGovernance",
