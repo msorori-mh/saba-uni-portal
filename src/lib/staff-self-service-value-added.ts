@@ -661,13 +661,20 @@ export const staffPromotionCaseSchema = z.object({
   notes: z.string().nullable(),
 });
 
-export const staffPromotionFinancialImpactSchema = z.object({
-  case_id: z.string().uuid(),
-  currency_code: z.literal("YER"),
-  current_basic: numericLike,
-  proposed_basic: numericLike,
-  retroactive_amount: numericLike,
-});
+/** Finance-safe promotion surface: money only, never case notes. */
+export const staffPromotionFinancialImpactSchema = z
+  .object({
+    case_id: z.string().uuid(),
+    case_no: z.string().min(1),
+    case_kind: z.enum(["promotion", "settlement", "grade_adjustment"]),
+    financial_status: z.enum(["approved_for_settlement", "not_settleable"]),
+    effective_on: isoDate.nullable(),
+    currency_code: z.literal("YER"),
+    current_basic: numericLike,
+    proposed_basic: numericLike,
+    retroactive_amount: numericLike,
+  })
+  .strict();
 
 export type StaffPromotionCase = z.infer<typeof staffPromotionCaseSchema>;
 export type StaffPromotionFinancialImpact = z.infer<
@@ -686,16 +693,56 @@ export async function fetchStaffPromotionCases(): Promise<
   );
 }
 
-/** Finance-only projection; RLS returns nothing for other roles. */
+/** Finance/Administrator only: narrow money projection, never base notes. */
 export async function fetchStaffPromotionFinancialImpact(): Promise<
   StaffPromotionFinancialImpact[]
 > {
-  return readRows(
-    () =>
-      fromTable("staff_promotion_financial_impact")
-        .select(staffValueAddedProjections.promotionFinancialImpact)
-        .order("updated_at", { ascending: false }),
-    staffPromotionFinancialImpactSchema,
+  return callRpc(
+    "staff_service_list_promotion_financial_projection",
+    {},
+    z.array(staffPromotionFinancialImpactSchema),
+  );
+}
+
+export async function openPromotionCase(input: {
+  staffProfileId: string;
+  caseKind: "promotion" | "settlement" | "grade_adjustment";
+  currentGrade?: string | null;
+  proposedGrade?: string | null;
+  notes?: string | null;
+  idempotencyKey?: string;
+}) {
+  return callRpc(
+    "staff_service_open_promotion_case",
+    {
+      p_staff_profile_id: z.string().uuid().parse(input.staffProfileId),
+      p_case_kind: input.caseKind,
+      p_current_grade: input.currentGrade ?? null,
+      p_proposed_grade: input.proposedGrade ?? null,
+      p_notes: input.notes ?? null,
+      p_idempotency_key: input.idempotencyKey ?? crypto.randomUUID(),
+    },
+    staffPromotionCaseSchema.passthrough(),
+  );
+}
+
+export async function updatePromotionCase(input: {
+  caseId: string;
+  status: "hr_review" | "approved" | "rejected" | "implemented";
+  proposedGrade?: string | null;
+  effectiveOn?: string | null;
+  notes?: string | null;
+}) {
+  return callRpc(
+    "staff_service_update_promotion_case",
+    {
+      p_case_id: z.string().uuid().parse(input.caseId),
+      p_status: input.status,
+      p_proposed_grade: input.proposedGrade ?? null,
+      p_effective_on: input.effectiveOn || null,
+      p_notes: input.notes ?? null,
+    },
+    staffPromotionCaseSchema.passthrough(),
   );
 }
 
