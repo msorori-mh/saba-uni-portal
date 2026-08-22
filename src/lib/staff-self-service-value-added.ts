@@ -434,13 +434,26 @@ export const staffOvertimeClaimSchema = z.object({
   hr_reason: z.string().nullable(),
 });
 
-export const staffOvertimeFinancialImpactSchema = z.object({
-  claim_id: z.string().uuid(),
-  currency_code: z.literal("YER"),
-  hourly_rate: numericLike,
-  gross_amount: numericLike,
-  settled_at: isoTimestamp.nullable(),
-});
+/**
+ * Finance-safe overtime surface.
+ *
+ * Finance has NO access to `staff_overtime_claims` (reason, manager_reason,
+ * hr_reason, staff_profile_id, workflow state). It reads money only through
+ * this narrow server projection.
+ */
+export const staffOvertimeFinancialImpactSchema = z
+  .object({
+    claim_id: z.string().uuid(),
+    claim_no: z.string().min(1),
+    claim_kind: z.enum(["overtime", "assignment"]),
+    financial_status: z.enum(["approved_for_settlement", "not_settleable"]),
+    approved_total_hours: numericLike.nullable(),
+    currency_code: z.literal("YER"),
+    hourly_rate: numericLike,
+    gross_amount: numericLike,
+    settled_at: isoTimestamp.nullable(),
+  })
+  .strict();
 
 export type StaffOvertimeClaim = z.infer<typeof staffOvertimeClaimSchema>;
 export type StaffOvertimeFinancialImpact = z.infer<
@@ -459,16 +472,14 @@ export async function fetchStaffOvertimeClaims(): Promise<
   );
 }
 
-/** Finance-only projection; RLS returns nothing for other roles. */
+/** Finance/Administrator only: narrow money projection, never the base row. */
 export async function fetchStaffOvertimeFinancialImpact(): Promise<
   StaffOvertimeFinancialImpact[]
 > {
-  return readRows(
-    () =>
-      fromTable("staff_overtime_financial_impact")
-        .select(staffValueAddedProjections.overtimeFinancialImpact)
-        .order("updated_at", { ascending: false }),
-    staffOvertimeFinancialImpactSchema,
+  return callRpc(
+    "staff_service_list_overtime_financial_projection",
+    {},
+    z.array(staffOvertimeFinancialImpactSchema),
   );
 }
 
