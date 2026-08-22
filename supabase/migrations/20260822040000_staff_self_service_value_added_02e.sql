@@ -321,10 +321,13 @@ create table public.staff_training_enrollments (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (course_id, staff_profile_id),
-  check ((status in ('approved', 'rejected')) = (decided_at is not null)),
+  -- A completed enrollment necessarily passed through approval and therefore
+  -- retains the authoritative decision timestamp.
+  check ((status in ('approved', 'rejected', 'completed')) = (decided_at is not null)),
   check (status <> 'rejected' or nullif(btrim(decision_reason), '') is not null),
   check ((status = 'completed') = (completed_at is not null)),
-  check ((certificate_object_path is null) = (certificate_bucket is null))
+  check ((certificate_object_path is null) = (certificate_bucket is null)),
+  check ((certificate_object_path is null) = (certificate_sha256 is null))
 );
 
 create trigger staff_training_enrollments_touch

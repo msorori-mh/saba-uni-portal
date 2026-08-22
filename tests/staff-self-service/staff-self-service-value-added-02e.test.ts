@@ -159,6 +159,12 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
     expect(migration).toContain(
       "(p_certificate_object_path is null) <> (p_certificate_sha256 is null)",
     );
+    expect(migration).toContain(
+      "(status in ('approved', 'rejected', 'completed')) = (decided_at is not null)",
+    );
+    expect(migration).toContain(
+      "(certificate_object_path is null) = (certificate_sha256 is null)",
+    );
     expect(migration).toContain("p_certificate_object_path ~*");
     expect(migration).toContain("STAFF_SERVICE_TRAINING_CERTIFICATE_INVALID");
   });
