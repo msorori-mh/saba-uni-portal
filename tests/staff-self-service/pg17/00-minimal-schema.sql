@@ -38,6 +38,11 @@ create table public.staff_profiles (
   status text not null default 'active'
 );
 
+-- Existing portal baseline: authenticated users can SELECT staff_profiles,
+-- while RLS in the real chain limits rows. The disposable fixture only needs
+-- this table privilege so 02A payroll policies can evaluate their owner join.
+grant select on public.staff_profiles to authenticated;
+
 create table public.test_admin_users (
   user_id uuid primary key references auth.users(id)
 );
@@ -79,4 +84,3 @@ alter table storage.objects enable row level security;
 grant select, insert on storage.objects to authenticated;
 grant all on all tables in schema public, auth, storage to service_role;
 grant execute on all functions in schema public, auth to service_role;
-
