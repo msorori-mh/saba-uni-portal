@@ -2,6 +2,7 @@
 
 MODE: SOURCE_ONLY on the managed edit branch `edit/edt-6c250e9e-…`
 BASELINE: `cdf1ad52a115fd6c873c37a39ce1ddd80f099a55`
+SECURITY REVIEW: applied on top of `0a541c885e1d8cbdc7f785289f4039b0d08f111d`
 PRODUCTION_WRITES = 0 | MIGRATION_APPLY = 0 | DEPLOY = 0 | PUBLISH = 0 | MAIN_TOUCHED = 0
 
 ## 1. Scope delivered
@@ -20,6 +21,9 @@ privileges return — no more, no less.
 | `staff_service_record_correspondence_read(uuid)` | Idempotent, monotonic (`coalesce(read_at, now())`), requires a published correspondence and an actual recipient row. |
 | `staff_service_acknowledge_correspondence(uuid)` | Same guarantees; never overwrites an earlier `read_at`. |
 | `staff_service_authorize_payroll_statement_download(uuid)` | Owner / finance / administrator only, published statements only, returns the exact statement projection the PDF needs plus a 300s validity. |
+| **Review fix:** `staff_payroll_statements_owner_or_finance_read` and `staff_payroll_components_owner_or_finance_read` rebuilt | The owner could previously `SELECT` an *unpublished* statement (and its components) directly, even though the download RPC refused it. The owner branch now requires `published_at is not null`; Finance/Administrator keep the administrative scope of the current contract. |
+| **Review fix:** audit uniqueness narrowed to a partial unique index on `subject_kind = 'correspondence'` | Every payroll download must be appended as its own audit event. Only receipt facts (received/read/acknowledged) stay idempotent. |
+| **Review fix:** `staff_service_get_current_capabilities()` | Boolean-only capability probe (`is_employee/is_direct_manager/is_hr/is_finance/is_administrator` + payroll/HR/audit scope flags). No names, rows or identifiers. `security definer`, fixed `search_path`, revoked from `public`/`anon`. |
 
 All three RPCs are `security definer` with `set search_path = public, pg_temp`,
 revoked from `public`/`anon`, and granted to `authenticated` only.
@@ -29,7 +33,14 @@ revoked from `public`/`anon`, and granted to `authenticated` only.
 Single typed seam for every read. Strict explicit column projections (never
 `select *`), Zod validation of each row before it reaches React, and an
 explicit forbidden-column list (`payload`, `last_error`, `idempotency_key`,
-`sha256`, `object_path`, `pdf_object_path`, `source_reference`, `body`).
+`sha256`, `object_path`, `pdf_object_path`, `source_reference`).
+`body` was removed from that list in the review: the circular text is the whole
+point of the staff inbox and is already governed by the correspondence RLS
+policy. The adapter also gained `fetchStaffCorrespondenceReceiptSummary()`
+(per-circular recipients/read/acknowledged totals within RLS, no recipient
+identity projected), `fetchStaffServiceCapabilities()`, and an explicit
+`recipient_user_id = auth.uid()` filter so the employee dashboard can never bind
+to an arbitrary other recipient's receipt row.
 RLS denials are converted into a safe Arabic message rather than leaking the
 underlying database error.
 
@@ -65,10 +76,14 @@ Seven source-contract tests pin the migration, the RPC security attributes, the
 read projections, the server-only PDF boundary, the RTL/fail-closed UI rules and
 the feature flag.
 
-The eighth is a real runtime gate. The sandbox has no Docker, so instead of
-skipping the gate the harness provisions a disposable PostgreSQL 17.9 cluster
-with `initdb` (driven through an unprivileged uid via `setpriv`, since Postgres
-refuses to run as root), applies 02A → 02B → 02D, and runs
+The eighth is a real runtime gate and is now **dual-backend**: it uses a local
+PostgreSQL 17 toolchain when one exists, otherwise a disposable `postgres:17`
+Docker container (the 02B pattern), and fails loudly when neither is available —
+it never skips silently. The unprivileged uid used for the local path is
+discovered from the environment (`SUDO_UID` / `PG_TEST_UID`, falling back to a
+verified uid) instead of being hard-coded, and the Docker path needs no uid
+handling at all. In this sandbox it ran on a local PostgreSQL 17.9 cluster,
+applying 02A → 02B → 02D and running
 `tests/staff-self-service/pg17/20-verifier-02d.sql` inside a transaction that
 always rolls back. Proven there:
 
@@ -82,13 +97,40 @@ always rolls back. Proven there:
 | Payroll: owner / finance / administrator allowed with correct access mode | PASS |
 | Payroll: direct manager denied | PASS |
 | Payroll: peer employee denied | PASS |
-| Payroll: unpublished statement denied even to its owner | PASS |
+| Payroll: unpublished statement denied even to its owner (RPC) | PASS |
+| Payroll: unpublished statement + components invisible to their owner via **direct SELECT** | PASS |
+| Payroll: published statement + components still readable by the owner | PASS |
+| Two payroll download calls produce two separate audit events | PASS |
+| Correspondence receipt audit events stay exactly one per fact | PASS |
+| Capabilities: employee has no payroll/HR scope; manager has no payroll scope | PASS |
+| Capabilities: Finance is capability-allowed with zero rows in scope (empty ≠ denial) | PASS |
+| Capabilities: outsider gets all-false; payload carries no names or identifiers | PASS |
 | Audit ledger records events, hides other actors, rejects UPDATE and DELETE | PASS |
 | No broad `INSERT/UPDATE/DELETE` grants to `anon`/`authenticated` on read-side tables | PASS |
-| No `anon` execute grant on the three RPCs | PASS |
+| No `anon` execute grant on the RPCs, capability probe included | PASS |
 
-Other checks: `tsgo --noEmit` clean, `bun run build` succeeded,
-`git diff --check` clean, and the rest of `tests/staff-self-service` passes.
+### UI authority
+
+`StaffSelfServiceLiveWorkbench` no longer infers Finance from "a statement that
+belongs to someone else". It calls the boolean-only capability probe and uses it
+to show/hide the payroll, HR and audit sections, with a distinct empty state
+(`staff-02d-wb-payroll-empty`) so an authorised Finance user with zero rows is
+never shown a denial. Correspondence rows now display real per-circular
+recipients/read/acknowledged totals instead of a single arbitrary receipt.
+`StaffSelfServiceLiveDashboard` renders the circular body on demand
+(`staff-02d-correspondence-body`), followed by mark-read and acknowledge.
+RLS remains the real defence line in every case.
+
+### Environment results (actual)
+
+| Check | Result |
+| --- | --- |
+| `bun test tests/staff-self-service/staff-self-service-live-read-side-02d.test.ts` | 8/8 pass (PG17 runtime gate included) |
+| `bun test tests/staff-self-service` | 34 pass, 1 fail — the pre-existing Docker-only 02B gate (`docker is required…`), unchanged by this review |
+| `bunx vitest run` | pass |
+| `bunx tsgo --noEmit` | clean |
+| `bun run build` | success |
+| `git diff --check` | clean |
 
 ## 3. Assumptions
 
@@ -108,10 +150,11 @@ Other checks: `tsgo --noEmit` clean, `bun run build` succeeded,
 
 ## 5. Obstacles
 
-- Docker is unavailable in this sandbox, so the pre-existing Docker-based 02B
-  runtime test still fails here for environmental reasons only (unchanged by this
-  work). The 02D gate was written against a local `initdb` cluster instead, so it
-  runs for real rather than being skipped.
+- Docker is unavailable in this sandbox, so the pre-existing Docker-only 02B
+  runtime test still fails here for environmental reasons only. It is reported as
+  a real failure rather than claimed as PASS. The 02D gate is dual-backend and
+  ran for real on the local PostgreSQL 17.9 toolchain; back-porting the same
+  dual-backend harness to 02B is outside this review's scope.
 
 ## 6. Production impact
 

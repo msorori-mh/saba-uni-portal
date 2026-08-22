@@ -27,7 +27,7 @@ export const staffReadProjections = {
   careerHistory:
     "id,event_type,effective_on,grade,job_title,decision_reference,notes",
   correspondence:
-    "id,reference_no,title,importance,archive_category,published_at,sender_department_id",
+    "id,reference_no,title,body,importance,archive_category,published_at,sender_department_id",
   correspondenceRecipients:
     "id,correspondence_id,received_at,read_at,acknowledged_at",
   custody:
@@ -53,7 +53,6 @@ export const staffReadForbiddenColumns = [
   "object_path",
   "pdf_object_path",
   "source_reference",
-  "body",
 ] as const;
 
 const numericLike = z.union([z.number(), z.string()]).transform((value) => {
@@ -121,6 +120,7 @@ export const staffCorrespondenceSchema = z.object({
   reference_no: z.string().min(1),
   title: z.string().min(1),
   importance: z.enum(["normal", "important", "urgent"]),
+  body: z.string(),
   archive_category: z.string().min(1),
   published_at: isoTimestamp.nullable(),
   sender_department_id: z.string().uuid().nullable(),
@@ -371,6 +371,46 @@ export async function fetchStaffCorrespondence(): Promise<
     staffCorrespondenceSchema,
   );
 
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id ?? null;
+
+  // Only the signed-in recipient's own receipts may drive the employee UI.
+  // HR/administrator accounts can read other recipients' rows, so the filter
+  // is explicit instead of "first matching row wins".
+  const receipts = userId
+    ? await readRows(
+        () =>
+          fromTable("staff_correspondence_recipients")
+            .select(staffReadProjections.correspondenceRecipients)
+            .eq("recipient_user_id", userId)
+            .order("created_at", { ascending: false }),
+        staffCorrespondenceReceiptSchema,
+      )
+    : [];
+
+  return letters.map((letter) => ({
+    ...letter,
+    receipt:
+      receipts.find((receipt) => receipt.correspondence_id === letter.id) ??
+      null,
+  }));
+}
+
+export type StaffCorrespondenceReceiptSummary = {
+  correspondence_id: string;
+  recipients_total: number;
+  read_total: number;
+  acknowledged_total: number;
+};
+
+/**
+ * Aggregated receipt tracking per correspondence, strictly within RLS: an
+ * employee only ever aggregates their own row, HR/administrator aggregate the
+ * rows the database actually returned. No recipient identity is projected.
+ */
+export async function fetchStaffCorrespondenceReceiptSummary(): Promise<
+  StaffCorrespondenceReceiptSummary[]
+> {
   const receipts = await readRows(
     () =>
       fromTable("staff_correspondence_recipients")
@@ -379,12 +419,56 @@ export async function fetchStaffCorrespondence(): Promise<
     staffCorrespondenceReceiptSchema,
   );
 
-  return letters.map((letter) => ({
-    ...letter,
-    receipt:
-      receipts.find((receipt) => receipt.correspondence_id === letter.id) ??
-      null,
-  }));
+  const summary = new Map<string, StaffCorrespondenceReceiptSummary>();
+  for (const receipt of receipts) {
+    const entry = summary.get(receipt.correspondence_id) ?? {
+      correspondence_id: receipt.correspondence_id,
+      recipients_total: 0,
+      read_total: 0,
+      acknowledged_total: 0,
+    };
+    entry.recipients_total += 1;
+    if (receipt.read_at) entry.read_total += 1;
+    if (receipt.acknowledged_at) entry.acknowledged_total += 1;
+    summary.set(receipt.correspondence_id, entry);
+  }
+  return [...summary.values()];
+}
+
+export const staffServiceCapabilitiesSchema = z.object({
+  is_employee: z.boolean(),
+  is_direct_manager: z.boolean(),
+  is_hr: z.boolean(),
+  is_finance: z.boolean(),
+  is_administrator: z.boolean(),
+  can_view_payroll_scope: z.boolean(),
+  can_view_hr_scope: z.boolean(),
+  can_view_audit_scope: z.boolean(),
+});
+
+export type StaffServiceCapabilities = z.infer<
+  typeof staffServiceCapabilitiesSchema
+>;
+
+export const STAFF_SERVICE_NO_CAPABILITIES: StaffServiceCapabilities = {
+  is_employee: false,
+  is_direct_manager: false,
+  is_hr: false,
+  is_finance: false,
+  is_administrator: false,
+  can_view_payroll_scope: false,
+  can_view_hr_scope: false,
+  can_view_audit_scope: false,
+};
+
+/** Boolean-only capability probe (no names, no rows, no identifiers). */
+export async function fetchStaffServiceCapabilities(): Promise<StaffServiceCapabilities> {
+  const { data, error } = await rpc(
+    "staff_service_get_current_capabilities",
+    {},
+  );
+  if (error) throw toSafeReadError(error);
+  return staffServiceCapabilitiesSchema.parse(data);
 }
 
 export async function fetchStaffCustody(): Promise<StaffCustodyItem[]> {

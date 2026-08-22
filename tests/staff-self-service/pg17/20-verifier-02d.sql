@@ -258,6 +258,163 @@ begin
 end;
 $$;
 
+-- Direct SELECT (not only the RPC) must hide an unpublished statement and its
+-- components from their own owner.
+set local request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+do $$
+declare v_count int;
+begin
+  select count(*) into v_count
+  from public.staff_payroll_statements
+  where id = 'ffffffff-ffff-4fff-8fff-fffffffffff2';
+  if v_count <> 0 then
+    raise exception 'D_UNPUBLISHED_STATEMENT_DIRECT_SELECT_DISCLOSURE';
+  end if;
+
+  select count(*) into v_count
+  from public.staff_payroll_components
+  where statement_id = 'ffffffff-ffff-4fff-8fff-fffffffffff2';
+  if v_count <> 0 then
+    raise exception 'D_UNPUBLISHED_COMPONENTS_DIRECT_SELECT_DISCLOSURE';
+  end if;
+end;
+$$;
+
+-- The owner of a PUBLISHED statement still sees it directly.
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$
+declare v_count int;
+begin
+  select count(*) into v_count
+  from public.staff_payroll_statements
+  where id = 'ffffffff-ffff-4fff-8fff-fffffffffff1';
+  if v_count <> 1 then
+    raise exception 'D_PUBLISHED_STATEMENT_OWNER_READ_BROKEN';
+  end if;
+
+  select count(*) into v_count
+  from public.staff_payroll_components
+  where statement_id = 'ffffffff-ffff-4fff-8fff-fffffffffff1';
+  if v_count <> 2 then
+    raise exception 'D_PUBLISHED_COMPONENTS_OWNER_READ_BROKEN';
+  end if;
+end;
+$$;
+
+-- Every payroll download is audited separately (no idempotent collapsing).
+do $$
+declare
+  v_before int;
+  v_after int;
+begin
+  select count(*) into v_before
+  from public.staff_service_read_audit_events
+  where event_type = 'payroll_download_authorized'
+    and actor_user_id = '11111111-1111-4111-8111-111111111111';
+
+  perform public.staff_service_authorize_payroll_statement_download(
+    'ffffffff-ffff-4fff-8fff-fffffffffff1');
+  perform public.staff_service_authorize_payroll_statement_download(
+    'ffffffff-ffff-4fff-8fff-fffffffffff1');
+
+  select count(*) into v_after
+  from public.staff_service_read_audit_events
+  where event_type = 'payroll_download_authorized'
+    and actor_user_id = '11111111-1111-4111-8111-111111111111';
+
+  if v_after - v_before <> 2 then
+    raise exception 'D_PAYROLL_DOWNLOAD_AUDIT_NOT_APPENDED';
+  end if;
+end;
+$$;
+
+-- Correspondence receipt events stay idempotent (exactly one per fact).
+do $$
+declare v_dupes int;
+begin
+  select count(*) into v_dupes
+  from (
+    select actor_user_id, subject_id, event_type
+    from public.staff_service_read_audit_events
+    where subject_kind = 'correspondence'
+    group by 1, 2, 3
+    having count(*) > 1
+  ) d;
+  if v_dupes <> 0 then
+    raise exception 'D_CORRESPONDENCE_AUDIT_NOT_IDEMPOTENT';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- G) Boolean-only capability probe never leaks names/rows and matches roles.
+-- ---------------------------------------------------------------------------
+do $$
+declare v jsonb;
+begin
+  -- employee (owner, no admin roles)
+  v := public.staff_service_get_current_capabilities();
+  if (v->>'is_employee')::boolean is not true then
+    raise exception 'G_EMPLOYEE_CAPABILITY_WRONG';
+  end if;
+  if (v->>'can_view_payroll_scope')::boolean then
+    raise exception 'G_EMPLOYEE_PAYROLL_CAPABILITY_LEAK';
+  end if;
+  if (v->>'can_view_hr_scope')::boolean then
+    raise exception 'G_EMPLOYEE_HR_CAPABILITY_LEAK';
+  end if;
+  if v ?| array['full_name_ar', 'employee_number', 'user_id', 'department_id'] then
+    raise exception 'G_CAPABILITY_PAYLOAD_LEAKS_IDENTIFIERS';
+  end if;
+end;
+$$;
+
+set local request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
+do $$
+declare v jsonb;
+begin
+  v := public.staff_service_get_current_capabilities();
+  if (v->>'is_direct_manager')::boolean is not true then
+    raise exception 'G_MANAGER_CAPABILITY_WRONG';
+  end if;
+  if (v->>'can_view_payroll_scope')::boolean then
+    raise exception 'G_MANAGER_PAYROLL_CAPABILITY_LEAK';
+  end if;
+end;
+$$;
+
+set local request.jwt.claim.sub = '55555555-5555-4555-8555-555555555555';
+do $$
+declare v jsonb;
+begin
+  v := public.staff_service_get_current_capabilities();
+  if (v->>'is_finance')::boolean is not true
+     or (v->>'can_view_payroll_scope')::boolean is not true then
+    raise exception 'G_FINANCE_CAPABILITY_WRONG';
+  end if;
+  -- Finance with zero payroll rows in scope must still be capability-allowed:
+  -- the empty state is not a denial.
+  if (v->>'can_view_hr_scope')::boolean then
+    raise exception 'G_FINANCE_HR_CAPABILITY_LEAK';
+  end if;
+end;
+$$;
+
+set local request.jwt.claim.sub = '66666666-6666-4666-8666-666666666666';
+do $$
+declare v jsonb;
+begin
+  v := public.staff_service_get_current_capabilities();
+  if (v->>'is_employee')::boolean
+     or (v->>'can_view_payroll_scope')::boolean
+     or (v->>'can_view_hr_scope')::boolean then
+    raise exception 'G_OUTSIDER_CAPABILITY_LEAK';
+  end if;
+end;
+$$;
+
+set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+
 -- ---------------------------------------------------------------------------
 -- E) Read-audit ledger is append-only and owner/admin scoped.
 -- ---------------------------------------------------------------------------
@@ -333,7 +490,8 @@ begin
       and routine_name in (
         'staff_service_record_correspondence_read',
         'staff_service_acknowledge_correspondence',
-        'staff_service_authorize_payroll_statement_download'
+        'staff_service_authorize_payroll_statement_download',
+        'staff_service_get_current_capabilities'
       )
       and grantee in ('anon', 'PUBLIC')
   ) then
