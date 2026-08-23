@@ -89,7 +89,7 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
       "downloadStaffPayrollPdf",
       "markStaffCorrespondenceRead",
       "acknowledgeStaffCorrespondence",
-      "العُهد المسجلة باسمي",
+      "لا توجد عهد مسجلة باسمك.",
     ]) {
       expect(dashboard).toContain(marker);
     }
