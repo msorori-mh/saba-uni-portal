@@ -46,14 +46,14 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
     }
   });
 
-  test("keeps every unauthenticated staff transition on the staff login form", () => {
-    expect(staffGuard).toContain(
-      'throw redirect({ to: "/portal-login", search: { type: "staff" } });',
-    );
-    expect(staffGuard).toContain(
-      'navigate({ to: "/portal-login", search: { type: "staff" }, replace: true });',
-    );
-    expect(staffGuard.match(/search: \{ type: "staff" \}/g)?.length).toBe(3);
+  test("defers the fail-closed staff guard until hydration and preserves login context", () => {
+    expect(staffGuard).not.toContain("beforeLoad: async");
+    expect(staffGuard).toContain("void validateSession()");
+    expect(staffGuard).toContain("staff-auth-guard-loading");
+    expect(staffGuard).toContain('to: "/portal-login"');
+    expect(staffGuard).toContain('search: { type: "staff" }');
+    expect(staffGuard).toContain("profileError || !profile");
+    expect(staffGuard).toContain('pathname !== "/staff/change-password"');
   });
 
   test("keeps the employee and admin operational surfaces mounted together", () => {
