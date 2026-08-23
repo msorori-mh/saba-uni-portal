@@ -16,7 +16,7 @@ export const Route = createFileRoute("/staff")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
-      throw redirect({ to: "/portal-login" });
+      throw redirect({ to: "/portal-login", search: { type: "staff" } });
     }
 
     const { data: profile } = await supabase
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/staff")({
 
     if (!profile) {
       await supabase.auth.signOut();
-      throw redirect({ to: "/portal-login" });
+      throw redirect({ to: "/portal-login", search: { type: "staff" } });
     }
 
     if (profile.must_change_password && location.pathname !== "/staff/change-password") {
@@ -50,7 +50,7 @@ function StaffLayout() {
       if (!session) {
         lastUserId.current = null;
         queryClient.clear();
-        navigate({ to: "/portal-login", replace: true });
+        navigate({ to: "/portal-login", search: { type: "staff" }, replace: true });
         return;
       }
       const uid = session.user.id;
