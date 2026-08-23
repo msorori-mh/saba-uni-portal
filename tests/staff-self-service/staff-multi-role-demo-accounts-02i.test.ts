@@ -27,7 +27,7 @@ describe("PORTAL_STAFF_MULTI_ROLE_DEMO_ACCOUNTS_02I", () => {
   it("requires operator-supplied password material and never commits the credential", () => {
     expect(seed).toContain("current_setting('app.staff_demo_password_02i', true)");
     expect(seed).toContain("crypt(v_password,gen_salt('bf'))");
-    expect(seed).not.toContain("Login@123");
+    expect(seed).not.toMatch(/v_password\s+text\s*:=\s*['"]/i);
     expect(seed).not.toMatch(/encrypted_password\s*=\s*['\"]/i);
   });
 
