@@ -86,9 +86,9 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
       expect(actions).toContain(marker);
     }
     for (const marker of [
-      "downloadStaffPayrollPdf",
-      "markStaffCorrespondenceRead",
-      "acknowledgeStaffCorrespondence",
+      "generateStaffPayrollStatementPdf",
+      "markCorrespondenceRead",
+      "acknowledgeCorrespondence",
       "لا توجد عهد مسجلة باسمك.",
     ]) {
       expect(dashboard).toContain(marker);
