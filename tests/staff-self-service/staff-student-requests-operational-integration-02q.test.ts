@@ -99,7 +99,7 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_OPERATIONAL_INTEGRATION_02Q", () => {
     expect(ci).toContain("docker image inspect postgres:17");
     expect(ci).toContain("Run all bun test suites (fail-closed)");
     expect(ci).toContain('bun test "${TEST_FILES[@]}"');
-    expect(ci).toMatch(/services:\\n\\s+postgres:\\n\\s+image: postgres:17/);
+    expect(ci).toMatch(/services:\n\s+postgres:\n\s+image: postgres:17/);
   });
 
   test("no tender references or demo-data wording in the integrated surfaces", () => {
