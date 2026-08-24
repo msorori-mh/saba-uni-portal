@@ -22,7 +22,7 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_VISIBILITY_02P", () => {
 
   test("preserves the previous direct route and backend-authoritative workspace", () => {
     expect(legacyRoute).toContain('createFileRoute("/staff/b1-requests")');
-    expect(legacyRoute).toContain("<B1StaffWorkspace");
+    expect(legacyRoute).toContain("component: B1StaffWorkspace");
     expect(workspace).toContain("getAssignedB1Requests");
     expect(workspace).toContain("getAssignedB1RequestDetails");
     expect(workspace).toContain("details.allowedAction");
