@@ -26,7 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  TENDER_SHOWCASE_MARKER,
+  STAFF_SHOWCASE_MARKER,
   adminStaffShowcase,
   staffShowcase,
 } from "@/lib/staff-self-service-showcase";
@@ -78,12 +78,12 @@ export function EmployeeServicesShowcase() {
       <div className="rounded-xl border border-gold/40 bg-gold/5 p-4 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-extrabold text-gold">المرحلة الأولى — واجهات المناقصة</div>
+            <div className="text-xs font-extrabold text-gold">استعراض خدمات الموظفين — بيانات تجريبية</div>
             <div className="mt-1 text-sm text-muted-foreground">جميع الأرقام والملفات والقرارات المعروضة تجريبية، ولا يتم تنفيذ أي عملية على البيانات الحقيقية.</div>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={printCurrent} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-bold text-primary"><Printer className="h-4 w-4" /> طباعة الصفحة</button>
-            <button type="button" onClick={printAll} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"><FileCheck2 className="h-4 w-4" /> حزمة أدلة الأدمن</button>
+            <button type="button" onClick={printAll} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"><FileCheck2 className="h-4 w-4" /> طباعة حزمة العرض</button>
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@ export function EmployeeServicesShowcase() {
 
         <main className="min-w-0">
           {printPack ? (
-            <div data-testid="admin-tender-print-pack">
+            <div data-testid="admin-services-print-pack">
               <AdminPrintCover />
               {NAV.map((item) => <section key={item.key} className="break-after-page py-4" data-admin-evidence={item.key}><PrintHeading title={item.label} /><AdminView module={item.key} /></section>)}
             </div>
