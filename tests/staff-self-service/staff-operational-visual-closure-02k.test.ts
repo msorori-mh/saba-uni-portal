@@ -66,13 +66,13 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
     expect(workbench).toContain("staff-self-service-live-workbench");
   });
 
-  test("keeps printable RTL evidence packs for employee and administrator", () => {
-    expect(employeeShowcase).toContain("staff-tender-print-pack");
+  test("keeps printable RTL showcase packs for employee and administrator", () => {
+    expect(employeeShowcase).toContain("staff-services-print-pack");
     expect(employeeShowcase).toContain("طباعة الصفحة");
-    expect(employeeShowcase).toContain("طباعة حزمة المناقصة");
+    expect(employeeShowcase).toContain("طباعة حزمة العرض");
     expect(employeeShowcase).toContain("print:break-after-page");
-    expect(adminShowcase).toContain("admin-tender-print-pack");
-    expect(adminShowcase).toContain("حزمة أدلة الأدمن");
+    expect(adminShowcase).toContain("admin-services-print-pack");
+    expect(adminShowcase).toContain("طباعة حزمة العرض");
     expect(adminShowcase).toContain("print:break-after-page");
     expect(governance).toContain('dir="rtl"');
   });

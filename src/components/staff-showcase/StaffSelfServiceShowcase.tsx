@@ -41,7 +41,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  TENDER_SHOWCASE_MARKER,
+  STAFF_SHOWCASE_MARKER,
   formatYemeniRial,
   staffShowcase,
   type StaffShowcaseModule,
@@ -107,7 +107,7 @@ export function StaffSelfServiceShowcase({ profile }: { profile?: StaffProfileLi
   return (
     <div className="min-h-[calc(100vh-82px)] bg-surface" data-testid="staff-self-service-showcase">
       <div className="border-b border-gold/30 bg-primary-deep px-4 py-2 text-center text-[11px] font-bold text-gold print:hidden">
-        عرض الواجهات الأمامية للمناقصة — بيانات تجريبية فقط — لا توجد عمليات أو بيانات إنتاجية
+        استعراض خدمات الموظفين — بيانات تجريبية فقط — لا توجد عمليات أو بيانات إنتاجية
       </div>
       <div className="mx-auto flex max-w-[1600px] items-start">
         <aside className={`${mobileOpen ? "fixed inset-y-0 right-0 z-50 block w-80" : "hidden"} shrink-0 border-l border-border bg-card shadow-card lg:sticky lg:top-0 lg:block lg:h-[calc(100vh-82px)] lg:w-72 lg:overflow-y-auto print:hidden`}>
@@ -142,12 +142,12 @@ export function StaffSelfServiceShowcase({ profile }: { profile?: StaffProfileLi
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={printCurrent} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary hover:border-gold"><Printer className="h-4 w-4" /> طباعة الصفحة</button>
-              <button type="button" onClick={printEvidencePack} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><FileCheck2 className="h-4 w-4" /> طباعة حزمة المناقصة</button>
+              <button type="button" onClick={printEvidencePack} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><FileCheck2 className="h-4 w-4" /> طباعة حزمة العرض</button>
             </div>
           </div>
 
           {printPack ? (
-            <div data-testid="staff-tender-print-pack">
+            <div data-testid="staff-services-print-pack">
               <PrintCover name={name} />
               {ALL_MODULES.map((item) => (
                 <section key={item.key} className="break-after-page py-4" data-evidence-module={item.key}>
@@ -200,7 +200,7 @@ function PrintCover({ name }: { name: string }) {
         <div className="mx-auto mt-8 max-w-md rounded-xl border border-border p-4 text-sm">
           حزمة واجهات الموظف والمسؤول المباشر — حساب العرض: {name}
         </div>
-        <div className="mt-8 font-mono text-[10px] text-muted-foreground">{TENDER_SHOWCASE_MARKER}</div>
+        <div className="mt-8 font-mono text-[10px] text-muted-foreground">{STAFF_SHOWCASE_MARKER}</div>
       </div>
     </section>
   );
@@ -213,7 +213,7 @@ function PrintHeading({ title }: { title: string }) {
         <div className="text-[10px] font-bold text-gold">بوابة الموظفين — كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
         <h2 className="font-display text-xl font-extrabold text-primary">{title}</h2>
       </div>
-      <div className="font-mono text-[9px] text-muted-foreground">{TENDER_SHOWCASE_MARKER}</div>
+      <div className="font-mono text-[9px] text-muted-foreground">{STAFF_SHOWCASE_MARKER}</div>
     </div>
   );
 }

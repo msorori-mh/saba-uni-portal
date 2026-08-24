@@ -7971,6 +7971,950 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_attendance_days: {
+        Row: {
+          attendance_date: string
+          check_in_at: string | null
+          check_out_at: string | null
+          created_at: string
+          day_state: string
+          id: string
+          late_minutes: number
+          overtime_minutes: number
+          source_system: string
+          staff_profile_id: string
+          worked_minutes: number
+        }
+        Insert: {
+          attendance_date: string
+          check_in_at?: string | null
+          check_out_at?: string | null
+          created_at?: string
+          day_state: string
+          id?: string
+          late_minutes?: number
+          overtime_minutes?: number
+          source_system: string
+          staff_profile_id: string
+          worked_minutes?: number
+        }
+        Update: {
+          attendance_date?: string
+          check_in_at?: string | null
+          check_out_at?: string | null
+          created_at?: string
+          day_state?: string
+          id?: string
+          late_minutes?: number
+          overtime_minutes?: number
+          source_system?: string
+          staff_profile_id?: string
+          worked_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_attendance_days_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_career_history: {
+        Row: {
+          created_at: string
+          decision_reference: string | null
+          effective_on: string
+          event_type: string
+          grade: string | null
+          id: string
+          job_title: string | null
+          notes: string | null
+          source_system: string | null
+          staff_profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          decision_reference?: string | null
+          effective_on: string
+          event_type: string
+          grade?: string | null
+          id?: string
+          job_title?: string | null
+          notes?: string | null
+          source_system?: string | null
+          staff_profile_id: string
+        }
+        Update: {
+          created_at?: string
+          decision_reference?: string | null
+          effective_on?: string
+          event_type?: string
+          grade?: string | null
+          id?: string
+          job_title?: string | null
+          notes?: string | null
+          source_system?: string | null
+          staff_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_career_history_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_clearance_cases: {
+        Row: {
+          case_no: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          custody_override: boolean
+          custody_override_at: string | null
+          custody_override_by: string | null
+          custody_override_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string | null
+          opened_by: string | null
+          reason: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          case_no: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          custody_override?: boolean
+          custody_override_at?: string | null
+          custody_override_by?: string | null
+          custody_override_reason?: string | null
+          department_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          opened_by?: string | null
+          reason: string
+          staff_profile_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          case_no?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          custody_override?: boolean
+          custody_override_at?: string | null
+          custody_override_by?: string | null
+          custody_override_reason?: string | null
+          department_id?: string | null
+          id?: string
+          idempotency_key?: string | null
+          opened_by?: string | null
+          reason?: string
+          staff_profile_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_clearance_cases_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_clearance_cases_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_clearance_checkpoints: {
+        Row: {
+          case_id: string
+          checkpoint_kind: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          required_role: string
+          status: string
+        }
+        Insert: {
+          case_id: string
+          checkpoint_kind: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          required_role: string
+          status?: string
+        }
+        Update: {
+          case_id?: string
+          checkpoint_kind?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          required_role?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_clearance_checkpoints_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "staff_clearance_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_correspondence: {
+        Row: {
+          archive_category: string
+          attachment_object_path: string | null
+          body: string
+          created_at: string
+          id: string
+          importance: string
+          published_at: string | null
+          published_by: string | null
+          reference_no: string
+          sender_department_id: string | null
+          title: string
+        }
+        Insert: {
+          archive_category: string
+          attachment_object_path?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          importance?: string
+          published_at?: string | null
+          published_by?: string | null
+          reference_no: string
+          sender_department_id?: string | null
+          title: string
+        }
+        Update: {
+          archive_category?: string
+          attachment_object_path?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          importance?: string
+          published_at?: string | null
+          published_by?: string | null
+          reference_no?: string
+          sender_department_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_correspondence_sender_department_id_fkey"
+            columns: ["sender_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_correspondence_recipients: {
+        Row: {
+          acknowledged_at: string | null
+          correspondence_id: string
+          created_at: string
+          id: string
+          read_at: string | null
+          received_at: string | null
+          recipient_user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          correspondence_id: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          received_at?: string | null
+          recipient_user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          correspondence_id?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          received_at?: string | null
+          recipient_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_correspondence_recipients_correspondence_id_fkey"
+            columns: ["correspondence_id"]
+            isOneToOne: false
+            referencedRelation: "staff_correspondence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_custody_assignments: {
+        Row: {
+          asset_name: string
+          asset_tag: string
+          condition: string
+          created_at: string
+          delivered_on: string
+          id: string
+          returned_on: string | null
+          serial_number: string | null
+          source_reference: string | null
+          source_system: string | null
+          staff_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          asset_name: string
+          asset_tag: string
+          condition?: string
+          created_at?: string
+          delivered_on: string
+          id?: string
+          returned_on?: string | null
+          serial_number?: string | null
+          source_reference?: string | null
+          source_system?: string | null
+          staff_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          asset_name?: string
+          asset_tag?: string
+          condition?: string
+          created_at?: string
+          delivered_on?: string
+          id?: string
+          returned_on?: string | null
+          serial_number?: string | null
+          source_reference?: string | null
+          source_system?: string | null
+          staff_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_custody_assignments_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_document_verification_probe_stats: {
+        Row: {
+          failed_attempts: number
+          succeeded_attempts: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          failed_attempts?: number
+          succeeded_attempts?: number
+          updated_at?: string
+          window_start: string
+        }
+        Update: {
+          failed_attempts?: number
+          succeeded_attempts?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      staff_finance_read_snapshots: {
+        Row: {
+          external_record_id: string
+          id: string
+          period_end: string
+          period_start: string
+          source_updated_at: string
+          staff_profile_id: string
+          statement_status: string
+          synced_at: string
+        }
+        Insert: {
+          external_record_id: string
+          id?: string
+          period_end: string
+          period_start: string
+          source_updated_at: string
+          staff_profile_id: string
+          statement_status: string
+          synced_at?: string
+        }
+        Update: {
+          external_record_id?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          source_updated_at?: string
+          staff_profile_id?: string
+          statement_status?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_finance_read_snapshots_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_governance_audit_events: {
+        Row: {
+          actor_user_id: string
+          department_id: string | null
+          event_type: string
+          id: number
+          occurred_at: string
+          period_from: string | null
+          period_to: string | null
+          scope_kind: string
+        }
+        Insert: {
+          actor_user_id: string
+          department_id?: string | null
+          event_type: string
+          id?: never
+          occurred_at?: string
+          period_from?: string | null
+          period_to?: string | null
+          scope_kind: string
+        }
+        Update: {
+          actor_user_id?: string
+          department_id?: string | null
+          event_type?: string
+          id?: never
+          occurred_at?: string
+          period_from?: string | null
+          period_to?: string | null
+          scope_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_governance_audit_events_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_hr_read_snapshots: {
+        Row: {
+          employment_status: string
+          external_record_id: string
+          grade: string | null
+          id: string
+          job_title: string | null
+          qualification: string | null
+          source_updated_at: string
+          staff_profile_id: string
+          synced_at: string
+        }
+        Insert: {
+          employment_status: string
+          external_record_id: string
+          grade?: string | null
+          id?: string
+          job_title?: string | null
+          qualification?: string | null
+          source_updated_at: string
+          staff_profile_id: string
+          synced_at?: string
+        }
+        Update: {
+          employment_status?: string
+          external_record_id?: string
+          grade?: string | null
+          id?: string
+          job_title?: string | null
+          qualification?: string | null
+          source_updated_at?: string
+          staff_profile_id?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_hr_read_snapshots_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: true
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_issued_documents: {
+        Row: {
+          created_at: string
+          destination: string | null
+          document_type: string
+          expires_at: string | null
+          id: string
+          issued_at: string
+          issued_by: string | null
+          language_code: string
+          notes: string | null
+          object_path: string | null
+          purpose: string | null
+          reference_no: string
+          request_id: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          staff_profile_id: string
+          status: string
+          updated_at: string
+          verification_token_digest: string
+        }
+        Insert: {
+          created_at?: string
+          destination?: string | null
+          document_type: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          language_code?: string
+          notes?: string | null
+          object_path?: string | null
+          purpose?: string | null
+          reference_no: string
+          request_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          staff_profile_id: string
+          status?: string
+          updated_at?: string
+          verification_token_digest: string
+        }
+        Update: {
+          created_at?: string
+          destination?: string | null
+          document_type?: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          language_code?: string
+          notes?: string | null
+          object_path?: string | null
+          purpose?: string | null
+          reference_no?: string
+          request_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          staff_profile_id?: string
+          status?: string
+          updated_at?: string
+          verification_token_digest?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_issued_documents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "staff_service_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_issued_documents_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_leave_balances: {
+        Row: {
+          balance_year: number
+          carried_days: number
+          consumed_days: number
+          entitled_days: number
+          id: string
+          leave_type: string
+          reserved_days: number
+          staff_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance_year: number
+          carried_days?: number
+          consumed_days?: number
+          entitled_days?: number
+          id?: string
+          leave_type: string
+          reserved_days?: number
+          staff_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance_year?: number
+          carried_days?: number
+          consumed_days?: number
+          entitled_days?: number
+          id?: string
+          leave_type?: string
+          reserved_days?: number
+          staff_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_leave_balances_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_overtime_claims: {
+        Row: {
+          claim_kind: string
+          claim_no: string
+          created_at: string
+          department_id: string | null
+          ends_on: string
+          hr_decided_at: string | null
+          hr_decided_by: string | null
+          hr_reason: string | null
+          id: string
+          idempotency_key: string
+          manager_decided_at: string | null
+          manager_decided_by: string | null
+          manager_reason: string | null
+          reason: string
+          staff_profile_id: string
+          starts_on: string
+          status: string
+          total_hours: number
+          updated_at: string
+        }
+        Insert: {
+          claim_kind: string
+          claim_no: string
+          created_at?: string
+          department_id?: string | null
+          ends_on: string
+          hr_decided_at?: string | null
+          hr_decided_by?: string | null
+          hr_reason?: string | null
+          id?: string
+          idempotency_key: string
+          manager_decided_at?: string | null
+          manager_decided_by?: string | null
+          manager_reason?: string | null
+          reason: string
+          staff_profile_id: string
+          starts_on: string
+          status?: string
+          total_hours: number
+          updated_at?: string
+        }
+        Update: {
+          claim_kind?: string
+          claim_no?: string
+          created_at?: string
+          department_id?: string | null
+          ends_on?: string
+          hr_decided_at?: string | null
+          hr_decided_by?: string | null
+          hr_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          manager_decided_at?: string | null
+          manager_decided_by?: string | null
+          manager_reason?: string | null
+          reason?: string
+          staff_profile_id?: string
+          starts_on?: string
+          status?: string
+          total_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_overtime_claims_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_overtime_claims_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_overtime_financial_impact: {
+        Row: {
+          claim_id: string
+          currency_code: string
+          gross_amount: number
+          hourly_rate: number
+          settled_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          claim_id: string
+          currency_code?: string
+          gross_amount: number
+          hourly_rate: number
+          settled_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          claim_id?: string
+          currency_code?: string
+          gross_amount?: number
+          hourly_rate?: number
+          settled_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_overtime_financial_impact_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: true
+            referencedRelation: "staff_overtime_claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_payroll_components: {
+        Row: {
+          amount: number
+          component_code: string
+          component_type: string
+          display_order: number
+          id: string
+          label_ar: string
+          statement_id: string
+        }
+        Insert: {
+          amount: number
+          component_code: string
+          component_type: string
+          display_order?: number
+          id?: string
+          label_ar: string
+          statement_id: string
+        }
+        Update: {
+          amount?: number
+          component_code?: string
+          component_type?: string
+          display_order?: number
+          id?: string
+          label_ar?: string
+          statement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_payroll_components_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "staff_payroll_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_payroll_statements: {
+        Row: {
+          allowances_total: number
+          basic_salary: number
+          created_at: string
+          currency_code: string
+          deductions_total: number
+          id: string
+          net_amount: number | null
+          pdf_object_path: string | null
+          period_end: string
+          period_start: string
+          published_at: string | null
+          source_reference: string
+          source_system: string
+          staff_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          allowances_total?: number
+          basic_salary: number
+          created_at?: string
+          currency_code?: string
+          deductions_total?: number
+          id?: string
+          net_amount?: number | null
+          pdf_object_path?: string | null
+          period_end: string
+          period_start: string
+          published_at?: string | null
+          source_reference: string
+          source_system: string
+          staff_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          allowances_total?: number
+          basic_salary?: number
+          created_at?: string
+          currency_code?: string
+          deductions_total?: number
+          id?: string
+          net_amount?: number | null
+          pdf_object_path?: string | null
+          period_end?: string
+          period_start?: string
+          published_at?: string | null
+          source_reference?: string
+          source_system?: string
+          staff_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_payroll_statements_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_performance_cycles: {
+        Row: {
+          closes_on: string
+          created_at: string
+          cycle_year: number
+          id: string
+          opens_on: string
+          status: string
+          title_ar: string
+        }
+        Insert: {
+          closes_on: string
+          created_at?: string
+          cycle_year: number
+          id?: string
+          opens_on: string
+          status?: string
+          title_ar: string
+        }
+        Update: {
+          closes_on?: string
+          created_at?: string
+          cycle_year?: number
+          id?: string
+          opens_on?: string
+          status?: string
+          title_ar?: string
+        }
+        Relationships: []
+      }
+      staff_performance_evaluations: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          cycle_id: string
+          employee_comment: string | null
+          evaluator_user_id: string
+          finalized_at: string | null
+          goals: string | null
+          id: string
+          improvements: string | null
+          overall_rating: number | null
+          rating_band: string | null
+          staff_profile_id: string
+          status: string
+          strengths: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          cycle_id: string
+          employee_comment?: string | null
+          evaluator_user_id: string
+          finalized_at?: string | null
+          goals?: string | null
+          id?: string
+          improvements?: string | null
+          overall_rating?: number | null
+          rating_band?: string | null
+          staff_profile_id: string
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          cycle_id?: string
+          employee_comment?: string | null
+          evaluator_user_id?: string
+          finalized_at?: string | null
+          goals?: string | null
+          id?: string
+          improvements?: string | null
+          overall_rating?: number | null
+          rating_band?: string | null
+          staff_profile_id?: string
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_performance_evaluations_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "staff_performance_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_performance_evaluations_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_profile_departments: {
         Row: {
           created_at: string
@@ -8062,6 +9006,584 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      staff_promotion_cases: {
+        Row: {
+          case_kind: string
+          case_no: string
+          created_at: string
+          current_grade: string | null
+          effective_on: string | null
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          opened_by: string | null
+          proposed_grade: string | null
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          case_kind: string
+          case_no: string
+          created_at?: string
+          current_grade?: string | null
+          effective_on?: string | null
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          opened_by?: string | null
+          proposed_grade?: string | null
+          staff_profile_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          case_kind?: string
+          case_no?: string
+          created_at?: string
+          current_grade?: string | null
+          effective_on?: string | null
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          opened_by?: string | null
+          proposed_grade?: string | null
+          staff_profile_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_promotion_cases_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_promotion_financial_impact: {
+        Row: {
+          case_id: string
+          currency_code: string
+          current_basic: number
+          proposed_basic: number
+          retroactive_amount: number
+          updated_at: string
+        }
+        Insert: {
+          case_id: string
+          currency_code?: string
+          current_basic: number
+          proposed_basic: number
+          retroactive_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          case_id?: string
+          currency_code?: string
+          current_basic?: number
+          proposed_basic?: number
+          retroactive_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_promotion_financial_impact_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: true
+            referencedRelation: "staff_promotion_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_service_approval_steps: {
+        Row: {
+          assignee_user_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          request_id: string
+          required_role: string
+          status: string
+          step_order: number
+        }
+        Insert: {
+          assignee_user_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          request_id: string
+          required_role: string
+          status?: string
+          step_order: number
+        }
+        Update: {
+          assignee_user_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          request_id?: string
+          required_role?: string
+          status?: string
+          step_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_service_approval_steps_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "staff_service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_service_attachments: {
+        Row: {
+          created_at: string
+          finalized_at: string | null
+          id: string
+          idempotency_key: string | null
+          mime_type: string
+          object_path: string
+          original_name: string
+          request_id: string
+          scan_state: string
+          sha256: string
+          size_bytes: number
+          storage_bucket: string
+          upload_status: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          mime_type: string
+          object_path: string
+          original_name: string
+          request_id: string
+          scan_state?: string
+          sha256: string
+          size_bytes: number
+          storage_bucket?: string
+          upload_status?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          mime_type?: string
+          object_path?: string
+          original_name?: string
+          request_id?: string
+          scan_state?: string
+          sha256?: string
+          size_bytes?: number
+          storage_bucket?: string
+          upload_status?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_service_attachments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "staff_service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_service_events: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          correlation_id: string
+          event_type: string
+          from_status: string | null
+          id: number
+          metadata: Json
+          occurred_at: string
+          reason: string | null
+          request_id: string
+          to_status: string | null
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          correlation_id: string
+          event_type: string
+          from_status?: string | null
+          id?: never
+          metadata?: Json
+          occurred_at?: string
+          reason?: string | null
+          request_id: string
+          to_status?: string | null
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          correlation_id?: string
+          event_type?: string
+          from_status?: string | null
+          id?: never
+          metadata?: Json
+          occurred_at?: string
+          reason?: string | null
+          request_id?: string
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_service_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "staff_service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_service_notifications_outbox: {
+        Row: {
+          attempt_count: number
+          available_at: string
+          channel: string
+          created_at: string
+          id: number
+          idempotency_key: string
+          last_error: string | null
+          payload: Json
+          recipient_user_id: string
+          request_id: string | null
+          sent_at: string | null
+          status: string
+          template_key: string
+        }
+        Insert: {
+          attempt_count?: number
+          available_at?: string
+          channel: string
+          created_at?: string
+          id?: never
+          idempotency_key: string
+          last_error?: string | null
+          payload?: Json
+          recipient_user_id: string
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          template_key: string
+        }
+        Update: {
+          attempt_count?: number
+          available_at?: string
+          channel?: string
+          created_at?: string
+          id?: never
+          idempotency_key?: string
+          last_error?: string | null
+          payload?: Json
+          recipient_user_id?: string
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_service_notifications_outbox_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "staff_service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_service_read_audit_events: {
+        Row: {
+          actor_user_id: string
+          event_type: string
+          id: number
+          metadata: Json
+          occurred_at: string
+          subject_id: string
+          subject_kind: string
+        }
+        Insert: {
+          actor_user_id: string
+          event_type: string
+          id?: never
+          metadata?: Json
+          occurred_at?: string
+          subject_id: string
+          subject_kind: string
+        }
+        Update: {
+          actor_user_id?: string
+          event_type?: string
+          id?: never
+          metadata?: Json
+          occurred_at?: string
+          subject_id?: string
+          subject_kind?: string
+        }
+        Relationships: []
+      }
+      staff_service_requests: {
+        Row: {
+          created_at: string
+          current_step: number
+          decided_at: string | null
+          decision_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string
+          payload: Json
+          request_no: string
+          service_type: string
+          staff_profile_id: string
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_step?: number
+          decided_at?: string | null
+          decision_reason?: string | null
+          department_id?: string | null
+          id?: string
+          idempotency_key: string
+          payload?: Json
+          request_no: string
+          service_type: string
+          staff_profile_id: string
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_step?: number
+          decided_at?: string | null
+          decision_reason?: string | null
+          department_id?: string | null
+          id?: string
+          idempotency_key?: string
+          payload?: Json
+          request_no?: string
+          service_type?: string
+          staff_profile_id?: string
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_service_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_service_requests_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_service_role_assignments: {
+        Row: {
+          active: boolean
+          created_at: string
+          department_id: string | null
+          granted_by: string | null
+          id: string
+          role: string
+          updated_at: string
+          user_id: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          department_id?: string | null
+          granted_by?: string | null
+          id?: string
+          role: string
+          updated_at?: string
+          user_id: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          department_id?: string | null
+          granted_by?: string | null
+          id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_service_role_assignments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_training_courses: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          ends_on: string
+          id: string
+          provider: string
+          starts_on: string
+          title_ar: string
+          total_hours: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          ends_on: string
+          id?: string
+          provider: string
+          starts_on: string
+          title_ar: string
+          total_hours: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          ends_on?: string
+          id?: string
+          provider?: string
+          starts_on?: string
+          title_ar?: string
+          total_hours?: number
+        }
+        Relationships: []
+      }
+      staff_training_enrollments: {
+        Row: {
+          certificate_bucket: string | null
+          certificate_object_path: string | null
+          certificate_sha256: string | null
+          completed_at: string | null
+          course_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_bucket?: string | null
+          certificate_object_path?: string | null
+          certificate_sha256?: string | null
+          completed_at?: string | null
+          course_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          staff_profile_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_bucket?: string | null
+          certificate_object_path?: string | null
+          certificate_sha256?: string | null
+          completed_at?: string | null
+          course_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          id?: string
+          staff_profile_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_training_enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "staff_training_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_training_enrollments_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_value_added_audit_events: {
+        Row: {
+          actor_user_id: string | null
+          event_type: string
+          id: number
+          metadata: Json
+          module: string
+          occurred_at: string
+          reason: string | null
+          subject_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          event_type: string
+          id?: never
+          metadata?: Json
+          module: string
+          occurred_at?: string
+          reason?: string | null
+          subject_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          event_type?: string
+          id?: never
+          metadata?: Json
+          module?: string
+          occurred_at?: string
+          reason?: string | null
+          subject_id?: string
+        }
+        Relationships: []
       }
       step_up_challenges: {
         Row: {
@@ -12866,6 +14388,578 @@ export type Database = {
           p_venue: string
         }
         Returns: string
+      }
+      staff_service_acknowledge_correspondence: {
+        Args: { p_correspondence_id: string }
+        Returns: Json
+      }
+      staff_service_acknowledge_evaluation: {
+        Args: { p_comment?: string; p_evaluation_id: string }
+        Returns: Json
+      }
+      staff_service_authorize_attachment_download: {
+        Args: { p_attachment_id: string }
+        Returns: Json
+      }
+      staff_service_authorize_payroll_statement_download: {
+        Args: { p_statement_id: string }
+        Returns: Json
+      }
+      staff_service_can_access_request: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
+      staff_service_can_download_object: {
+        Args: { p_object_path: string }
+        Returns: boolean
+      }
+      staff_service_can_upload_object: {
+        Args: { p_object_path: string }
+        Returns: boolean
+      }
+      staff_service_complete_clearance_case: {
+        Args: {
+          p_case_id: string
+          p_custody_override?: boolean
+          p_override_reason?: string
+        }
+        Returns: {
+          case_no: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          custody_override: boolean
+          custody_override_at: string | null
+          custody_override_by: string | null
+          custody_override_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string | null
+          opened_by: string | null
+          reason: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_clearance_cases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_complete_training_enrollment: {
+        Args: {
+          p_certificate_object_path?: string
+          p_certificate_sha256?: string
+          p_enrollment_id: string
+        }
+        Returns: {
+          certificate_bucket: string | null
+          certificate_object_path: string | null
+          certificate_sha256: string | null
+          completed_at: string | null
+          course_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_training_enrollments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_create_attachment_upload_intent: {
+        Args: {
+          p_idempotency_key: string
+          p_mime_type: string
+          p_original_name: string
+          p_request_id: string
+          p_sha256: string
+          p_size_bytes: number
+        }
+        Returns: Json
+      }
+      staff_service_current_aal: { Args: never; Returns: string }
+      staff_service_decide_clearance_checkpoint: {
+        Args: { p_checkpoint_id: string; p_decision: string; p_reason?: string }
+        Returns: {
+          case_id: string
+          checkpoint_kind: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          required_role: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_clearance_checkpoints"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_decide_overtime_claim: {
+        Args: { p_claim_id: string; p_decision: string; p_reason?: string }
+        Returns: {
+          claim_kind: string
+          claim_no: string
+          created_at: string
+          department_id: string | null
+          ends_on: string
+          hr_decided_at: string | null
+          hr_decided_by: string | null
+          hr_reason: string | null
+          id: string
+          idempotency_key: string
+          manager_decided_at: string | null
+          manager_decided_by: string | null
+          manager_reason: string | null
+          reason: string
+          staff_profile_id: string
+          starts_on: string
+          status: string
+          total_hours: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_overtime_claims"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_decide_request: {
+        Args: {
+          p_decision: string
+          p_idempotency_key: string
+          p_reason: string
+          p_request_id: string
+        }
+        Returns: {
+          created_at: string
+          current_step: number
+          decided_at: string | null
+          decision_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string
+          payload: Json
+          request_no: string
+          service_type: string
+          staff_profile_id: string
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_service_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_decide_training_enrollment: {
+        Args: { p_decision: string; p_enrollment_id: string; p_reason?: string }
+        Returns: {
+          certificate_bucket: string | null
+          certificate_object_path: string | null
+          certificate_sha256: string | null
+          completed_at: string | null
+          course_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_training_enrollments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_finalize_attachment_upload: {
+        Args: { p_attachment_id: string; p_idempotency_key: string }
+        Returns: Json
+      }
+      staff_service_finalize_evaluation: {
+        Args: { p_evaluation_id: string }
+        Returns: Json
+      }
+      staff_service_get_attendance_summary: {
+        Args: { p_month: number; p_staff_profile_id: string; p_year: number }
+        Returns: Json
+      }
+      staff_service_get_current_capabilities: { Args: never; Returns: Json }
+      staff_service_get_governance_capabilities: { Args: never; Returns: Json }
+      staff_service_get_integration_health: { Args: never; Returns: Json }
+      staff_service_get_own_integration_provenance: {
+        Args: never
+        Returns: Json
+      }
+      staff_service_get_value_added_capabilities: { Args: never; Returns: Json }
+      staff_service_governance_report_scope: {
+        Args: { p_department_id: string }
+        Returns: string
+      }
+      staff_service_has_role: {
+        Args: { _department_id?: string; _role: string; _user_id: string }
+        Returns: boolean
+      }
+      staff_service_ingest_finance_snapshot: {
+        Args: {
+          p_external_record_id: string
+          p_period_end: string
+          p_period_start: string
+          p_source_updated_at: string
+          p_staff_profile_id: string
+          p_statement_status: string
+        }
+        Returns: string
+      }
+      staff_service_ingest_hr_snapshot: {
+        Args: {
+          p_employment_status: string
+          p_external_record_id: string
+          p_grade: string
+          p_job_title: string
+          p_qualification: string
+          p_source_updated_at: string
+          p_staff_profile_id: string
+        }
+        Returns: string
+      }
+      staff_service_is_admin: { Args: { _user_id: string }; Returns: boolean }
+      staff_service_issue_document: {
+        Args: { p_request_id: string; p_valid_days?: number }
+        Returns: Json
+      }
+      staff_service_list_assigned_clearance_checkpoints: {
+        Args: never
+        Returns: Json
+      }
+      staff_service_list_attendance_month_report: {
+        Args: { p_month: number; p_year: number }
+        Returns: Json
+      }
+      staff_service_list_governance_audit: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      staff_service_list_governance_report: {
+        Args: {
+          p_department_id?: string
+          p_period_from: string
+          p_period_to: string
+        }
+        Returns: Json
+      }
+      staff_service_list_overtime_financial_projection: {
+        Args: never
+        Returns: Json
+      }
+      staff_service_list_promotion_financial_projection: {
+        Args: never
+        Returns: Json
+      }
+      staff_service_manages_profile: {
+        Args: { _staff_profile_id: string; _user_id: string }
+        Returns: boolean
+      }
+      staff_service_mark_attachment_scan_state: {
+        Args: {
+          p_attachment_id: string
+          p_reason?: string
+          p_scan_state: string
+        }
+        Returns: undefined
+      }
+      staff_service_open_clearance_case: {
+        Args: {
+          p_idempotency_key: string
+          p_reason: string
+          p_staff_profile_id: string
+        }
+        Returns: {
+          case_no: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          custody_override: boolean
+          custody_override_at: string | null
+          custody_override_by: string | null
+          custody_override_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string | null
+          opened_by: string | null
+          reason: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_clearance_cases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_open_promotion_case: {
+        Args: {
+          p_case_kind: string
+          p_current_grade: string
+          p_idempotency_key: string
+          p_notes: string
+          p_proposed_grade: string
+          p_staff_profile_id: string
+        }
+        Returns: {
+          case_kind: string
+          case_no: string
+          created_at: string
+          current_grade: string | null
+          effective_on: string | null
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          opened_by: string | null
+          proposed_grade: string | null
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_promotion_cases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_owns_profile: {
+        Args: { _staff_profile_id: string; _user_id: string }
+        Returns: boolean
+      }
+      staff_service_record_correspondence_read: {
+        Args: { p_correspondence_id: string }
+        Returns: Json
+      }
+      staff_service_record_governance_report_export: {
+        Args: {
+          p_department_id?: string
+          p_period_from: string
+          p_period_to: string
+        }
+        Returns: Json
+      }
+      staff_service_request_employment_statement: {
+        Args: {
+          p_destination: string
+          p_document_type: string
+          p_idempotency_key: string
+          p_language_code: string
+          p_notes: string
+          p_purpose: string
+        }
+        Returns: {
+          created_at: string
+          current_step: number
+          decided_at: string | null
+          decision_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string
+          payload: Json
+          request_no: string
+          service_type: string
+          staff_profile_id: string
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_service_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_request_training_enrollment: {
+        Args: { p_course_id: string }
+        Returns: {
+          certificate_bucket: string | null
+          certificate_object_path: string | null
+          certificate_sha256: string | null
+          completed_at: string | null
+          course_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          id: string
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_training_enrollments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_require_aal2: { Args: never; Returns: undefined }
+      staff_service_revoke_issued_document: {
+        Args: { p_document_id: string; p_reason: string }
+        Returns: Json
+      }
+      staff_service_submit_overtime_claim: {
+        Args: {
+          p_claim_kind: string
+          p_ends_on: string
+          p_idempotency_key: string
+          p_reason: string
+          p_starts_on: string
+          p_total_hours: number
+        }
+        Returns: {
+          claim_kind: string
+          claim_no: string
+          created_at: string
+          department_id: string | null
+          ends_on: string
+          hr_decided_at: string | null
+          hr_decided_by: string | null
+          hr_reason: string | null
+          id: string
+          idempotency_key: string
+          manager_decided_at: string | null
+          manager_decided_by: string | null
+          manager_reason: string | null
+          reason: string
+          staff_profile_id: string
+          starts_on: string
+          status: string
+          total_hours: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_overtime_claims"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_submit_request: {
+        Args: {
+          p_idempotency_key: string
+          p_payload: Json
+          p_service_type: string
+        }
+        Returns: {
+          created_at: string
+          current_step: number
+          decided_at: string | null
+          decision_reason: string | null
+          department_id: string | null
+          id: string
+          idempotency_key: string
+          payload: Json
+          request_no: string
+          service_type: string
+          staff_profile_id: string
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_service_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_update_promotion_case: {
+        Args: {
+          p_case_id: string
+          p_effective_on?: string
+          p_notes?: string
+          p_proposed_grade?: string
+          p_status: string
+        }
+        Returns: {
+          case_kind: string
+          case_no: string
+          created_at: string
+          current_grade: string | null
+          effective_on: string | null
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          opened_by: string | null
+          proposed_grade: string | null
+          staff_profile_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_promotion_cases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_upsert_evaluation_draft: {
+        Args: {
+          p_cycle_id: string
+          p_goals?: string
+          p_improvements?: string
+          p_overall_rating?: number
+          p_rating_band?: string
+          p_staff_profile_id: string
+          p_strengths?: string
+        }
+        Returns: {
+          acknowledged_at: string | null
+          created_at: string
+          cycle_id: string
+          employee_comment: string | null
+          evaluator_user_id: string
+          finalized_at: string | null
+          goals: string | null
+          id: string
+          improvements: string | null
+          overall_rating: number | null
+          rating_band: string | null
+          staff_profile_id: string
+          status: string
+          strengths: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "staff_performance_evaluations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      staff_service_verify_issued_document: {
+        Args: { p_token: string }
+        Returns: Json
       }
       start_agenda_item_discussion: {
         Args: { p_agenda_item_id: string }
