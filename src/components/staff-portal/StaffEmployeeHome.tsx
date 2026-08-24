@@ -203,7 +203,7 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
                 <ArrowLeft className="h-4 w-4" />
               </button>
             ))}
-            {!loading && unreadLetters.length === 0 && openRequests.length === 0 && attentionCustody.length === 0 && (
+            {!loading && (assignedCount === null || assignedCount === 0) && unreadLetters.length === 0 && openRequests.length === 0 && attentionCustody.length === 0 && (
               <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">لا توجد إجراءات عاجلة حالياً.</p>
             )}
           </div>
