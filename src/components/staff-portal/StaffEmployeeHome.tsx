@@ -184,6 +184,7 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
           <h2 className="text-base font-black text-foreground">إجراءات سريعة</h2>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {[
+              ["معالجة الطلبات الطلابية", "student-requests"],
               ["طلب إجازة أو مغادرة", "requests"],
               ["عرض كشف الراتب", "payroll"],
               ["طلب إفادة وظيفية", "documents"],
