@@ -6,6 +6,7 @@ const portal = read("src/components/staff-portal/StaffEmployeePortal.tsx");
 const home = read("src/components/staff-portal/StaffEmployeeHome.tsx");
 const workspace = read("src/components/student-requests/b1/B1StaffWorkspace.tsx");
 const legacyRoute = read("src/routes/staff.b1-requests.tsx");
+const ci = read(".github/workflows/ci.yml");
 
 const FORBIDDEN = [/مناقصة/, /المناقصة/, /العطاء/, /tender/i, /\bRFP\b/i, /بيانات تجريبية/];
 
@@ -89,6 +90,16 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_OPERATIONAL_INTEGRATION_02Q", () => {
     for (const source of [portal, home, workspace]) {
       expect(source).not.toMatch(/from\s+["'][^"']*supabase/i);
     }
+  });
+
+  test("keeps the Docker-backed PG17 closure gate active for every pull request", () => {
+    expect(ci).toContain("pull_request:");
+    expect(ci).toContain('- "tests/**"');
+    expect(ci).toContain("docker pull postgres:17");
+    expect(ci).toContain("docker image inspect postgres:17");
+    expect(ci).toContain("Run all bun test suites (fail-closed)");
+    expect(ci).toContain('bun test "${TEST_FILES[@]}"');
+    expect(ci).toMatch(/services:\\n\\s+postgres:\\n\\s+image: postgres:17/);
   });
 
   test("no tender references or demo-data wording in the integrated surfaces", () => {
