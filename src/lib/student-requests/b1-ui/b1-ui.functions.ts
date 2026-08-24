@@ -14,6 +14,7 @@ import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-
 import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
 import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
 import { B1_PANEL_ACTION_LABELS_AR } from "@/lib/student-requests/b1-staff-action-routing";
+import { logB1UnclassifiedActionError } from "./b1-business-error-mapping";
 import { isStepUpSensitiveService } from "@/lib/security/step-up-contract";
 
 import {
@@ -205,29 +206,42 @@ export const actOnB1UiRequestStepFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => actSchema.parse(input))
   .handler(async ({ data, context }): Promise<B1StepActionResult> => {
-    if ((data.action === "return" || data.action === "reject") && !data.comment?.trim()) {
-      throw new Error("B1_COMMENT_REQUIRED");
+    try {
+      if ((data.action === "return" || data.action === "reject") && !data.comment?.trim()) {
+        throw new Error("B1_COMMENT_REQUIRED");
+      }
+      // Fail-closed preflight: forward actions require the service details row.
+      await assertB1DetailsRowPresentForStep({
+        stepId: data.stepId,
+        action: data.action,
+        actionLabelAr: B1_PANEL_ACTION_LABELS_AR[data.action] ?? null,
+      });
+      const rpcAction = await resolveB1ActOnRpcAction(data.stepId, data.action);
+
+      const result = await rpcActOnB1StudentRequestStepAtomic(asSessionRpc(context.supabase), {
+        stepId: data.stepId,
+        action: rpcAction,
+        comment: data.comment ?? null,
+      });
+      if (result.success !== true) throw new Error("B1_ACTION_FAILED");
+
+      return {
+        accepted: true,
+        stepId: String(result.step_id ?? data.stepId),
+        action: data.action,
+      };
+    } catch (error) {
+      // 02R: structured server-side provenance for unclassified errors only.
+      // Known business/authorization/validation errors are not logged; the raw
+      // error is always rethrown so the client adapter can classify it.
+      logB1UnclassifiedActionError({
+        operation: "act_on_b1_student_request_step_atomic",
+        action: data.action,
+        stepId: data.stepId,
+        error,
+      });
+      throw error;
     }
-    // Fail-closed preflight: forward actions require the service details row.
-    await assertB1DetailsRowPresentForStep({
-      stepId: data.stepId,
-      action: data.action,
-      actionLabelAr: B1_PANEL_ACTION_LABELS_AR[data.action] ?? null,
-    });
-    const rpcAction = await resolveB1ActOnRpcAction(data.stepId, data.action);
-
-    const result = await rpcActOnB1StudentRequestStepAtomic(asSessionRpc(context.supabase), {
-      stepId: data.stepId,
-      action: rpcAction,
-      comment: data.comment ?? null,
-    });
-    if (result.success !== true) throw new Error("B1_ACTION_FAILED");
-
-    return {
-      accepted: true,
-      stepId: String(result.step_id ?? data.stepId),
-      action: data.action,
-    };
   });
 
 const confirmSchema = z
@@ -241,17 +255,28 @@ export const confirmB1UiRevenueReceiptFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => confirmSchema.parse(input))
   .handler(async ({ data, context }): Promise<B1StepActionResult> => {
-    const result = await rpcRecordExternalUniversityPaymentConfirmation(
-      asSessionRpc(context.supabase),
-      { stepId: data.stepId, note: data.note ?? null },
-    );
-    if (result.success !== true) throw new Error("PAYMENT_CONFIRMATION_FAILED");
-    return {
-      accepted: true,
-      stepId: String(result.step_id ?? data.stepId),
-      ...(result.request_id ? { requestId: String(result.request_id) } : {}),
-      action: "confirm_payment",
-    };
+    try {
+      const result = await rpcRecordExternalUniversityPaymentConfirmation(
+        asSessionRpc(context.supabase),
+        { stepId: data.stepId, note: data.note ?? null },
+      );
+      if (result.success !== true) throw new Error("PAYMENT_CONFIRMATION_FAILED");
+      return {
+        accepted: true,
+        stepId: String(result.step_id ?? data.stepId),
+        ...(result.request_id ? { requestId: String(result.request_id) } : {}),
+        action: "confirm_payment",
+      };
+    } catch (error) {
+      // 02R: structured server-side provenance for unclassified errors only.
+      logB1UnclassifiedActionError({
+        operation: "record_external_university_payment_confirmation",
+        action: "confirm_payment",
+        stepId: data.stepId,
+        error,
+      });
+      throw error;
+    }
   });
 
 const uploadIntentSchema = z
