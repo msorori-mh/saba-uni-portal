@@ -65,14 +65,17 @@ describe("PORTAL_STAFF_SERVICES_SHOWCASE_FRONTEND_01", () => {
     expect(admin).toContain("Administrator");
   });
 
-  test("wires the employee and admin surfaces into existing routes", () => {
-    expect(route).toContain("StaffSelfServiceShowcase");
+  test("mounts the operational employee surface and keeps the admin workspace", () => {
+    expect(route).toContain("StaffSelfServiceLiveActions");
+    expect(route).toContain("StaffSelfServiceLiveDashboard");
+    expect(route).not.toContain("StaffSelfServiceShowcase");
     expect(adminRoute).toContain("EmployeeServicesShowcase");
     expect(adminRoute).toContain('value="services"');
     expect(nav).toContain("الموارد البشرية وخدمات الموظفين");
   });
 
-  test("provides printable showcase packs with neutral operational naming", () => {
+  test("keeps legacy print artifacts isolated from the active employee route", () => {
+    expect(route).not.toContain("staff-services-print-pack");
     expect(staff).toContain("staff-services-print-pack");
     expect(staff).toContain("طباعة حزمة العرض");
     expect(admin).toContain("admin-services-print-pack");

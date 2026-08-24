@@ -51,11 +51,11 @@ describe("PORTAL_STAFF_SELF_SERVICE_DEMO_DATA_02G", () => {
     expect(cleanup).toContain("staff_profile_departments");
   });
 
-  it("enables all three staff services and labels both live surfaces", () => {
+  it("enables all three staff services without labeling the employee home as demo data", () => {
     expect(flags).toMatch(/staffSelfServiceLive:\s*true/);
     expect(flags).toMatch(/staffSelfServiceValueAdded:\s*true/);
     expect(flags).toMatch(/staffSelfServiceGovernance:\s*true/);
-    expect(staff).toContain("بيانات تجريبية للعرض");
+    expect(staff).not.toContain("بيانات تجريبية للعرض");
     expect(admin).toContain("بيانات تجريبية للعرض");
   });
 });

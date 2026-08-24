@@ -56,17 +56,18 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
     expect(staffGuard).toContain('pathname !== "/staff/change-password"');
   });
 
-  test("keeps the employee and admin operational surfaces mounted together", () => {
+  test("keeps one employee operational surface and the admin workspace mounted", () => {
     expect(staffRoute).toContain("<StaffSelfServiceLiveActions");
     expect(staffRoute).toContain("<StaffSelfServiceLiveDashboard");
-    expect(staffRoute).toContain("<StaffSelfServiceShowcase");
+    expect(staffRoute).not.toContain("<StaffSelfServiceShowcase");
     expect(adminRoute).toContain("<StaffSelfServiceLiveWorkbench");
     expect(adminRoute).toContain("<EmployeeServicesShowcase");
     expect(actions).toContain('variant: "employee" | "approver"');
     expect(workbench).toContain("staff-self-service-live-workbench");
   });
 
-  test("keeps printable RTL showcase packs for employee and administrator", () => {
+  test("keeps legacy print sources isolated and the administrator pack available", () => {
+    expect(staffRoute).not.toContain("staff-services-print-pack");
     expect(employeeShowcase).toContain("staff-services-print-pack");
     expect(employeeShowcase).toContain("طباعة الصفحة");
     expect(employeeShowcase).toContain("طباعة حزمة العرض");

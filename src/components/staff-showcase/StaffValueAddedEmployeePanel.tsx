@@ -111,7 +111,7 @@ function ErrorNote({ error }: { error: unknown }) {
   if (!error) return null;
   return (
     <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
-      {error instanceof Error ? error.message : "تعذر تحميل البيانات."}
+      تعذر تحميل البيانات حالياً. يرجى المحاولة مرة أخرى.
     </p>
   );
 }
@@ -186,7 +186,7 @@ export function StaffValueAddedEmployeePanel() {
       await queryClient.invalidateQueries({ queryKey: ["staff-02e"] });
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "تعذر إكمال العملية بأمان.",
+        "تعذر إكمال العملية حالياً. يرجى المحاولة مرة أخرى.",
       );
     } finally {
       setBusy(null);

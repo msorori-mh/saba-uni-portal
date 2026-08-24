@@ -143,7 +143,7 @@ function StateBlock({
         className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive"
       >
         <AlertTriangle className="h-4 w-4" aria-hidden />
-        {(error as Error).message}
+        تعذر تحميل البيانات حالياً. يرجى المحاولة مرة أخرى.
       </div>
     );
   }
@@ -206,10 +206,10 @@ export function StaffSelfServiceLiveDashboard() {
         <div>
           <div className="flex items-center gap-2 text-sm font-extrabold text-primary">
             <BadgeCheck className="h-5 w-5" aria-hidden />
-            لوحة البيانات الحية للموظف
+            ملخص خدماتي
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            جميع البيانات تُقرأ مباشرة ضمن صلاحياتك، ولا تُعرض أي بيانات خارج نطاقك.
+            تابع أرصدتك وكشوفك وتعاميمك والعُهد والإشعارات من مكان واحد.
           </p>
         </div>
         <button

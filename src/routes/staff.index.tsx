@@ -3,11 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
-import { StaffSelfServiceShowcase } from "@/components/staff-showcase/StaffSelfServiceShowcase";
 import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSelfServiceLiveActions";
 import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
 import { StaffValueAddedEmployeePanel } from "@/components/staff-showcase/StaffValueAddedEmployeePanel";
-import { StaffGovernanceEmployeePanel } from "@/components/staff-showcase/StaffGovernancePanels";
 
 import { useStaffLogout } from "@/lib/use-staff-logout";
 import { portalFeatures } from "@/lib/portal-features";
@@ -56,23 +54,26 @@ function StaffDashboard() {
       ) : (
         <>
           {portalFeatures.staffSelfServiceLive && (
-            <div className="container mx-auto max-w-[1600px] space-y-4 px-4 pt-5">
-              <div data-testid="staff-02g-demo-badge" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-extrabold text-amber-950 print:hidden">
-                بيانات تجريبية للعرض
-                <span className="mr-2 text-xs font-medium">لا تمثل سجلات موارد بشرية أو مالية حقيقية.</span>
-              </div>
+            <div className="container mx-auto max-w-7xl space-y-5 px-4 py-5">
+              <section className="relative overflow-hidden rounded-2xl bg-hero-gradient p-5 text-primary-foreground shadow-elegant sm:p-7">
+                <div className="absolute -left-10 -top-10 h-36 w-36 rounded-full bg-gold/20 blur-2xl" />
+                <div className="relative">
+                  <div className="text-xs font-bold text-gold">مرحباً بك</div>
+                  <h1 className="mt-1 font-display text-2xl font-extrabold">
+                    {profile.full_name_ar}
+                  </h1>
+                  <p className="mt-1 text-sm text-primary-foreground/75">
+                    {profile.job_title}
+                  </p>
+                </div>
+              </section>
               <StaffSelfServiceLiveActions variant="employee" />
               <StaffSelfServiceLiveDashboard />
               {portalFeatures.staffSelfServiceValueAdded && (
                 <StaffValueAddedEmployeePanel />
               )}
-              {portalFeatures.staffSelfServiceGovernance && (
-                <StaffGovernanceEmployeePanel />
-              )}
             </div>
           )}
-
-          <StaffSelfServiceShowcase profile={profile} />
           {portalFeatures.staffGraduatesAffairs && (
             <div className="container mx-auto max-w-6xl px-4 pb-8 print:hidden">
               <Link
