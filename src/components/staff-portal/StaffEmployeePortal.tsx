@@ -144,6 +144,15 @@ function PortalNavigation({
   active: StaffPortalSection;
   onSelect: (section: StaffPortalSection) => void;
 }) {
+  // Shares the same query key/cache as the home card and the B1 workspace;
+  // no duplicated backend logic. On failure the badge is simply hidden —
+  // never a fake number.
+  const assignedStudentRequests = useQuery({
+    queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY,
+    queryFn: () => getB1UiAdapter().getAssignedB1Requests(),
+  });
+  const assignedCount = assignedStudentRequests.data?.length ?? null;
+
   return (
     <nav aria-label="خدمات بوابة الموظفين" className="space-y-5">
       {GROUPS.map((group) => (
@@ -167,6 +176,21 @@ function PortalNavigation({
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="min-w-0 flex-1">{item.label}</span>
+                  {item.id === "student-requests" &&
+                    assignedCount !== null &&
+                    assignedCount > 0 && (
+                      <span
+                        data-testid="b1-assigned-nav-badge"
+                        aria-label={`${assignedCount} طلب مسند`}
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${
+                          selected
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {assignedCount}
+                      </span>
+                    )}
                   {selected && <ChevronLeft className="h-4 w-4 shrink-0" />}
                 </button>
               );
@@ -248,7 +272,7 @@ function PortalView({
 }) {
   if (section === "home") return <StaffEmployeeHome profile={profile} onOpen={(value) => onSelect(value as StaffPortalSection)} />;
   if (section === "profile") return <StaffProfileView profile={profile} />;
-  if (section === "student-requests") return <B1StaffWorkspace />;
+  if (section === "student-requests") return <B1StaffWorkspace embedded />;
   if (section === "requests") {
     return (
       <div className="space-y-5">
