@@ -251,6 +251,13 @@ function PortalView({
     );
   }
   if (section in LIVE_FILTER) return <FilteredLiveView section={section} />;
+  if (!portalFeatures.staffSelfServiceValueAdded) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        هذه الخدمة غير متاحة مؤقتاً.
+      </div>
+    );
+  }
   return <FilteredValueView section={section} />;
 }
 
