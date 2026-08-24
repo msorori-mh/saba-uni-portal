@@ -82,10 +82,10 @@ export function StaffSelfServiceLiveActions({
         <div>
           <div className="flex items-center gap-2 text-sm font-extrabold text-emerald-900">
             <ShieldCheck className="h-5 w-5" />
-            الاتصال التشغيلي الآمن مفعّل
+            الطلبات والخدمات
           </div>
           <p className="mt-1 text-xs text-emerald-800">
-            العمليات هنا حية وتخضع للصلاحيات والسجل غير القابل للتعديل.
+            قدّم طلباتك وتابعها وفق الصلاحيات ومسار الاعتماد المعتمد.
           </p>
         </div>
         <button
@@ -186,7 +186,7 @@ function EmployeeSubmission({ onChanged }: { onChanged: () => Promise<unknown> }
 
   return (
     <form onSubmit={submit} className="rounded-xl border border-border bg-card p-4">
-      <h3 className="text-sm font-extrabold text-primary">تقديم طلب حي</h3>
+      <h3 className="text-sm font-extrabold text-primary">تقديم طلب جديد</h3>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <LiveField label="الخدمة">
           <select
