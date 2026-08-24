@@ -179,6 +179,12 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <h2 className="text-base font-black text-foreground">يحتاج انتباهك</h2>
           <div className="mt-3 space-y-2">
+            {assignedCount !== null && assignedCount > 0 && (
+              <button type="button" onClick={() => onOpen("student-requests")} className="flex w-full items-center justify-between rounded-xl bg-primary/10 p-3 text-right">
+                <span><span className="block text-sm font-bold">طلبات طلابية مسندة إليك</span><span className="text-xs text-muted-foreground">{assignedCount} طلب بانتظار إجرائك</span></span>
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
             {unreadLetters.slice(0, 1).map((item) => (
               <button key={item.id} type="button" onClick={() => onOpen("communications")} className="flex w-full items-center justify-between rounded-xl bg-amber-500/10 p-3 text-right">
                 <span><span className="block text-sm font-bold">تعميم ينتظر القراءة</span><span className="text-xs text-muted-foreground">{item.subject}</span></span>
