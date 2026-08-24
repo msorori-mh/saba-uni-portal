@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const client = readFileSync("src/integrations/supabase/client.ts", "utf8");
-const route = readFileSync("src/routes/staff.index.tsx", "utf8");
+const route = [
+  readFileSync("src/routes/staff.index.tsx", "utf8"),
+  readFileSync("src/components/staff-portal/StaffEmployeePortal.tsx", "utf8"),
+].join("\n");
 const actions = readFileSync(
   "src/components/staff-showcase/StaffSelfServiceLiveActions.tsx",
   "utf8",
