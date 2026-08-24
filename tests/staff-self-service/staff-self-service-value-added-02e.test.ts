@@ -207,7 +207,10 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
 
   test("both surfaces activate under the controlled 02G showcase flag", () => {
     const features = read("src/lib/portal-features.ts");
-    const staffRoute = read("src/routes/staff.index.tsx");
+    const staffRoute = [
+  read("src/routes/staff.index.tsx"),
+  read("src/components/staff-portal/StaffEmployeePortal.tsx"),
+].join("\n");
     const adminRoute = read("src/routes/admin/staff-management.tsx");
     expect(features).toContain("staffSelfServiceValueAdded: true");
     expect(staffRoute).toContain("<StaffValueAddedEmployeePanel />");
