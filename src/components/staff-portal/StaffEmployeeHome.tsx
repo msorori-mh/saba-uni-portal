@@ -166,7 +166,8 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
           <h2 id="staff-summary-title" className="text-base font-black text-foreground">ملخص اليوم</h2>
           {loading && <span className="text-xs text-muted-foreground">جاري التحديث...</span>}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="طلبات طلابية مسندة" value={assignedValue} hint="بانتظار إجرائك" icon={<ClipboardCheck className="h-5 w-5" />} onClick={() => onOpen("student-requests")} />
           <StatCard label="رصيد الإجازة السنوية" value={annualRemaining} hint="يوم متبقٍ" icon={<CalendarDays className="h-5 w-5" />} onClick={() => onOpen("leave")} />
           <StatCard label="طلبات مفتوحة" value={openRequests.length} hint="تحتاج متابعة" icon={<FileText className="h-5 w-5" />} onClick={() => onOpen("requests")} />
           <StatCard label="تعاميم غير مقروءة" value={unreadLetters.length} hint="بانتظار القراءة" icon={<Mail className="h-5 w-5" />} onClick={() => onOpen("communications")} />
