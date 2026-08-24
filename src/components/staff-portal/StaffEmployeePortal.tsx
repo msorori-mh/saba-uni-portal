@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   Award,
   Bell,
@@ -29,7 +30,11 @@ import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSe
 import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
 import { StaffValueAddedEmployeePanel } from "@/components/staff-showcase/StaffValueAddedEmployeePanel";
 import { StaffEmployeeHome } from "@/components/staff-portal/StaffEmployeeHome";
-import { B1StaffWorkspace } from "@/components/student-requests/b1/B1StaffWorkspace";
+import {
+  B1StaffWorkspace,
+  B1_ASSIGNED_REQUESTS_QUERY_KEY,
+} from "@/components/student-requests/b1/B1StaffWorkspace";
+import { getB1UiAdapter } from "@/lib/student-requests/b1-ui";
 import { portalFeatures } from "@/lib/portal-features";
 
 export type StaffPortalSection =
