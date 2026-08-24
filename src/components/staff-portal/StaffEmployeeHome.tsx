@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Box,
   CalendarDays,
+  ClipboardCheck,
   FileText,
   Mail,
 } from "lucide-react";
@@ -14,6 +15,8 @@ import {
   remainingLeaveDays,
 } from "@/lib/staff-self-service-read";
 import { listAccessibleStaffServiceRequests } from "@/lib/staff-self-service-live";
+import { getB1UiAdapter } from "@/lib/student-requests/b1-ui";
+import { B1_ASSIGNED_REQUESTS_QUERY_KEY } from "@/components/student-requests/b1/B1StaffWorkspace";
 
 type StaffEmployeeHomeProps = {
   profile: {
@@ -105,6 +108,10 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
   const custody = useQuery({
     queryKey: ["staff-portal-home", "custody"],
     queryFn: fetchStaffCustody,
+  });
+  const assignedStudentRequests = useQuery({
+    queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY,
+    queryFn: () => getB1UiAdapter().getAssignedB1Requests(),
   });
 
   const annual = (leave.data ?? []).find((item) => item.leave_type === "annual");
