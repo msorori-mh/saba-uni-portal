@@ -11,11 +11,13 @@ const staffRoute = readFileSync("src/routes/staff.index.tsx", "utf8");
 const adminRoute = readFileSync("src/routes/admin/staff-management.tsx", "utf8");
 
 describe("PORTAL_STAFF_SELF_SERVICE_LIVE_UI_BINDING_02C", () => {
-  test("ships the controlled 02G activation and keeps the services showcase visible", () => {
+  test("ships the controlled activation through one employee operational surface", () => {
     expect(feature).toContain("staffSelfServiceLive: true");
     expect(staffRoute).toContain("portalFeatures.staffSelfServiceLive");
     expect(adminRoute).toContain("portalFeatures.staffSelfServiceLive");
-    expect(staffRoute).toContain("<StaffSelfServiceShowcase");
+    expect(staffRoute).toContain("<StaffSelfServiceLiveActions");
+    expect(staffRoute).toContain("<StaffSelfServiceLiveDashboard");
+    expect(staffRoute).not.toContain("<StaffSelfServiceShowcase");
     expect(adminRoute).toContain("<EmployeeServicesShowcase");
   });
 
