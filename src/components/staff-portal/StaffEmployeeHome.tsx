@@ -123,8 +123,23 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     (item) => item.condition_state === "needs_maintenance" || item.condition_state === "damaged",
   );
   const latestRequests = (requests.data ?? []).slice(0, 5);
-  const loading = leave.isLoading || requests.isLoading || letters.isLoading || custody.isLoading;
-  const hasError = leave.isError || requests.isError || letters.isError || custody.isError;
+  const assignedCount = assignedStudentRequests.data?.length ?? null;
+  // Never show a fake number: loading → "…", failure → "—" plus the page error banner.
+  const assignedValue = assignedStudentRequests.isError
+    ? "—"
+    : (assignedCount ?? "…");
+  const loading =
+    leave.isLoading ||
+    requests.isLoading ||
+    letters.isLoading ||
+    custody.isLoading ||
+    assignedStudentRequests.isLoading;
+  const hasError =
+    leave.isError ||
+    requests.isError ||
+    letters.isError ||
+    custody.isError ||
+    assignedStudentRequests.isError;
 
   return (
     <div dir="rtl" data-testid="staff-portal-home" className="space-y-5">
