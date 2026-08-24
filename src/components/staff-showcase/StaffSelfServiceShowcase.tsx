@@ -99,7 +99,7 @@ export function StaffSelfServiceShowcase({ profile }: { profile?: StaffProfileLi
   };
 
   const printCurrent = () => window.print();
-  const printEvidencePack = () => {
+  const printServicePack = () => {
     setPrintPack(true);
     window.setTimeout(() => window.print(), 120);
   };
@@ -107,7 +107,7 @@ export function StaffSelfServiceShowcase({ profile }: { profile?: StaffProfileLi
   return (
     <div className="min-h-[calc(100vh-82px)] bg-surface" data-testid="staff-self-service-showcase">
       <div className="border-b border-gold/30 bg-primary-deep px-4 py-2 text-center text-[11px] font-bold text-gold print:hidden">
-        عرض الواجهات الأمامية للمناقصة — بيانات تجريبية فقط — لا توجد عمليات أو بيانات إنتاجية
+        استعراض متكامل لخدمات الموظفين — بيانات تجريبية مخصصة للعرض
       </div>
       <div className="mx-auto flex max-w-[1600px] items-start">
         <aside className={`${mobileOpen ? "fixed inset-y-0 right-0 z-50 block w-80" : "hidden"} shrink-0 border-l border-border bg-card shadow-card lg:sticky lg:top-0 lg:block lg:h-[calc(100vh-82px)] lg:w-72 lg:overflow-y-auto print:hidden`}>
@@ -142,12 +142,12 @@ export function StaffSelfServiceShowcase({ profile }: { profile?: StaffProfileLi
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={printCurrent} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary hover:border-gold"><Printer className="h-4 w-4" /> طباعة الصفحة</button>
-              <button type="button" onClick={printEvidencePack} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><FileCheck2 className="h-4 w-4" /> طباعة حزمة المناقصة</button>
+              <button type="button" onClick={printServicePack} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><FileCheck2 className="h-4 w-4" /> طباعة حزمة الخدمات</button>
             </div>
           </div>
 
           {printPack ? (
-            <div data-testid="staff-tender-print-pack">
+            <div data-testid="staff-services-print-pack">
               <PrintCover name={name} />
               {ALL_MODULES.map((item) => (
                 <section key={item.key} className="break-after-page py-4" data-evidence-module={item.key}>
