@@ -509,7 +509,10 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
       try {
         return await deps.actOnB1RequestStep(stepId, action, comment);
       } catch (error) {
-        mapLiveError(error, "PERMISSION_DENIED");
+        // 02R: unclassified errors must surface as a safe TECHNICAL error,
+        // never as permission denied. Genuine authorization failures are
+        // matched inside mapLiveError before any fallback is applied.
+        mapLiveError(error, "UNEXPECTED_ERROR");
       }
     },
 
@@ -520,7 +523,9 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
       try {
         return await deps.confirmB1RevenueReceipt(stepId, optionalNote);
       } catch (error) {
-        mapLiveError(error, "PERMISSION_DENIED");
+        // 02R: same provenance rule as actOnB1RequestStep — unknown failures
+        // degrade to the safe technical error, not PERMISSION_DENIED.
+        mapLiveError(error, "UNEXPECTED_ERROR");
       }
     },
   };
