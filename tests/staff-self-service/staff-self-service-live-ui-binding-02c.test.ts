@@ -11,7 +11,7 @@ const staffRoute = readFileSync("src/routes/staff.index.tsx", "utf8");
 const adminRoute = readFileSync("src/routes/admin/staff-management.tsx", "utf8");
 
 describe("PORTAL_STAFF_SELF_SERVICE_LIVE_UI_BINDING_02C", () => {
-  test("ships the controlled 02G activation and keeps the tender showcase visible", () => {
+  test("ships the controlled 02G activation and keeps the services showcase visible", () => {
     expect(feature).toContain("staffSelfServiceLive: true");
     expect(staffRoute).toContain("portalFeatures.staffSelfServiceLive");
     expect(adminRoute).toContain("portalFeatures.staffSelfServiceLive");

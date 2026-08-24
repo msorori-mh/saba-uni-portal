@@ -14,9 +14,9 @@ const route = readFileSync("src/routes/staff.index.tsx", "utf8");
 const adminRoute = readFileSync("src/routes/admin/staff-management.tsx", "utf8");
 const nav = readFileSync("src/lib/admin-navigation-config.ts", "utf8");
 
-describe("PORTAL_STAFF_SELF_SERVICE_TENDER_FRONTEND_01", () => {
-  test("uses isolated tender fixtures and contains no Supabase mutation", () => {
-    expect(data).toContain("TEST_ONLY_TENDER_STAFF_SELF_SERVICE_01");
+describe("PORTAL_STAFF_SERVICES_SHOWCASE_FRONTEND_01", () => {
+  test("uses isolated showcase fixtures and contains no Supabase mutation", () => {
+    expect(data).toContain("TEST_ONLY_STAFF_SERVICES_SHOWCASE_01");
     expect(data).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
     expect(staff).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
     expect(admin).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
@@ -72,11 +72,11 @@ describe("PORTAL_STAFF_SELF_SERVICE_TENDER_FRONTEND_01", () => {
     expect(nav).toContain("الموارد البشرية وخدمات الموظفين");
   });
 
-  test("provides printable tender evidence packs", () => {
-    expect(staff).toContain("staff-tender-print-pack");
-    expect(staff).toContain("طباعة حزمة المناقصة");
-    expect(admin).toContain("admin-tender-print-pack");
-    expect(admin).toContain("حزمة أدلة الأدمن");
+  test("provides printable showcase packs with neutral operational naming", () => {
+    expect(staff).toContain("staff-services-print-pack");
+    expect(staff).toContain("طباعة حزمة العرض");
+    expect(admin).toContain("admin-services-print-pack");
+    expect(admin).toContain("طباعة حزمة العرض");
     expect(staff).toContain("print:break-after-page");
     expect(admin).toContain("print:break-after-page");
   });
