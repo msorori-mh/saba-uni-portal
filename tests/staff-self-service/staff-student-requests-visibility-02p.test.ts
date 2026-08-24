@@ -13,7 +13,7 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_VISIBILITY_02P", () => {
     expect(portal).toContain('| "student-requests"');
     expect(portal).toContain('label: "الطلبات الطلابية المسندة"');
     expect(portal).toContain('section === "student-requests"');
-    expect(portal).toContain("<B1StaffWorkspace />");
+    expect(portal).toContain("<B1StaffWorkspace embedded />");
   });
 
   test("keeps a direct quick action on the compact employee home", () => {
