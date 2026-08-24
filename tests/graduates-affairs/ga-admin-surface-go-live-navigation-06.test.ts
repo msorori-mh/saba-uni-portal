@@ -27,7 +27,10 @@ describe("PORTAL-GA-ADMIN-SURFACE-NAVIGATION-AND-GO-LIVE-VISIBILITY-06", () => {
   const adminRoute = read("src/routes/admin.graduates-affairs.tsx");
   const adminFunctions = read("src/lib/admin-graduates-affairs.functions.ts");
   const staffRoute = read("src/routes/staff.graduates-affairs.tsx");
-  const staffDashboard = read("src/routes/staff.index.tsx");
+  const staffDashboard = [
+  read("src/routes/staff.index.tsx"),
+  read("src/components/staff-portal/StaffEmployeePortal.tsx"),
+].join("\n");
   const studentRoute = read("src/routes/student.graduates-affairs.index.tsx");
   const functions = read("src/lib/graduates-affairs/graduates-affairs.functions.ts");
   const runtimeGate = read("src/lib/graduates-affairs/runtime-gate.ts");

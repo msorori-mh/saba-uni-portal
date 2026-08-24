@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 
 const staffGuard = readFileSync("src/routes/staff.tsx", "utf8");
 const portalLogin = readFileSync("src/routes/portal-login.tsx", "utf8");
-const staffRoute = readFileSync("src/routes/staff.index.tsx", "utf8");
+const staffRoute = [
+  readFileSync("src/routes/staff.index.tsx", "utf8"),
+  readFileSync("src/components/staff-portal/StaffEmployeePortal.tsx", "utf8"),
+].join("\n");
 const adminRoute = readFileSync("src/routes/admin/staff-management.tsx", "utf8");
 const employeeShowcase = readFileSync(
   "src/components/staff-showcase/StaffSelfServiceShowcase.tsx",

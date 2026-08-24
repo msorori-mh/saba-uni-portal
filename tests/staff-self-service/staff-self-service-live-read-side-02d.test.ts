@@ -53,7 +53,10 @@ const workbench = readFileSync(
   root + "/src/components/staff-showcase/StaffSelfServiceLiveWorkbench.tsx",
   "utf8",
 );
-const staffRoute = readFileSync(root + "/src/routes/staff.index.tsx", "utf8");
+const staffRoute = [
+  readFileSync(root + "/src/routes/staff.index.tsx", "utf8"),
+  readFileSync(root + "/src/components/staff-portal/StaffEmployeePortal.tsx", "utf8"),
+].join("\n");
 const adminRoute = readFileSync(
   root + "/src/routes/admin/staff-management.tsx",
   "utf8",

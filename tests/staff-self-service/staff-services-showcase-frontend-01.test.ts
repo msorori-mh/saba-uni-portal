@@ -10,7 +10,10 @@ const admin = readFileSync(
   "src/components/admin/staff-management/EmployeeServicesShowcase.tsx",
   "utf8",
 );
-const route = readFileSync("src/routes/staff.index.tsx", "utf8");
+const route = [
+  readFileSync("src/routes/staff.index.tsx", "utf8"),
+  readFileSync("src/components/staff-portal/StaffEmployeePortal.tsx", "utf8"),
+].join("\n");
 const adminRoute = readFileSync("src/routes/admin/staff-management.tsx", "utf8");
 const nav = readFileSync("src/lib/admin-navigation-config.ts", "utf8");
 
