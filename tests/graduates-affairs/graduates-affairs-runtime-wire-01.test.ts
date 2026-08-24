@@ -514,7 +514,10 @@ describe("feature flag and AUTH-04-only path", () => {
     const studentRoute = read("src/routes/student.graduates-affairs.index.tsx");
     const staffRoute = read("src/routes/staff.graduates-affairs.tsx");
     const studentIndex = read("src/routes/student.index.tsx");
-    const staffIndex = read("src/routes/staff.index.tsx");
+    const staffIndex = [
+  read("src/routes/staff.index.tsx"),
+  read("src/components/staff-portal/StaffEmployeePortal.tsx"),
+].join("\n");
     expect(studentRoute).toContain("portalFeatures.studentGraduatesAffairs");
     expect(staffRoute).toContain("portalFeatures.staffGraduatesAffairs");
     expect(studentIndex).toContain("studentGraduatesAffairs");
