@@ -20,8 +20,7 @@ import { B1WorkflowTimeline } from "./B1WorkflowTimeline";
  * Shared React Query key for the assigned-requests count shown on the staff
  * home card and the portal navigation badge. The workspace itself reads via
  * the adapter directly, but after every successful action it invalidates
- * this key so all counters refresh from the trusted backend source
- * (no optimistic updates).
+ * this key so all counters refresh from the trusted backend source.
  */
 export const B1_ASSIGNED_REQUESTS_QUERY_KEY = ["b1-assigned-requests"] as const;
 
@@ -80,7 +79,7 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
 
   const refreshAfterAction = async (requestId: string) => {
     await loadInbox();
-    // Counters (home card + nav badge) must come from the trusted source.
+    // Counters (home card + nav badge) re-read from the trusted source.
     await queryClient.invalidateQueries({ queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY });
     try {
       setDetails(await adapter.getAssignedB1RequestDetails(requestId));
