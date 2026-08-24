@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Box,
   CalendarDays,
+  ClipboardCheck,
   FileText,
   Mail,
 } from "lucide-react";
@@ -14,6 +15,8 @@ import {
   remainingLeaveDays,
 } from "@/lib/staff-self-service-read";
 import { listAccessibleStaffServiceRequests } from "@/lib/staff-self-service-live";
+import { getB1UiAdapter } from "@/lib/student-requests/b1-ui";
+import { B1_ASSIGNED_REQUESTS_QUERY_KEY } from "@/components/student-requests/b1/B1StaffWorkspace";
 
 type StaffEmployeeHomeProps = {
   profile: {
@@ -106,6 +109,10 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     queryKey: ["staff-portal-home", "custody"],
     queryFn: fetchStaffCustody,
   });
+  const assignedStudentRequests = useQuery({
+    queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY,
+    queryFn: () => getB1UiAdapter().getAssignedB1Requests(),
+  });
 
   const annual = (leave.data ?? []).find((item) => item.leave_type === "annual");
   const annualRemaining = annual ? remainingLeaveDays(annual).toFixed(0) : "—";
@@ -116,8 +123,23 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     (item) => item.condition_state === "needs_maintenance" || item.condition_state === "damaged",
   );
   const latestRequests = (requests.data ?? []).slice(0, 5);
-  const loading = leave.isLoading || requests.isLoading || letters.isLoading || custody.isLoading;
-  const hasError = leave.isError || requests.isError || letters.isError || custody.isError;
+  const assignedCount = assignedStudentRequests.data?.length ?? null;
+  // Never show a fake number: loading → "…", failure → "—" plus the page error banner.
+  const assignedValue = assignedStudentRequests.isError
+    ? "—"
+    : (assignedCount ?? "…");
+  const loading =
+    leave.isLoading ||
+    requests.isLoading ||
+    letters.isLoading ||
+    custody.isLoading ||
+    assignedStudentRequests.isLoading;
+  const hasError =
+    leave.isError ||
+    requests.isError ||
+    letters.isError ||
+    custody.isError ||
+    assignedStudentRequests.isError;
 
   return (
     <div dir="rtl" data-testid="staff-portal-home" className="space-y-5">
@@ -144,7 +166,8 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
           <h2 id="staff-summary-title" className="text-base font-black text-foreground">ملخص اليوم</h2>
           {loading && <span className="text-xs text-muted-foreground">جاري التحديث...</span>}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="طلبات طلابية مسندة" value={assignedValue} hint="بانتظار إجرائك" icon={<ClipboardCheck className="h-5 w-5" />} onClick={() => onOpen("student-requests")} />
           <StatCard label="رصيد الإجازة السنوية" value={annualRemaining} hint="يوم متبقٍ" icon={<CalendarDays className="h-5 w-5" />} onClick={() => onOpen("leave")} />
           <StatCard label="طلبات مفتوحة" value={openRequests.length} hint="تحتاج متابعة" icon={<FileText className="h-5 w-5" />} onClick={() => onOpen("requests")} />
           <StatCard label="تعاميم غير مقروءة" value={unreadLetters.length} hint="بانتظار القراءة" icon={<Mail className="h-5 w-5" />} onClick={() => onOpen("communications")} />
@@ -156,6 +179,12 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <h2 className="text-base font-black text-foreground">يحتاج انتباهك</h2>
           <div className="mt-3 space-y-2">
+            {assignedCount !== null && assignedCount > 0 && (
+              <button type="button" onClick={() => onOpen("student-requests")} className="flex w-full items-center justify-between rounded-xl bg-primary/10 p-3 text-right">
+                <span><span className="block text-sm font-bold">طلبات طلابية مسندة إليك</span><span className="text-xs text-muted-foreground">{assignedCount} طلب بانتظار إجرائك</span></span>
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
             {unreadLetters.slice(0, 1).map((item) => (
               <button key={item.id} type="button" onClick={() => onOpen("communications")} className="flex w-full items-center justify-between rounded-xl bg-amber-500/10 p-3 text-right">
                 <span><span className="block text-sm font-bold">تعميم ينتظر القراءة</span><span className="text-xs text-muted-foreground">{item.subject}</span></span>
@@ -174,7 +203,7 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
                 <ArrowLeft className="h-4 w-4" />
               </button>
             ))}
-            {!loading && unreadLetters.length === 0 && openRequests.length === 0 && attentionCustody.length === 0 && (
+            {!loading && (assignedCount === null || assignedCount === 0) && unreadLetters.length === 0 && openRequests.length === 0 && attentionCustody.length === 0 && (
               <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">لا توجد إجراءات عاجلة حالياً.</p>
             )}
           </div>
