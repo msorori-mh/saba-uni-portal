@@ -18,7 +18,7 @@ export type StaffShowcaseModule =
   | "approvals"
   | "audit";
 
-export const TENDER_SHOWCASE_MARKER = "TEST_ONLY_TENDER_STAFF_SELF_SERVICE_01";
+export const STAFF_SHOWCASE_MARKER = "TEST_ONLY_STAFF_SERVICES_SHOWCASE_01";
 
 export const staffShowcase = {
   employee: {
