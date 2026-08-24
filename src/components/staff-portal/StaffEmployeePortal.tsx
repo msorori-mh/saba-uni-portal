@@ -29,11 +29,13 @@ import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSe
 import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
 import { StaffValueAddedEmployeePanel } from "@/components/staff-showcase/StaffValueAddedEmployeePanel";
 import { StaffEmployeeHome } from "@/components/staff-portal/StaffEmployeeHome";
+import { B1StaffWorkspace } from "@/components/student-requests/b1/B1StaffWorkspace";
 import { portalFeatures } from "@/lib/portal-features";
 
 export type StaffPortalSection =
   | "home"
   | "requests"
+  | "student-requests"
   | "leave"
   | "payroll"
   | "communications"
@@ -71,6 +73,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
       { id: "home", label: "الرئيسية", icon: Home },
       { id: "profile", label: "ملفي الوظيفي", icon: UserRound },
       { id: "requests", label: "طلباتي ومعاملاتي", icon: FileText },
+      { id: "student-requests", label: "الطلبات الطلابية المسندة", icon: ClipboardCheck },
       { id: "notifications", label: "الإشعارات", icon: Bell },
     ],
   },
@@ -240,6 +243,7 @@ function PortalView({
 }) {
   if (section === "home") return <StaffEmployeeHome profile={profile} onOpen={(value) => onSelect(value as StaffPortalSection)} />;
   if (section === "profile") return <StaffProfileView profile={profile} />;
+  if (section === "student-requests") return <B1StaffWorkspace />;
   if (section === "requests") {
     return (
       <div className="space-y-5">
