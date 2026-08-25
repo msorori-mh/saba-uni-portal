@@ -60,10 +60,13 @@ describe("STUDENT-PROVISIONING-EMAIL-02T — server function contract", () => {
   });
 
   it("student email is NEVER derived silently from the profile record", () => {
-    // The student branch must not call resolveProfileLoginEmail.
-    const studentBranch = createAccountBody.slice(
-      createAccountBody.indexOf('data.kind === "student"'),
-    );
+    // Isolate the student branch: from `if (data.kind === "student") {` up to
+    // its closing `} else {` — it must not call resolveProfileLoginEmail.
+    const branchStart = createAccountBody.indexOf('if (data.kind === "student") {');
+    expect(branchStart).toBeGreaterThan(-1);
+    const branchEnd = createAccountBody.indexOf("} else {", branchStart);
+    const studentBranch = createAccountBody.slice(branchStart, branchEnd);
+    expect(studentBranch).toContain("validateStudentUniversityEmailInput");
     expect(studentBranch).not.toContain("resolveProfileLoginEmail");
     // resolveProfileLoginEmail remains only on the non-student branch.
     expect(createAccountBody).toContain(
