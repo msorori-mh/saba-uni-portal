@@ -18,6 +18,27 @@ export function isValidUniversityLoginEmail(raw: string): boolean {
   return UNIVERSITY_EMAIL_REGEX.test(email);
 }
 
+/** Canonical student university email suffix — the only domain allowed for student logins. */
+export const STUDENT_UNIVERSITY_EMAIL_SUFFIX = "@students.usr.edu.ye";
+
+export function isStudentUniversityEmail(raw: string): boolean {
+  const email = normalizeUniversityLoginEmail(raw);
+  return isValidUniversityLoginEmail(email) && email.endsWith(STUDENT_UNIVERSITY_EMAIL_SUFFIX);
+}
+
+/** Returns Arabic validation message, or null when valid. */
+export function validateStudentUniversityEmailInput(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return "الإيميل الجامعي للطالب مطلوب.";
+  if (!isValidUniversityLoginEmail(trimmed)) {
+    return "صيغة الإيميل الجامعي غير صحيحة.";
+  }
+  if (!isStudentUniversityEmail(trimmed)) {
+    return `يجب أن ينتهي الإيميل الجامعي للطالب بـ ${STUDENT_UNIVERSITY_EMAIL_SUFFIX} — لا تُقبل النطاقات الأخرى.`;
+  }
+  return null;
+}
+
 /** Returns Arabic validation message, or null when valid. */
 export function validateUniversityLoginEmailInput(raw: string): string | null {
   const trimmed = raw.trim();

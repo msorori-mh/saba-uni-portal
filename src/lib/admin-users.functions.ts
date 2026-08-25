@@ -12,6 +12,7 @@ import {
   facultyTemporaryPassword,
   isValidUniversityLoginEmail,
   normalizeUniversityLoginEmail,
+  validateStudentUniversityEmailInput,
 } from "@/lib/university-email-auth";
 import { staffFunctionalRoleToAppRole } from "@/lib/staff-functional-roles";
 
@@ -517,10 +518,13 @@ export const listUsers = createServerFn({ method: "POST" })
 
 export const createAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { kind: AccountKind; profile_id: string }) =>
+  .inputValidator((input: { kind: AccountKind; profile_id: string; university_email?: string }) =>
     z.object({
       kind: z.enum(["student", "faculty", "staff"]),
       profile_id: z.string().uuid(),
+      // STUDENT-PROVISIONING-EMAIL-02T: explicit, admin-confirmed student email.
+      // Required for kind="student" (validated in the handler); ignored otherwise.
+      university_email: z.string().trim().max(160).optional(),
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
@@ -544,7 +548,18 @@ export const createAccount = createServerFn({ method: "POST" })
     if (!profile) throw new Error("الحساب غير موجود");
     if ((profile as any).user_id) throw new Error("الحساب مفعّل مسبقاً");
 
-    const email = await resolveProfileLoginEmail(data.kind, profile as Record<string, unknown>);
+    // STUDENT-PROVISIONING-EMAIL-02T: student logins are NEVER derived silently
+    // from the profile record (a stale or placeholder profile email must not
+    // flow into Auth). The admin must type an explicit, valid
+    // @students.usr.edu.ye address in the confirmation dialog.
+    let email: string;
+    if (data.kind === "student") {
+      const invalidEmail = validateStudentUniversityEmailInput(data.university_email ?? "");
+      if (invalidEmail) throw new Error(invalidEmail);
+      email = normalizeUniversityLoginEmail(data.university_email!);
+    } else {
+      email = await resolveProfileLoginEmail(data.kind, profile as Record<string, unknown>);
+    }
 
     // ─── FACULTY-ACCOUNT-REPAIR-02: استعلام مباشر على auth.users بدل listUsers ───
     // listUsers({perPage:200}) يحمّل كل سجلات auth دفعة واحدة وقد يفشل بالكامل
@@ -561,6 +576,11 @@ export const createAccount = createServerFn({ method: "POST" })
     }
     const existing = existingId ? { id: existingId as string } : null;
 
+    // STUDENT-PROVISIONING-EMAIL-02T: fail closed on any conflict for student
+    // accounts — never silently link a pre-existing Auth identity to a student.
+    if (existing && data.kind === "student") {
+      throw new Error("هذا البريد الجامعي مستخدم بحساب دخول آخر — لا يمكن إنشاء الحساب بهذا البريد");
+    }
 
     if (existing) {
       const { data: linkedProfile } = await supabaseAdmin
