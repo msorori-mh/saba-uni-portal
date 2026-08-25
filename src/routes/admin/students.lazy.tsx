@@ -1124,9 +1124,136 @@ function StudentsPage() {
         />
       )}
 
+      {provisionTarget && canWrite && (
+        <ProvisionStudentAccountModal
+          student={provisionTarget}
+          onClose={() => setProvisionTarget(null)}
+          onCreated={(res) => {
+            setCredentialsSlip({
+              full_name_ar: provisionTarget.full_name_ar,
+              academic_number: provisionTarget.academic_number,
+              email: res.email,
+              password: res.password ?? "—",
+            });
+            setProvisionTarget(null);
+            refresh();
+          }}
+        />
+      )}
+
       {credentialsSlip && (
         <CredentialsSlip slip={credentialsSlip} onClose={() => setCredentialsSlip(null)} />
       )}
+    </div>
+  );
+}
+
+// ============= PROVISION STUDENT ACCOUNT MODAL (STUDENT-PROVISIONING-EMAIL-02T) =============
+// First click on «إنشاء حساب» opens this review dialog only — nothing is sent
+// to the server until the admin types a valid @students.usr.edu.ye email and
+// presses the final confirmation button.
+
+function ProvisionStudentAccountModal({
+  student,
+  onClose,
+  onCreated,
+}: {
+  student: AdminStudentRow;
+  onClose: () => void;
+  onCreated: (res: { email: string; password?: string }) => void;
+}) {
+  const create = useServerFn(createAccount);
+  const profileEmail = String((student as any).email ?? "").trim();
+  // Prefill only when the profile email is already a valid student-domain
+  // address; never prefill placeholder/foreign-domain values (e.g. a@b.comt).
+  const [email, setEmail] = useState(isStudentUniversityEmail(profileEmail) ? profileEmail : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const validationError = validateStudentUniversityEmailInput(email);
+  const canConfirm = !busy && validationError === null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canConfirm) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await create({
+        data: { kind: "student", profile_id: student.id, university_email: email.trim() },
+      });
+      onCreated({ email: res.email, password: res.password });
+    } catch (e: any) {
+      // Fail closed: the server either created nothing or rolled back the Auth
+      // user, so the student's linkage is unchanged. Surface a safe message.
+      setErr(e?.message ?? "تعذّر إنشاء حساب الدخول — لم يتغير ارتباط الطالب");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-black text-lg">إنشاء حساب دخول للطالب</h2>
+          <button type="button" onClick={onClose} aria-label="إغلاق" className="p-1 hover:bg-secondary rounded">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="rounded-lg border border-border bg-secondary/30 p-3 text-sm space-y-1">
+            <div><span className="text-muted-foreground">الطالب: </span><span className="font-bold">{student.full_name_ar}</span></div>
+            <div><span className="text-muted-foreground">الرقم الأكاديمي: </span><span className="font-mono font-bold" dir="ltr">{student.academic_number}</span></div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-bold">
+              الإيميل الجامعي للطالب <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="email"
+              dir="ltr"
+              required
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={`student${STUDENT_UNIVERSITY_EMAIL_SUFFIX}`}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-left outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              يجب أن ينتهي البريد بـ <span dir="ltr" className="font-mono">{STUDENT_UNIVERSITY_EMAIL_SUFFIX}</span> وألا يكون مستخدماً بحساب آخر.
+            </p>
+            {email.trim() !== "" && validationError && (
+              <p className="text-[11px] font-bold text-destructive">{validationError}</p>
+            )}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            تُنشأ كلمة مرور مؤقتة عشوائية وتُعرض لك مرة واحدة بعد الإنشاء، ويجب على الطالب تغييرها عند أول دخول.
+          </p>
+
+          {err && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{err}</div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-border flex justify-end gap-2 bg-secondary/30">
+          <button type="button" onClick={onClose} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-bold">إلغاء</button>
+          <button
+            type="submit"
+            disabled={!canConfirm}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2 text-sm font-bold hover:opacity-90 disabled:opacity-50"
+          >
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} تأكيد إنشاء الحساب
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
