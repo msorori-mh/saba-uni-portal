@@ -11,6 +11,11 @@ import {
 } from "lucide-react";
 import { createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
 import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
+import {
+  isStudentUniversityEmail,
+  validateStudentUniversityEmailInput,
+  STUDENT_UNIVERSITY_EMAIL_SUFFIX,
+} from "@/lib/university-email-auth";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
@@ -73,6 +78,9 @@ function StudentsPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // STUDENT-PROVISIONING-EMAIL-02T: «إنشاء حساب» opens a review dialog first —
+  // no account is created on the first click.
+  const [provisionTarget, setProvisionTarget] = useState<AdminStudentRow | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
