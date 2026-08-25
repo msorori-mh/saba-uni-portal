@@ -1165,7 +1165,7 @@ function ProvisionStudentAccountModal({
   const create = useServerFn(createAccount);
   const profileEmail = String((student as any).email ?? "").trim();
   // Prefill only when the profile email is already a valid student-domain
-  // address; never prefill placeholder/foreign-domain values (e.g. a@b.comt).
+  // address; never prefill placeholder or foreign-domain values.
   const [email, setEmail] = useState(isStudentUniversityEmail(profileEmail) ? profileEmail : "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);

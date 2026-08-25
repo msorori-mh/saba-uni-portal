@@ -549,8 +549,8 @@ export const createAccount = createServerFn({ method: "POST" })
     if ((profile as any).user_id) throw new Error("الحساب مفعّل مسبقاً");
 
     // STUDENT-PROVISIONING-EMAIL-02T: student logins are NEVER derived silently
-    // from the profile record (a stale/placeholder profile email like a@b.comt
-    // must not flow into Auth). The admin must type an explicit, valid
+    // from the profile record (a stale or placeholder profile email must not
+    // flow into Auth). The admin must type an explicit, valid
     // @students.usr.edu.ye address in the confirmation dialog.
     let email: string;
     if (data.kind === "student") {
