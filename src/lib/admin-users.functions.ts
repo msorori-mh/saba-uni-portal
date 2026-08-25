@@ -12,6 +12,7 @@ import {
   facultyTemporaryPassword,
   isValidUniversityLoginEmail,
   normalizeUniversityLoginEmail,
+  validateStudentUniversityEmailInput,
 } from "@/lib/university-email-auth";
 import { staffFunctionalRoleToAppRole } from "@/lib/staff-functional-roles";
 
