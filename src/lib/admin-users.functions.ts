@@ -576,6 +576,11 @@ export const createAccount = createServerFn({ method: "POST" })
     }
     const existing = existingId ? { id: existingId as string } : null;
 
+    // STUDENT-PROVISIONING-EMAIL-02T: fail closed on any conflict for student
+    // accounts — never silently link a pre-existing Auth identity to a student.
+    if (existing && data.kind === "student") {
+      throw new Error("هذا البريد الجامعي مستخدم بحساب دخول آخر — لا يمكن إنشاء الحساب بهذا البريد");
+    }
 
     if (existing) {
       const { data: linkedProfile } = await supabaseAdmin
