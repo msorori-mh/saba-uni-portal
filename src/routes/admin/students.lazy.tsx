@@ -1010,18 +1010,10 @@ function StudentsPage() {
                           {!hasAccount ? (
                             <button
                               disabled={!!busy}
-                              onClick={() => run(`create-${r.id}`, async () => {
-                                const res = await create({ data: { kind: "student", profile_id: r.id } });
-                                setCredentialsSlip({
-                                  full_name_ar: r.full_name_ar,
-                                  academic_number: r.academic_number,
-                                  email: res.email,
-                                  password: res.password ?? "— (حساب Auth موجود مسبقاً)",
-                                });
-                              })}
+                              onClick={() => setProvisionTarget(r)}
                               className="inline-flex items-center gap-1 rounded border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 text-xs font-bold"
                             >
-                              {busy === `create-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                              <Plus className="h-3 w-3" />
                               إنشاء حساب
                             </button>
                           ) : (
