@@ -5,6 +5,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
+import { assertStagingSupabaseUrl } from "@/integrations/supabase/staging-isolation";
+import {
+  stagingFallbackSupabasePublishableKey,
+  stagingFallbackSupabaseUrl,
+} from "@/integrations/supabase/staging-config";
 import { assertAdmin, assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
@@ -81,10 +86,7 @@ async function fetchAuthEmailsByUserIds(userIds: string[]): Promise<Map<string, 
   return map;
 }
 
-async function resolveProfileLoginEmail(
-  kind: AccountKind,
-  profile: Record<string, unknown>,
-): Promise<string> {
+async function resolveProfileLoginEmail(kind: AccountKind, profile: Record<string, unknown>): Promise<string> {
   if (kind === "student") {
     const email = String(profile.email ?? "").trim();
     if (!email || !isValidUniversityLoginEmail(email)) {
@@ -96,11 +98,7 @@ async function resolveProfileLoginEmail(
   if (kind === "faculty") {
     const facultyId = profile.faculty_id as string | undefined;
     if (!facultyId) throw new Error("ملف عضو هيئة التدريس غير مكتمل");
-    const { data: fac } = await supabaseAdmin
-      .from("faculty")
-      .select("email")
-      .eq("id", facultyId)
-      .maybeSingle();
+    const { data: fac } = await supabaseAdmin.from("faculty").select("email").eq("id", facultyId).maybeSingle();
     const email = String(fac?.email ?? "").trim();
     if (!email || !isValidUniversityLoginEmail(email)) {
       throw new Error("الإيميل الجامعي غير مسجل في ملف عضو هيئة التدريس — يرجى تحديث البيانات أولاً");
@@ -141,10 +139,11 @@ function actorSupabase(context: { supabase: ActorSupabase }): ActorSupabase {
   const authHeader = request?.headers?.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "");
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+    const url = process.env.SUPABASE_URL || stagingFallbackSupabaseUrl();
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY || stagingFallbackSupabasePublishableKey();
     if (url && key && token) {
-      return createClient<Database>(url, key, {
+      // Staging isolation guard (03U): fail closed before any client is built.
+      return createClient<Database>(assertStagingSupabaseUrl(url), key, {
         global: { headers: { Authorization: `Bearer ${token}` } },
         auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
       });
@@ -229,10 +228,7 @@ async function repairAuthUserForEmail(
 
 async function migrateUserRoles(fromUserId: string, toUserId: string): Promise<void> {
   if (fromUserId === toUserId) return;
-  const { data: roles } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", fromUserId);
+  const { data: roles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", fromUserId);
   for (const row of roles ?? []) {
     const { data: exists } = await supabaseAdmin
       .from("user_roles")
@@ -258,9 +254,7 @@ async function ensureProfileRoles(
   userId: string,
   preferredRoles?: string[],
 ): Promise<void> {
-  const roles = preferredRoles?.length
-    ? preferredRoles
-    : [defaultRoleForProfile(kind, profile)];
+  const roles = preferredRoles?.length ? preferredRoles : [defaultRoleForProfile(kind, profile)];
   for (const role of roles) {
     const { data: exists } = await supabaseAdmin
       .from("user_roles")
@@ -279,16 +273,14 @@ function staffRoleFor(roleType: string | null | undefined): string {
 }
 
 /** Map operational app_role (+ staff role_type) to roles_catalog code for user_role_assignments sync. */
-function catalogCodeForAccount(
-  kind: AccountKind,
-  appRole: string,
-  staffRoleType?: string | null,
-): string | null {
+function catalogCodeForAccount(kind: AccountKind, appRole: string, staffRoleType?: string | null): string | null {
   if (kind === "student") return null;
   if (kind === "faculty") return "faculty_member";
   switch (staffRoleType) {
-    case "admin": return "admin";
-    case "dean": return "dean";
+    case "admin":
+      return "admin";
+    case "dean":
+      return "dean";
     case "registrar_general":
     case "registrar":
       return "registrar_officer";
@@ -310,7 +302,8 @@ function catalogCodeForAccount(
       return "finance_officer";
     case "hr_officer":
       return "hr_officer";
-    default: break;
+    default:
+      break;
   }
   const fallback: Record<string, string> = {
     admin: "admin",
@@ -325,11 +318,7 @@ function catalogCodeForAccount(
   return fallback[appRole] ?? null;
 }
 
-async function syncCatalogRoleAssignment(
-  userId: string,
-  roleCode: string | null,
-  assignedBy: string,
-): Promise<void> {
+async function syncCatalogRoleAssignment(userId: string, roleCode: string | null, assignedBy: string): Promise<void> {
   if (!roleCode) return;
   const { data: cat } = await supabaseAdmin
     .from("roles_catalog")
@@ -353,13 +342,11 @@ async function syncCatalogRoleAssignment(
 
 export const listUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { kind: AccountKind; search?: string; status?: string; page?: number; pageSize?: number }) => input)
+  .inputValidator(
+    (input: { kind: AccountKind; search?: string; status?: string; page?: number; pageSize?: number }) => input,
+  )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      ACCOUNT_LIST_ROLES[data.kind],
-      "ليس لديك صلاحية عرض هذه القائمة",
-    );
+    await assertAnyRole(context.userId, ACCOUNT_LIST_ROLES[data.kind], "ليس لديك صلاحية عرض هذه القائمة");
 
     // PERFORMANCE-FIX-02A: server-side pagination
     // Backward-compatible: when page/pageSize are omitted, behave as before (one page, up to 500).
@@ -395,10 +382,7 @@ export const listUsers = createServerFn({ method: "POST" })
         .select(columns as any, { count: "exact" })
         .order(identCol);
       if (hasSearch) {
-        const parts = [
-          `${identCol}.ilike.%${searchRaw}%`,
-          `full_name_ar.ilike.%${searchRaw}%`,
-        ];
+        const parts = [`${identCol}.ilike.%${searchRaw}%`, `full_name_ar.ilike.%${searchRaw}%`];
         if (table === "student_profiles" || table === "staff_profiles") {
           parts.push(`email.ilike.%${searchRaw}%`);
         }
@@ -412,7 +396,11 @@ export const listUsers = createServerFn({ method: "POST" })
     };
 
     if (data.kind === "student") {
-      const { data: rows, count, error } = await buildSelect(
+      const {
+        data: rows,
+        count,
+        error,
+      } = await buildSelect(
         "student_profiles",
         "id, user_id, academic_number, full_name_ar, status, must_change_password, department_id, email",
         "academic_number",
@@ -432,7 +420,11 @@ export const listUsers = createServerFn({ method: "POST" })
     }
 
     if (data.kind === "faculty") {
-      const { data: rows, count, error } = await buildSelect(
+      const {
+        data: rows,
+        count,
+        error,
+      } = await buildSelect(
         "faculty_profiles",
         "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank, faculty_id",
         "employee_number",
@@ -440,7 +432,10 @@ export const listUsers = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       const facultyIds = Array.from(new Set((rows ?? []).map((r: any) => r.faculty_id).filter(Boolean)));
       const { data: facRows } = facultyIds.length
-        ? await supabaseAdmin.from("faculty").select("id, email").in("id", facultyIds as string[])
+        ? await supabaseAdmin
+            .from("faculty")
+            .select("id, email")
+            .in("id", facultyIds as string[])
         : { data: [] as { id: string; email: string | null }[] };
       const facultyEmailById = new Map((facRows ?? []).map((f) => [f.id, f.email]));
       const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
@@ -460,7 +455,11 @@ export const listUsers = createServerFn({ method: "POST" })
     }
 
     // staff
-    const { data: rows, count, error } = await buildSelect(
+    const {
+      data: rows,
+      count,
+      error,
+    } = await buildSelect(
       "staff_profiles",
       "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, department_scope, role_type, job_title, email",
       "employee_number",
@@ -469,7 +468,10 @@ export const listUsers = createServerFn({ method: "POST" })
     const profileIds = (rows ?? []).map((r: any) => r.id as string);
     const [{ data: deptLinks }, { data: deptRows }] = await Promise.all([
       profileIds.length
-        ? supabaseAdmin.from("staff_profile_departments").select("staff_profile_id, department_id").in("staff_profile_id", profileIds)
+        ? supabaseAdmin
+            .from("staff_profile_departments")
+            .select("staff_profile_id, department_id")
+            .in("staff_profile_id", profileIds)
         : Promise.resolve({ data: [] as any[] }),
       supabaseAdmin.from("departments").select("id, name_ar"),
     ]);
@@ -486,18 +488,16 @@ export const listUsers = createServerFn({ method: "POST" })
       ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as any[] };
     const mapped = (rows ?? []).map((r: any) => {
-      const department_ids = linksByProfile.get(r.id)
-        ?? (r.department_id ? [r.department_id] : []);
-      const department_names = department_ids
-        .map((id: string) => deptNameById.get(id))
-        .filter(Boolean) as string[];
-      const department_label = r.department_scope === "all"
-        ? "كل أقسام الكلية"
-        : department_names.length === 0
-          ? "—"
-          : department_names.length === 1
-            ? department_names[0]
-            : `${department_names.length} أقسام`;
+      const department_ids = linksByProfile.get(r.id) ?? (r.department_id ? [r.department_id] : []);
+      const department_names = department_ids.map((id: string) => deptNameById.get(id)).filter(Boolean) as string[];
+      const department_label =
+        r.department_scope === "all"
+          ? "كل أقسام الكلية"
+          : department_names.length === 0
+            ? "—"
+            : department_names.length === 1
+              ? department_names[0]
+              : `${department_names.length} أقسام`;
       return {
         ...r,
         department_ids,
@@ -505,9 +505,7 @@ export const listUsers = createServerFn({ method: "POST" })
         department_label,
         department_names_title: department_names.length > 1 ? department_names.join("، ") : undefined,
         identifier: r.employee_number ?? "",
-        email: r.user_id
-          ? (authEmailByUserId.get(r.user_id) ?? r.email ?? null)
-          : (r.email ?? null),
+        email: r.user_id ? (authEmailByUserId.get(r.user_id) ?? r.email ?? null) : (r.email ?? null),
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       };
     });
@@ -519,25 +517,21 @@ export const listUsers = createServerFn({ method: "POST" })
 export const createAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { kind: AccountKind; profile_id: string; university_email?: string }) =>
-    z.object({
-      kind: z.enum(["student", "faculty", "staff"]),
-      profile_id: z.string().uuid(),
-      // STUDENT-PROVISIONING-EMAIL-02T: explicit, admin-confirmed student email.
-      // Required for kind="student" (validated in the handler); ignored otherwise.
-      university_email: z.string().trim().max(160).optional(),
-    }).parse(input)
+    z
+      .object({
+        kind: z.enum(["student", "faculty", "staff"]),
+        profile_id: z.string().uuid(),
+        // STUDENT-PROVISIONING-EMAIL-02T: explicit, admin-confirmed student email.
+        // Required for kind="student" (validated in the handler); ignored otherwise.
+        university_email: z.string().trim().max(160).optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      ACCOUNT_PROVISION_ROLES[data.kind],
-      "ليس لديك صلاحية إنشاء حسابات الدخول",
-    );
+    await assertAnyRole(context.userId, ACCOUNT_PROVISION_ROLES[data.kind], "ليس لديك صلاحية إنشاء حسابات الدخول");
 
     const table =
-      data.kind === "student" ? "student_profiles"
-      : data.kind === "faculty" ? "faculty_profiles"
-      : "staff_profiles";
+      data.kind === "student" ? "student_profiles" : data.kind === "faculty" ? "faculty_profiles" : "staff_profiles";
 
     const { data: profile, error: pErr } = await supabaseAdmin
       .from(table)
@@ -568,8 +562,9 @@ export const createAccount = createServerFn({ method: "POST" })
     let linkedExisting = false;
     let temporaryPassword: string | null = null;
 
-    const { data: existingId, error: lookupErr } = await (supabaseAdmin as any)
-      .rpc("find_auth_user_id_by_email", { p_email: email });
+    const { data: existingId, error: lookupErr } = await (supabaseAdmin as any).rpc("find_auth_user_id_by_email", {
+      p_email: email,
+    });
 
     if (lookupErr) {
       throw new Error(`تعذّر التحقق من حساب الدخول — ${lookupErr.message}`);
@@ -607,13 +602,10 @@ export const createAccount = createServerFn({ method: "POST" })
         user_metadata: { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
       });
       if (cErr || !created.user) {
-        throw new Error(
-          `تعذّر إنشاء حساب الدخول — ${cErr?.message ?? "خطأ غير معروف"}`,
-        );
+        throw new Error(`تعذّر إنشاء حساب الدخول — ${cErr?.message ?? "خطأ غير معروف"}`);
       }
       newUserId = created.user.id;
     }
-
 
     // Link profile. For students, use the SECURITY DEFINER RPC so the
     // protect_student_sensitive_fields trigger does not silently revert user_id
@@ -621,10 +613,10 @@ export const createAccount = createServerFn({ method: "POST" })
     // RPC's internal role check passes.
     let uErr: { message: string } | null = null;
     if (data.kind === "student") {
-      const { error } = await actorSupabase(context).rpc(
-        "link_student_user_account",
-        { _profile_id: data.profile_id, _target_user_id: newUserId },
-      );
+      const { error } = await actorSupabase(context).rpc("link_student_user_account", {
+        _profile_id: data.profile_id,
+        _target_user_id: newUserId,
+      });
       uErr = error ? { message: error.message } : null;
     } else if (data.kind === "faculty") {
       try {
@@ -648,9 +640,11 @@ export const createAccount = createServerFn({ method: "POST" })
 
     // Assign role (idempotent)
     const role =
-      data.kind === "student" ? "student"
-      : data.kind === "faculty" ? "faculty_member"
-      : staffRoleFor((profile as any).role_type);
+      data.kind === "student"
+        ? "student"
+        : data.kind === "faculty"
+          ? "faculty_member"
+          : staffRoleFor((profile as any).role_type);
     const { data: existingRole } = await supabaseAdmin
       .from("user_roles")
       .select("id")
@@ -690,29 +684,24 @@ export const createAccount = createServerFn({ method: "POST" })
 export const resetPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { kind: AccountKind; profile_id: string }) =>
-    z.object({
-      kind: z.enum(["student", "faculty", "staff"]),
-      profile_id: z.string().uuid(),
-    }).parse(input)
+    z
+      .object({
+        kind: z.enum(["student", "faculty", "staff"]),
+        profile_id: z.string().uuid(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      ACCOUNT_PROVISION_ROLES[data.kind],
-      "ليس لديك صلاحية إعادة تعيين كلمة المرور",
-    );
+    await assertAnyRole(context.userId, ACCOUNT_PROVISION_ROLES[data.kind], "ليس لديك صلاحية إعادة تعيين كلمة المرور");
     await enforceRateLimit(
       `admin-reset:${context.userId}:${data.kind}:${data.profile_id}`,
       SERVER_RATE_LIMIT_POLICIES.adminPasswordReset,
     );
 
     const table =
-      data.kind === "student" ? "student_profiles"
-      : data.kind === "faculty" ? "faculty_profiles"
-      : "staff_profiles";
+      data.kind === "student" ? "student_profiles" : data.kind === "faculty" ? "faculty_profiles" : "staff_profiles";
 
-    const { data: profile } = await supabaseAdmin
-      .from(table).select("*").eq("id", data.profile_id).maybeSingle();
+    const { data: profile } = await supabaseAdmin.from(table).select("*").eq("id", data.profile_id).maybeSingle();
     if (!profile) throw new Error("الحساب غير موجود");
 
     const profileUserId = ((profile as any).user_id as string | null) ?? null;
@@ -751,18 +740,14 @@ export const resetPassword = createServerFn({ method: "POST" })
 
     if (aErr && /Database error loading user/i.test(aErr.message)) {
       const roleSourceId = profileUserId ?? authUserId!;
-      const { data: existingRoles } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", roleSourceId);
+      const { data: existingRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", roleSourceId);
       const rolesToRestore = (existingRoles ?? []).map((r) => r.role as string);
 
       const previousAuthUserId = authUserId!;
-      authUserId = await repairAuthUserForEmail(
-        email,
-        password,
-        { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
-      );
+      authUserId = await repairAuthUserForEmail(email, password, {
+        full_name_ar: (profile as any).full_name_ar,
+        kind: data.kind,
+      });
       repairedAuth = true;
 
       if (authUserId !== previousAuthUserId || !profileUserId) {
@@ -778,20 +763,18 @@ export const resetPassword = createServerFn({ method: "POST" })
     // Use SECURITY DEFINER RPCs to bypass protect_*_sensitive_fields triggers
     // (service_role has no auth.uid(), so a direct UPDATE is silently reverted).
     const rpcName =
-      data.kind === "student" ? "admin_mark_student_password_reset"
-      : data.kind === "faculty" ? "admin_mark_faculty_password_reset"
-      : "admin_mark_staff_password_reset";
-    const { error: rErr } = await actorSupabase(context).rpc(
-      rpcName, { _profile_id: data.profile_id }
-    );
+      data.kind === "student"
+        ? "admin_mark_student_password_reset"
+        : data.kind === "faculty"
+          ? "admin_mark_faculty_password_reset"
+          : "admin_mark_staff_password_reset";
+    const { error: rErr } = await actorSupabase(context).rpc(rpcName, { _profile_id: data.profile_id });
     if (rErr) {
       throw new Error(`تم تحديث كلمة المرور لكن تعذّر ضبط must_change_password — ${rErr.message}`);
     }
 
     const identifier =
-      data.kind === "student"
-        ? ((profile as any).academic_number ?? "")
-        : ((profile as any).employee_number ?? "");
+      data.kind === "student" ? ((profile as any).academic_number ?? "") : ((profile as any).employee_number ?? "");
     await logAudit({
       actor_user_id: context.userId,
       action_type: repairedAuth ? "auth_user_repaired" : "password_reset",
@@ -801,40 +784,35 @@ export const resetPassword = createServerFn({ method: "POST" })
         : relinked
           ? `إعادة ربط ملف ${data.kind} وإعادة تعيين كلمة المرور لـ ${identifier}`
           : `إعادة تعيين كلمة المرور لـ ${identifier}`,
-      new_values: repairedAuth || relinked
-        ? { kind: data.kind, profile_id: data.profile_id, email, relinked, repaired_auth: repairedAuth }
-        : undefined,
+      new_values:
+        repairedAuth || relinked
+          ? { kind: data.kind, profile_id: data.profile_id, email, relinked, repaired_auth: repairedAuth }
+          : undefined,
     });
 
     return { ok: true, password };
   });
-
 
 // ------------ Activate / Deactivate ------------
 
 export const setActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { kind: AccountKind; profile_id: string; active: boolean }) =>
-    z.object({
-      kind: z.enum(["student", "faculty", "staff"]),
-      profile_id: z.string().uuid(),
-      active: z.boolean(),
-    }).parse(input)
+    z
+      .object({
+        kind: z.enum(["student", "faculty", "staff"]),
+        profile_id: z.string().uuid(),
+        active: z.boolean(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      ACCOUNT_PROVISION_ROLES[data.kind],
-      "ليس لديك صلاحية تغيير حالة الحساب",
-    );
+    await assertAnyRole(context.userId, ACCOUNT_PROVISION_ROLES[data.kind], "ليس لديك صلاحية تغيير حالة الحساب");
 
     const table =
-      data.kind === "student" ? "student_profiles"
-      : data.kind === "faculty" ? "faculty_profiles"
-      : "staff_profiles";
+      data.kind === "student" ? "student_profiles" : data.kind === "faculty" ? "faculty_profiles" : "staff_profiles";
 
-    const { data: profile } = await supabaseAdmin
-      .from(table).select("*").eq("id", data.profile_id).maybeSingle();
+    const { data: profile } = await supabaseAdmin.from(table).select("*").eq("id", data.profile_id).maybeSingle();
     if (!profile) throw new Error("الحساب غير موجود");
     const targetUserId = (profile as any).user_id as string | null;
 
@@ -877,12 +855,15 @@ export const setActive = createServerFn({ method: "POST" })
     // Then update profile status via SECURITY DEFINER RPC to bypass
     // protect_*_sensitive_fields (service_role has no auth.uid()).
     const rpcName =
-      data.kind === "student" ? "admin_set_student_status"
-      : data.kind === "faculty" ? "admin_set_faculty_status"
-      : "admin_set_staff_status";
-    const { error: sErr } = await (context.supabase as any).rpc(
-      rpcName, { _profile_id: data.profile_id, _active: data.active }
-    );
+      data.kind === "student"
+        ? "admin_set_student_status"
+        : data.kind === "faculty"
+          ? "admin_set_faculty_status"
+          : "admin_set_staff_status";
+    const { error: sErr } = await (context.supabase as any).rpc(rpcName, {
+      _profile_id: data.profile_id,
+      _active: data.active,
+    });
     if (sErr) {
       // Roll back the auth ban so state stays consistent
       if (targetUserId) {
@@ -892,8 +873,6 @@ export const setActive = createServerFn({ method: "POST" })
       }
       throw new Error(`تعذّر تحديث حالة الملف — ${sErr.message}`);
     }
-
-
 
     await logAudit({
       actor_user_id: context.userId,
@@ -911,13 +890,11 @@ export const setActive = createServerFn({ method: "POST" })
 export const addRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { user_id: string; role: string }) =>
-    z.object({ user_id: z.string().uuid(), role: z.string().min(1) }).parse(input)
+    z.object({ user_id: z.string().uuid(), role: z.string().min(1) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: data.user_id, role: data.role as any });
+    const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.user_id, role: data.role as any });
     if (error && !error.message.includes("duplicate")) throw new Error(error.message);
 
     await logAudit({
@@ -933,7 +910,7 @@ export const addRole = createServerFn({ method: "POST" })
 export const removeRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { user_id: string; role: string }) =>
-    z.object({ user_id: z.string().uuid(), role: z.string().min(1) }).parse(input)
+    z.object({ user_id: z.string().uuid(), role: z.string().min(1) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
@@ -1024,7 +1001,11 @@ async function removePortalRolesOnly(
 ): Promise<string[]> {
   const roles = portalRolesForKind(kind, profile);
   for (const role of roles) {
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", role as any);
+    await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .eq("role", role as any);
   }
   return roles;
 }
@@ -1036,34 +1017,26 @@ const UNLINK_LOGIN_CONFIRM_HINT =
 export const removeLoginAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { kind: AccountKind; profile_id: string }) =>
-    z.object({
-      kind: z.enum(["student", "faculty", "staff"]),
-      profile_id: z.string().uuid(),
-    }).parse(input)
+    z
+      .object({
+        kind: z.enum(["student", "faculty", "staff"]),
+        profile_id: z.string().uuid(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      ACCOUNT_PROVISION_ROLES[data.kind],
-      "ليس لديك صلاحية فك ربط حسابات الدخول",
-    );
+    await assertAnyRole(context.userId, ACCOUNT_PROVISION_ROLES[data.kind], "ليس لديك صلاحية فك ربط حسابات الدخول");
 
     const table =
-      data.kind === "student" ? "student_profiles"
-      : data.kind === "faculty" ? "faculty_profiles"
-      : "staff_profiles";
+      data.kind === "student" ? "student_profiles" : data.kind === "faculty" ? "faculty_profiles" : "staff_profiles";
 
-    const { data: profile } = await supabaseAdmin
-      .from(table).select("*").eq("id", data.profile_id).maybeSingle();
+    const { data: profile } = await supabaseAdmin.from(table).select("*").eq("id", data.profile_id).maybeSingle();
     if (!profile) throw new Error("الحساب غير موجود");
 
     const targetUserId = (profile as any).user_id as string | null;
     if (!targetUserId) throw new Error("لا يوجد حساب دخول مرتبط بهذا الملف");
 
-    const identifier =
-      data.kind === "student"
-        ? (profile as any).academic_number
-        : (profile as any).employee_number;
+    const identifier = data.kind === "student" ? (profile as any).academic_number : (profile as any).employee_number;
 
     if (context.userId === targetUserId) {
       await logAudit({
@@ -1092,24 +1065,17 @@ export const removeLoginAccount = createServerFn({ method: "POST" })
       throw e;
     }
 
-    const { data: unlinkedId, error: uErr } = await actorSupabase(context).rpc(
-      "admin_unlink_portal_login",
-      { p_kind: data.kind, p_profile_id: data.profile_id },
-    );
+    const { data: unlinkedId, error: uErr } = await actorSupabase(context).rpc("admin_unlink_portal_login", {
+      p_kind: data.kind,
+      p_profile_id: data.profile_id,
+    });
     if (uErr) throw new Error(uErr.message);
     if (!unlinkedId) throw new Error("لا يوجد حساب دخول لإزالته");
 
-    const removedRoles = await removePortalRolesOnly(
-      data.kind,
-      targetUserId,
-      profile as Record<string, unknown>,
-    );
+    const removedRoles = await removePortalRolesOnly(data.kind, targetUserId, profile as Record<string, unknown>);
 
     const stillLinked = await isAuthUserLinkedToAnyProfile(targetUserId);
-    const { data: remainingRoles } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", targetUserId);
+    const { data: remainingRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", targetUserId);
     const roleNames = (remainingRoles ?? []).map((r) => r.role as string);
 
     if (!stillLinked) {
@@ -1145,9 +1111,21 @@ export const activeUserCounts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
     const [s, f, st] = await Promise.all([
-      supabaseAdmin.from("student_profiles").select("id", { count: "exact", head: true }).eq("status", "active").not("user_id", "is", null),
-      supabaseAdmin.from("faculty_profiles").select("id", { count: "exact", head: true }).eq("status", "active").not("user_id", "is", null),
-      supabaseAdmin.from("staff_profiles").select("id", { count: "exact", head: true }).eq("status", "active").not("user_id", "is", null),
+      supabaseAdmin
+        .from("student_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .not("user_id", "is", null),
+      supabaseAdmin
+        .from("faculty_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .not("user_id", "is", null),
+      supabaseAdmin
+        .from("staff_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .not("user_id", "is", null),
     ]);
     return {
       students: s.count ?? 0,
@@ -1174,12 +1152,14 @@ export const adminAccountCounts = createServerFn({ method: "GET" })
 export const createAdminAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { email: string; password: string; full_name_ar: string; role: "admin" | "system_admin" }) =>
-    z.object({
-      email: z.string().email().max(160),
-      password: z.string().min(8).max(72),
-      full_name_ar: z.string().min(2).max(120),
-      role: z.enum(["admin", "system_admin"]),
-    }).parse(input)
+    z
+      .object({
+        email: z.string().email().max(160),
+        password: z.string().min(8).max(72),
+        full_name_ar: z.string().min(2).max(120),
+        role: z.enum(["admin", "system_admin"]),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);

@@ -104,6 +104,12 @@ export function FacultyPortalShell({
         className="no-print border-b border-gold/20 bg-primary-deep text-primary-foreground"
       >
         <div className="container mx-auto flex items-center gap-1 overflow-x-auto whitespace-nowrap px-4">
+          <Link
+            to="/messages"
+            className="shrink-0 rounded-t-md px-3 py-2.5 text-sm font-medium text-primary-foreground/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          >
+            الرسائل
+          </Link>
           {items.map((item) => {
             const active = isActive(item);
             return (

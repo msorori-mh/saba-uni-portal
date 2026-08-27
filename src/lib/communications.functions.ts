@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertCommunicationsAdmin, primaryActorRole, userRoles } from "@/lib/authz.server";
+import { assertCommunicationsAdmin, primaryActorRole } from "@/lib/authz.server";
+import {
+  MESSAGE_SEND_DENIED_AR,
+  assertCanSendMessageTo,
+  facultyTaughtStudentProfileIds,
+  resolveMessagingCapability,
+} from "@/lib/messaging-authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // ---------- helpers ----------
@@ -26,7 +32,7 @@ async function logAudit(input: {
   } as any);
 }
 
-const MSG_SENDER_ROLES = ["admin","system_admin","dean","registrar","student_affairs","finance_officer","hr_officer"];
+// Sender-role allow list lives in @/lib/messaging-authz.server (MESSAGE_SENDER_ROLES).
 
 // ===================== ANNOUNCEMENTS =====================
 
@@ -323,14 +329,12 @@ export const searchMessageRecipients = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const roles = await userRoles(context.userId);
-    const isAdmin = roles.some((r) => MSG_SENDER_ROLES.includes(r));
-    const isFaculty = roles.includes("faculty_member") || roles.includes("department_head");
+    const capability = await resolveMessagingCapability(context.userId);
 
     const q = data.query;
     const out: { user_id: string; label: string; group: string }[] = [];
 
-    if (isAdmin) {
+    if (capability.kind === "admin") {
       const [stud, fac, staf] = await Promise.all([
         supabaseAdmin.from("student_profiles").select("user_id, full_name_ar, academic_number")
           .not("user_id","is",null)
@@ -342,33 +346,31 @@ export const searchMessageRecipients = createServerFn({ method: "POST" })
           .not("user_id","is",null)
           .ilike("full_name_ar", q ? `%${q}%` : "%").limit(data.limit),
       ]);
+      if (stud.error || fac.error || staf.error) {
+        throw new Error(MESSAGE_SEND_DENIED_AR);
+      }
       for (const r of stud.data ?? []) out.push({ user_id: r.user_id as string, label: `${r.full_name_ar} — ${r.academic_number}`, group: "طلاب" });
       for (const r of fac.data ?? []) out.push({ user_id: r.user_id as string, label: `${r.full_name_ar} — ${r.employee_number ?? ""}`, group: "هيئة تدريس" });
       for (const r of staf.data ?? []) out.push({ user_id: r.user_id as string, label: `${r.full_name_ar} — ${r.employee_number ?? ""}`, group: "موظفون" });
       return out.slice(0, data.limit * 3);
     }
 
-    if (isFaculty) {
+    if (capability.kind === "faculty") {
       // only students enrolled in sections taught by this faculty
-      const { data: fp } = await supabaseAdmin.from("faculty_profiles").select("id").eq("user_id", context.userId).maybeSingle();
-      if (!fp) return [];
-      const { data: sections } = await supabaseAdmin.from("course_sections").select("id").eq("faculty_profile_id", fp.id);
-      const sectionIds = (sections ?? []).map((s) => s.id);
-      if (!sectionIds.length) return [];
-      const { data: enrolls } = await supabaseAdmin.from("student_enrollments")
-        .select("student_profile_id").in("course_section_id", sectionIds);
-      const sids = Array.from(new Set((enrolls ?? []).map((e) => e.student_profile_id)));
+      const sids = await facultyTaughtStudentProfileIds(capability.facultyProfileId);
       if (!sids.length) return [];
       let sq = supabaseAdmin.from("student_profiles")
         .select("user_id, full_name_ar, academic_number")
         .in("id", sids).not("user_id","is",null).limit(data.limit);
       if (q) sq = sq.ilike("full_name_ar", `%${q}%`);
-      const { data: stud } = await sq;
+      const { data: stud, error } = await sq;
+      if (error) throw new Error(MESSAGE_SEND_DENIED_AR);
       for (const r of stud ?? []) out.push({ user_id: r.user_id as string, label: `${r.full_name_ar} — ${r.academic_number}`, group: "طلابي" });
       return out;
     }
     return [];
   });
+
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -381,6 +383,8 @@ export const sendMessage = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Server-side authorization BEFORE any insert — mirrors searchMessageRecipients.
+    await assertCanSendMessageTo(userId, data.recipient_user_id);
     const { data: row, error } = await supabase
       .from("internal_messages")
       .insert({
