@@ -16,7 +16,7 @@
 import { describe, expect, it, mock, beforeAll, beforeEach } from "bun:test";
 import type { ValidatedRow } from "../../src/lib/imports/types";
 
-process.env.SUPABASE_URL = "http://test.local";
+process.env.SUPABASE_URL = "http://localhost";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 
 const DEP = "dep-1";
