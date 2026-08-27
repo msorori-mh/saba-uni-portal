@@ -7,21 +7,43 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+import { loadEnv } from "vite";
 
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-// Publishable (anon) Supabase values — safe to ship to the client bundle.
-// Used as a build-time fallback when env vars aren't injected during the published build.
-const FALLBACK_SUPABASE_URL = "https://wpmicqriltrowwonknox.supabase.co";
-const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwbWljcXJpbHRyb3d3b25rbm94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDgwMTYsImV4cCI6MjA5NTgyNDAxNn0.CrbdFKmrLAIqurX-v4lGqU4pJkkt2ffYITNzf86BuQQ";
+// Staging isolation (03U_STAGING_SUPABASE_FAIL_CLOSED).
+// NO fallback URL and NO embedded key: staging must be configured explicitly
+// with its own isolated backend, and the build fails closed if it is ever
+// pointed at the production project ref.
+const PRODUCTION_SUPABASE_PROJECT_REF = "wpmicqriltrowwonknox";
 
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? FALLBACK_SUPABASE_URL;
-const supabasePublishableKey =
+const viteEnvironment = loadEnv(
+  process.env.NODE_ENV === "development" ? "development" : "production",
+  process.cwd(),
+  "",
+);
+
+const supabaseUrl = (
+  process.env.VITE_SUPABASE_URL ??
+  process.env.SUPABASE_URL ??
+  viteEnvironment.VITE_SUPABASE_URL ??
+  viteEnvironment.SUPABASE_URL ??
+  ""
+).trim();
+
+const supabasePublishableKey = (
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
   process.env.SUPABASE_PUBLISHABLE_KEY ??
-  FALLBACK_SUPABASE_PUBLISHABLE_KEY;
+  viteEnvironment.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  viteEnvironment.SUPABASE_PUBLISHABLE_KEY ??
+  ""
+).trim();
+
+if (supabaseUrl.toLowerCase().includes(PRODUCTION_SUPABASE_PROJECT_REF)) {
+  throw new Error(
+    `STAGING_ISOLATION_REQUIRED: Supabase URL points at the production project ref "${PRODUCTION_SUPABASE_PROJECT_REF}". This staging build must never target production.`,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Build provenance (track F - RUNTIME-DEPLOYED-SHA-PROVENANCE-SOURCE-01)
@@ -82,6 +104,18 @@ function resolveBuildSha(): string {
 
 const buildSha = resolveBuildSha();
 
+const stagingEnvironmentDefines: Record<string, string> = {
+  "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha),
+};
+
+if (supabaseUrl) {
+  stagingEnvironmentDefines["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(supabaseUrl);
+}
+
+if (supabasePublishableKey) {
+  stagingEnvironmentDefines["import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY"] = JSON.stringify(supabasePublishableKey);
+}
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -89,10 +123,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
-      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(supabasePublishableKey),
-      "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha),
-    },
+    define: stagingEnvironmentDefines,
   },
 });

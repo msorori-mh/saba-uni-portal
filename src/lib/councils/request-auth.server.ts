@@ -10,10 +10,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
 import type { Database } from "@/integrations/supabase/types";
+import { assertStagingSupabaseUrl } from "@/integrations/supabase/staging-isolation";
+import {
+  stagingFallbackSupabasePublishableKey,
+  stagingFallbackSupabaseUrl,
+} from "@/integrations/supabase/staging-config";
 
 export async function requireSupabaseAuth(request?: Request) {
-  const SUPABASE_URL = process.env["SUPABASE_URL"];
-  const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
+  const SUPABASE_URL = process.env["SUPABASE_URL"] || stagingFallbackSupabaseUrl();
+  const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"] || stagingFallbackSupabasePublishableKey();
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("Missing Supabase server environment variables.");
   }
@@ -28,7 +33,10 @@ export async function requireSupabaseAuth(request?: Request) {
   }
   const token = authHeader.slice("Bearer ".length);
 
-  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  // Staging isolation guard (03U): fail closed before any client is built.
+  const STAGING_SAFE_URL = assertStagingSupabaseUrl(SUPABASE_URL);
+
+  const supabase = createClient<Database>(STAGING_SAFE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
   });

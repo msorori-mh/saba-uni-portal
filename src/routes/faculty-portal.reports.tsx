@@ -31,35 +31,56 @@ export const Route = createFileRoute("/faculty-portal/reports")({
 function FacultyReportsPage() {
   const fetchSummary = useServerFn(getFacultySelfReportsSummary);
   const fetchScope = useServerFn(getMyReportScope);
-  const { data, isLoading, error } = useQuery({
+  const fetchDepartmentSummary = useServerFn(getDepartmentReportsSummary);
+
+  const summaryQuery = useQuery({
     queryKey: ["faculty-self-reports"],
     queryFn: () => fetchSummary(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-  const { data: actorScope } = useQuery({
+  const scopeQuery = useQuery({
     queryKey: ["faculty-reports-scope"],
     queryFn: () => fetchScope(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const viewerScope = actorScope
-    ? catalogViewerFromActorScope(actorScope)
+  const viewerScope = scopeQuery.data
+    ? catalogViewerFromActorScope(scopeQuery.data)
     : null;
   const viewerRoles = viewerScope?.roles?.length
     ? viewerScope.roles
     : ["faculty_member"];
   const isDepartmentHead = viewerRoles.includes("department_head");
 
-  const fetchDepartmentSummary = useServerFn(getDepartmentReportsSummary);
-  const { data: departmentSummary } = useQuery({
+  const departmentQuery = useQuery({
     queryKey: ["faculty-reports-department-name"],
     queryFn: () => fetchDepartmentSummary({ data: {} }),
     enabled: isDepartmentHead,
     staleTime: 300_000,
     refetchOnWindowFocus: false,
   });
+
+  // Gate the workspace on every required read. Background refetches
+  // (isFetching with data) must not collapse the page back into a loader.
+  const requiredLoading =
+    summaryQuery.isLoading ||
+    scopeQuery.isLoading ||
+    (isDepartmentHead && departmentQuery.isLoading);
+  const requiredError =
+    summaryQuery.error ??
+    scopeQuery.error ??
+    (isDepartmentHead ? departmentQuery.error : null);
+
+  const retryRequired = () => {
+    void summaryQuery.refetch();
+    void scopeQuery.refetch();
+    if (isDepartmentHead) void departmentQuery.refetch();
+  };
+
+  const data = summaryQuery.data;
+  const departmentSummary = departmentQuery.data;
 
   /** Two clean groups: my own academic reports, then my department's. */
   const scopedSections = useMemo(
@@ -114,15 +135,25 @@ function FacultyReportsPage() {
       breadcrumbs={[{ label: "تقاريري" }]}
     >
       <div className="container mx-auto max-w-5xl px-4 py-6" dir="rtl">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
+        {requiredLoading ? (
+          <div className="flex justify-center py-12" data-testid="faculty-reports-loading">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {(error as Error).message || "تعذر تحميل التقارير"}
-          </p>
+        ) : requiredError ? (
+          <div className="space-y-3" data-testid="faculty-reports-error">
+            <p className="text-sm text-destructive" role="alert">
+              {(requiredError as Error).message || "تعذر تحميل التقارير"}
+            </p>
+            <button
+              type="button"
+              onClick={retryRequired}
+              className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-bold text-primary hover:border-gold"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
         ) : (
+
           <ReportsOperationalWorkspace
             attentionItems={attentionItems}
             kpiTiles={kpiTiles}

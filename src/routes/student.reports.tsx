@@ -24,18 +24,29 @@ export const Route = createFileRoute("/student/reports")({
 function StudentReportsPage() {
   const fetchSummary = useServerFn(getStudentSelfReportsSummary);
   const fetchStudentCatalog = useServerFn(getStudentSelfReportCatalog);
-  const { data, isLoading, error } = useQuery({
+  const summaryQuery = useQuery({
     queryKey: ["student-self-reports"],
     queryFn: () => fetchSummary(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-  const { data: studentCatalog } = useQuery({
+  const catalogQuery = useQuery({
     queryKey: ["student-reports-catalog"],
     queryFn: () => fetchStudentCatalog({ data: { surface: "web" as const } }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  const data = summaryQuery.data;
+  const studentCatalog = catalogQuery.data;
+  // Combined state: one spinner, one error, one retry for both reads.
+  const isLoading = summaryQuery.isLoading || catalogQuery.isLoading;
+  const error = summaryQuery.error ?? catalogQuery.error;
+  const retry = () => {
+    void summaryQuery.refetch();
+    void catalogQuery.refetch();
+  };
+
 
   const attentionItems = useMemo(
     () =>
@@ -61,14 +72,24 @@ function StudentReportsPage() {
   return (
     <div dir="rtl" className="container mx-auto max-w-5xl px-4 py-6">
       {isLoading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-12" data-testid="student-reports-loading">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {(error as Error).message || "تعذر تحميل التقارير"}
-        </p>
+        <div className="space-y-3" data-testid="student-reports-error">
+          <p className="text-sm text-destructive" role="alert">
+            {(error as Error).message || "تعذر تحميل التقارير"}
+          </p>
+          <button
+            type="button"
+            onClick={retry}
+            className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm font-bold text-primary hover:border-gold"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
       ) : (
+
         <ReportsOperationalWorkspace
           attentionItems={attentionItems}
           kpiTiles={kpiTiles}

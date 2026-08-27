@@ -61,11 +61,13 @@ describe("PORTAL-GO-LIVE-ADMIN-DEAN-UX-GAPS-CLOSURE-01", () => {
   });
 
   describe("2. MESSAGES", () => {
-    it("replaces hardcoded / link with real back action and /admin fallback", () => {
+    it("uses a fixed portal-aware back action instead of browser history", () => {
       expect(MESSAGES_SRC).not.toContain('<Link to="/" className="text-xs text-muted-foreground inline-flex items-center gap-1"><ArrowRight className="h-3.5 w-3.5" /> الرئيسية</Link>');
       expect(MESSAGES_SRC).toContain("handleBack");
-      expect(MESSAGES_SRC).toContain('router.history.back()');
-      expect(MESSAGES_SRC).toContain('navigate({ to: "/admin" })');
+      expect(MESSAGES_SRC).toContain("MESSAGES_PORTAL_HOME");
+      expect(MESSAGES_SRC).toContain("firstAccessibleAdminRoute(roles)");
+      expect(MESSAGES_SRC).toContain("navigate({ to: portalHome })");
+      expect(MESSAGES_SRC).not.toContain("history.back");
       expect(MESSAGES_SRC).toContain("رجوع");
     });
   });

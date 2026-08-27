@@ -35,7 +35,24 @@ export const Route = createFileRoute("/student")({
     }
   },
   component: StudentLayout,
+  // Immediate transition feedback (e.g. /student → /student/notifications).
+  pendingMs: 0,
+  pendingComponent: StudentPending,
 });
+
+function StudentPending() {
+  return (
+    <div
+      className="min-h-screen grid place-items-center bg-surface"
+      data-testid="student-route-pending"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <span className="sr-only">جارٍ التحميل…</span>
+    </div>
+  );
+}
 
 function StudentLayout() {
   const navigate = useNavigate();

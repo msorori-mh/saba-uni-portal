@@ -1,39 +1,89 @@
-import { createFileRoute, redirect, useRouter, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Inbox, Send, MailOpen, Plus, ArrowRight, Megaphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { canAccessAdminPanel, canSeeNavItem, firstAccessibleAdminRoute, NAV_ITEM_ROLES } from "@/lib/admin-nav";
+import { canAccessAdminPanel, firstAccessibleAdminRoute } from "@/lib/admin-nav";
 import { listMessages, sendMessage, searchMessageRecipients, markMessageRead } from "@/lib/communications.functions";
 import { ComposeDialog } from "@/routes/admin/communications";
 import { cn } from "@/lib/utils";
 
+/** Fixed portal home per beneficiary kind — never history/referrer based. */
+export const MESSAGES_PORTAL_HOME = {
+  student: "/student",
+  faculty: "/faculty-portal",
+  staff: "/staff",
+} as const;
+
+/** Academic roles whose home is the faculty portal even when department_head
+ * is also listed among the admin-panel roles. */
+const MESSAGES_ACADEMIC_ROLES = ["faculty_member", "department_head"] as const;
+
+/**
+ * Pure, testable portal-home resolution.
+ * Priority:
+ *  1. faculty profile + academic role (faculty_member | department_head) → faculty portal
+ *  2. any other admin-panel role → firstAccessibleAdminRoute (even with a staff profile)
+ *  3. student profile → /student
+ *  4. profile-bound faculty without an academic role → /faculty-portal
+ *  5. staff profile → /staff
+ */
+export function resolveMessagesPortalHome(input: {
+  hasStudentProfile: boolean;
+  hasFacultyProfile: boolean;
+  hasStaffProfile: boolean;
+  roles: string[];
+}): string | null {
+  const { hasStudentProfile, hasFacultyProfile, hasStaffProfile, roles } = input;
+  if (
+    hasFacultyProfile &&
+    roles.some((r) => (MESSAGES_ACADEMIC_ROLES as readonly string[]).includes(r))
+  ) {
+    return MESSAGES_PORTAL_HOME.faculty;
+  }
+  if (canAccessAdminPanel(roles)) return firstAccessibleAdminRoute(roles);
+  if (hasStudentProfile) return MESSAGES_PORTAL_HOME.student;
+  if (hasFacultyProfile) return MESSAGES_PORTAL_HOME.faculty;
+  if (hasStaffProfile) return MESSAGES_PORTAL_HOME.staff;
+  return null;
+}
+
 export const Route = createFileRoute("/messages")({
+  ssr: false,
   head: () => ({ meta: [{ title: "صندوق الرسائل — البوابة" }, { name: "robots", content: "noindex, nofollow" }] }),
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/portal-login" });
+    const uid = data.user.id;
 
-    const { data: roleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", data.user.id);
-    const roles = (roleRows ?? []).map((r) => r.role);
-    const allowed = NAV_ITEM_ROLES["/messages"];
-    if (!allowed || !canSeeNavItem(allowed, roles)) {
-      if (canAccessAdminPanel(roles)) {
-        throw redirect({ to: firstAccessibleAdminRoute(roles), search: { accessDenied: "1" } });
-      }
-      throw redirect({ to: "/portal-login" });
-    }
+    // Profile binding is authoritative: a TEST_ONLY staff account may have no
+    // user_roles row yet must still reach their own inbox.
+    const [studentRes, facultyRes, staffRes, roleRes] = await Promise.all([
+      supabase.from("student_profiles").select("id").eq("user_id", uid).maybeSingle(),
+      supabase.from("faculty_profiles").select("id").eq("user_id", uid).maybeSingle(),
+      supabase.from("staff_profiles").select("id").eq("user_id", uid).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", uid),
+    ]);
+    const roles = (roleRes.data ?? []).map((r) => r.role);
+
+    const portalHome = resolveMessagesPortalHome({
+      hasStudentProfile: !!studentRes.data,
+      hasFacultyProfile: !!facultyRes.data,
+      hasStaffProfile: !!staffRes.data,
+      roles,
+    });
+
+    if (!portalHome) throw redirect({ to: "/portal-login" });
+
+    return { portalHome };
   },
   component: MessagesCenter,
 });
 
 function MessagesCenter() {
-  const router = useRouter();
   const navigate = useNavigate();
+  const portalHome = Route.useRouteContext({ select: (c) => c.portalHome });
   const qc = useQueryClient();
   const listFn = useServerFn(listMessages);
   const sendFn = useServerFn(sendMessage);
@@ -41,12 +91,9 @@ function MessagesCenter() {
   const markFn = useServerFn(markMessageRead);
 
   const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1 && document.referrer) {
-      router.history.back();
-    } else {
-      void navigate({ to: "/admin" });
-    }
+    void navigate({ to: portalHome });
   };
+
 
   const [box, setBox] = useState<"inbox"|"sent"|"unread">("inbox");
   const [search, setSearch] = useState("");

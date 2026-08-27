@@ -266,6 +266,13 @@ const SERVICE_LINKS = [
     desc: "ملخص أكاديمي وطلبات ووثائق ذاتية فقط.",
     Icon: FileText,
   },
+  {
+    to: "/messages" as const,
+    title: "الرسائل",
+    desc: "رسائل داخلية من الكلية وأعضاء هيئة التدريس.",
+    Icon: FileText,
+  },
+
   ...(portalFeatures.studentCourseMaterials
     ? ([{
         to: "/student/materials" as const,

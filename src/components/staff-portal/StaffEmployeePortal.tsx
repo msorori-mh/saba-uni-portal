@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { searchGraduateRecordsFn } from "@/lib/graduates-affairs/graduates-affairs.functions";
 import {
   Award,
   Bell,
@@ -153,6 +155,26 @@ function PortalNavigation({
   });
   const assignedCount = assignedStudentRequests.data?.length ?? null;
 
+  // Capability probe: the link appears only when the AUTH-04 backend actually
+  // authorizes this employee for graduates affairs — never on the flag alone.
+  const searchGraduates = useServerFn(searchGraduateRecordsFn);
+  const graduatesProbe = useQuery({
+    queryKey: ["staff-portal", "graduates-affairs-capability"],
+    queryFn: async () => {
+      await searchGraduates({
+        data: { programId: null, departmentId: null, graduationYear: null, limit: 1 },
+      });
+      return true;
+    },
+    enabled: portalFeatures.staffGraduatesAffairs,
+    retry: false,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
+  });
+  const showGraduatesAffairs =
+    portalFeatures.staffGraduatesAffairs && graduatesProbe.data === true;
+
+
   return (
     <nav aria-label="خدمات بوابة الموظفين" className="space-y-5">
       {GROUPS.map((group) => (
@@ -198,8 +220,15 @@ function PortalNavigation({
           </div>
         </div>
       ))}
-      {portalFeatures.staffGraduatesAffairs && (
-        <div className="border-t border-border pt-4">
+      <div className="border-t border-border pt-4 space-y-1">
+        <Link
+          to="/messages"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-foreground transition hover:bg-muted"
+        >
+          <Mail className="h-4 w-4" />
+          الرسائل
+        </Link>
+        {showGraduatesAffairs && (
           <Link
             to="/staff/graduates-affairs"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-foreground transition hover:bg-muted"
@@ -207,8 +236,9 @@ function PortalNavigation({
             <GraduationCap className="h-4 w-4" />
             شؤون الخريجين
           </Link>
-        </div>
-      )}
+        )}
+      </div>
+
     </nav>
   );
 }

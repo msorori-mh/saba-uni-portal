@@ -145,13 +145,25 @@ describe("vite.config.ts provenance define (static)", () => {
     expect(viteConfigSource).toContain("BUILD_SHA_SENTINEL;");
   });
 
-  test("no secret passthrough is added to the define block", () => {
-    const defineStart = viteConfigSource.indexOf("define: {");
-    const defineEnd = viteConfigSource.indexOf("},", defineStart);
-    const defineBlock = viteConfigSource.slice(defineStart, defineEnd);
+  test("allowlists exactly the three non-secret build defines", () => {
+    const definesStart = viteConfigSource.indexOf("const stagingEnvironmentDefines");
+    const defineUse = viteConfigSource.indexOf("define: stagingEnvironmentDefines");
+    const defineBlock = viteConfigSource.slice(definesStart, defineUse);
+    expect(definesStart).toBeGreaterThan(-1);
+    expect(defineUse).toBeGreaterThan(definesStart);
     expect(defineBlock).not.toMatch(/SERVICE_ROLE/i);
     expect(defineBlock).not.toContain("JSON.stringify(process.env");
-    // Exactly three define keys: the two pre-existing Supabase ones + SHA.
-    expect(defineBlock.match(/"import\.meta\.env\./g)?.length).toBe(3);
+
+    const defineKeys = Array.from(
+      defineBlock.matchAll(/\["?(import\.meta\.env\.[A-Z0-9_]+)"?\]|"(import\.meta\.env\.[A-Z0-9_]+)"\s*:/g),
+      (match) => match[1] ?? match[2],
+    );
+    expect(new Set(defineKeys)).toEqual(
+      new Set([
+        "import.meta.env.VITE_BUILD_SHA",
+        "import.meta.env.VITE_SUPABASE_URL",
+        "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY",
+      ]),
+    );
   });
 });
