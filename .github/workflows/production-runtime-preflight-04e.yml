@@ -90,8 +90,8 @@ jobs:
         run: |
           set -euo pipefail
           node --import tsx scripts/validate-tanstack-route-tree-register.ts
-          rg -q "wpmicqriltrowwonknox\.supabase\.co" .output
-          if rg -q 'sb_secret_[A-Za-z0-9_-]{20,}|eyJhbGciOi[A-Za-z0-9_-]{20,}\.' .output; then
+          grep -R -q "wpmicqriltrowwonknox\.supabase\.co" .output
+          if grep -R -E -q 'sb_secret_[A-Za-z0-9_-]{20,}|eyJhbGciOi[A-Za-z0-9_-]{20,}\.' .output; then
             echo "::error::Generated output contains a forbidden secret-shaped token"
             exit 1
           fi
