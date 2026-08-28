@@ -26,11 +26,7 @@ function loadResolveBuildSha(
   }
   const block = tsTranspiler.transformSync(viteConfigSource.slice(start, end));
   // eslint-disable-next-line no-new-func -- deliberate: evaluates the actual config code
-  const factory = new Function(
-    "execSync",
-    "readFileSync",
-    `${block}\nreturn resolveBuildSha;`,
-  );
+  const factory = new Function("execSync", "readFileSync", `${block}\nreturn resolveBuildSha;`);
   return factory(execSyncImpl, readFileSyncImpl) as () => string;
 }
 
@@ -145,24 +141,31 @@ describe("vite.config.ts provenance define (static)", () => {
     expect(viteConfigSource).toContain("BUILD_SHA_SENTINEL;");
   });
 
-  test("allowlists exactly the three non-secret build defines", () => {
-    const definesStart = viteConfigSource.indexOf("const stagingEnvironmentDefines");
-    const defineUse = viteConfigSource.indexOf("define: stagingEnvironmentDefines");
+  test("allowlists exactly the public provenance and deployment-profile defines", () => {
+    const definesStart = viteConfigSource.indexOf("const portalEnvironmentDefines");
+    const defineUse = viteConfigSource.indexOf("define: portalEnvironmentDefines");
     const defineBlock = viteConfigSource.slice(definesStart, defineUse);
     expect(definesStart).toBeGreaterThan(-1);
     expect(defineUse).toBeGreaterThan(definesStart);
     expect(defineBlock).not.toMatch(/SERVICE_ROLE/i);
+    expect(defineBlock).not.toMatch(/sb_secret_|eyJhbGciOi/i);
     expect(defineBlock).not.toContain("JSON.stringify(process.env");
 
     const defineKeys = Array.from(
-      defineBlock.matchAll(/\["?(import\.meta\.env\.[A-Z0-9_]+)"?\]|"(import\.meta\.env\.[A-Z0-9_]+)"\s*:/g),
+      defineBlock.matchAll(
+        /portalEnvironmentDefines\["([^"]+)"\]|"((?:import\.meta\.env|process\.env)\.[A-Z0-9_]+)"\s*:/g,
+      ),
       (match) => match[1] ?? match[2],
     );
     expect(new Set(defineKeys)).toEqual(
       new Set([
         "import.meta.env.VITE_BUILD_SHA",
+        "import.meta.env.VITE_PORTAL_DEPLOY_TARGET",
+        "process.env.PORTAL_DEPLOY_TARGET",
         "import.meta.env.VITE_SUPABASE_URL",
+        "process.env.SUPABASE_URL",
         "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY",
+        "process.env.SUPABASE_PUBLISHABLE_KEY",
       ]),
     );
   });

@@ -18,10 +18,7 @@ import {
   stagingFallbackSupabaseUrl,
   stagingFallbackSupabasePublishableKey,
 } from "../../src/integrations/supabase/staging-config";
-import {
-  PRODUCTION_SUPABASE_PROJECT_REF,
-  assertStagingSupabaseUrl,
-} from "../../src/integrations/supabase/staging-isolation";
+import { PRODUCTION_SUPABASE_PROJECT_REF, assertStagingSupabaseUrl } from "../../src/integrations/supabase/staging-isolation";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const read = (rel: string) => readFileSync(resolve(ROOT, rel), "utf8");
@@ -86,9 +83,7 @@ describe("03W-R1 — protected ref is assembled at runtime, not bundled literall
   });
 
   test("guard still rejects a production URL with STAGING_ISOLATION_REQUIRED", () => {
-    expect(() =>
-      assertStagingSupabaseUrl(`https://${expectedProductionRef}.supabase.co`),
-    ).toThrow(/STAGING_ISOLATION_REQUIRED/);
+    expect(() => assertStagingSupabaseUrl(`https://${expectedProductionRef}.supabase.co`)).toThrow(/STAGING_ISOLATION_REQUIRED/);
   });
 });
 
@@ -128,31 +123,31 @@ describe("03W — fail-closed on production hosts", () => {
 
 describe("03W — source contracts for the five client paths", () => {
   test("client.ts: URL + publishable fallback, guard before createClient", () => {
-    expect(SOURCES.client).toMatch(/stagingFallbackSupabaseUrl\(\)/);
-    expect(SOURCES.client).toMatch(/stagingFallbackSupabasePublishableKey\(\)/);
-    const guardAt = SOURCES.client.indexOf("assertStagingSupabaseUrl(");
+    expect(SOURCES.client).toMatch(/portalFallbackSupabaseUrl\(DEPLOY_TARGET\)/);
+    expect(SOURCES.client).toMatch(/portalFallbackSupabasePublishableKey\(DEPLOY_TARGET\)/);
+    const guardAt = SOURCES.client.indexOf("assertPortalSupabaseUrl(");
     const createAt = SOURCES.client.indexOf("createClient<Database>(");
     expect(guardAt).toBeGreaterThan(-1);
     expect(createAt).toBeGreaterThan(guardAt);
   });
 
   test("client.server.ts: URL fallback only; service role stays process.env-only", () => {
-    expect(SOURCES.clientServer).toMatch(/stagingFallbackSupabaseUrl\(\)/);
-    expect(SOURCES.clientServer).not.toMatch(/stagingFallbackSupabasePublishableKey/);
+    expect(SOURCES.clientServer).toMatch(/portalFallbackSupabaseUrl\(DEPLOY_TARGET\)/);
+    expect(SOURCES.clientServer).not.toMatch(/portalFallbackSupabasePublishableKey/);
     expect(SOURCES.clientServer).toMatch(
       /SUPABASE_SERVICE_ROLE_KEY\s*=\s*process\.env(?:\.SUPABASE_SERVICE_ROLE_KEY|\[\s*["'`]SUPABASE_SERVICE_ROLE_KEY["'`]\s*\])\s*;/,
     );
-    expect(SOURCES.clientServer).not.toMatch(/SERVICE_ROLE_KEY[^;]*\|\|[^;]*staging/i);
-    const guardAt = SOURCES.clientServer.indexOf("assertStagingSupabaseUrl(");
+    expect(SOURCES.clientServer).not.toMatch(/SERVICE_ROLE_KEY[^;]*\|\|[^;]*fallback/i);
+    const guardAt = SOURCES.clientServer.indexOf("assertPortalSupabaseUrl(");
     const createAt = SOURCES.clientServer.indexOf("createClient<Database>(");
     expect(guardAt).toBeGreaterThan(-1);
     expect(createAt).toBeGreaterThan(guardAt);
   });
 
   test("auth-middleware.ts: URL + publishable fallback, guard before createClient", () => {
-    expect(SOURCES.authMiddleware).toMatch(/stagingFallbackSupabaseUrl\(\)/);
-    expect(SOURCES.authMiddleware).toMatch(/stagingFallbackSupabasePublishableKey\(\)/);
-    const guardAt = SOURCES.authMiddleware.indexOf("assertStagingSupabaseUrl(");
+    expect(SOURCES.authMiddleware).toMatch(/portalFallbackSupabaseUrl\(DEPLOY_TARGET\)/);
+    expect(SOURCES.authMiddleware).toMatch(/portalFallbackSupabasePublishableKey\(DEPLOY_TARGET\)/);
+    const guardAt = SOURCES.authMiddleware.indexOf("assertPortalSupabaseUrl(");
     const createAt = SOURCES.authMiddleware.indexOf("createClient<Database>(");
     expect(guardAt).toBeGreaterThan(-1);
     expect(createAt).toBeGreaterThan(guardAt);
@@ -162,9 +157,9 @@ describe("03W — source contracts for the five client paths", () => {
     const start = SOURCES.adminUsers.indexOf("function actorSupabase(");
     expect(start).toBeGreaterThan(-1);
     const region = SOURCES.adminUsers.slice(start, start + 1200);
-    expect(region).toMatch(/stagingFallbackSupabaseUrl\(\)/);
-    expect(region).toMatch(/stagingFallbackSupabasePublishableKey\(\)/);
-    const guardAt = region.indexOf("assertStagingSupabaseUrl(");
+    expect(region).toMatch(/portalFallbackSupabaseUrl\(target\)/);
+    expect(region).toMatch(/portalFallbackSupabasePublishableKey\(target\)/);
+    const guardAt = region.indexOf("assertPortalSupabaseUrl(");
     const createAt = region.indexOf("createClient");
     expect(guardAt).toBeGreaterThan(-1);
     expect(createAt).toBeGreaterThan(-1);
@@ -172,9 +167,9 @@ describe("03W — source contracts for the five client paths", () => {
   });
 
   test("councils/request-auth.server.ts: fallbacks + guard before createClient", () => {
-    expect(SOURCES.councilAuth).toMatch(/stagingFallbackSupabaseUrl\(\)/);
-    expect(SOURCES.councilAuth).toMatch(/stagingFallbackSupabasePublishableKey\(\)/);
-    const guardAt = SOURCES.councilAuth.indexOf("assertStagingSupabaseUrl(");
+    expect(SOURCES.councilAuth).toMatch(/portalFallbackSupabaseUrl\(DEPLOY_TARGET\)/);
+    expect(SOURCES.councilAuth).toMatch(/portalFallbackSupabasePublishableKey\(DEPLOY_TARGET\)/);
+    const guardAt = SOURCES.councilAuth.indexOf("assertPortalSupabaseUrl(");
     const createAt = SOURCES.councilAuth.indexOf("createClient<Database>(");
     expect(guardAt).toBeGreaterThan(-1);
     expect(createAt).toBeGreaterThan(guardAt);

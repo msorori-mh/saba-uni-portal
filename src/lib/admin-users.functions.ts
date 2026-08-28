@@ -5,11 +5,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
-import { assertStagingSupabaseUrl } from "@/integrations/supabase/staging-isolation";
 import {
-  stagingFallbackSupabasePublishableKey,
-  stagingFallbackSupabaseUrl,
-} from "@/integrations/supabase/staging-config";
+  assertPortalSupabasePublishableKey,
+  assertPortalSupabaseUrl,
+  portalFallbackSupabasePublishableKey,
+  portalFallbackSupabaseUrl,
+  resolvePortalDeployTarget,
+} from "@/integrations/supabase/deployment-profile";
 import { assertAdmin, assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
@@ -139,14 +141,18 @@ function actorSupabase(context: { supabase: ActorSupabase }): ActorSupabase {
   const authHeader = request?.headers?.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "");
-    const url = process.env.SUPABASE_URL || stagingFallbackSupabaseUrl();
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY || stagingFallbackSupabasePublishableKey();
+    const target = resolvePortalDeployTarget(process.env.PORTAL_DEPLOY_TARGET);
+    const url = process.env.SUPABASE_URL || portalFallbackSupabaseUrl(target);
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY || portalFallbackSupabasePublishableKey(target);
     if (url && key && token) {
-      // Staging isolation guard (03U): fail closed before any client is built.
-      return createClient<Database>(assertStagingSupabaseUrl(url), key, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-        auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-      });
+      return createClient<Database>(
+        assertPortalSupabaseUrl(target, url),
+        assertPortalSupabasePublishableKey(target, key),
+        {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+          auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+        },
+      );
     }
   }
   return context.supabase;

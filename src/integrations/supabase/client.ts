@@ -2,17 +2,30 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { brokeredPreviewStorage } from "./previewAuthStorage";
-import { assertStagingSupabaseUrl } from "./staging-isolation";
-import { stagingFallbackSupabasePublishableKey, stagingFallbackSupabaseUrl } from "./staging-config";
+import {
+  assertPortalRuntimeHost,
+  assertPortalSupabasePublishableKey,
+  assertPortalSupabaseUrl,
+  portalFallbackSupabasePublishableKey,
+  portalFallbackSupabaseUrl,
+  resolvePortalDeployTarget,
+} from "./deployment-profile";
 
 function createSupabaseClient() {
+  const DEPLOY_TARGET = resolvePortalDeployTarget(
+    import.meta.env.VITE_PORTAL_DEPLOY_TARGET,
+    process.env.PORTAL_DEPLOY_TARGET,
+  );
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || stagingFallbackSupabaseUrl();
+  const SUPABASE_URL =
+    import.meta.env.VITE_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    portalFallbackSupabaseUrl(DEPLOY_TARGET);
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
-    stagingFallbackSupabasePublishableKey();
+    portalFallbackSupabasePublishableKey(DEPLOY_TARGET);
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
@@ -24,10 +37,14 @@ function createSupabaseClient() {
     throw new Error(message);
   }
 
-  // Staging isolation guard (03U): fail closed before any client is built.
-  const STAGING_SAFE_URL = assertStagingSupabaseUrl(SUPABASE_URL);
+  assertPortalRuntimeHost(DEPLOY_TARGET);
+  const SAFE_URL = assertPortalSupabaseUrl(DEPLOY_TARGET, SUPABASE_URL);
+  const SAFE_PUBLISHABLE_KEY = assertPortalSupabasePublishableKey(
+    DEPLOY_TARGET,
+    SUPABASE_PUBLISHABLE_KEY,
+  );
 
-  return createClient<Database>(STAGING_SAFE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient<Database>(SAFE_URL, SAFE_PUBLISHABLE_KEY, {
     auth: {
       storage: brokeredPreviewStorage(),
       persistSession: true,

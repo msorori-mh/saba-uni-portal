@@ -13,6 +13,12 @@ on:
       - "src/lib/documents/enrollment-certificate-pdf.ts"
       - "src/lib/documents/council-minutes-pdf.server.ts"
       - "src/lib/staff/staff-payroll-pdf.server.ts"
+      - "src/integrations/supabase/deployment-profile.ts"
+      - "src/integrations/supabase/staging-config.ts"
+      - "src/integrations/supabase/staging-isolation.ts"
+      - "tests/security/production-runtime-profile-04e.test.ts"
+      - "tests/security/staging-publish-env-closure-03w.test.ts"
+      - "tests/security/staging-supabase-isolation-03u.test.ts"
       - "tests/security/cloudflare-staging-deployment-04d.test.ts"
       - "vite.config.ts"
       - "package.json"
@@ -30,6 +36,12 @@ on:
       - "src/lib/documents/enrollment-certificate-pdf.ts"
       - "src/lib/documents/council-minutes-pdf.server.ts"
       - "src/lib/staff/staff-payroll-pdf.server.ts"
+      - "src/integrations/supabase/deployment-profile.ts"
+      - "src/integrations/supabase/staging-config.ts"
+      - "src/integrations/supabase/staging-isolation.ts"
+      - "tests/security/production-runtime-profile-04e.test.ts"
+      - "tests/security/staging-publish-env-closure-03w.test.ts"
+      - "tests/security/staging-supabase-isolation-03u.test.ts"
       - "tests/security/cloudflare-staging-deployment-04d.test.ts"
       - "vite.config.ts"
       - "package.json"
@@ -51,6 +63,7 @@ concurrency:
 env:
   STAGING_WORKER_NAME: saba-uni-portal-staging
   STAGING_SUPABASE_URL: https://ldjhuutywqhjxabdotmn.supabase.co
+  VITE_PORTAL_DEPLOY_TARGET: staging
 
 jobs:
   bundle-preflight:

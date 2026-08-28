@@ -3,12 +3,19 @@ import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
-import { assertStagingSupabaseUrl } from "./staging-isolation";
-import { stagingFallbackSupabasePublishableKey, stagingFallbackSupabaseUrl } from "./staging-config";
+import {
+  assertPortalSupabasePublishableKey,
+  assertPortalSupabaseUrl,
+  portalFallbackSupabasePublishableKey,
+  portalFallbackSupabaseUrl,
+  resolvePortalDeployTarget,
+} from "./deployment-profile";
 
 export const requireSupabaseAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
-  const SUPABASE_URL = process.env.SUPABASE_URL || stagingFallbackSupabaseUrl();
-  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || stagingFallbackSupabasePublishableKey();
+  const DEPLOY_TARGET = resolvePortalDeployTarget(process.env.PORTAL_DEPLOY_TARGET);
+  const SUPABASE_URL = process.env.SUPABASE_URL || portalFallbackSupabaseUrl(DEPLOY_TARGET);
+  const SUPABASE_PUBLISHABLE_KEY =
+    process.env.SUPABASE_PUBLISHABLE_KEY || portalFallbackSupabasePublishableKey(DEPLOY_TARGET);
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
@@ -41,10 +48,13 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     throw new Error("Unauthorized: No token provided");
   }
 
-  // Staging isolation guard (03U): fail closed before any client is built.
-  const STAGING_SAFE_URL = assertStagingSupabaseUrl(SUPABASE_URL);
+  const SAFE_URL = assertPortalSupabaseUrl(DEPLOY_TARGET, SUPABASE_URL);
+  const SAFE_PUBLISHABLE_KEY = assertPortalSupabasePublishableKey(
+    DEPLOY_TARGET,
+    SUPABASE_PUBLISHABLE_KEY,
+  );
 
-  const supabase = createClient<Database>(STAGING_SAFE_URL, SUPABASE_PUBLISHABLE_KEY!, {
+  const supabase = createClient<Database>(SAFE_URL, SAFE_PUBLISHABLE_KEY, {
     global: {
       headers: {
         Authorization: `Bearer ${token}`,
