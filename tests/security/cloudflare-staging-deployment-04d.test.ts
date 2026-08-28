@@ -4,9 +4,11 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 
 import {
+  CLOUDFLARE_CAIRO_FONT_ASSET_PATH,
   STAGING_SUPABASE_URL,
   STAGING_WORKER_NAME,
   assertCloudflareStagingUrl,
+  assertCloudflareWorkerGzipSize,
   assertStagingBuildInputs,
   assertVersionPayload,
   prepareCloudflareStagingBundle,
@@ -24,6 +26,9 @@ function createGeneratedBundle(route?: unknown): string {
   mkdirSync(dirname(redirectPath), { recursive: true });
   mkdirSync(dirname(configPath), { recursive: true });
   mkdirSync(assetsPath, { recursive: true });
+  const fontSourcePath = resolve(root, "src/assets/fonts/cairo/Cairo-Variable.ttf");
+  mkdirSync(dirname(fontSourcePath), { recursive: true });
+  writeFileSync(fontSourcePath, "test-cairo-font-bytes");
   writeFileSync(redirectPath, JSON.stringify({ configPath: "../../.output/server/wrangler.json" }));
   writeFileSync(mainPath, "export default { fetch() { return new Response('ok') } };\n");
   writeFileSync(resolve(assetsPath, "index.html"), "<!doctype html>\n");
@@ -67,9 +72,24 @@ describe("04D — Cloudflare staging build contract", () => {
       expect(generated.routes).toBeUndefined();
       expect(prepared.mainPath.endsWith("/.output/server/index.mjs")).toBe(true);
       expect(prepared.assetsDirectory.endsWith("/.output/public")).toBe(true);
+      expect(
+        readFileSync(resolve(prepared.assetsDirectory, CLOUDFLARE_CAIRO_FONT_ASSET_PATH), "utf8"),
+      ).toBe("test-cairo-font-bytes");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  test("enforces a compressed-size margin below the Cloudflare free-plan limit", () => {
+    expect(assertCloudflareWorkerGzipSize("Total Upload: 13291 KiB / gzip: 2721.07 KiB")).toBe(
+      2721.07,
+    );
+    expect(() =>
+      assertCloudflareWorkerGzipSize("Total Upload: 14023 KiB / gzip: 3063.67 KiB"),
+    ).toThrow(/compressed Worker size/);
+    expect(() => assertCloudflareWorkerGzipSize("dry-run completed without metrics")).toThrow(
+      /did not report/,
+    );
   });
 
   test("rejects every custom route before deployment", () => {
@@ -128,6 +148,7 @@ describe("04D — workflow policy", () => {
     expect(workflow).toContain("CLOUDFLARE_API_TOKEN");
     expect(workflow).toContain("CLOUDFLARE_ACCOUNT_ID");
     expect(workflow).toContain("deploy --dry-run");
+    expect(workflow).toContain("assert-cloudflare-staging-size.ts");
     expect(workflow).toContain("verify-cloudflare-staging-deployment.ts");
     expect(workflow).toContain("wrangler rollback");
     expect(workflow).toContain(

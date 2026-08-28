@@ -5,8 +5,14 @@ on:
     paths:
       - ".github/workflows/cloudflare-staging-04d.yml"
       - "scripts/staging/cloudflare-staging-contract.ts"
+      - "scripts/staging/assert-cloudflare-staging-size.ts"
       - "scripts/staging/prepare-cloudflare-staging-bundle.ts"
       - "scripts/staging/verify-cloudflare-staging-deployment.ts"
+      - "src/assets/fonts/cairo/Cairo-Variable.ttf"
+      - "src/lib/documents/enrollment-certificate-pdf-assets.server.ts"
+      - "src/lib/documents/enrollment-certificate-pdf.ts"
+      - "src/lib/documents/council-minutes-pdf.server.ts"
+      - "src/lib/staff/staff-payroll-pdf.server.ts"
       - "tests/security/cloudflare-staging-deployment-04d.test.ts"
       - "vite.config.ts"
       - "package.json"
@@ -16,8 +22,14 @@ on:
     paths:
       - ".github/workflows/cloudflare-staging-04d.yml"
       - "scripts/staging/cloudflare-staging-contract.ts"
+      - "scripts/staging/assert-cloudflare-staging-size.ts"
       - "scripts/staging/prepare-cloudflare-staging-bundle.ts"
       - "scripts/staging/verify-cloudflare-staging-deployment.ts"
+      - "src/assets/fonts/cairo/Cairo-Variable.ttf"
+      - "src/lib/documents/enrollment-certificate-pdf-assets.server.ts"
+      - "src/lib/documents/enrollment-certificate-pdf.ts"
+      - "src/lib/documents/council-minutes-pdf.server.ts"
+      - "src/lib/staff/staff-payroll-pdf.server.ts"
       - "tests/security/cloudflare-staging-deployment-04d.test.ts"
       - "vite.config.ts"
       - "package.json"
@@ -95,7 +107,10 @@ jobs:
       - name: Wrangler dry-run
         run: |
           set -euo pipefail
-          bunx wrangler deploy --dry-run --outdir .wrangler/staging-dry-run --name "$STAGING_WORKER_NAME"
+          SIZE_LOG=".wrangler/staging-dry-run-size.log"
+          bunx wrangler deploy --dry-run --outdir .wrangler/staging-dry-run \
+            --name "$STAGING_WORKER_NAME" 2>&1 | tee "$SIZE_LOG"
+          bun run scripts/staging/assert-cloudflare-staging-size.ts "$SIZE_LOG"
           test -d .wrangler/staging-dry-run
 
       - name: Confirm source tree stayed clean
@@ -162,7 +177,10 @@ jobs:
         run: |
           set -euo pipefail
           bun run scripts/staging/prepare-cloudflare-staging-bundle.ts
-          bunx wrangler deploy --dry-run --outdir .wrangler/staging-apply-dry-run --name "$STAGING_WORKER_NAME"
+          SIZE_LOG=".wrangler/staging-apply-dry-run-size.log"
+          bunx wrangler deploy --dry-run --outdir .wrangler/staging-apply-dry-run \
+            --name "$STAGING_WORKER_NAME" 2>&1 | tee "$SIZE_LOG"
+          bun run scripts/staging/assert-cloudflare-staging-size.ts "$SIZE_LOG"
 
       - name: Deploy dedicated staging Worker
         id: deploy

@@ -9,11 +9,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
-  loadCairoFontBytes,
   loadCollegeLogoBytes,
   sha256Hex,
   buildEnrollmentCertificatePdfBytes,
 } from "@/lib/documents/enrollment-certificate-pdf";
+import { readCairoFontFromCloudflareAssets } from "@/lib/documents/enrollment-certificate-pdf-assets.server";
 import { resolvePublicAppOrigin } from "@/lib/student-requests/enrollment-certificate-pdf-storage-saga.functions";
 import {
   buildEnrollmentCertificateIdempotencyKey,
@@ -42,13 +42,27 @@ describe("B1 — production PDF path is Cloudflare-Workers safe", () => {
     }
   });
 
-  it("loaders return non-empty Uint8Array bytes", () => {
-    const font = loadCairoFontBytes();
+  it("uses a non-empty local Cairo fixture and bundled logo", () => {
+    const font = new Uint8Array(
+      readFileSync(join(ROOT, "src/assets/fonts/cairo/Cairo-Variable.ttf")),
+    );
     const logo = loadCollegeLogoBytes();
     expect(font).toBeInstanceOf(Uint8Array);
     expect(logo).toBeInstanceOf(Uint8Array);
     expect(font.byteLength).toBeGreaterThan(100_000);
     expect(logo.byteLength).toBeGreaterThan(1_000);
+  });
+
+  it("loads Cairo through the same-deployment Cloudflare ASSETS binding", async () => {
+    let requested = "";
+    const font = await readCairoFontFromCloudflareAssets({
+      async fetch(input) {
+        requested = String(input);
+        return new Response(new Uint8Array([0, 1, 2, 3]));
+      },
+    });
+    expect(requested).toBe("https://assets.local/__worker-assets/Cairo-Variable.ttf");
+    expect(Array.from(font)).toEqual([0, 1, 2, 3]);
   });
 
   it("builds a valid PDF from fixture snapshot with correct SHA length", async () => {
@@ -64,6 +78,9 @@ describe("B1 — production PDF path is Cloudflare-Workers safe", () => {
       },
       documentNumber: "TEST-DOC-0001",
       verificationUrl: "https://quboolye.com/verify-document?code=TESTONLY",
+      fontBytes: new Uint8Array(
+        readFileSync(join(ROOT, "src/assets/fonts/cairo/Cairo-Variable.ttf")),
+      ),
     });
     expect(built.byteLength).toBeGreaterThan(5_000);
     expect(built.pdfBytes[0]).toBe(0x25); // %

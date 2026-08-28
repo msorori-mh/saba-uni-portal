@@ -1,7 +1,7 @@
 /**
  * PORTAL_STAFF_SELF_SERVICE_LIVE_READ_SIDE_02D
  * Server-only Arabic payroll-statement PDF builder.
- * Reuses the bundled Cairo + BiDi engine — no CDN, no Canvas, no network.
+ * Reuses the same-deployment Cairo asset + BiDi engine — no CDN or Canvas.
  */
 
 import fontkit from "@pdf-lib/fontkit";
@@ -77,7 +77,7 @@ function line(
 export async function buildStaffPayrollPdfBytes(
   input: StaffPayrollPdfInput,
 ): Promise<Uint8Array> {
-  const fontBytes = getCairoFontBytes();
+  const fontBytes = await getCairoFontBytes();
   const logoBytes = getCollegeLogoBytes();
 
   const pdf = await PDFDocument.create();
