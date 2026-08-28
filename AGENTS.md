@@ -9,6 +9,13 @@
 - يمنع إنشاء موظفين أو حسابات أو تعيينات وهمية.
 - يمنع لمس الطلبات والوثائق الإنتاجية أو التجريبية الموجودة.
 
+### استثناء Staging المحكوم
+
+- لا يتجاوز منع النشر إلا Workflow `.github/workflows/cloudflare-staging-04d.yml`، وبعد تفويض صريح لمرحلة `04D`.
+- الاستثناء محصور في Worker باسم `saba-uni-portal-staging` وGitHub Environment باسم `staging` ومن SHA كامل يساوي رأس `main`.
+- لا يمنح هذا الاستثناء أي صلاحية لنطاقات الإنتاج أو Supabase production أو migrations أو كتابة البيانات.
+- أي فشل في SHA أو العزل أو Smoke يوقف المرحلة ويستدعي Rollback للـWorker التجريبي فقط.
+
 ## Git والعزل
 - لا يعمل أي وكيل مباشرة على main.
 - لكل مهمة branch وworktree مستقلان.

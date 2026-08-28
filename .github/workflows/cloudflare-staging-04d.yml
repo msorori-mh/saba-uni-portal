@@ -1,0 +1,201 @@
+name: Cloudflare Staging 04D
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/cloudflare-staging-04d.yml"
+      - "scripts/staging/cloudflare-staging-contract.ts"
+      - "scripts/staging/prepare-cloudflare-staging-bundle.ts"
+      - "scripts/staging/verify-cloudflare-staging-deployment.ts"
+      - "tests/security/cloudflare-staging-deployment-04d.test.ts"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloudflare-staging-04d.yml"
+      - "scripts/staging/cloudflare-staging-contract.ts"
+      - "scripts/staging/prepare-cloudflare-staging-bundle.ts"
+      - "scripts/staging/verify-cloudflare-staging-deployment.ts"
+      - "tests/security/cloudflare-staging-deployment-04d.test.ts"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Exact 40-character main SHA authorized for Cloudflare staging"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-staging-04d
+  cancel-in-progress: false
+
+env:
+  STAGING_WORKER_NAME: saba-uni-portal-staging
+  STAGING_SUPABASE_URL: https://ldjhuutywqhjxabdotmn.supabase.co
+
+jobs:
+  bundle-preflight:
+    name: Build and Cloudflare dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate dispatch input syntax
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$DISPATCH_REF" != "refs/heads/main" ]; then
+            echo "::error::04D deployment dispatch is allowed from main only"
+            exit 1
+          fi
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be exactly 40 lowercase hexadecimal characters"
+            exit 1
+          fi
+
+      - name: Check out candidate without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run 04D contract tests
+        run: bun test tests/security/cloudflare-staging-deployment-04d.test.ts
+
+      - name: Build exact candidate
+        env:
+          GITHUB_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          NODE_OPTIONS: --max-old-space-size=4096
+          VITE_SUPABASE_URL: ${{ env.STAGING_SUPABASE_URL }}
+        run: bun run build
+
+      - name: Pin generated bundle to the dedicated staging Worker
+        env:
+          VITE_SUPABASE_URL: ${{ env.STAGING_SUPABASE_URL }}
+        run: bun run scripts/staging/prepare-cloudflare-staging-bundle.ts
+
+      - name: Wrangler dry-run
+        run: |
+          set -euo pipefail
+          bunx wrangler deploy --dry-run --outdir .wrangler/staging-dry-run --name "$STAGING_WORKER_NAME"
+          test -d .wrangler/staging-dry-run
+
+      - name: Confirm source tree stayed clean
+        run: git diff --exit-code
+
+  deploy-staging:
+    name: Deploy and verify isolated staging
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    needs: bundle-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_SUPABASE_URL: https://ldjhuutywqhjxabdotmn.supabase.co
+    steps:
+      - name: Check out authorized SHA without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove candidate is the current main SHA
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          MAIN_SHA="$(git rev-parse origin/main)"
+          test "$CANDIDATE_SHA" = "$CHECKED_OUT_SHA"
+          test "$CANDIDATE_SHA" = "$MAIN_SHA"
+
+      - name: Validate protected inputs are present
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          if [[ ! "$VITE_SUPABASE_PUBLISHABLE_KEY" =~ ^sb_publishable_.{9,}$ ]]; then
+            echo "::error::staging key must be a public sb_publishable_ key"
+            exit 1
+          fi
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build authorized SHA for isolated staging
+        env:
+          GITHUB_SHA: ${{ inputs.candidate_sha }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: bun run build
+
+      - name: Prepare and validate generated Cloudflare bundle
+        env:
+          REQUIRE_STAGING_PUBLISHABLE_KEY: "1"
+        run: |
+          set -euo pipefail
+          bun run scripts/staging/prepare-cloudflare-staging-bundle.ts
+          bunx wrangler deploy --dry-run --outdir .wrangler/staging-apply-dry-run --name "$STAGING_WORKER_NAME"
+
+      - name: Deploy dedicated staging Worker
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --name saba-uni-portal-staging
+
+      - name: Verify deployed SHA and public route
+        env:
+          EXPECTED_BUILD_SHA: ${{ inputs.candidate_sha }}
+          STAGING_DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: bun run scripts/staging/verify-cloudflare-staging-deployment.ts
+
+      - name: Record PASS evidence
+        if: ${{ success() }}
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          EXPECTED_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          {
+            echo "## PASS_04D_CLOUDFLARE_STAGING"
+            echo "- Worker: \`$STAGING_WORKER_NAME\`"
+            echo "- SHA: \`$EXPECTED_SHA\`"
+            echo "- URL: $DEPLOYMENT_URL"
+            echo "- Database migrations/writes: 0"
+            echo "- Production deploy: 0"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back the staging Worker after failed post-deploy verification
+        if: ${{ failure() && steps.deploy.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          bunx wrangler rollback --name "$STAGING_WORKER_NAME" \
+            --message "Automatic 04D rollback after verification failure for ${{ inputs.candidate_sha }}"
