@@ -4,11 +4,15 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
-import { assertStagingSupabaseUrl } from "./staging-isolation";
-import { stagingFallbackSupabaseUrl } from "./staging-config";
+import {
+  assertPortalSupabaseUrl,
+  portalFallbackSupabaseUrl,
+  resolvePortalDeployTarget,
+} from "./deployment-profile";
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL || stagingFallbackSupabaseUrl();
+  const DEPLOY_TARGET = resolvePortalDeployTarget(process.env.PORTAL_DEPLOY_TARGET);
+  const SUPABASE_URL = process.env.SUPABASE_URL || portalFallbackSupabaseUrl(DEPLOY_TARGET);
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -21,10 +25,9 @@ function createSupabaseAdminClient() {
     throw new Error(message);
   }
 
-  // Staging isolation guard (03U): fail closed before any client is built.
-  const STAGING_SAFE_URL = assertStagingSupabaseUrl(SUPABASE_URL);
+  const SAFE_URL = assertPortalSupabaseUrl(DEPLOY_TARGET, SUPABASE_URL);
 
-  return createClient<Database>(STAGING_SAFE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient<Database>(SAFE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       storage: undefined,
       persistSession: false,

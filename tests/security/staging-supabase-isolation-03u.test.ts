@@ -88,10 +88,11 @@ describe("guard is wired into every client-construction path", () => {
   ];
 
   for (const file of files) {
-    it(`${file} calls assertStagingSupabaseUrl`, () => {
+    it(`${file} calls the target-aware Supabase guard`, () => {
       const src = read(file);
-      expect(src).toContain("assertStagingSupabaseUrl");
-      expect(src.indexOf("assertStagingSupabaseUrl(")).toBeGreaterThan(-1);
+      expect(src).toContain("resolvePortalDeployTarget");
+      expect(src).toContain("assertPortalSupabaseUrl");
+      expect(src.indexOf("assertPortalSupabaseUrl(")).toBeGreaterThan(-1);
     });
   }
 });

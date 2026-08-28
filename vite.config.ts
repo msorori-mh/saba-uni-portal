@@ -16,6 +16,7 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // with its own isolated backend, and the build fails closed if it is ever
 // pointed at the production project ref.
 const PRODUCTION_SUPABASE_PROJECT_REF = "wpmicqriltrowwonknox";
+const PRODUCTION_SUPABASE_URL = `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`;
 
 const viteEnvironment = loadEnv(
   process.env.NODE_ENV === "development" ? "development" : "production",
@@ -39,10 +40,48 @@ const supabasePublishableKey = (
   ""
 ).trim();
 
-if (supabaseUrl.toLowerCase().includes(PRODUCTION_SUPABASE_PROJECT_REF)) {
+const portalDeployTarget = (
+  process.env.VITE_PORTAL_DEPLOY_TARGET ??
+  process.env.PORTAL_DEPLOY_TARGET ??
+  viteEnvironment.VITE_PORTAL_DEPLOY_TARGET ??
+  viteEnvironment.PORTAL_DEPLOY_TARGET ??
+  "staging"
+)
+  .trim()
+  .toLowerCase();
+
+if (portalDeployTarget !== "staging" && portalDeployTarget !== "production") {
+  throw new Error(
+    `PORTAL_DEPLOYMENT_PROFILE_REQUIRED: unsupported target "${portalDeployTarget}".`,
+  );
+}
+
+if (supabasePublishableKey && !/^sb_publishable_.{9,}$/.test(supabasePublishableKey)) {
+  throw new Error(
+    "PORTAL_DEPLOYMENT_PROFILE_REQUIRED: Supabase client key must be a public sb_publishable_ key.",
+  );
+}
+
+if (
+  portalDeployTarget === "staging" &&
+  supabaseUrl.toLowerCase().includes(PRODUCTION_SUPABASE_PROJECT_REF)
+) {
   throw new Error(
     `STAGING_ISOLATION_REQUIRED: Supabase URL points at the production project ref "${PRODUCTION_SUPABASE_PROJECT_REF}". This staging build must never target production.`,
   );
+}
+
+if (portalDeployTarget === "production") {
+  if (supabaseUrl !== PRODUCTION_SUPABASE_URL && supabaseUrl !== `${PRODUCTION_SUPABASE_URL}/`) {
+    throw new Error(
+      `PORTAL_DEPLOYMENT_PROFILE_REQUIRED: production must use exactly "${PRODUCTION_SUPABASE_URL}".`,
+    );
+  }
+  if (!supabasePublishableKey) {
+    throw new Error(
+      "PORTAL_DEPLOYMENT_PROFILE_REQUIRED: production requires an explicit public Supabase publishable key.",
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -101,19 +140,24 @@ function resolveBuildSha(): string {
   }
 }
 
-
 const buildSha = resolveBuildSha();
 
-const stagingEnvironmentDefines: Record<string, string> = {
+const portalEnvironmentDefines: Record<string, string> = {
   "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha),
+  "import.meta.env.VITE_PORTAL_DEPLOY_TARGET": JSON.stringify(portalDeployTarget),
+  "process.env.PORTAL_DEPLOY_TARGET": JSON.stringify(portalDeployTarget),
 };
 
 if (supabaseUrl) {
-  stagingEnvironmentDefines["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(supabaseUrl);
+  portalEnvironmentDefines["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(supabaseUrl);
+  portalEnvironmentDefines["process.env.SUPABASE_URL"] = JSON.stringify(supabaseUrl);
 }
 
 if (supabasePublishableKey) {
-  stagingEnvironmentDefines["import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY"] = JSON.stringify(supabasePublishableKey);
+  portalEnvironmentDefines["import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY"] =
+    JSON.stringify(supabasePublishableKey);
+  portalEnvironmentDefines["process.env.SUPABASE_PUBLISHABLE_KEY"] =
+    JSON.stringify(supabasePublishableKey);
 }
 
 export default defineConfig({
@@ -123,6 +167,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    define: stagingEnvironmentDefines,
+    define: portalEnvironmentDefines,
   },
 });
