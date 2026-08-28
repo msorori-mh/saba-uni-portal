@@ -16,6 +16,7 @@ on:
       - "tests/security/production-runtime-profile-04e.test.ts"
       - "tests/security/staging-publish-env-closure-03w.test.ts"
       - "tests/security/staging-supabase-isolation-03u.test.ts"
+      - "tests/build-provenance/vite-config-provenance.test.ts"
       - "vite.config.ts"
       - "package.json"
       - "bun.lock"
@@ -35,6 +36,7 @@ on:
       - "tests/security/production-runtime-profile-04e.test.ts"
       - "tests/security/staging-publish-env-closure-03w.test.ts"
       - "tests/security/staging-supabase-isolation-03u.test.ts"
+      - "tests/build-provenance/vite-config-provenance.test.ts"
       - "vite.config.ts"
       - "package.json"
       - "bun.lock"
@@ -78,7 +80,8 @@ jobs:
             tests/security/staging-supabase-isolation-03u.test.ts \
             tests/security/staging-publish-env-closure-03w.test.ts \
             tests/security/cloudflare-staging-deployment-04d.test.ts \
-            tests/security/production-runtime-profile-04e.test.ts
+            tests/security/production-runtime-profile-04e.test.ts \
+            tests/build-provenance/vite-config-provenance.test.ts
 
       - name: Build source-only production profile
         env:
