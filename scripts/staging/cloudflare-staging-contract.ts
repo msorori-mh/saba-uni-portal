@@ -1,4 +1,11 @@
-import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 
 export const STAGING_WORKER_NAME = "saba-uni-portal-staging";
@@ -8,6 +15,9 @@ export const STAGING_SUPABASE_URL = `https://${STAGING_SUPABASE_PROJECT_REF}.sup
 const PRODUCTION_HOSTS = new Set(["quboolye.com", "www.quboolye.com"]);
 const PRODUCTION_SUPABASE_PROJECT_REF = ["wpmicq", "riltrow", "wonknox"].join("");
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const CAIRO_FONT_SOURCE_PATH = "src/assets/fonts/cairo/Cairo-Variable.ttf";
+export const CLOUDFLARE_CAIRO_FONT_ASSET_PATH = "__worker-assets/Cairo-Variable.ttf";
+export const STAGING_WORKER_MAX_GZIP_KIB = 2900;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -86,6 +96,23 @@ export function normalizeFullSha(candidate: string): string {
   return normalized;
 }
 
+export function assertCloudflareWorkerGzipSize(
+  wranglerOutput: string,
+  maxGzipKiB = STAGING_WORKER_MAX_GZIP_KIB,
+): number {
+  const matches = [
+    ...wranglerOutput.matchAll(/Total Upload:[^\n]*\/ gzip:\s*([0-9]+(?:\.[0-9]+)?)\s*KiB/g),
+  ];
+  const measured = Number(matches.at(-1)?.[1] ?? Number.NaN);
+  if (!Number.isFinite(measured)) {
+    fail("Wrangler dry-run output did not report the compressed Worker size");
+  }
+  if (measured > maxGzipKiB) {
+    fail(`compressed Worker size ${measured} KiB exceeds the ${maxGzipKiB} KiB staging gate`);
+  }
+  return measured;
+}
+
 export function assertStagingBuildInputs(supabaseUrl: string, publishableKey?: string): void {
   const normalizedUrl = supabaseUrl.trim();
   if (normalizedUrl !== STAGING_SUPABASE_URL) {
@@ -148,6 +175,17 @@ export function prepareCloudflareStagingBundle(repositoryRoot: string): Prepared
     resolve(root, ".output/public"),
     "assets directory",
   );
+
+  const cairoFontSource = resolveExistingFile(
+    root,
+    CAIRO_FONT_SOURCE_PATH,
+    root,
+    "Cairo font source",
+  );
+  const cairoFontAsset = resolve(assetsDirectory, CLOUDFLARE_CAIRO_FONT_ASSET_PATH);
+  assertInside(assetsDirectory, cairoFontAsset, "Cairo font asset");
+  mkdirSync(dirname(cairoFontAsset), { recursive: true });
+  copyFileSync(cairoFontSource, cairoFontAsset);
 
   generatedConfig.name = STAGING_WORKER_NAME;
   generatedConfig.workers_dev = true;

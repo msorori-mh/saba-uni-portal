@@ -2,9 +2,9 @@
  * Production enrollment-certificate PDF builder (Cairo + BiDi, no CDN/Canvas).
  * Wraps the Worker-proven spike engine with real snapshot fields.
  *
- * Runtime target: Cloudflare Workers (Nitro). Font and logo bytes are
- * embedded via a server-only sibling module — no runtime filesystem access,
- * no CDN, no network.
+ * Runtime target: Cloudflare Workers (Nitro). The font comes from the same
+ * deployment's ASSETS binding and the logo from a server-only sibling module
+ * — no runtime filesystem access, CDN, or external network.
  */
 
 import { createHash } from "node:crypto";
@@ -37,8 +37,8 @@ export type BuildEnrollmentCertificatePdfInput = {
   logoBytes?: Uint8Array;
 };
 
-/** Public API retained for saga + tests. Reads bundled bytes, never disk. */
-export function loadCairoFontBytes(): Uint8Array {
+/** Public API retained for saga + tests. Reads same-deployment assets, never disk. */
+export async function loadCairoFontBytes(): Promise<Uint8Array> {
   return getCairoFontBytes();
 }
 
@@ -53,7 +53,7 @@ export function sha256Hex(bytes: Uint8Array): string {
 export async function buildEnrollmentCertificatePdfBytes(
   input: BuildEnrollmentCertificatePdfInput,
 ): Promise<{ pdfBytes: Uint8Array; sha256: string; byteLength: number }> {
-  const fontBytes = input.fontBytes ?? loadCairoFontBytes();
+  const fontBytes = input.fontBytes ?? (await loadCairoFontBytes());
   const logoBytes = input.logoBytes ?? loadCollegeLogoBytes();
   const fixture = {
     ...SPIKE_FIXTURE,

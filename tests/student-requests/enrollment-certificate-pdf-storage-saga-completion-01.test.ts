@@ -118,6 +118,9 @@ describe("ENROLLMENT-CERTIFICATE-PDF-STORAGE-SAGA-COMPLETION-01", () => {
       },
       documentNumber: "EC-TEST-001",
       verificationUrl: "https://example.invalid/verify-document?code=ABC123XYZ999",
+      fontBytes: new Uint8Array(
+        readFileSync(join(ROOT, "src/assets/fonts/cairo/Cairo-Variable.ttf")),
+      ),
     });
     expect(built.byteLength).toBeGreaterThan(1000);
     expect(built.sha256).toMatch(/^[a-f0-9]{64}$/);

@@ -1,6 +1,6 @@
 /**
  * Server-only builder for the approved (locked) council minutes PDF.
- * Pure pdf-lib + fontkit — no DOM, no network, Workers-safe.
+ * Pure pdf-lib + fontkit with a same-deployment font asset — no DOM or CDN.
  */
 
 import fontkit from "@pdf-lib/fontkit";
@@ -68,7 +68,7 @@ export async function buildCouncilMinutesPdf(
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
-  const font = await pdfDoc.embedFont(getCairoFontBytes(), { subset: true });
+  const font = await pdfDoc.embedFont(await getCairoFontBytes(), { subset: true });
 
   const logoBytes = getCollegeLogoBytes();
   let logo;
