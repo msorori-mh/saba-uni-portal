@@ -6,25 +6,25 @@
 
 ## Decision
 
-`PASS_04D_PREFLIGHT_SOURCE / HOLD_04D_STAGING_DEPLOY`
+`PASS_04D_PREFLIGHT_SOURCE / 04D_APPLY_CHANNEL_SELECTED`
 
 The release candidate is proven at source and CI level, and its isolated staging
-Supabase identity is guarded fail-closed. A live staging deployment is not yet
-authorized or reproducible because no deployment provider/target is registered
-in GitHub, no deploy workflow exists, and the repository policy explicitly
-prohibits Publish/Deploy.
+Supabase identity is guarded fail-closed. Cloudflare Workers is now selected as
+the dedicated Lovable-free staging channel. The apply workflow is manual,
+environment-protected, SHA-pinned, and cannot target a custom or production
+domain.
 
 ## Frozen source baseline
 
-| Item | Value |
-| --- | --- |
-| Source branch | `main` |
-| Source SHA | `13e23637c14be587c4fe0e4fbcf640b842bd2a83` |
-| Promotion PR | #390 |
-| Web CI push run | #1548 — 21/21 jobs PASS |
-| Bun | 3756 PASS / 0 FAIL, 39796 assertions, 337 files |
-| TypeScript / production build | PASS |
-| Android push run | #642 — Debug/Release APK + AAB PASS |
+| Item                          | Value                                           |
+| ----------------------------- | ----------------------------------------------- |
+| Source branch                 | `main`                                          |
+| Source SHA                    | `13e23637c14be587c4fe0e4fbcf640b842bd2a83`      |
+| Promotion PR                  | #390                                            |
+| Web CI push run               | #1548 — 21/21 jobs PASS                         |
+| Bun                           | 3756 PASS / 0 FAIL, 39796 assertions, 337 files |
+| TypeScript / production build | PASS                                            |
+| Android push run              | #642 — Debug/Release APK + AAB PASS             |
 
 No source drift is accepted after this SHA without repeating the preflight.
 
@@ -47,15 +47,15 @@ production hostname.
 
 ## Deployment-channel inventory
 
-| Gate | Current evidence | Status |
-| --- | --- | --- |
-| GitHub deployment workflow | Only CI, Android build, and migration review workflows exist | HOLD |
-| GitHub deployment target/environment | No confirmed target available through current repository access | HOLD |
-| Root provider configuration | No deploy/hosting configuration at repository root | HOLD |
-| Runtime target capability | Nitro is configured by the current Vite preset with Cloudflare as its default build target; `wrangler` is installed | CANDIDATE |
-| Live staging URL | Not frozen or proven for this SHA | HOLD |
-| Provider rollback/version | Not defined for 04D | HOLD |
-| External backend health probe | Not proven from the current restricted network | HOLD |
+| Gate                                 | Current evidence                                                                | Status   |
+| ------------------------------------ | ------------------------------------------------------------------------------- | -------- |
+| GitHub deployment workflow           | Manual `.github/workflows/cloudflare-staging-04d.yml` with PR/push dry-run      | SELECTED |
+| GitHub deployment target/environment | `saba-uni-portal-staging` / GitHub Environment `staging`                        | SELECTED |
+| Root provider configuration          | Nitro-generated Wrangler config is validated and rewritten only in build output | SELECTED |
+| Runtime target capability            | Nitro Cloudflare output + Wrangler 4 frozen by the lockfile                     | SELECTED |
+| Live staging URL                     | Not frozen or proven for this SHA                                               | HOLD     |
+| Provider rollback/version            | Not defined for 04D                                                             | HOLD     |
+| External backend health probe        | Not proven from the current restricted network                                  | HOLD     |
 
 ## Build provenance gate
 
@@ -87,8 +87,10 @@ Worker/Pages target invoked from GitHub Actions, because:
 3. staging can use a hostname distinct from the protected production hosts;
 4. provider versions can supply deterministic rollback.
 
-This is a recommendation only. No Cloudflare project, token, account binding,
-hostname, secret, workflow, or deployment was created.
+This channel is selected for `04D`. Source now includes the manual workflow,
+generated-bundle validator, exact SHA/public-route verifier, dry-run gate, and
+staging-only rollback. Cloudflare credentials remain outside source in the
+protected GitHub Environment.
 
 ## Required apply authority and inputs
 
@@ -134,6 +136,8 @@ failure:
 
 ## Exit gate
 
-The preflight is complete. Deployment remains `HOLD` until the deployment
-provider/target and authority are explicitly selected and the repository rule
-prohibiting Publish/Deploy is superseded for one exact staging target only.
+The preflight is complete and the provider/target authority is selected for one
+exact staging Worker only. Live apply remains fail-closed until the `staging`
+environment contains the Cloudflare account/token and public Supabase staging
+key, the source changes pass CI, and the manual workflow is dispatched with the
+current full `main` SHA.
