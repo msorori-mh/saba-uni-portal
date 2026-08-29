@@ -1,0 +1,126 @@
+===============================================================================
+LOVABLE PRODUCTION RELEASE OPERATOR PACKET — 04F
+STATUS: SOURCE-ONLY READY / PRODUCTION ACTIONS HOLD
+SOURCE_BASELINE: main@da71d95d22c3cbccc879ca80b012d28627ac644b
+CANDIDATE_SHA=SET_TO_FINAL_MAIN_SHA_AFTER_04F_MERGE
+PRODUCTION_WRITER=LOVABLE_ONLY
+SINGLE_WRITER_LEASE=REQUIRED
+PRODUCTION_ORIGIN=https://quboolye.com
+PRODUCTION_SUPABASE_ORIGIN=https://wpmicqriltrowwonknox.supabase.co
+===============================================================================
+
+1. SCOPE AND NON-AUTHORIZATION
+------------------------------
+This packet prepares one deterministic production release through the existing
+Lovable production channel. It does not authorize a build, deploy, publish, DNS
+change, Supabase write, migration, backend activation, or test-data creation.
+
+Cloudflare Workers in this repository is the isolated staging channel only. It
+must not be promoted, routed, or renamed into the production domain.
+
+2. FINAL SOURCE FREEZE
+----------------------
+After 04F is merged, the operator must set CANDIDATE_SHA to the exact 40-character
+SHA currently at origin/main. The pre-merge SOURCE_BASELINE above is evidence of
+the starting point, not the deploy candidate.
+
+Read-only checks:
+  git fetch origin main
+  git rev-parse origin/main
+  git status --porcelain
+
+Required evidence:
+  - CANDIDATE_SHA is exactly 40 lowercase hexadecimal characters.
+  - The checkout is clean and exactly equals origin/main at CANDIDATE_SHA.
+  - All required GitHub checks for CANDIDATE_SHA are PASS.
+  - Lovable source is synchronized to that exact commit before any build action.
+  - The current healthy Lovable deployment/version ID is recorded as
+    PREVIOUS_HEALTHY_DEPLOYMENT_ID before changing anything.
+
+If any item is unknown, mismatched, or stale: HOLD_PRODUCTION_RELEASE_04F.
+
+3. PRODUCTION BUILD PROFILE
+---------------------------
+Lovable must build the exact candidate with this profile:
+
+  VITE_BUILD_SHA=<CANDIDATE_SHA>
+  VITE_PORTAL_DEPLOY_TARGET=production
+  PORTAL_DEPLOY_TARGET=production
+  VITE_SUPABASE_URL=https://wpmicqriltrowwonknox.supabase.co
+  SUPABASE_URL=https://wpmicqriltrowwonknox.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY=<existing production public sb_publishable_ key>
+  SUPABASE_PUBLISHABLE_KEY=<same existing production public sb_publishable_ key>
+  VITE_USE_MOCK_DATA=false
+
+The public key value must be entered only in the protected Lovable environment;
+never paste it into source, tickets, PRs, logs, or this packet.
+
+SUPABASE_SERVICE_ROLE_KEY, if already required by the Lovable server runtime,
+remains a server-only protected secret. Do not read, copy, rotate, rename, expose,
+or prefix it with VITE_ during this release. No new backend secret is requested.
+
+4. TWO EXPLICIT APPROVAL GATES
+------------------------------
+Gate A — build/deploy candidate to the Lovable release slot:
+  Required exact approval: APPROVED_PRODUCTION_DEPLOY_04F
+
+Gate B — publish/cut over the verified candidate to quboolye.com:
+  Required exact approval: APPROVED_PRODUCTION_PUBLISH_04F
+
+Generic instructions such as "continue" or "do what is appropriate" do not satisfy
+either gate. Approval A does not imply Approval B. Only the single Lovable writer
+may act, and all other agents/operators remain read-only until the lease closes.
+
+5. PRE-PUBLISH CANDIDATE CHECK
+------------------------------
+After Gate A and the Lovable candidate build, but before Gate B:
+  - Build completed without fallback to staging or mock data.
+  - Candidate artifact reports CANDIDATE_SHA, never "unknown" or a short SHA.
+  - Candidate uses the exact production profile in section 3.
+  - PREVIOUS_HEALTHY_DEPLOYMENT_ID remains recorded and selectable.
+
+Any failure: do not publish; leave production unchanged and issue
+HOLD_PRODUCTION_RELEASE_04F.
+
+6. POST-PUBLISH READ-ONLY PROOF
+-------------------------------
+Only after Gate B and the Lovable publish completes, run:
+
+  EXPECTED_BUILD_SHA=<CANDIDATE_SHA> \
+    bun run scripts/production/verify-production-release.ts
+
+The verifier performs GET requests only. PASS requires:
+  - https://quboolye.com/version.json returns HTTP 200;
+  - Cache-Control contains no-store;
+  - JSON is exactly {"sha":"<CANDIDATE_SHA>"};
+  - root HTML meta[name="build-sha"] equals CANDIDATE_SHA;
+  - www.quboolye.com either serves the same SHA or redirects to the canonical host.
+
+Then perform read-only browser smoke for login plus the Admin, Staff, Faculty,
+Department Chair, and Student shells. Do not submit forms, send messages, create
+requests, mutate data, or bypass authentication during this smoke.
+
+7. ROLLBACK
+-----------
+Rollback is application-only and uses the recorded previous healthy Lovable
+deployment/version. NO_DATABASE_ROLLBACK. No migration or database write belongs
+to this release.
+
+Trigger rollback immediately if SHA proof, runtime profile, authentication shell,
+or critical routing verification fails after publish. Re-select or re-publish
+PREVIOUS_HEALTHY_DEPLOYMENT_ID through the same Lovable-only single-writer lease,
+then re-run the read-only SHA proof against the restored version.
+
+If the rollback target was not recorded before Gate A, deployment is blocked.
+
+8. TERMINAL DECISIONS
+---------------------
+PASS_PRODUCTION_RELEASE_04F:
+  Exact candidate SHA is live, both provenance surfaces match, the production
+  profile is correct, smoke passes, and the writer lease is closed.
+
+HOLD_PRODUCTION_RELEASE_04F:
+  Any approval, SHA, source sync, profile, rollback, provenance, host, or smoke
+  requirement is missing or failed. Production remains or is restored to the
+  previous healthy deployment.
+===============================================================================
