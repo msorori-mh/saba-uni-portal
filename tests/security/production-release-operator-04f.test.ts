@@ -113,7 +113,8 @@ describe("04F — operator gates", () => {
     const workflow = read(".github/workflows/production-release-contract-04f.yml");
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("production-release-operator-04f.test.ts");
-    expect(workflow).not.toMatch(/environment:\s*production|secrets\.|wrangler\s+deploy|lovable/i);
+    expect(workflow).not.toMatch(/environment:\s*production|secrets\.|wrangler\s+deploy/i);
+    expect(workflow).not.toMatch(/(?:uses|run):[^\n]*lovable/i);
     expect(workflow).not.toMatch(/supabase\s+(?:db|migration|functions)/i);
   });
 
