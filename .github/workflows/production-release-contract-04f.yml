@@ -42,7 +42,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VITE_BUILD_SHA: ${{ github.sha }}
   VITE_PORTAL_DEPLOY_TARGET: production
   VITE_SUPABASE_URL: https://wpmicqriltrowwonknox.supabase.co
   # Deliberately fake public-format value. No production secret is read by this workflow.
@@ -80,6 +79,7 @@ jobs:
 
       - name: Build source-only production candidate
         env:
+          VITE_BUILD_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
         run: bun run build
 
