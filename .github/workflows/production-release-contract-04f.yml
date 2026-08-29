@@ -1,0 +1,98 @@
+name: Production Release Contract 04F
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/production-release-contract-04f.yml"
+      - "scripts/production/**"
+      - "tests/security/production-release-operator-04f.test.ts"
+      - "tests/security/production-runtime-profile-04e.test.ts"
+      - "docs/PRODUCTION-RELEASE-OPERATOR-04F-PREFLIGHT.md"
+      - "docs/go-live/operator-packets/LOVABLE-PRODUCTION-RELEASE-04F.txt"
+      - "src/integrations/supabase/deployment-profile.ts"
+      - "src/lib/build-provenance.ts"
+      - "src/routes/version[.]json.ts"
+      - "src/routes/__root.tsx"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/production-release-contract-04f.yml"
+      - "scripts/production/**"
+      - "tests/security/production-release-operator-04f.test.ts"
+      - "tests/security/production-runtime-profile-04e.test.ts"
+      - "docs/PRODUCTION-RELEASE-OPERATOR-04F-PREFLIGHT.md"
+      - "docs/go-live/operator-packets/LOVABLE-PRODUCTION-RELEASE-04F.txt"
+      - "src/integrations/supabase/deployment-profile.ts"
+      - "src/lib/build-provenance.ts"
+      - "src/routes/version[.]json.ts"
+      - "src/routes/__root.tsx"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release-contract-04f-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_BUILD_SHA: ${{ github.sha }}
+  VITE_PORTAL_DEPLOY_TARGET: production
+  VITE_SUPABASE_URL: https://wpmicqriltrowwonknox.supabase.co
+  # Deliberately fake public-format value. No production secret is read by this workflow.
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_04f_preflight_only_not_a_credential
+
+jobs:
+  source-only-contract:
+    name: Source-only operator contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production release and runtime contracts
+        run: |
+          bun test \
+            tests/security/production-release-operator-04f.test.ts \
+            tests/security/production-runtime-profile-04e.test.ts \
+            tests/build-provenance/vite-config-provenance.test.ts \
+            tests/build-provenance/exposure-surface.test.ts
+
+      - name: Type-check source
+        run: bunx tsc --noEmit
+
+      - name: Build source-only production candidate
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: bun run build
+
+      - name: Verify generated production contract
+        run: |
+          set -euo pipefail
+          node --import tsx scripts/validate-tanstack-route-tree-register.ts
+          grep -R -q "wpmicqriltrowwonknox\.supabase\.co" .output
+          grep -R -q "${GITHUB_SHA}" .output
+          if grep -R -E -q 'sb_secret_[A-Za-z0-9_-]{20,}|eyJhbGciOi[A-Za-z0-9_-]{20,}\.' .output; then
+            echo "::error::Generated output contains a forbidden secret-shaped token"
+            exit 1
+          fi
+
+      - name: Confirm source tree stayed clean
+        run: git diff --exit-code
