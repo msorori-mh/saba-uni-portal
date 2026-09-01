@@ -2,7 +2,7 @@ import { Link, useHydrated } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
-import universityLogo from "@/assets/university-logo.jpeg.asset.json";
+import universityLogo from "@/assets/university-logo.jpeg";
 
 export function Footer() {
   const hydrated = useHydrated();
@@ -31,7 +31,7 @@ export function Footer() {
         <div>
           <div className="flex items-center gap-3 mb-4">
             <div className="grid h-12 w-12 place-items-center rounded-lg bg-white p-1 shadow-elegant ring-1 ring-gold/40">
-              <img src={universityLogo.url} alt="شعار الجامعة" className="h-full w-full object-contain" />
+              <img src={universityLogo} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
             </div>
             <div className="leading-tight">
               <div className="font-display text-base font-extrabold text-gold">{universityName}</div>

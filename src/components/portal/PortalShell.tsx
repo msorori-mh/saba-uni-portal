@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { LogOut } from "lucide-react";
-import collegeLogo from "@/assets/college-logo.jpg";
+import universityLogo from "@/assets/university-logo.jpeg";
 import { cn } from "@/lib/utils";
 import { PageBackButton } from "@/components/navigation/PageBackButton";
 
@@ -43,9 +43,9 @@ export function PortalShell({
         <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <img
-              src={collegeLogo}
-              alt="شعار الكلية"
-              className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-gold/50"
+              src={universityLogo}
+              alt="شعار جامعة إقليم سبأ"
+              className="h-12 w-12 shrink-0 rounded-lg bg-white p-1 object-contain ring-2 ring-gold/50"
             />
             <div className="min-w-0">
               <div className="font-display font-extrabold leading-tight text-gold">

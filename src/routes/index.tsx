@@ -5,8 +5,7 @@ import {
   FlaskConical, GraduationCap, Layers, Mail, MapPin, Newspaper, Phone,
   Shield, ShieldCheck, Sparkles, Target, Eye, Award, Briefcase, Users2, MessageSquare,
 } from "lucide-react";
-import collegeLogo from "@/assets/college-logo.jpg";
-import universityLogo from "@/assets/university-logo.jpeg.asset.json";
+import universityLogo from "@/assets/university-logo.jpeg";
 import techPattern from "@/assets/tech-pattern.jpg";
 import { StatCard } from "@/components/brand";
 import { eventsQuery, liveCountsQuery, newsQuery, programsQuery, settingsQuery } from "@/lib/queries";
@@ -132,7 +131,7 @@ function HomePage() {
         <div className="relative mx-auto flex min-h-[calc(100vh-14rem)] max-w-2xl flex-col items-center justify-center px-4 py-16 md:py-24 text-center">
           {/* Logo card */}
           <div className="grid h-36 w-36 md:h-40 md:w-40 place-items-center rounded-2xl bg-white p-3 shadow-elegant">
-            <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
+            <img src={universityLogo} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
           </div>
 
           {/* Title */}

@@ -223,6 +223,8 @@ describe("PORTAL_STAFF_SELF_SERVICE_VALUE_ADDED_02E \u2014 source contract", () 
     expect(verifier).toMatch(/^\s*begin;/im);
     expect(verifier).toMatch(/^\s*rollback;/im);
     expect(verifier).not.toMatch(/^\s*commit;/im);
+    expect(verifier.match(/date_trunc\('month', current_date\)::date/g)?.length).toBe(2);
+    expect(verifier).not.toMatch(/staff_profile_id, attendance_date[\s\S]{0,300}current_date - 1/);
     for (const marker of [
       "A_EMPLOYEE_SELF_ISSUE_UNEXPECTED_SUCCESS",
       "A_UNAPPROVED_REQUEST_ISSUE_UNEXPECTED_SUCCESS",
