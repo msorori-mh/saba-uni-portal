@@ -82,9 +82,9 @@ insert into public.staff_attendance_days (
   staff_profile_id, attendance_date, worked_minutes, late_minutes,
   overtime_minutes, day_state, source_system
 ) values
-  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', current_date - 1, 480, 0, 60,
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', date_trunc('month', current_date)::date, 480, 0, 60,
    'present', 'TEST'),
-  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', current_date - 1, 300, 30, 0,
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', date_trunc('month', current_date)::date, 300, 30, 0,
    'late', 'TEST');
 
 insert into public.staff_training_courses (
