@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-r
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ShieldCheck, GraduationCap, BookOpen, Briefcase, Loader2, User } from "lucide-react";
-import collegeLogo from "@/assets/college-logo.jpg";
+import universityLogo from "@/assets/university-logo.jpeg";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { friendlyAuthError } from "@/components/auth/IdentifierInput";
@@ -216,7 +216,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
           <div className="rounded-2xl border border-white/15 bg-white/[0.96] text-foreground p-7 shadow-elegant backdrop-blur-md">
             <div className="flex items-center gap-3">
               <div className="grid h-12 w-12 place-items-center rounded-xl bg-white p-1 ring-1 ring-gold/40 shadow-card">
-                <img src={collegeLogo} alt="شعار الكلية" className="h-full w-full object-contain" />
+                <img src={universityLogo} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5 font-display font-extrabold text-primary text-sm">

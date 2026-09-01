@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 
@@ -46,6 +54,25 @@ function createGeneratedBundle(route?: unknown): string {
 }
 
 describe("04D — Cloudflare staging build contract", () => {
+  test("bundles the university logo locally for public and portal surfaces", () => {
+    const logoPath = resolve(ROOT, "src/assets/university-logo.jpeg");
+    expect(existsSync(logoPath)).toBe(true);
+    expect(statSync(logoPath).size).toBeGreaterThan(1_024);
+
+    for (const sourcePath of [
+      "src/components/site/Header.tsx",
+      "src/components/site/Footer.tsx",
+      "src/routes/index.tsx",
+      "src/components/portal/PortalShell.tsx",
+      "src/routes/portal-login.tsx",
+    ]) {
+      const source = read(sourcePath);
+      expect(source).toContain("@/assets/university-logo.jpeg");
+      expect(source).not.toContain("university-logo.jpeg.asset.json");
+      expect(source).not.toContain("/__l5e/");
+    }
+  });
+
   test("pins the isolated staging URL and accepts only the public key shape", () => {
     expect(() =>
       assertStagingBuildInputs(STAGING_SUPABASE_URL, "sb_publishable_12345678901234567890"),

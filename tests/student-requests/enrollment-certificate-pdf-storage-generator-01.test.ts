@@ -122,8 +122,9 @@ describe("ENROLLMENT-CERTIFICATE-PDF-STORAGE-GENERATOR-01 (saga-complete)", () =
     expect(PLANNED_STORAGE_BUCKET).toBe("official-documents");
   });
 
-  it("8 — college logo asset exists; university binary may be missing", () => {
+  it("8 — college and university logo assets exist locally", () => {
     expect(existsSync(join(ROOT, "src/assets/college-logo.jpg"))).toBe(true);
+    expect(existsSync(join(ROOT, "src/assets/university-logo.jpeg"))).toBe(true);
     expect(existsSync(join(ROOT, "src/assets/university-logo.jpeg.asset.json"))).toBe(true);
   });
 

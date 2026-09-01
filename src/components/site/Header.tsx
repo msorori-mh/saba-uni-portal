@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Menu, X, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
-import collegeLogo from "@/assets/college-logo.jpg";
-import universityLogo from "@/assets/university-logo.jpeg.asset.json";
+import universityLogo from "@/assets/university-logo.jpeg";
 import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
@@ -62,7 +61,7 @@ export function Header() {
         {/* Branding: single logo + two-line title */}
         <Link to="/" className="flex items-center gap-3 group min-w-0">
           <div className="grid h-14 w-14 lg:h-16 lg:w-16 shrink-0 place-items-center rounded-lg bg-white p-1 shadow-card ring-1 ring-gold/30">
-            <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
+            <img src={universityLogo} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
           </div>
           <div className="leading-tight hidden md:block min-w-0">
             <div className="font-display font-extrabold text-primary text-base lg:text-lg truncate">كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
