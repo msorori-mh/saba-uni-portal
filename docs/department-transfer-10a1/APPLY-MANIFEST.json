@@ -1,0 +1,58 @@
+{
+  "package": "PORTAL_DEPARTMENT_TRANSFER_SCHEMA_AND_EXECUTABLE_RPC_READINESS_REMEDIATION_10A1",
+  "source_only": true,
+  "reviewed_source_sha": "9d1633864b86afdff5ef276a69f532c1580db910",
+  "new_sha": null,
+  "production_apply": "GATED_NOT_PERFORMED",
+  "activation": {
+    "SCHEMA_PENDING": true,
+    "department_transfer_E2E": "PENDING",
+    "student_visible": false
+  },
+  "migration_decision": {
+    "new_migration_created": false,
+    "reason": "The existing forward-only chain already contains the transfer table, secure attachment, B1 detail ACL cutover, secure reads/drafts, payment workflow, payment predecessor guard, and position-assignment department scope. A duplicate migration would create competing definitions."
+  },
+  "base_schema_sources": [
+    {"path":"supabase/migrations/20260601003440_c775b556-16cd-4b62-82e3-9df0bde95360.sql","sha256":"a758160b1ef40378433813c5ab2b18fada05687a61ea04c640fd09e4dbb24f36"},
+    {"path":"supabase/migrations/20260604184423_2f8240fb-6046-4857-b2e6-b731269ead24.sql","sha256":"6cd5a983ae3d1dd5c64893fb5b843468c0df74bf1cf94faef3e63b6dce2ea43b"},
+    {"path":"supabase/migrations/20260630230114_dc14115c-2a38-4fd0-adb0-e5a0642ff6ac.sql","sha256":"e38ea427410736f59b07ea3381d2d210fddffca2f6c4b3281e8cd04074d73fdb"},
+    {"path":"supabase/migrations/20260706120000_student_affairs_workflow_foundation.sql","sha256":"feae678b1a5dd30f57d2136fe46070b087aedc12636995dfc76cecc1335d03b4"},
+    {"path":"supabase/migrations/20260724061333_abf1bbb5-1bd0-4a7b-a805-866a3b98a61a.sql","sha256":"e7f755c501a2e106a0e3146e54429a1fbf224f362255b050dc092a4a08e5a644"}
+  ],
+  "forward_only_b1_sources": [
+    {"path":"supabase/migrations/20260725110500_b1_12_transfer_secure_attachment_05a.sql","sha256":"224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9"},
+    {"path":"supabase/migrations/20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql","sha256":"3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b"},
+    {"path":"supabase/migrations/20260725110800_b1_15_service_details_dispatcher_05a.sql","sha256":"a1d1e143e89ca457b0776f06d11e0e50f1e8c471e8799debad3ef5dd79d0b8c2"},
+    {"path":"supabase/migrations/20260725111000_b1_17_external_university_payment_workflows_02.sql","sha256":"841daba372958e2e7d53d3bc3364dd93cfd67e1b95057c0d58c2a0207c4a8f01"},
+    {"path":"supabase/migrations/20260725111100_b1_18_detail_acl_cutover_06.sql","sha256":"3eb6501f03ccab78ed739253e1ce64f2d5b48ac2b812121397d924f045359e3c"},
+    {"path":"supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql","sha256":"e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335"},
+    {"path":"supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql","sha256":"cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca"},
+    {"path":"supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql","sha256":"da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242"},
+    {"path":"supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql","sha256":"4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85"},
+    {"path":"supabase/migrations/20260816230440_3048a1e2-d90b-4aa8-96c7-042251eb00f7.sql","sha256":"b4be1fe2b52bb28fc993f9bcf8bd962ebd5a953df1239bdea1e037c85d139229"}
+  ],
+  "authoritative_draft_order": "tests/b1-rpc-matrix/pg/20-draft-apply-order.txt",
+  "authoritative_draft_entries": 28,
+  "service_specific_drafts": [
+    {"path":"docs/migration-drafts/REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql","sha256":"d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284"},
+    {"path":"docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql","sha256":"64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250"},
+    {"path":"docs/migration-drafts/B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql","sha256":"98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035"},
+    {"path":"docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql","sha256":"0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027"},
+    {"path":"docs/migration-drafts/B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql","sha256":"e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6"},
+    {"path":"docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql","sha256":"85d6a256127584f4e8793d2db7ed0a5925e7787dea36d0d255a76e11a45271d2"},
+    {"path":"docs/migration-drafts/REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql","sha256":"55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383"}
+  ],
+  "read_only_artifacts": [
+    "docs/department-transfer-10a1/PRODUCTION-READONLY-PREFLIGHT.sql",
+    "docs/department-transfer-10a1/POST-VERIFIER.sql",
+    "docs/department-transfer-10a1/FORWARD-ROLLBACK-CLASSIFIER.sql"
+  ],
+  "harness": {
+    "runner": "scripts/department-transfer-10a1/run-pg17-harness.ps1",
+    "requires": "PG17 disposable database plus psql",
+    "docker_required": false,
+    "production_credentials_allowed": false,
+    "production_writes": 0
+  }
+}
