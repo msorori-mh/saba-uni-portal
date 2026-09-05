@@ -6,7 +6,9 @@ import {
 
 const deploymentUrl = assertCloudflareStagingUrl(process.env.STAGING_DEPLOYMENT_URL ?? "");
 const expectedSha = normalizeFullSha(process.env.EXPECTED_BUILD_SHA ?? "");
-const versionUrl = new URL("/version.json", deploymentUrl);\nconst rootUrl = new URL("/", deploymentUrl);\nrootUrl.searchParams.set("verify-build-sha", expectedSha);
+const versionUrl = new URL("/version.json", deploymentUrl);
+const rootUrl = new URL("/", deploymentUrl);
+rootUrl.searchParams.set("verify-build-sha", expectedSha);
 
 async function fetchWithTimeout(url: URL, accept: string): Promise<Response> {
   return fetch(url, {
@@ -37,19 +39,7 @@ async function waitForVersion(): Promise<void> {
 
 await waitForVersion();
 
-const escapedSha = expectedSha.replace(/[.*+?^${}()|[\]\\]/g, "\\const rootResponse = await fetchWithTimeout(deploymentUrl, "text/html");
-if (!rootResponse.ok) {
-  throw new Error(`STAGING_DEPLOYMENT_HOLD: public root returned HTTP ${rootResponse.status}`);
-}
-const html = await rootResponse.text();
 const escapedSha = expectedSha.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const shaMetaPattern = new RegExp(
-  `<meta\\s+[^>]*(?:name=["']build-sha["'][^>]*content=["']${escapedSha}["']|content=["']${escapedSha}["'][^>]*name=["']build-sha["'])[^>]*>`,
-  "i",
-);
-if (!shaMetaPattern.test(html)) {
-  throw new Error("STAGING_DEPLOYMENT_HOLD: root HTML does not expose the exact build-sha meta");
-}");
 const shaMetaPattern = new RegExp(
   `<meta\\s+[^>]*(?:name=["']build-sha["'][^>]*content=["']${escapedSha}["']|content=["']${escapedSha}["'][^>]*name=["']build-sha["'])[^>]*>`,
   "i",
