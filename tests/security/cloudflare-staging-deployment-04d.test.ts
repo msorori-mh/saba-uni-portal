@@ -155,6 +155,15 @@ describe("04D — live verification contract", () => {
     ).toThrow(/does not equal/);
     expect(() => assertVersionPayload({ sha: "13e2363" }, sha)).toThrow(/does not equal/);
   });
+
+  test("cache-busts root HTML by exact SHA without weakening the meta check", () => {
+    const verifier = read("scripts/staging/verify-cloudflare-staging-deployment.ts");
+    expect(verifier).toContain('const rootUrl = new URL("/", deploymentUrl);');
+    expect(verifier).toContain('rootUrl.searchParams.set("verify-build-sha", expectedSha);');
+    expect(verifier).toContain("if (!shaMetaPattern.test(html))");
+    expect(verifier).toContain("await waitForRootHtml();");
+    expect(verifier).not.toContain('fetchWithTimeout(deploymentUrl, "text/html")');
+  });
 });
 
 describe("04D — workflow policy", () => {
