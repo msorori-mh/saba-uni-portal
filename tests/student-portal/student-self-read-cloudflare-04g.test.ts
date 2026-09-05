@@ -20,6 +20,12 @@ const STUDENT_AFFAIRS = readFileSync(
   ),
   "utf8",
 );
+const ACADEMIC_STATUS = readFileSync(
+  fileURLToPath(
+    new URL("../../src/lib/academic-status.functions.ts", import.meta.url),
+  ),
+  "utf8",
+);
 
 function sourceBlock(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -69,5 +75,24 @@ describe("04G student portal self reads", () => {
     expect(STUDENT_AFFAIRS).toContain(
       "currentStudentLevelNumber(context.supabase, context.userId)",
     );
+  });
+
+  test("student academic progress uses the authenticated client for every self read", () => {
+    const computeBlock = sourceBlock(
+      ACADEMIC_STATUS,
+      "async function computeStudentProgress",
+      "/* ----------------------- exported server functions ----------------------- */",
+    );
+    const selfBlock = sourceBlock(
+      ACADEMIC_STATUS,
+      "export const getMyProgress",
+      "export const searchStudents",
+    );
+
+    expect(computeBlock).toContain("supabase: SupabaseClient<Database>");
+    expect(computeBlock).not.toContain("supabaseAdmin");
+    expect(selfBlock).toContain("const { userId, supabase } = context");
+    expect(selfBlock).toContain("computeStudentProgress(supabase,");
+    expect(selfBlock).not.toContain("supabaseAdmin");
   });
 });

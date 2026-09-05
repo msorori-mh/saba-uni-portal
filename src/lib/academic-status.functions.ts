@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { hasAnyRole, STUDENT_READ_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
@@ -185,8 +187,11 @@ function enrollmentPercentages(
 
 /* ----------------------- core: compute one student ----------------------- */
 
-async function computeStudentProgress(studentProfileId: string): Promise<StudentProgressDTO> {
-  const { data: spRaw } = await supabaseAdmin
+async function computeStudentProgress(
+  supabase: SupabaseClient<Database>,
+  studentProfileId: string,
+): Promise<StudentProgressDTO> {
+  const { data: spRaw } = await supabase
     .from("student_profiles")
     .select("id, academic_number, full_name_ar, status, program_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")
     .eq("id", studentProfileId).maybeSingle();
@@ -194,7 +199,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   if (!sp) throw new Error("Student not found");
 
   // Current academic status (level, year, semester, enrollment_status)
-  const { data: sasRaw } = await supabaseAdmin
+  const { data: sasRaw } = await supabase
     .from("student_academic_status")
     .select("level_id, academic_year_id, semester_id, enrollment_status, level:academic_levels(name)")
     .eq("student_profile_id", studentProfileId)
@@ -203,7 +208,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   const sas: any = sasRaw;
 
   // All enrollments (with their offering + section)
-  const { data: enrRaw } = await supabaseAdmin
+  const { data: enrRaw } = await supabase
     .from("student_enrollments")
     .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id))")
     .eq("student_profile_id", studentProfileId);
@@ -216,7 +221,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   // All approved grades for these enrollments
   const grades: GradeRow[] = [];
   if (enrollmentIds.length) {
-    const { data: gRaw } = await supabaseAdmin
+    const { data: gRaw } = await supabase
       .from("student_grades")
       // No embed: `student_grades` has no PostgREST relationship to
       // `grade_components`, so embedding silently fails the whole query and the
@@ -231,7 +236,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   // All grade components for involved sections (to know section totals)
   const componentsBySection = new Map<string, number>();
   if (sectionIds.length) {
-    const { data: cRaw } = await supabaseAdmin
+    const { data: cRaw } = await supabase
       .from("grade_components").select("course_section_id, max_score").in("course_section_id", sectionIds);
     for (const c of (cRaw ?? []) as any[]) {
       componentsBySection.set(c.course_section_id, (componentsBySection.get(c.course_section_id) ?? 0) + Number(c.max_score));
@@ -244,7 +249,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   const courseIds = Array.from(new Set(enrollments.map((e) => e.section!.offering!.course_id)));
   const coursesById: CoursesById = new Map();
   if (courseIds.length) {
-    const { data: cRaw } = await supabaseAdmin
+    const { data: cRaw } = await supabase
       .from("courses").select("id, code, name_ar, credit_hours").in("id", courseIds);
     for (const c of (cRaw ?? []) as any[]) coursesById.set(c.id, c);
   }
@@ -254,7 +259,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   let totalPlanHours = 0;
   let planCourseIds: string[] = [];
   if (sp.program_id) {
-    const { data: planRaw } = await supabaseAdmin
+    const { data: planRaw } = await supabase
       .from("study_plans")
       .select("id, total_credit_hours, courses:study_plan_courses(course_id, level_id, is_required, level:academic_levels(name))")
       .eq("program_id", sp.program_id)
@@ -274,7 +279,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
       // Make sure these courses are loaded
       const missingIds = planCourseIds.filter((id) => !coursesById.has(id));
       if (missingIds.length) {
-        const { data: extras } = await supabaseAdmin
+        const { data: extras } = await supabase
           .from("courses").select("id, code, name_ar, credit_hours").in("id", missingIds);
         for (const c of (extras ?? []) as any[]) coursesById.set(c.id, c);
       }
@@ -324,14 +329,14 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
     }
   }
 
-  const { data: eqCreditsRaw } = await supabaseAdmin
+  const { data: eqCreditsRaw } = await supabase
     .from("student_equivalency_credits")
     .select("course_id, credit_hours")
     .eq("student_profile_id", studentProfileId);
   for (const eq of (eqCreditsRaw ?? []) as Array<{ course_id: string; credit_hours: number | null }>) {
     if (passedCourseIds.has(eq.course_id)) continue;
     if (!coursesById.has(eq.course_id)) {
-      const { data: cRow } = await supabaseAdmin
+      const { data: cRow } = await supabase
         .from("courses")
         .select("id, code, name_ar, credit_hours")
         .eq("id", eq.course_id)
@@ -501,7 +506,7 @@ export const getStudentProgress = createServerFn({ method: "POST" })
       (await isOwnerStudent(userId, data.studentProfileId)) ||
       (await isFacultyOfStudent(userId, data.studentProfileId));
     if (!allowed) throw new Error("Forbidden");
-    const dto = await computeStudentProgress(data.studentProfileId);
+    const dto = await computeStudentProgress(supabaseAdmin, data.studentProfileId);
     await audit("student_progress_viewed", dto.student.academic_number, dto.student.id);
     return dto;
   });
@@ -509,11 +514,11 @@ export const getStudentProgress = createServerFn({ method: "POST" })
 export const getMyProgress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { userId } = context;
-    const { data: sp } = await supabaseAdmin
+    const { userId, supabase } = context;
+    const { data: sp } = await supabase
       .from("student_profiles").select("id").eq("user_id", userId).maybeSingle();
     if (!sp?.id) throw new Error("Student profile not found");
-    const dto = await computeStudentProgress((sp as any).id);
+    const dto = await computeStudentProgress(supabase, (sp as any).id);
     await audit("student_progress_viewed", dto.student.academic_number, dto.student.id);
     return dto;
   });
@@ -570,7 +575,7 @@ async function bulkCompute(filters: z.infer<typeof ListFilters>) {
   const out: Array<{ summary: StudentProgressDTO }> = [];
   for (const s of students) {
     try {
-      const summary = await computeStudentProgress(s.id);
+      const summary = await computeStudentProgress(supabaseAdmin, s.id);
       out.push({ summary });
     } catch { /* skip */ }
   }
