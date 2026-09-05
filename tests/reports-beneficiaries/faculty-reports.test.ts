@@ -21,6 +21,12 @@ const FUNCTIONS_SRC = readFileSync(
   fileURLToPath(new URL("../../src/lib/beneficiary-reports.functions.ts", import.meta.url)),
   "utf8",
 );
+const RESOLVE_SCOPE_SRC = readFileSync(
+  fileURLToPath(
+    new URL("../../src/lib/reports/scope/resolve-scope.server.ts", import.meta.url),
+  ),
+  "utf8",
+);
 const SERVICES_SRC = readFileSync(
   fileURLToPath(
     new URL("../../src/lib/reports/beneficiary-report-services.ts", import.meta.url),
@@ -120,6 +126,19 @@ describe("faculty reports — server function + route", () => {
       /export const getFacultySelfReportsSummary = createServerFn\(\{ method: "POST" \}\)\s*\n\s*\.middleware\(\[requireSupabaseAuth\]\)/,
     );
     expect(FUNCTIONS_SRC).toContain("assertAnyRole");
+  });
+
+  test("faculty self reads use the authenticated RLS client", () => {
+    const selfBlock = FUNCTIONS_SRC.slice(
+      FUNCTIONS_SRC.indexOf("getFacultySelfReportScope"),
+      FUNCTIONS_SRC.indexOf("loadDepartmentScopedCounts"),
+    );
+    expect(RESOLVE_SCOPE_SRC).toContain("resolveFacultySelfReportActorScope");
+    expect(RESOLVE_SCOPE_SRC).toContain('supabase.from("user_roles")');
+    expect(selfBlock).toContain("context.supabase");
+    expect(selfBlock).not.toContain("supabaseAdmin");
+    expect(ROUTE_SRC).toContain("getFacultySelfReportScope");
+    expect(ROUTE_SRC).not.toContain("getMyReportScope");
   });
 
   test("route exists at /faculty-portal/reports", () => {

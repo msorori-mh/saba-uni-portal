@@ -12,8 +12,8 @@ import {
 import { buildFacultyAttention } from "@/lib/reports/attention";
 import {
   getDepartmentReportsSummary,
+  getFacultySelfReportScope,
   getFacultySelfReportsSummary,
-  getMyReportScope,
 } from "@/lib/beneficiary-reports.functions";
 import { buildRoleScopedReportSections } from "@/lib/reports/catalog/role-scoped-view";
 import { RoleScopedReportSections } from "@/components/reports/RoleScopedReportSections";
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/faculty-portal/reports")({
 
 function FacultyReportsPage() {
   const fetchSummary = useServerFn(getFacultySelfReportsSummary);
-  const fetchScope = useServerFn(getMyReportScope);
+  const fetchScope = useServerFn(getFacultySelfReportScope);
   const fetchDepartmentSummary = useServerFn(getDepartmentReportsSummary);
 
   const summaryQuery = useQuery({

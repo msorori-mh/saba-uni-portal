@@ -94,6 +94,55 @@ export async function resolveStudentSelfReportActorScope(
   });
 }
 
+/**
+ * Resolve the faculty self-report scope with the caller's authenticated
+ * Supabase client. Self reads remain protected by RLS and do not require a
+ * service-role secret in an external portal runtime.
+ */
+export async function resolveFacultySelfReportActorScope(
+  userId: string,
+  supabase: SupabaseClient<Database>,
+): Promise<ReportActorScope> {
+  const [legacyRes, assignRes, facultyRes] = await Promise.all([
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+    supabase
+      .from("user_role_assignments")
+      .select("role_code, roles_catalog(app_role_mapping)")
+      .eq("user_id", userId),
+    supabase
+      .from("faculty_profiles")
+      .select("id, department_id")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+
+  if (legacyRes.error) throw new Error(legacyRes.error.message);
+  if (assignRes.error) throw new Error(assignRes.error.message);
+  if (facultyRes.error) throw new Error(facultyRes.error.message);
+
+  const roles = new Set<string>();
+  for (const row of legacyRes.data ?? []) roles.add(row.role as string);
+  for (const row of assignRes.data ?? []) {
+    roles.add(row.role_code as string);
+    const catalog = Array.isArray(row.roles_catalog)
+      ? row.roles_catalog[0]
+      : row.roles_catalog;
+    const mapping = (catalog as { app_role_mapping?: string | null } | null)
+      ?.app_role_mapping;
+    if (mapping) roles.add(mapping);
+  }
+
+  return buildActorScope({
+    userId,
+    roles: [...roles],
+    departmentId: facultyRes.data?.department_id ?? null,
+    facultyProfileId: facultyRes.data?.id ?? null,
+    studentProfileId: null,
+    operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
+  });
+}
+
 /** Resolve the caller's report scope (denied when ambiguous/missing). */
 export async function resolveReportActorScope(
   userId: string,
