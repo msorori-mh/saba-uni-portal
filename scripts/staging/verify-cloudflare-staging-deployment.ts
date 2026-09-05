@@ -6,7 +6,7 @@ import {
 
 const deploymentUrl = assertCloudflareStagingUrl(process.env.STAGING_DEPLOYMENT_URL ?? "");
 const expectedSha = normalizeFullSha(process.env.EXPECTED_BUILD_SHA ?? "");
-const versionUrl = new URL("/version.json", deploymentUrl);
+const versionUrl = new URL("/version.json", deploymentUrl);\nconst rootUrl = new URL("/", deploymentUrl);\nrootUrl.searchParams.set("verify-build-sha", expectedSha);
 
 async function fetchWithTimeout(url: URL, accept: string): Promise<Response> {
   return fetch(url, {
@@ -37,7 +37,7 @@ async function waitForVersion(): Promise<void> {
 
 await waitForVersion();
 
-const rootResponse = await fetchWithTimeout(deploymentUrl, "text/html");
+const escapedSha = expectedSha.replace(/[.*+?^${}()|[\]\\]/g, "\\const rootResponse = await fetchWithTimeout(deploymentUrl, "text/html");
 if (!rootResponse.ok) {
   throw new Error(`STAGING_DEPLOYMENT_HOLD: public root returned HTTP ${rootResponse.status}`);
 }
@@ -49,7 +49,34 @@ const shaMetaPattern = new RegExp(
 );
 if (!shaMetaPattern.test(html)) {
   throw new Error("STAGING_DEPLOYMENT_HOLD: root HTML does not expose the exact build-sha meta");
+}");
+const shaMetaPattern = new RegExp(
+  `<meta\\s+[^>]*(?:name=["']build-sha["'][^>]*content=["']${escapedSha}["']|content=["']${escapedSha}["'][^>]*name=["']build-sha["'])[^>]*>`,
+  "i",
+);
+
+async function waitForRootHtml(): Promise<void> {
+  let lastFailure = "root HTML did not become ready";
+
+  for (let attempt = 1; attempt <= 12; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(rootUrl, "text/html");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const html = await response.text();
+      if (!shaMetaPattern.test(html)) {
+        throw new Error("root HTML does not expose the exact build-sha meta");
+      }
+      return;
+    } catch (error) {
+      lastFailure = String(error);
+      if (attempt < 12) await Bun.sleep(5_000);
+    }
+  }
+
+  throw new Error(`STAGING_DEPLOYMENT_HOLD: root verification failed: ${lastFailure}`);
 }
+
+await waitForRootHtml();
 
 console.log(
   JSON.stringify({
