@@ -27,6 +27,7 @@ import { REPORT_CATALOG_ENTRIES, catalogViewerFromActorScope } from "@/lib/repor
 import { projectStudentSelfReports } from "@/lib/reports/student-projection";
 import {
   assertScopeAllowed,
+  resolveFacultySelfReportActorScope,
   resolveReportActorScope,
   resolveStudentSelfReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
@@ -311,16 +312,25 @@ export const getStudentSelfReportCatalog = createServerFn({ method: "POST" })
 
 
 
+export const getFacultySelfReportScope = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    return resolveFacultySelfReportActorScope(context.userId, context.supabase);
+  });
+
 /** Faculty self + assigned courses/groups only. */
 export const getFacultySelfReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const scope = await resolveReportActorScope(context.userId);
+    const scope = await resolveFacultySelfReportActorScope(
+      context.userId,
+      context.supabase,
+    );
     const summary = await runFacultySelfReportsSummary({
       scope,
       loaders: {
         loadAssignedSections: async (facultyId) => {
-          const { data: sections, error } = await supabaseAdmin
+          const { data: sections, error } = await context.supabase
             .from("course_sections")
             .select(
               "id, section_code, status, faculty_profile_id, offering:course_offerings(course:courses(code, name_ar, credit_hours), department_id:programs(department_id))",
@@ -335,7 +345,7 @@ export const getFacultySelfReportsSummary = createServerFn({ method: "POST" })
           }));
         },
         loadMaterials: async (facultyId) => {
-          const { data: mats } = await (supabaseAdmin as any)
+          const { data: mats } = await (context.supabase as any)
             .from("course_materials")
             .select("id, course_section_id, status, updated_at, faculty_profile_id")
             .eq("faculty_profile_id", facultyId)
