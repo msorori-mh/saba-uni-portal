@@ -4,6 +4,8 @@
  */
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { userRoles } from "@/lib/authz.server";
 import { buildActorScope, type ActorScopeFacts } from "./resolve-scope";
 import { loadExplicitOrgBindings } from "./org-identity.server";
@@ -41,6 +43,55 @@ export async function loadActorScopeFacts(userId: string): Promise<ActorScopeFac
     operationalUnitCode,
     bindings: bindings ?? emptyOrgBindings(),
   };
+}
+
+/**
+ * Resolve the student self-report scope with the caller's authenticated
+ * Supabase client. This keeps student-only reads protected by RLS and avoids
+ * requiring a service-role secret in an external portal runtime.
+ */
+export async function resolveStudentSelfReportActorScope(
+  userId: string,
+  supabase: SupabaseClient<Database>,
+): Promise<ReportActorScope> {
+  const [legacyRes, assignRes, studentRes] = await Promise.all([
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+    supabase
+      .from("user_role_assignments")
+      .select("role_code, roles_catalog(app_role_mapping)")
+      .eq("user_id", userId),
+    supabase
+      .from("student_profiles")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+
+  if (legacyRes.error) throw new Error(legacyRes.error.message);
+  if (assignRes.error) throw new Error(assignRes.error.message);
+  if (studentRes.error) throw new Error(studentRes.error.message);
+
+  const roles = new Set<string>();
+  for (const row of legacyRes.data ?? []) roles.add(row.role as string);
+  for (const row of assignRes.data ?? []) {
+    roles.add(row.role_code as string);
+    const catalog = Array.isArray(row.roles_catalog)
+      ? row.roles_catalog[0]
+      : row.roles_catalog;
+    const mapping = (catalog as { app_role_mapping?: string | null } | null)
+      ?.app_role_mapping;
+    if (mapping) roles.add(mapping);
+  }
+
+  return buildActorScope({
+    userId,
+    roles: [...roles],
+    departmentId: null,
+    facultyProfileId: null,
+    studentProfileId: studentRes.data?.id ?? null,
+    operationalUnitCode: null,
+    bindings: emptyOrgBindings(),
+  });
 }
 
 /** Resolve the caller's report scope (denied when ambiguous/missing). */

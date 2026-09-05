@@ -28,6 +28,7 @@ import { projectStudentSelfReports } from "@/lib/reports/student-projection";
 import {
   assertScopeAllowed,
   resolveReportActorScope,
+  resolveStudentSelfReportActorScope,
 } from "@/lib/reports/scope/resolve-scope.server";
 import {
   denyAuthz,
@@ -168,13 +169,16 @@ export const getVisibleCatalogForViewer = createServerFn({ method: "POST" })
 export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const scope = await resolveReportActorScope(context.userId);
+    const scope = await resolveStudentSelfReportActorScope(
+      context.userId,
+      context.supabase,
+    );
     const summary = await runStudentSelfReportsSummary({
       scope,
       actorUserId: context.userId,
       loaders: {
         loadProfile: async (studentId, userId) => {
-          const { data, error } = await supabaseAdmin
+          const { data, error } = await context.supabase
             .from("student_profiles")
             .select(
               "id, academic_number, full_name_ar, status, program_id, department_id, study_system, department:departments(name_ar), program:programs(name_ar)",
@@ -186,7 +190,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
           return data as Record<string, unknown> | null;
         },
         loadAcademicStatus: async (studentId) => {
-          const { data } = await supabaseAdmin
+          const { data } = await context.supabase
             .from("student_academic_status")
             .select(
               "enrollment_status, level:academic_levels(name, level_number), academic_year:academic_years(name), semester:semesters(name)",
@@ -198,7 +202,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
           return data ?? null;
         },
         loadRequests: async (studentId) => {
-          const { data } = await supabaseAdmin
+          const { data } = await context.supabase
             .from("student_requests")
             .select("id, status, request_type, current_step_name, updated_at, created_at")
             .eq("student_profile_id", studentId)
@@ -207,7 +211,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
           return data ?? [];
         },
         loadDocuments: async (studentId) => {
-          const { data } = await supabaseAdmin
+          const { data } = await context.supabase
             .from("official_documents")
             .select("id, document_type, status, issued_at")
             .eq("student_profile_id", studentId)
@@ -216,7 +220,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
           return data ?? [];
         },
         loadEnrollments: async (studentId) => {
-          const { data } = await supabaseAdmin
+          const { data } = await context.supabase
             .from("student_enrollments")
             .select("id, enrollment_status")
             .eq("student_profile_id", studentId);
@@ -225,13 +229,13 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
       },
     });
 
-    const requests = await supabaseAdmin
+    const requests = await context.supabase
       .from("student_requests")
       .select("id, status, request_type, current_step_name, updated_at, created_at")
       .eq("student_profile_id", summary.studentProfileId)
       .order("created_at", { ascending: false })
       .limit(10);
-    const docs = await supabaseAdmin
+    const docs = await context.supabase
       .from("official_documents")
       .select("id, document_type, status, issued_at")
       .eq("student_profile_id", summary.studentProfileId)
@@ -239,7 +243,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
       .limit(10);
 
     // مشروع التخرج: يُعرض فقط لطلاب المستوى الرابع الحاليين (نفس معيار حارس المسار).
-    const gpStatuses = await supabaseAdmin
+    const gpStatuses = await context.supabase
       .from("student_academic_status")
       .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
       .eq("student_profile_id", summary.studentProfileId);
@@ -279,12 +283,15 @@ export const getStudentSelfReportCatalog = createServerFn({ method: "POST" })
       .parse(data ?? {}),
   )
   .handler(async ({ context, data }) => {
-    const scope = await resolveReportActorScope(context.userId);
+    const scope = await resolveStudentSelfReportActorScope(
+      context.userId,
+      context.supabase,
+    );
     const viewer = catalogViewerFromActorScope(scope);
 
     let fourthLevelEligible = false;
     if (scope.studentProfileId) {
-      const gpStatuses = await supabaseAdmin
+      const gpStatuses = await context.supabase
         .from("student_academic_status")
         .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
         .eq("student_profile_id", scope.studentProfileId);

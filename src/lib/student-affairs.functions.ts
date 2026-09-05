@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { resolveCanonicalCurrentFourthLevelEligibility } from "@/lib/graduation-projects/eligibility";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -73,9 +75,19 @@ async function currentStudentProfile(userId: string) {
   return data;
 }
 
-async function currentStudentLevelNumber(userId: string): Promise<number | null> {
-  const profile = await currentStudentProfile(userId);
-  const { data, error } = await supabaseAdmin
+async function currentStudentLevelNumber(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<number | null> {
+  const { data: profile, error: profileError } = await supabase
+    .from("student_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (profileError) throw new Error(profileError.message);
+  if (!profile) throw new Error("لا يوجد ملف طالب مرتبط بحسابك");
+
+  const { data, error } = await supabase
     .from("student_academic_status")
     .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
     .eq("student_profile_id", profile.id);
@@ -204,7 +216,7 @@ export const getStudentRequestTypesForStudent = createServerFn({ method: "POST" 
   .handler(async ({ context }) => {
     const [rows, levelNumber] = await Promise.all([
       rpcGetAvailableRequestTypes(context.supabase),
-      currentStudentLevelNumber(context.userId),
+      currentStudentLevelNumber(context.supabase, context.userId),
     ]);
     return applyLevelOneRequestTypeRestrictions(
       rows.map((row) => ({
