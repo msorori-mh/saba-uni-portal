@@ -139,6 +139,9 @@ describe("faculty reports — server function + route", () => {
     expect(selfBlock).not.toContain("supabaseAdmin");
     expect(ROUTE_SRC).toContain("getFacultySelfReportScope");
     expect(ROUTE_SRC).not.toContain("getMyReportScope");
+    expect(ROUTE_SRC).not.toContain("getDepartmentReportsSummary");
+    expect(ROUTE_SRC).not.toContain("departmentQuery");
+    expect(ROUTE_SRC).toContain('departmentNameAr: isDepartmentHead ? "قسمك" : null');
   });
 
   test("route exists at /faculty-portal/reports", () => {

@@ -11,7 +11,6 @@ import {
 } from "@/lib/reports/catalog";
 import { buildFacultyAttention } from "@/lib/reports/attention";
 import {
-  getDepartmentReportsSummary,
   getFacultySelfReportScope,
   getFacultySelfReportsSummary,
 } from "@/lib/beneficiary-reports.functions";
@@ -31,7 +30,6 @@ export const Route = createFileRoute("/faculty-portal/reports")({
 function FacultyReportsPage() {
   const fetchSummary = useServerFn(getFacultySelfReportsSummary);
   const fetchScope = useServerFn(getFacultySelfReportScope);
-  const fetchDepartmentSummary = useServerFn(getDepartmentReportsSummary);
 
   const summaryQuery = useQuery({
     queryKey: ["faculty-self-reports"],
@@ -54,44 +52,29 @@ function FacultyReportsPage() {
     : ["faculty_member"];
   const isDepartmentHead = viewerRoles.includes("department_head");
 
-  const departmentQuery = useQuery({
-    queryKey: ["faculty-reports-department-name"],
-    queryFn: () => fetchDepartmentSummary({ data: {} }),
-    enabled: isDepartmentHead,
-    staleTime: 300_000,
-    refetchOnWindowFocus: false,
-  });
 
   // Gate the workspace on every required read. Background refetches
   // (isFetching with data) must not collapse the page back into a loader.
-  const requiredLoading =
-    summaryQuery.isLoading ||
-    scopeQuery.isLoading ||
-    (isDepartmentHead && departmentQuery.isLoading);
-  const requiredError =
-    summaryQuery.error ??
-    scopeQuery.error ??
-    (isDepartmentHead ? departmentQuery.error : null);
+  const requiredLoading = summaryQuery.isLoading || scopeQuery.isLoading;
+  const requiredError = summaryQuery.error ?? scopeQuery.error;
 
   const retryRequired = () => {
     void summaryQuery.refetch();
     void scopeQuery.refetch();
-    if (isDepartmentHead) void departmentQuery.refetch();
   };
 
   const data = summaryQuery.data;
-  const departmentSummary = departmentQuery.data;
 
   /** Two clean groups: my own academic reports, then my department's. */
   const scopedSections = useMemo(
     () =>
       viewerScope
         ? buildRoleScopedReportSections(REPORT_CATALOG_ENTRIES, viewerScope, {
-            departmentNameAr: departmentSummary?.department?.name_ar ?? null,
+            departmentNameAr: isDepartmentHead ? "قسمك" : null,
             currentRoute: "/faculty-portal/reports",
           })
         : [],
-    [viewerScope, departmentSummary?.department?.name_ar],
+    [viewerScope, isDepartmentHead],
   );
 
   const attentionItems = useMemo(
