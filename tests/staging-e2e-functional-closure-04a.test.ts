@@ -117,24 +117,17 @@ describe("04A-4 — reports pages expose loading, error and retry", () => {
     expect(src).toContain("summaryQuery.error ?? catalogQuery.error");
   });
 
-  it("04A-R1 — faculty reports combine summary/scope/department queries", () => {
+  it("04A-R1 — faculty reports combine authenticated summary and scope reads", () => {
     const src = read("src/routes/faculty-portal.reports.tsx");
     expect(src).toContain("const summaryQuery = useQuery({");
     expect(src).toContain("const scopeQuery = useQuery({");
-    expect(src).toContain("const departmentQuery = useQuery({");
-    expect(src).toContain("enabled: isDepartmentHead");
-    // combined loading covers all three required reads
-    expect(src).toContain("summaryQuery.isLoading ||");
-    expect(src).toContain("scopeQuery.isLoading ||");
-    expect(src).toContain("(isDepartmentHead && departmentQuery.isLoading)");
-    // combined error covers all three required reads
-    expect(src).toContain("summaryQuery.error ??");
-    expect(src).toContain("scopeQuery.error ??");
-    expect(src).toContain("(isDepartmentHead ? departmentQuery.error : null)");
-    // retry refetches all three, department only for heads
+    expect(src).not.toContain("const departmentQuery = useQuery({");
+    expect(src).not.toContain("getDepartmentReportsSummary");
+    // both authenticated RLS reads participate in loading/error/retry
+    expect(src).toContain("summaryQuery.isLoading || scopeQuery.isLoading");
+    expect(src).toContain("summaryQuery.error ?? scopeQuery.error");
     expect(src).toContain("void summaryQuery.refetch()");
     expect(src).toContain("void scopeQuery.refetch()");
-    expect(src).toContain("if (isDepartmentHead) void departmentQuery.refetch()");
     // background refetch must not be treated as a full loading screen
     expect(src).not.toContain("isLoading || isFetching");
   });
