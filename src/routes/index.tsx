@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, BookOpen, Brain, Calendar, Code2, Cpu, Database, FileCheck,
   FlaskConical, GraduationCap, Layers, Mail, MapPin, Newspaper, Phone,
@@ -19,13 +19,6 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "منصة رقمية متكاملة للخدمات الأكاديمية والإدارية." },
     ],
   }),
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(programsQuery);
-    context.queryClient.ensureQueryData(liveCountsQuery);
-    context.queryClient.ensureQueryData(settingsQuery);
-    context.queryClient.ensureQueryData(newsQuery(3));
-    context.queryClient.ensureQueryData(eventsQuery(3));
-  },
   component: HomePage,
 });
 
@@ -75,11 +68,16 @@ const QUICK_ACCESS = [
 ];
 
 function HomePage() {
-  const { data: programs } = useSuspenseQuery(programsQuery);
-  const { data: counts } = useSuspenseQuery(liveCountsQuery);
-  const { data: settings } = useSuspenseQuery(settingsQuery);
-  const { data: news } = useSuspenseQuery(newsQuery(3));
-  const { data: events } = useSuspenseQuery(eventsQuery(3));
+  // Public content must never block the first render on Supabase. This keeps
+  // the identity, portal entry points, and navigation available on weak or
+  // intermittent mobile connections. Dynamic sections hydrate independently
+  // and degrade to their existing empty/fallback states when data is delayed.
+  const { data: programs = [] } = useQuery(programsQuery);
+  const { data: counts = { programs: 4, faculty: 0, research: 0, news: 0 } } =
+    useQuery(liveCountsQuery);
+  const { data: settings = {} } = useQuery(settingsQuery);
+  const { data: news = [] } = useQuery(newsQuery(3));
+  const { data: events = [] } = useQuery(eventsQuery(3));
 
   const stats = [
     { Icon: Layers, value: `${Math.max(counts.programs ?? 4, 4)}`, label: "برامج أكاديمية" },
