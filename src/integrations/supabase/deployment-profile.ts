@@ -9,6 +9,24 @@ export type PortalDeployTarget = "staging" | "production";
 export const PRODUCTION_SUPABASE_URL =
   `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co` as const;
 
+export function isPublicSupabaseClientKey(value: string): boolean {
+  if (/^sb_publishable_.{9,}$/.test(value)) return true;
+
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const decoded =
+      typeof atob === "function"
+        ? atob(padded)
+        : Buffer.from(padded, "base64").toString("utf8");
+    return (JSON.parse(decoded) as { role?: unknown }).role === "anon";
+  } catch {
+    return false;
+  }
+}
+
 const PRODUCTION_HOSTS = new Set(["quboolye.com", "www.quboolye.com"]);
 
 function fail(reason: string): never {
@@ -94,8 +112,8 @@ export function assertPortalSupabasePublishableKey(
     return fail(`${target} requires an explicit public Supabase publishable key.`);
   }
 
-  if (!/^sb_publishable_.{9,}$/.test(value)) {
-    return fail(`${target} requires a public sb_publishable_ key.`);
+  if (!isPublicSupabaseClientKey(value)) {
+    return fail(`${target} requires a public publishable key or legacy anon key.`);
   }
 
   return value;

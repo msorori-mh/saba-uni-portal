@@ -67,17 +67,31 @@ describe("04E — explicit deployment target", () => {
     expect(portalFallbackSupabaseUrl("staging")).toBe(STAGING_SUPABASE_URL);
   });
 
-  test("runtime accepts public publishable keys only", () => {
+  test("runtime accepts public publishable and legacy anon keys only", () => {
     const publicKey = "sb_publishable_04e_public_test_value";
+    const legacyAnonKey = [
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+      Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url"),
+      "signature",
+    ].join(".");
+    const legacyServiceKey = [
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+      Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url"),
+      "signature",
+    ].join(".");
     expect(assertPortalSupabasePublishableKey("production", publicKey)).toBe(publicKey);
+    expect(assertPortalSupabasePublishableKey("production", legacyAnonKey)).toBe(legacyAnonKey);
     expect(() => assertPortalSupabasePublishableKey("production", "")).toThrow(
       /requires an explicit public Supabase publishable key/,
     );
     expect(() => assertPortalSupabasePublishableKey("production", "sb_secret_forbidden")).toThrow(
-      /requires a public sb_publishable_ key/,
+      /requires a public publishable key or legacy anon key/,
     );
     expect(() => assertPortalSupabasePublishableKey("production", "eyJhbGciOi.forbidden")).toThrow(
-      /requires a public sb_publishable_ key/,
+      /requires a public publishable key or legacy anon key/,
+    );
+    expect(() => assertPortalSupabasePublishableKey("production", legacyServiceKey)).toThrow(
+      /requires a public publishable key or legacy anon key/,
     );
   });
 });

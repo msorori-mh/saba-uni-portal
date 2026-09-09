@@ -40,6 +40,18 @@ const supabasePublishableKey = (
   ""
 ).trim();
 
+function isPublicSupabaseClientKey(value: string): boolean {
+  if (/^sb_publishable_.{9,}$/.test(value)) return true;
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const payload = Buffer.from(parts[1], "base64url").toString("utf8");
+    return (JSON.parse(payload) as { role?: unknown }).role === "anon";
+  } catch {
+    return false;
+  }
+}
+
 const portalDeployTarget = (
   process.env.VITE_PORTAL_DEPLOY_TARGET ??
   process.env.PORTAL_DEPLOY_TARGET ??
@@ -56,9 +68,9 @@ if (portalDeployTarget !== "staging" && portalDeployTarget !== "production") {
   );
 }
 
-if (supabasePublishableKey && !/^sb_publishable_.{9,}$/.test(supabasePublishableKey)) {
+if (supabasePublishableKey && !isPublicSupabaseClientKey(supabasePublishableKey)) {
   throw new Error(
-    "PORTAL_DEPLOYMENT_PROFILE_REQUIRED: Supabase client key must be a public sb_publishable_ key.",
+    "PORTAL_DEPLOYMENT_PROFILE_REQUIRED: Supabase client key must be a public publishable key or legacy anon key.",
   );
 }
 

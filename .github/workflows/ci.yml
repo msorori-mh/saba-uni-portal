@@ -73,6 +73,8 @@ jobs:
         if: ${{ hashFiles('package.json') != '' }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_only_not_connected_04f
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_only_not_connected_04f
         run: |
           if node -e "const s=require('./package.json').scripts||{}; process.exit(s.build?0:1)"; then
             bun run build
