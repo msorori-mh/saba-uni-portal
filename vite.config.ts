@@ -52,15 +52,25 @@ function isPublicSupabaseClientKey(value: string): boolean {
   }
 }
 
-const portalDeployTarget = (
+const explicitPortalDeployTarget = (
   process.env.VITE_PORTAL_DEPLOY_TARGET ??
   process.env.PORTAL_DEPLOY_TARGET ??
   viteEnvironment.VITE_PORTAL_DEPLOY_TARGET ??
   viteEnvironment.PORTAL_DEPLOY_TARGET ??
-  "staging"
+  ""
 )
   .trim()
   .toLowerCase();
+
+// Lovable injects the connected production Supabase URL and public anon key,
+// but does not forward the custom deploy-target variable in preview builds.
+// Infer production only from the one pinned production origin when no target
+// was supplied. Every other URL remains staging and is checked below.
+const portalDeployTarget =
+  explicitPortalDeployTarget ||
+  (supabaseUrl === PRODUCTION_SUPABASE_URL || supabaseUrl === `${PRODUCTION_SUPABASE_URL}/`
+    ? "production"
+    : "staging");
 
 if (portalDeployTarget !== "staging" && portalDeployTarget !== "production") {
   throw new Error(
@@ -98,18 +108,6 @@ if (portalDeployTarget === "production") {
 
 // ---------------------------------------------------------------------------
 // Build provenance (track F - RUNTIME-DEPLOYED-SHA-PROVENANCE-SOURCE-01)
-//
-// Inject the ACTUAL commit SHA of the code being built so the deployed value
-// can be read back from quboolye.com and compared against the source SHA.
-// Resolution order (first VALID value wins):
-//   1. VITE_BUILD_SHA        - explicit override for any build platform
-//   2. GITHUB_SHA            - implicit on GitHub Actions runners
-//   3. CF_PAGES_COMMIT_SHA   - Cloudflare-native builds (belt-and-braces)
-//   4. `git rev-parse HEAD`  - works wherever the build sandbox has .git
-//   5. "unknown" sentinel    - NEVER fail the build, NEVER guess
-// Malformed candidates are rejected (fall through to the next source).
-// The value is public in the client bundle by design: a commit SHA is not a
-// credential. Only the SHA is injected here - no other env var, no secrets.
 // ---------------------------------------------------------------------------
 const BUILD_SHA_SENTINEL = "unknown";
 const BUILD_SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
@@ -121,8 +119,6 @@ function normalizeShaCandidate(candidate: string | undefined): string | null {
 }
 
 function readStampedSha(): string | null {
-  // Committed release stamp: the ONLY fallback that survives a build sandbox
-  // without a .git directory (Lovable publish). Public data (a commit SHA).
   try {
     const raw = readFileSync("build-sha.generated.json", "utf-8");
     return normalizeShaCandidate((JSON.parse(raw) as { sha?: string })?.sha);
@@ -146,8 +142,6 @@ function resolveBuildSha(): string {
       .trim();
     return normalizeShaCandidate(fromGit) ?? readStampedSha() ?? BUILD_SHA_SENTINEL;
   } catch {
-    // No .git in the build sandbox (the case on Lovable publish) - use the
-    // committed release stamp before degrading to the sentinel.
     return readStampedSha() ?? BUILD_SHA_SENTINEL;
   }
 }
@@ -174,8 +168,6 @@ if (supabasePublishableKey) {
 
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
   },
   vite: {
