@@ -81,6 +81,8 @@ jobs:
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
           NODE_OPTIONS: --max-old-space-size=4096
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_only_not_connected_04f
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_only_not_connected_04f
         run: bun run build
 
       - name: Verify generated production contract
