@@ -1,0 +1,36 @@
+name: Grade component RLS capacity SQL
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20260910090000_grade_component_student_identity_initplan.sql"
+      - "tests/performance/grade-component-policy-capacity-04.sql"
+      - ".github/workflows/grade-component-policy-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: grade_policy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify authorization equivalence and bounded profile work
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d grade_policy_test -v ON_ERROR_STOP=1 -f tests/performance/grade-component-policy-capacity-04.sql
