@@ -138,5 +138,35 @@ END $test$;
 DO $test$ BEGIN
  IF (SELECT courses_count FROM student_transcript_summary WHERE student_profile_id=test_id(1))<>6 THEN RAISE EXCEPTION 'Reapply changed result'; END IF;
 END $test$;
+-- Production preflight found this view with the invoker option absent, even
+-- though staging had it enabled. Reproduce that exact drift and prove the
+-- migration closes the anonymous view bypass without denying the owner.
+ALTER VIEW public.student_unofficial_transcript RESET (security_invoker);
+SET LOCAL ROLE anon;
+DO $test$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM student_unofficial_transcript) THEN
+   RAISE EXCEPTION 'Definer-view exposure fixture was not reproduced';
+ END IF;
+END $test$;
+RESET ROLE;
+\ir ../../supabase/migrations/20260910080000_transcript_per_enrollment_aggregation.sql
+SET LOCAL ROLE anon;
+DO $test$ BEGIN
+ IF EXISTS (SELECT 1 FROM student_unofficial_transcript) THEN
+   RAISE EXCEPTION 'Migration did not close anonymous definer-view bypass';
+ END IF;
+END $test$;
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub',test_id(101)::text,true);
+DO $test$ BEGIN
+ IF (SELECT count(*) FROM student_unofficial_transcript) <> 6 THEN
+   RAISE EXCEPTION 'Owner access regressed when invoker security was restored';
+ END IF;
+ IF EXISTS (SELECT 1 FROM student_unofficial_transcript WHERE student_profile_id=test_id(2)) THEN
+   RAISE EXCEPTION 'Cross-owner exposure after restoring invoker security';
+ END IF;
+END $test$;
+RESET ROLE;
 ROLLBACK;
-SELECT 'PASS: exact rows, academic boundaries, appeals, equivalencies, RLS, metadata, indexed work and reapply' AS result;
+SELECT 'PASS: exact rows, academic boundaries, appeals, equivalencies, RLS, metadata, indexed work, reapply and definer-drift repair' AS result;
