@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Printer, CheckCircle2, Check } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { credentialPrintHtml } from "@/lib/credential-print-html";
 
 
 export type CredentialsSlipData = {
@@ -61,7 +62,7 @@ export function CredentialsSlip({
     const w = window.open("", "_blank", "width=600,height=700");
     if (!w) return;
     const logoUrl = new URL(collegeLogo, window.location.origin).href;
-    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
+    w.document.write(credentialPrintHtml`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
       <style>
         @page{size:A4;margin:14mm;}
         body{font-family:'Amiri','Times New Roman',serif;padding:24px;color:#111827;}

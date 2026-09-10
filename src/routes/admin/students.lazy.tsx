@@ -1625,7 +1625,7 @@ function CredentialsSlip({
   const handlePrint = () => {
     const w = window.open("", "_blank", "width=600,height=700");
     if (!w) return;
-    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
+    w.document.write(credentialPrintHtml`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
       <style>
         body{font-family:'Amiri','Times New Roman',serif;padding:32px;color:#111827;}
         h1{font-size:18px;margin:0 0 8px;text-align:center;}
@@ -1736,3 +1736,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+import { credentialPrintHtml } from "@/lib/credential-print-html";
