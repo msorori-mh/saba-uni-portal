@@ -111,6 +111,53 @@ describe("retryRouteError", () => {
     expect(reload2).not.toHaveBeenCalled();
   });
 
+  it("still reloads once when retrying a missing chunk rejects", async () => {
+    const order: string[] = [];
+    await retryRouteError({
+      reset: () => {
+        order.push("reset");
+      },
+      invalidate: async () => {
+        order.push("invalidate");
+        throw new Error("Failed to fetch dynamically imported module: /assets/missing.js");
+      },
+      error: new Error("Failed to fetch dynamically imported module: /assets/missing.js"),
+      reload: () => {
+        order.push("reload");
+      },
+    });
+    expect(order).toEqual(["reset", "invalidate", "reload"]);
+  });
+
+  it("preserves a failed retry when no document reload is available", async () => {
+    const failure = new Error("Loading chunk 12 failed");
+    await expect(
+      retryRouteError({
+        reset: () => {},
+        invalidate: () => {
+          throw failure;
+        },
+        error: failure,
+      }),
+    ).rejects.toBe(failure);
+  });
+
+  it("does not mask an unrelated invalidation failure or reload the document", async () => {
+    const failure = new Error("network timeout");
+    const reload = mock(() => {});
+    await expect(
+      retryRouteError({
+        reset: () => {},
+        invalidate: async () => {
+          throw failure;
+        },
+        error: new Error("permission denied"),
+        reload,
+      }),
+    ).rejects.toBe(failure);
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it("detects common chunk load messages", () => {
     expect(isChunkLoadError(new Error("Loading chunk 12 failed"))).toBe(true);
     expect(isChunkLoadError(new Error("Importing a module script failed"))).toBe(true);

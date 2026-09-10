@@ -21,8 +21,13 @@ export async function retryRouteError(options: {
   reload?: () => void;
 }): Promise<void> {
   options.reset();
-  await options.invalidate();
-  if (options.error && isChunkLoadError(options.error) && options.reload) {
-    options.reload();
+  const reload = options.reload && isChunkLoadError(options.error) ? options.reload : undefined;
+  try {
+    await options.invalidate();
+  } catch (error) {
+    // Retrying the same missing chunk can reject again. Keep the one-shot
+    // document reload available; unrelated failures must still propagate.
+    if (!reload) throw error;
   }
+  reload?.();
 }

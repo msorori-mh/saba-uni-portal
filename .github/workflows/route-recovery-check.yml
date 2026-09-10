@@ -1,0 +1,27 @@
+name: Route recovery checks
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/route-error-recovery.ts"
+      - "tests/admin/academic-operations-runtime-error.test.ts"
+      - ".github/workflows/route-recovery-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Run route recovery regressions
+        run: bun test tests/admin/academic-operations-runtime-error.test.ts
+      - name: Strict typecheck for the changed runtime module
+        run: bunx tsc --noEmit --noCheck false --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types node src/lib/route-error-recovery.ts
