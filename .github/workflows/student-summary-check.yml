@@ -1,0 +1,29 @@
+name: Student summary checks
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/beneficiary-reports.functions.ts"
+      - "src/lib/reports/beneficiary-report-services.ts"
+      - "src/lib/reports/read-result.ts"
+      - "tests/reports-beneficiaries/**"
+      - ".github/workflows/student-summary-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Report behavior and student session scope
+        run: bun test tests/reports-beneficiaries tests/student-portal/student-self-read-cloudflare-04g.test.ts
+      - name: Strict typecheck of the read-result helper
+        run: bunx tsc --noEmit --noCheck false --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types node src/lib/reports/read-result.ts
