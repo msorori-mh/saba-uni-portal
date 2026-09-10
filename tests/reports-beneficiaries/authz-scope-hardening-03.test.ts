@@ -8,6 +8,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { requireReportRead } from "../../src/lib/reports/read-result";
 
 import {
   REPORT_CATALOG_ENTRIES,
@@ -385,6 +386,73 @@ describe("G3 — denied ActorScope empties dependent catalog cards", () => {
 });
 
 describe("G4 — behavioral server authorization (mocked loaders)", () => {
+  test("recent lists reuse one self-scoped read while KPIs include all loaded rows", async () => {
+    const rows = Array.from({ length: 15 }, (_, n) => ({ id: `request-${n}`, status: "submitted" }));
+    const docs = Array.from({ length: 12 }, (_, n) => ({ id: `doc-${n}`, status: "issued" }));
+    let requestReads = 0;
+    let documentReads = 0;
+    const result = await runStudentSelfReportsSummary({
+      scope: scopeOf({ roles: ["student"], studentProfileId: "stu-a" }),
+      actorUserId: "user-a",
+      loaders: {
+        loadProfile: async () => ({ id: "stu-a" }),
+        loadRequests: async (id) => { expect(id).toBe("stu-a"); requestReads++; return rows; },
+        loadDocuments: async (id) => { expect(id).toBe("stu-a"); documentReads++; return docs; },
+        loadEnrollments: async () => [],
+      },
+    });
+    expect(result.recentRequests).toEqual(rows.slice(0, 10));
+    expect(result.recentDocuments).toEqual(docs.slice(0, 10));
+    expect(result.kpis.openRequests.value).toBe(15);
+    expect(result.kpis.issuedDocuments.value).toBe(12);
+    expect(requestReads).toBe(1);
+    expect(documentReads).toBe(1);
+  });
+
+  for (const failingRead of ["loadRequests", "loadDocuments", "loadEnrollments", "loadAcademicStatus"] as const) {
+    test(`${failingRead} database error rejects instead of reporting empty success`, async () => {
+      const loaders = {
+        loadProfile: async () => ({ id: "stu-a" }),
+        loadRequests: async () => [] as { status: string }[],
+        loadDocuments: async () => [] as { status: string }[],
+        loadEnrollments: async () => [] as { enrollment_status: string }[],
+        loadAcademicStatus: async () => null,
+        [failingRead]: async () => requireReportRead({
+          data: null,
+          error: { message: "42703: requested column does not exist" },
+        }),
+      };
+      await expect(runStudentSelfReportsSummary({
+        scope: scopeOf({ roles: ["student"], studentProfileId: "stu-a" }),
+        actorUserId: "user-a",
+        loaders,
+      })).rejects.toThrow("42703");
+    });
+  }
+
+  test("parallel student summaries never share recent rows", async () => {
+    const run = (id: string) => runStudentSelfReportsSummary({
+      scope: scopeOf({ roles: ["student"], studentProfileId: id }),
+      actorUserId: `user-${id}`,
+      loaders: {
+        loadProfile: async () => ({ id }),
+        loadRequests: async () => [{ id: `request-${id}`, status: "submitted" }],
+        loadDocuments: async () => [{ id: `doc-${id}`, status: "issued" }],
+        loadEnrollments: async () => [],
+      },
+    });
+    const [a, b] = await Promise.all([run("a"), run("b")]);
+    expect(a.recentRequests).toEqual([{ id: "request-a", status: "submitted" }]);
+    expect(b.recentRequests).toEqual([{ id: "request-b", status: "submitted" }]);
+    expect(a.recentDocuments).not.toEqual(b.recentDocuments);
+  });
+
+  test("a response error takes precedence over any partial data", () => {
+    expect(() => requireReportRead({ data: [{ status: "issued" }], error: { message: "connection interrupted" } }))
+      .toThrow("connection interrupted");
+    expect(requireReportRead({ data: [], error: null })).toEqual([]);
+  });
+
   test("1. student A cannot retrieve student B", async () => {
     const scope = scopeOf({
       roles: ["student"],

@@ -251,6 +251,10 @@ export async function runStudentSelfReportsSummary(args: {
     profile,
     academicStatus,
     studentProfileId: studentId,
+    // Reuse the same ordered, self-scoped reads for the recent lists and KPIs.
+    // These values are local to this invocation; no cross-account cache exists.
+    recentRequests: requests.slice(0, 10),
+    recentDocuments: docs.slice(0, 10),
     /** Proven action-required count — open requests alone are not attention. */
     returnedForCompletion,
     kpis: {

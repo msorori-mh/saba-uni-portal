@@ -10,6 +10,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
+import { requireReportRead } from "@/lib/reports/read-result";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import {
@@ -191,7 +192,7 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
           return data as Record<string, unknown> | null;
         },
         loadAcademicStatus: async (studentId) => {
-          const { data } = await context.supabase
+          const result = await context.supabase
             .from("student_academic_status")
             .select(
               "enrollment_status, level:academic_levels(name, level_number), academic_year:academic_years(name), semester:semesters(name)",
@@ -200,48 +201,35 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
-          return data ?? null;
+          return requireReportRead(result) ?? null;
         },
         loadRequests: async (studentId) => {
-          const { data } = await context.supabase
+          const result = await context.supabase
             .from("student_requests")
-            .select("id, status, request_type, current_step_name, updated_at, created_at")
+            .select("id, status, request_type, updated_at, created_at")
             .eq("student_profile_id", studentId)
             .order("created_at", { ascending: false })
             .limit(50);
-          return data ?? [];
+          return requireReportRead(result) ?? [];
         },
         loadDocuments: async (studentId) => {
-          const { data } = await context.supabase
+          const result = await context.supabase
             .from("official_documents")
             .select("id, document_type, status, issued_at")
             .eq("student_profile_id", studentId)
             .order("issued_at", { ascending: false })
             .limit(50);
-          return data ?? [];
+          return requireReportRead(result) ?? [];
         },
         loadEnrollments: async (studentId) => {
-          const { data } = await context.supabase
+          const result = await context.supabase
             .from("student_enrollments")
             .select("id, enrollment_status")
             .eq("student_profile_id", studentId);
-          return data ?? [];
+          return requireReportRead(result) ?? [];
         },
       },
     });
-
-    const requests = await context.supabase
-      .from("student_requests")
-      .select("id, status, request_type, current_step_name, updated_at, created_at")
-      .eq("student_profile_id", summary.studentProfileId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-    const docs = await context.supabase
-      .from("official_documents")
-      .select("id, document_type, status, issued_at")
-      .eq("student_profile_id", summary.studentProfileId)
-      .order("issued_at", { ascending: false })
-      .limit(10);
 
     // مشروع التخرج: يُعرض فقط لطلاب المستوى الرابع الحاليين (نفس معيار حارس المسار).
     const gpStatuses = await context.supabase
@@ -249,13 +237,11 @@ export const getStudentSelfReportsSummary = createServerFn({ method: "POST" })
       .select("id, level_id, created_at, updated_at, level:academic_levels(level_number)")
       .eq("student_profile_id", summary.studentProfileId);
     const gpEligible = resolveCanonicalCurrentFourthLevelEligibility(
-      (gpStatuses.data ?? []) as AcademicStatusTimestampRow[],
+      (requireReportRead(gpStatuses) ?? []) as AcademicStatusTimestampRow[],
     ).eligible;
 
     return {
       ...summary,
-      recentRequests: requests.data ?? [],
-      recentDocuments: docs.data ?? [],
       links: [
         // «التقدم الأكاديمي» مخفي حالياً بناءً على طلب الإدارة.
         { to: "/student/study-plan", label: "الخطة الدراسية" },
