@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "tests/security/assurance-02/**"
+      - "tests/security/assurance-03/**"
       - ".github/workflows/assurance-tools.yml"
   workflow_dispatch:
 
@@ -23,6 +24,8 @@ jobs:
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
       - name: Run offline assurance regressions
-        run: bun test tests/security/assurance-02
+        run: bun test tests/security/assurance-02 tests/security/assurance-03
       - name: Check assurance script types
         run: bunx tsc --noEmit --noCheck false -p tests/security/assurance-02/tsconfig.json
+      - name: Check grade and request assurance script types
+        run: bunx tsc --noEmit --noCheck false -p tests/security/assurance-03/tsconfig.json
