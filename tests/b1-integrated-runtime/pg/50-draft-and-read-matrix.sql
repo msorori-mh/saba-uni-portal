@@ -10,6 +10,8 @@ declare
   n integer;
   err text;
   denied boolean;
+  current_department uuid;
+  current_program uuid;
   expected_version timestamptz;
 begin
   perform b1_e2e.set_uid(u_student);
@@ -92,6 +94,13 @@ begin
 
   -- transfer current department deny (create fresh transfer draft if needed)
   begin
+    select department_id, program_id
+      into current_department, current_program
+    from public.student_profiles
+    where user_id = u_student and status = 'active';
+    if current_department is null or current_program is null then
+      raise exception 'DRAFT_TRANSFER_CURRENT_PROFILE_REQUIRED';
+    end if;
     v := public.create_b1_request_draft_for_student('department_transfer', 'e2e-transfer-neg');
     req := (v->>'requestId')::uuid;
     expected_version := (v->>'updatedAt')::timestamptz;
@@ -100,8 +109,11 @@ begin
       perform public.save_b1_request_draft_for_student(
         req,
         jsonb_build_object(
-          'target_department_id', '55555555-5555-4555-8555-555555555501',
-          'target_program_id', '66666666-6666-4666-8666-666666666601',
+          -- The lifecycle transfer changes the student's department. Use the
+          -- post-lifecycle current values so this is a true same-department
+          -- probe, independent of the original CS/IT fixture constants.
+          'target_department_id', current_department,
+          'target_program_id', current_program,
           'transfer_reason', 'same dept'
         ),
         expected_version, null
