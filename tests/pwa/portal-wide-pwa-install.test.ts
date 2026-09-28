@@ -6,11 +6,13 @@ import {
   PWA_INSTALL_DISMISS_KEY,
   clearDismissedAt,
   invokeDeferredInstallPrompt,
+  isAndroidBrowser,
   isDismissCooldownActive,
   isIosBrowser,
   isStandaloneDisplay,
   readDismissedAt,
   shouldShowAndroidInstallPrompt,
+  shouldShowAndroidInstallFallback,
   shouldShowIosInstallFallback,
   writeDismissedAt,
   type BeforeInstallPromptEventLike,
@@ -266,6 +268,19 @@ describe("install visibility helpers", () => {
     ).toBe(false);
     expect(isIosBrowser("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", false)).toBe(true);
     expect(isIosBrowser("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", true)).toBe(false);
+  });
+
+  test("Android browser receives menu guidance without native prompt; installed and dismissed users do not", () => {
+    const base = {
+      isInstallable: false, isInstalled: false, isStandalone: false,
+      isIOS: false, isAndroid: isAndroidBrowser("Mozilla/5.0 (Linux; Android 15)"),
+      dismissedAt: null,
+    };
+    expect(shouldShowAndroidInstallFallback(base)).toBe(true);
+    expect(shouldShowAndroidInstallFallback({ ...base, isInstallable: true })).toBe(false);
+    expect(shouldShowAndroidInstallFallback({ ...base, isStandalone: true })).toBe(false);
+    expect(shouldShowAndroidInstallFallback({ ...base, dismissedAt: Date.now() })).toBe(false);
+    expect(shouldShowAndroidInstallFallback({ ...base, isAndroid: false })).toBe(false);
   });
 });
 

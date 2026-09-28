@@ -24,6 +24,11 @@ export type PwaInstallVisibilityInput = {
   now?: number;
 };
 
+/** Browsers on Android may allow installation without dispatching beforeinstallprompt. */
+export function isAndroidBrowser(ua: string): boolean {
+  return /Android/i.test(ua);
+}
+
 export function isStandaloneDisplay(
   win: Pick<Window, "matchMedia" | "navigator"> & { navigator: Navigator & { standalone?: boolean } },
 ): boolean {
@@ -114,6 +119,13 @@ export function shouldShowIosInstallFallback(input: PwaInstallVisibilityInput): 
   if (input.isStandalone || input.isInstalled) return false;
   if (!input.isIOS) return false;
   if (isDismissCooldownActive(input.dismissedAt, input.now)) return false;
+  return true;
+}
+
+/** Offer menu instructions when Android has not provided a native install event. */
+export function shouldShowAndroidInstallFallback(input: PwaInstallVisibilityInput & { isAndroid: boolean }): boolean {
+  if (input.isStandalone || input.isInstalled || input.isInstallable) return false;
+  if (!input.isAndroid || isDismissCooldownActive(input.dismissedAt, input.now)) return false;
   return true;
 }
 

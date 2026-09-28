@@ -23,6 +23,7 @@ import { GlobalBackButton } from "@/components/navigation/PageBackButton";
 import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
+import { isNativePlatform } from "@/lib/native/platform";
 
 function NotFoundComponent() {
   // Unknown /admin/* paths get an admin-scoped 404 that keeps the admin
@@ -238,18 +239,19 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouter().state.location.pathname;
   const isAdmin = pathname.startsWith("/admin");
-  // The mobile app surface is a standalone product: no public-site chrome,
-  // no global back button, no install prompt, no service-worker registration.
+  // Mobile routes keep their own layout. Only the installed native shell
+  // suppresses browser PWA registration and the install invitation.
   const isMobileApp = isMobileAppPath(pathname);
+  const isNativeMobileApp = isMobileApp && isNativePlatform();
   const bare = isAdmin || isMobileApp;
 
   useEffect(() => {
-    if (isMobileApp) {
+    if (isNativeMobileApp) {
       void disablePwaInNativeShell();
       return;
     }
     registerPortalPWA();
-  }, [isMobileApp]);
+  }, [isNativeMobileApp]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -265,7 +267,7 @@ function RootComponent() {
         </div>
       )}
       {!isMobileApp && <GlobalBackButton />}
-      {!isMobileApp && <PortalInstallPrompt />}
+      {!isNativeMobileApp && <PortalInstallPrompt />}
       <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );

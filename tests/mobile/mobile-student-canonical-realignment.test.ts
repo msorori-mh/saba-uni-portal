@@ -14,18 +14,19 @@ describe("mobile app shell isolation", () => {
     expect(MOBILE_ROUTE_FILES.length).toBeGreaterThan(10);
   });
 
-  test("/mobile renders no public Header/Footer, back button or install prompt", () => {
+  test("/mobile renders no public Header/Footer or back button; browser can show install prompt", () => {
     const root = read("src/routes/__root.tsx");
     expect(root).toContain("isMobileAppPath(pathname)");
     expect(root).toContain("const bare = isAdmin || isMobileApp");
     expect(root).toContain("{!isMobileApp && <GlobalBackButton />}");
-    expect(root).toContain("{!isMobileApp && <PortalInstallPrompt />}");
+    expect(root).toContain("{!isNativeMobileApp && <PortalInstallPrompt />}");
   });
 
-  test("native PWA registration is disabled and caches cleaned on /mobile", () => {
+  test("native PWA registration is disabled while browser /mobile remains eligible", () => {
     const root = read("src/routes/__root.tsx");
     expect(root).toContain("disablePwaInNativeShell()");
-    expect(root).toMatch(/if \(isMobileApp\) \{[\s\S]*disablePwaInNativeShell\(\)[\s\S]*return;/);
+    expect(root).toContain("const isNativeMobileApp = isMobileApp && isNativePlatform()");
+    expect(root).toMatch(/if \(isNativeMobileApp\) \{[\s\S]*disablePwaInNativeShell\(\)[\s\S]*return;/);
     const layout = read("src/routes/mobile.student.tsx");
     expect(layout).toContain("disablePwaInNativeShell");
     const cleanup = read("src/lib/pwa/native-pwa-cleanup.ts");

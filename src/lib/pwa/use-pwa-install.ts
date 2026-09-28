@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearDismissedAt,
   invokeDeferredInstallPrompt,
+  isAndroidBrowser,
   isIosBrowser,
   isStandaloneDisplay,
   readDismissedAt,
   shouldShowAndroidInstallPrompt,
+  shouldShowAndroidInstallFallback,
   shouldShowIosInstallFallback,
   writeDismissedAt,
   type BeforeInstallPromptEventLike,
@@ -17,6 +19,7 @@ export type UsePwaInstallResult = {
   isIOS: boolean;
   isStandalone: boolean;
   showAndroidPrompt: boolean;
+  showAndroidFallback: boolean;
   showIosFallback: boolean;
   installing: boolean;
   promptInstall: () => Promise<"accepted" | "dismissed" | "unavailable">;
@@ -35,6 +38,7 @@ export function usePwaInstall(options?: { revealDelayMs?: number }): UsePwaInsta
   const [isInstalled, setIsInstalled] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [dismissedAt, setDismissedAt] = useState<number | null>(null);
   const [revealReady, setRevealReady] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -45,6 +49,7 @@ export function usePwaInstall(options?: { revealDelayMs?: number }): UsePwaInsta
     const standalone = isStandaloneDisplay(window);
     setIsStandalone(standalone);
     setIsIOS(isIosBrowser(window.navigator.userAgent, standalone, window.navigator.maxTouchPoints ?? 0));
+    setIsAndroid(isAndroidBrowser(window.navigator.userAgent));
     setDismissedAt(readDismissedAt());
 
     const onBeforeInstall = (event: Event) => {
@@ -122,8 +127,10 @@ export function usePwaInstall(options?: { revealDelayMs?: number }): UsePwaInsta
 
   const showAndroidPrompt =
     revealReady && shouldShowAndroidInstallPrompt(visibilityBase);
+  const showAndroidFallback =
+    revealReady && shouldShowAndroidInstallFallback({ ...visibilityBase, isAndroid });
   const showIosFallback =
-    revealReady && !showAndroidPrompt && shouldShowIosInstallFallback(visibilityBase);
+    revealReady && !showAndroidPrompt && !showAndroidFallback && shouldShowIosInstallFallback(visibilityBase);
 
   return {
     isInstallable,
@@ -131,6 +138,7 @@ export function usePwaInstall(options?: { revealDelayMs?: number }): UsePwaInsta
     isIOS,
     isStandalone,
     showAndroidPrompt,
+    showAndroidFallback,
     showIosFallback,
     installing,
     promptInstall,
