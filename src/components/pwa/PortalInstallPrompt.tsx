@@ -19,19 +19,20 @@ type PortalInstallPromptProps = {
 /**
  * In-app PWA install prompt for بوابة الكلية.
  * Android/Chrome: uses deferred beforeinstallprompt (browser-authoritative).
- * iOS Safari: Share → Add to Home Screen instructions (no fake install button).
+ * Other Android browsers and iOS: browser-menu instructions (no fake install button).
  * Never permanently blocks authentication — dismissable with cooldown.
  */
 export function PortalInstallPrompt({ className }: PortalInstallPromptProps) {
   const {
     showAndroidPrompt,
+    showAndroidFallback,
     showIosFallback,
     installing,
     promptInstall,
     dismiss,
   } = usePwaInstall();
 
-  const open = showAndroidPrompt || showIosFallback;
+  const open = showAndroidPrompt || showAndroidFallback || showIosFallback;
   if (!open) return null;
 
   return (
@@ -64,8 +65,10 @@ export function PortalInstallPrompt({ className }: PortalInstallPromptProps) {
                 </DrawerTitle>
                 <DrawerDescription className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
                   {showIosFallback
-                    ? "لتثبيت بوابة الكلية على الشاشة الرئيسية: اضغط مشاركة ثم اختر «إضافة إلى الشاشة الرئيسية»."
-                    : "الوصول إلى البوابة مباشرة من الشاشة الرئيسية وتجربة أقرب إلى التطبيق."}
+                    ? "لإضافة بوابة الكلية إلى الشاشة الرئيسية: افتح قائمة المشاركة في المتصفح واختر «إضافة إلى الشاشة الرئيسية»."
+                    : showAndroidFallback
+                      ? "افتح قائمة المتصفح (⋮) ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية» إن ظهر الخيار."
+                      : "الوصول إلى البوابة مباشرة من الشاشة الرئيسية وتجربة أقرب إلى التطبيق."}
                 </DrawerDescription>
               </div>
             </div>
@@ -82,15 +85,17 @@ export function PortalInstallPrompt({ className }: PortalInstallPromptProps) {
 
         <div className="px-5 pb-2">
           <div className="flex items-center gap-2 rounded-lg border border-gold/25 bg-primary-deep/5 px-3 py-2.5 text-xs text-muted-foreground">
-            {showIosFallback ? (
+            {showIosFallback || showAndroidFallback ? (
               <Share className="h-4 w-4 text-gold shrink-0" aria-hidden />
             ) : (
               <Smartphone className="h-4 w-4 text-gold shrink-0" aria-hidden />
             )}
             <span>
               {showIosFallback
-                ? "متاح في Safari — التثبيت يتم عبر قائمة المشاركة في النظام."
-                : "سيتم فتح نافذة التثبيت الرسمية للمتصفح بعد موافقتك."}
+                ? "على iPhone: افتح الصفحة في Safari إذا لم يظهر خيار الإضافة في متصفحك."
+                : showAndroidFallback
+                  ? "قد لا يظهر خيار التثبيت حتى يتيح المتصفح تثبيت هذا الموقع."
+                  : "سيتم فتح نافذة التثبيت الرسمية للمتصفح بعد موافقتك."}
             </span>
           </div>
         </div>
