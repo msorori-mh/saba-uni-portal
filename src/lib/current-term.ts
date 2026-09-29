@@ -14,6 +14,13 @@ export type CurrentTerm = {
   semester: CurrentSemester;
 };
 
+/** Avoid showing the academic year twice when the semester name already includes it. */
+export function currentTermLabel(term: { year: string | null; semester: string | null }): string {
+  const year = term.year?.trim() ?? "";
+  const semester = term.semester?.trim() ?? "";
+  return [semester, year && !semester.includes(year) ? year : ""].filter(Boolean).join(" — ");
+}
+
 export type TermScopedEnrollment = {
   section: {
     offering: {

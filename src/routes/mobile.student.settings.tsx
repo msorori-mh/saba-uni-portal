@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { KeyRound, Loader2, LogOut, Settings2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,21 @@ export const Route = createFileRoute("/mobile/student/settings")({
 /** Auth actions only — no privileged/admin surface is reachable from here. */
 function MobileStudentSettings() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: mustChangePassword, isPending, isError } = useQuery({
+    queryKey: ["mobile-student", "must-change-password"],
+    queryFn: async () => {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error("تعذّر التحقق من الحساب");
+      const { data, error } = await supabase.from("student_profiles")
+        .select("must_change_password").eq("user_id", auth.user.id).single();
+      if (error || !data) throw new Error("تعذّر التحقق من حالة كلمة المرور");
+      return data.must_change_password;
+    },
+    staleTime: 0,
+  });
+  const [currentPassword, setCurrentPassword] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -24,6 +40,10 @@ function MobileStudentSettings() {
     e.preventDefault();
     setError(null);
     setDone(false);
+    if (!currentPassword) {
+      setError("أدخل كلمة المرور الحالية للتحقق من هويتك");
+      return;
+    }
     if (pwd.length < 8) {
       setError("يجب أن لا تقل كلمة المرور عن 8 أحرف");
       return;
@@ -34,12 +54,18 @@ function MobileStudentSettings() {
     }
     setBusy(true);
     try {
-      const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
+      const { error: updErr } = await supabase.auth.updateUser({
+        password: pwd,
+        current_password: currentPassword,
+      });
       if (updErr) throw updErr;
       const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
       if (rpcErr) throw rpcErr;
+      await queryClient.invalidateQueries({ queryKey: ["mobile-student", "must-change-password"] });
+      await router.invalidate();
       setPwd("");
       setConfirm("");
+      setCurrentPassword("");
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر تغيير كلمة المرور");
@@ -53,17 +79,34 @@ function MobileStudentSettings() {
     navigate({ to: "/mobile/student-login", replace: true });
   };
 
+  // Fail closed while the account's first-login password state is unknown.
+  if (isPending || isError) {
+    return <div dir="rtl" role="status" className="p-6 text-center text-sm">
+      {isPending ? "جارٍ التحقق من الحساب…" : "تعذّر التحقق من الحساب. أعد تسجيل الدخول."}
+    </div>;
+  }
+
   return (
     <div className="px-4 py-5 space-y-4" dir="rtl">
       <h1 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
         <Settings2 className="h-5 w-5 text-gold" /> الإعدادات
       </h1>
 
+      {mustChangePassword && <p role="alert" className="rounded-xl border border-gold/40 bg-card p-4 text-sm font-bold">
+        يجب تغيير كلمة المرور الأولية قبل استخدام تطبيق الطالب.
+      </p>}
+
       <section className="rounded-2xl border border-gold/40 bg-card p-4 shadow-card space-y-3">
         <div className="flex items-center gap-2 text-sm font-extrabold text-primary">
           <KeyRound className="h-4 w-4 text-gold" /> تغيير كلمة المرور
         </div>
         <form onSubmit={onChangePassword} className="space-y-3">
+          <PasswordInput
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="كلمة المرور الحالية"
+            autoComplete="current-password"
+          />
           <PasswordInput
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
@@ -96,9 +139,9 @@ function MobileStudentSettings() {
         </form>
       </section>
 
-      <MobileSecuritySettings />
+      {!mustChangePassword && <MobileSecuritySettings />}
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-card space-y-2">
+      {!mustChangePassword && <section className="rounded-2xl border border-border bg-card p-4 shadow-card space-y-2">
         <div className="text-sm font-extrabold text-primary">معلومات التطبيق</div>
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-muted-foreground">التطبيق</span>
@@ -108,7 +151,7 @@ function MobileStudentSettings() {
           <span className="text-muted-foreground">النطاق</span>
           <span className="font-bold text-primary">بوابة الطالب فقط</span>
         </div>
-      </section>
+      </section>}
 
       <button
         type="button"

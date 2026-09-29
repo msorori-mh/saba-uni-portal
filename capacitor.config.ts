@@ -23,12 +23,11 @@ const config: CapacitorConfig = {
     url: "https://quboolye.com/mobile/student-login",
     cleartext: false,
     androidScheme: "https",
-    // Minimum navigation allowlist: the official portal origin plus the
-    // backend host the student app actually calls. No preview-host fallback.
+    // WebView navigation stays on the official portal. fetch() to the API
+    // host is independent of the allowNavigation list.
     allowNavigation: [
       "quboolye.com",
       "www.quboolye.com",
-      "wpmicqriltrowwonknox.supabase.co",
     ],
   },
   android: {

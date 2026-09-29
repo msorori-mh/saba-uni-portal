@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Download, Loader2, Printer, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isNativePlatform } from "@/lib/native/platform";
 import { logDocumentAction } from "@/lib/document-audit.functions";
 import { getOfficialDocumentSignedUrl } from "@/lib/documents/official-document-download.functions";
 import {
@@ -198,7 +199,7 @@ function MobileDocumentView() {
             {busy === "download" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
             تنزيل PDF
           </button>
-          <button
+          {!isNativePlatform() && <button
             type="button"
             onClick={onPrint}
             disabled={!downloadable || busy !== null}
@@ -207,7 +208,7 @@ function MobileDocumentView() {
           >
             {busy === "print" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
             {printActionLabel()}
-          </button>
+          </button>}
         </div>
       </div>
 
