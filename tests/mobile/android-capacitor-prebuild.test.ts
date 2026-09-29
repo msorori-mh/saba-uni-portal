@@ -104,7 +104,8 @@ describe("capacitor config contract", () => {
     expect(config).not.toContain('"*.quboolye.com"');
     expect(config).toContain('"quboolye.com"');
     expect(config).toContain('"www.quboolye.com"');
-    expect(config).toContain('"wpmicqriltrowwonknox.supabase.co"');
+    // API fetch does not require the backend to be a WebView navigation target.
+    expect(config).not.toContain('"wpmicqriltrowwonknox.supabase.co"');
   });
 });
 
