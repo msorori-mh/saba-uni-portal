@@ -208,17 +208,6 @@ function AdminRequestsPage() {
           >
             صندوق المعالجة
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("legacy")}
-            className={`px-3 py-1.5 rounded-md transition-colors ${
-              viewMode === "legacy"
-                ? "bg-card text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            العرض التقليدي
-          </button>
         </div>
       </div>
 
@@ -1067,4 +1056,3 @@ function EquivalencyCoursesReview({ requestId, courses }: { requestId: string; c
     </div>
   );
 }
-

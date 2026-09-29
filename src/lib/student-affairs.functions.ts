@@ -1073,6 +1073,7 @@ export const actOnStudentServiceRequest = createServerFn({ method: "POST" })
     notes: z.string().trim().max(4000).optional().nullable(),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    throw new Error("نفّذ الإجراء من صندوق المعالجة وخطوة الطلب المعيّنة");
     return performRequestAction({
       userId: context.userId,
       requestId: data.requestId,
@@ -1085,13 +1086,16 @@ export const actOnStudentServiceRequest = createServerFn({ method: "POST" })
 export const returnStudentServiceRequestForCompletion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ requestId: z.string().uuid(), notes: z.string().trim().min(1).max(4000) }).parse(input))
-  .handler(async ({ data, context }) => performRequestAction({
+  .handler(async ({ data, context }) => {
+    throw new Error("نفّذ الإرجاع من صندوق المعالجة وخطوة الطلب المعيّنة");
+    return performRequestAction({
     userId: context.userId,
     requestId: data.requestId,
     action: "return_for_completion",
     notes: data.notes,
     sessionClient: context.supabase,
-  }));
+    });
+  });
 
 export const cancelStudentServiceRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
