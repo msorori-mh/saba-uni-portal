@@ -9,6 +9,7 @@ DECLARE
 BEGIN
   FOREACH signature IN ARRAY ARRAY[
     'link_staff_profile_account(uuid,uuid)',
+    'reconcile_department_head_council_memberships(uuid)',
     'check_and_record_rate_limit(text,text,integer,integer,integer)',
     'audit_resolve_role(uuid)',
     'count_admins()',
