@@ -100,7 +100,7 @@ function GraduateSelfLists({ graduateRecordId }: { graduateRecordId: string }) {
                 <div className="text-[13px] font-extrabold text-primary">{o.title}</div>
                 <div className="text-[11px] text-muted-foreground">
                   {o.employer_name ?? "—"}
-                  {o.closes_at ? ` · حتى ${new Date(o.closes_at).toLocaleDateString("ar")}` : ""}
+                  {o.closes_at ? ` · حتى ${new Date(o.closes_at).toLocaleDateString("ar-EG-u-nu-latn")}` : ""}
                 </div>
               </li>
             ))}
@@ -120,7 +120,7 @@ function GraduateSelfLists({ graduateRecordId }: { graduateRecordId: string }) {
               <li key={e.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-card">
                 <div className="text-[13px] font-extrabold text-primary">{e.title}</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {new Date(e.starts_at).toLocaleString("ar")}
+                  {new Date(e.starts_at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               </li>
             ))}

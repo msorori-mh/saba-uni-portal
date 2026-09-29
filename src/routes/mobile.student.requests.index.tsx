@@ -288,8 +288,8 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
                 </div>
                 <div className="mt-2 text-[10px] text-muted-foreground">
                   {request.submitted_at
-                    ? `أُرسل: ${new Date(request.submitted_at).toLocaleDateString("ar-EG")}`
-                    : `أُنشئ: ${new Date(request.created_at).toLocaleDateString("ar-EG")}`}
+                    ? `أُرسل: ${new Date(request.submitted_at).toLocaleDateString("ar-EG-u-nu-latn")}`
+                    : `أُنشئ: ${new Date(request.created_at).toLocaleDateString("ar-EG-u-nu-latn")}`}
                 </div>
               </Link>
             );
