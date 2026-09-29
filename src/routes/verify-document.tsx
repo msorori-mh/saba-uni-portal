@@ -70,12 +70,20 @@ function dateLabel(value: string | null) {
 function VerifyDocumentPage() {
   const search = Route.useSearch();
   const [token, setToken] = useState(search.code ?? search.token ?? "");
+  const [documentAudience, setDocumentAudience] = useState<"student" | "staff">(
+    search.token !== undefined ? "staff" : "student",
+  );
   const [state, setState] = useState<StaffDocumentVerification | null>(null);
   const [studentState, setStudentState] = useState<StudentDocumentVerification | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { setToken(search.code ?? search.token ?? ""); setState(null); setStudentState(null); }, [search.code, search.token]);
+  useEffect(() => {
+    setToken(search.code ?? search.token ?? "");
+    setDocumentAudience(search.token !== undefined ? "staff" : "student");
+    setState(null);
+    setStudentState(null);
+  }, [search.code, search.token]);
 
   async function check(value: string) {
     setLoading(true);
@@ -83,7 +91,7 @@ function VerifyDocumentPage() {
     setState(null);
     setStudentState(null);
     try {
-      if (search.code !== undefined) {
+      if (documentAudience === "student") {
         const { data, error: verifyError } = await supabase.rpc("verify_document", { _query: value.trim() });
         if (verifyError) throw verifyError;
         setStudentState(data as StudentDocumentVerification);
@@ -116,6 +124,18 @@ function VerifyDocumentPage() {
           أدخل رمز التحقق المطبوع على الوثيقة أو امسح رمز QR الخاص بها. لا تُعرض
           أي بيانات شخصية أو مالية في هذه الصفحة.
         </p>
+
+        <div className="mb-4 flex gap-2" role="group" aria-label="نوع الوثيقة">
+          {(["student", "staff"] as const).map((audience) => (
+            <button key={audience} type="button"
+              aria-pressed={documentAudience === audience}
+              onClick={() => { setDocumentAudience(audience); setState(null); setStudentState(null); setError(null); }}
+              className={`rounded-md border px-3 py-2 text-xs font-semibold ${documentAudience === audience ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground"}`}
+            >
+              {audience === "student" ? "وثيقة طالب" : "وثيقة موظف"}
+            </button>
+          ))}
+        </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
