@@ -30,6 +30,24 @@ test("PG17 enforces request, document, and grade role boundaries", async () => {
       await Bun.sleep(250);
     }
     expect(ready).toBe(true);
+    // pg_isready can see the temporary initdb server just before it restarts.
+    // Require a successful query on the final server before applying fixtures.
+    let queryReady = false;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const probe = docker(["exec", container, "psql", "-X", "-U", "postgres",
+        "-d", "postgres", "-c", "SELECT 1"]);
+      if (probe.status === 0) {
+        await Bun.sleep(500);
+        const stableProbe = docker(["exec", container, "psql", "-X", "-U", "postgres",
+          "-d", "postgres", "-c", "SELECT 1"]);
+        if (stableProbe.status === 0) {
+          queryReady = true;
+          break;
+        }
+      }
+      await Bun.sleep(500);
+    }
+    expect(queryReady).toBe(true);
     for (const file of files) {
       const sql = readFileSync(join(root, file), "utf8");
       const result = docker(["exec", "-i", container, "psql", "-X", "-v", "ON_ERROR_STOP=1",
