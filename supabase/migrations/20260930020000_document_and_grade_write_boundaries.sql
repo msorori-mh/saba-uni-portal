@@ -12,16 +12,23 @@ DECLARE v_section uuid;
 BEGIN
   v_section := CASE WHEN TG_OP = 'DELETE' THEN OLD.course_section_id ELSE NEW.course_section_id END;
   PERFORM pg_advisory_xact_lock(hashtext('grade-section:' || v_section::text));
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.course_section_id IS DISTINCT FROM NEW.course_section_id THEN
+      PERFORM pg_advisory_xact_lock(hashtext('grade-section:' || OLD.course_section_id::text));
+      IF EXISTS (
+        SELECT 1 FROM public.student_grades g
+        JOIN public.student_enrollments e ON e.id = g.student_enrollment_id
+        WHERE e.course_section_id = OLD.course_section_id AND g.status = 'approved'
+      ) THEN
+        RAISE EXCEPTION 'APPROVED_GRADE_COMPONENT_LOCKED' USING ERRCODE = '42501';
+      END IF;
+    END IF;
+  END IF;
   IF EXISTS (
     SELECT 1 FROM public.student_grades g
     JOIN public.student_enrollments e ON e.id = g.student_enrollment_id
     WHERE e.course_section_id = v_section AND g.status = 'approved'
-  ) OR (TG_OP = 'UPDATE' AND OLD.course_section_id IS DISTINCT FROM NEW.course_section_id
-    AND EXISTS (
-      SELECT 1 FROM public.student_grades g
-      JOIN public.student_enrollments e ON e.id = g.student_enrollment_id
-      WHERE e.course_section_id = OLD.course_section_id AND g.status = 'approved'
-    )) THEN
+  ) THEN
     RAISE EXCEPTION 'APPROVED_GRADE_COMPONENT_LOCKED' USING ERRCODE = '42501';
   END IF;
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;

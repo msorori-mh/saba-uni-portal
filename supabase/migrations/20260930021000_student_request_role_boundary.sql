@@ -39,6 +39,12 @@ BEGIN
   ) THEN
     RETURN NEW;
   END IF;
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status IS DISTINCT FROM 'draft' THEN
+      RAISE EXCEPTION 'REQUEST_WORKFLOW_SUBMISSION_REQUIRED' USING ERRCODE='42501';
+    END IF;
+    RETURN NEW;
+  END IF;
   IF NEW.id IS DISTINCT FROM OLD.id
      OR NEW.student_profile_id IS DISTINCT FROM OLD.student_profile_id
      OR NEW.request_type IS DISTINCT FROM OLD.request_type THEN
@@ -77,7 +83,7 @@ END $$;
 DROP TRIGGER IF EXISTS trg_guard_privileged_student_request_write
   ON public.student_requests;
 CREATE TRIGGER trg_guard_privileged_student_request_write
-  BEFORE UPDATE ON public.student_requests FOR EACH ROW
+  BEFORE INSERT OR UPDATE ON public.student_requests FOR EACH ROW
   EXECUTE FUNCTION public.guard_privileged_student_request_write();
 
 -- Privileged inserts cannot manufacture an already-approved request either.
