@@ -9,7 +9,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { openExternalUrl } from "@/lib/native/external-links";
 
 export const Route = createFileRoute("/mobile/student/documents/")({
   head: () => ({ meta: [{ title: "الوثائق الرسمية" }] }),
@@ -37,6 +36,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 const STATUS: Record<string, { text: string; cls: string }> = {
   issued: { text: "صادرة", cls: "bg-emerald-100 text-emerald-700" },
+  archived: { text: "مؤرشفة", cls: "bg-emerald-100 text-emerald-700" },
   cancelled: { text: "ملغاة", cls: "bg-destructive/10 text-destructive" },
   draft: { text: "مسودة", cls: "bg-muted text-muted-foreground" },
 };
@@ -152,11 +152,11 @@ function MobileStudentDocuments() {
                 <div>
                   تاريخ الإصدار:{" "}
                   <span className="font-mono">
-                    {new Date(d.issued_at).toLocaleDateString("ar-EG")}
+                    {new Date(d.issued_at).toLocaleDateString("ar-EG-u-nu-latn")}
                   </span>
                 </div>
                 <div>
-                  رمز التحقق: <span className="font-mono">{d.verification_code}</span>
+                  رمز التحقق: <span dir="ltr" className="inline-block max-w-full break-all align-top font-mono">{d.verification_code}</span>
                 </div>
               </div>
 
@@ -169,17 +169,13 @@ function MobileStudentDocuments() {
                 >
                   <Eye className="h-3.5 w-3.5" /> عرض الوثيقة
                 </Link>
-                <button
-                  type="button"
-                  onClick={() =>
-                    void openExternalUrl(
-                      `/verify-document?code=${encodeURIComponent(d.verification_code)}`,
-                    )
-                  }
+                <Link
+                  to="/verify-document"
+                  search={{ code: d.verification_code }}
                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-bold text-primary"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" /> تحقق
-                </button>
+                </Link>
               </div>
             </div>
           );
