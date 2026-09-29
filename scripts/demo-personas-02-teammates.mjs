@@ -27,11 +27,11 @@ for (const m of team) {
     throw error; // A fixture must never reset an existing user's credentials.
   } else userId = created.user.id;
 
-  const { data: sp, error: pe } = await admin.from('student_profiles').upsert({
+  const { data: sp, error: pe } = await admin.from('student_profiles').insert({
     user_id: userId, academic_number: m.num, full_name_ar: m.name, email: m.email,
     department_id: DEPT, program_id: PROG, status: 'active', must_change_password: false,
     study_system: 'regular',
-  }, { onConflict: 'academic_number' }).select('id').single();
+  }).select('id').single();
   if (pe) throw pe;
 
   const { data: st } = await admin.from('student_academic_status')
