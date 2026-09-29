@@ -21,4 +21,18 @@ describe("student mobile review fixes", () => {
     expect(route).not.toContain("student_name_ar");
     expect(route).not.toContain("academic_number");
   });
+
+  test("initial password flows provide the current password to Supabase Auth", () => {
+    for (const path of [
+      "src/routes/mobile.student.settings.tsx",
+      "src/routes/student.change-password.tsx",
+      "src/routes/staff.change-password.tsx",
+      "src/routes/faculty-portal.change-password.tsx",
+    ]) {
+      const route = read(path);
+      expect(route).toContain("current_password: currentPassword");
+      expect(route).toContain('autoComplete="current-password"');
+    }
+    expect(read("src/routes/mobile.student.settings.tsx")).toContain("mustChangePassword");
+  });
 });

@@ -54,14 +54,10 @@ function MobileStudentSettings() {
     }
     setBusy(true);
     try {
-      const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user?.email) throw new Error("تعذّر التحقق من الحساب");
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: auth.user.email,
-        password: currentPassword,
+      const { error: updErr } = await supabase.auth.updateUser({
+        password: pwd,
+        current_password: currentPassword,
       });
-      if (verifyError) throw new Error("كلمة المرور الحالية غير صحيحة");
-      const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
       if (updErr) throw updErr;
       const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
       if (rpcErr) throw rpcErr;
