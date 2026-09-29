@@ -31,7 +31,10 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'APPROVED_GRADE_COMPONENT_LOCKED' USING ERRCODE = '42501';
   END IF;
-  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END $$;
 
 DROP TRIGGER IF EXISTS trg_guard_approved_grade_component ON public.grade_components;
@@ -63,6 +66,12 @@ END $$;
 CREATE OR REPLACE FUNCTION public.guard_grade_approval_transition()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF auth.uid() IS NOT NULL AND OLD.status = 'approved' THEN
+      RAISE EXCEPTION 'GRADE_APPROVAL_RPC_REQUIRED' USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
   IF TG_OP = 'INSERT' THEN
     IF auth.uid() IS NOT NULL AND NEW.status = 'approved' THEN
       RAISE EXCEPTION 'GRADE_APPROVAL_RPC_REQUIRED' USING ERRCODE = '42501';
@@ -85,7 +94,7 @@ END $$;
 
 DROP TRIGGER IF EXISTS trg_guard_grade_approval_transition ON public.student_grades;
 CREATE TRIGGER trg_guard_grade_approval_transition
-  BEFORE INSERT OR UPDATE ON public.student_grades
+  BEFORE INSERT OR UPDATE OR DELETE ON public.student_grades
   FOR EACH ROW EXECUTE FUNCTION public.guard_grade_approval_transition();
 
 CREATE OR REPLACE FUNCTION public.approve_submitted_section_grades(

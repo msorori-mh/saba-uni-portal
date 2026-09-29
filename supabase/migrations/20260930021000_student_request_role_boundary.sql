@@ -92,3 +92,11 @@ ALTER POLICY sr_insert_priv ON public.student_requests
     public.has_any_role(auth.uid(), ARRAY['admin','system_admin','registrar','student_affairs'])
     AND status = 'draft'
   );
+
+-- Administrative cleanup may remove an unsubmitted draft only. Deleting an
+-- active or completed request would erase the workflow and its audit trail.
+ALTER POLICY sr_delete_admin ON public.student_requests
+  USING (
+    public.has_any_role(auth.uid(), ARRAY['admin','system_admin'])
+    AND status = 'draft'
+  );
