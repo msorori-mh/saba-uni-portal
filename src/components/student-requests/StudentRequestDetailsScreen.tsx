@@ -32,7 +32,7 @@ const STEP_STATUS_META: Record<
 
 function formatAmount(amount: number, currency: string): string {
   const rounded = Math.round(amount * 100) / 100;
-  return `${rounded.toLocaleString("ar-EG")} ${currency === "YER" ? "ريال يمني" : currency}`;
+  return `${rounded.toLocaleString("ar-EG-u-nu-latn")} ${currency === "YER" ? "ريال يمني" : currency}`;
 }
 
 function FeeStatusSection({ fee }: { fee: StudentFeeSummary }) {
@@ -69,7 +69,7 @@ function FeeStatusSection({ fee }: { fee: StudentFeeSummary }) {
           <div className="font-semibold">تم تأكيد السداد.</div>
           {fee.paymentConfirmedAt && (
             <div className="text-xs text-emerald-800/80">
-              بتاريخ: {new Date(fee.paymentConfirmedAt).toLocaleString("ar-EG")}
+              بتاريخ: {new Date(fee.paymentConfirmedAt).toLocaleString("ar-EG-u-nu-latn")}
             </div>
           )}
         </div>
@@ -130,10 +130,10 @@ function WorkflowTimelineSection({ steps }: { steps: StudentWorkflowTimelineStep
                 </div>
                 <div className="mt-1 space-y-0.5 text-[11px] opacity-80">
                   {step.enteredAt && (
-                    <div>بدأت: {new Date(step.enteredAt).toLocaleString("ar-EG")}</div>
+                    <div>بدأت: {new Date(step.enteredAt).toLocaleString("ar-EG-u-nu-latn")}</div>
                   )}
                   {step.completedAt && (
-                    <div>انتهت: {new Date(step.completedAt).toLocaleString("ar-EG")}</div>
+                    <div>انتهت: {new Date(step.completedAt).toLocaleString("ar-EG-u-nu-latn")}</div>
                   )}
                 </div>
               </div>
@@ -316,7 +316,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
               </div>
               {lastReturnEvent?.created_at && (
                 <div className="text-xs text-orange-800/80">
-                  بتاريخ: {new Date(lastReturnEvent.created_at).toLocaleString("ar-EG")}
+                  بتاريخ: {new Date(lastReturnEvent.created_at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               )}
             </div>
@@ -343,7 +343,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
               </div>
               {rejectionInfo.at && (
                 <div className="text-xs text-rose-800/80">
-                  بتاريخ: {new Date(rejectionInfo.at).toLocaleString("ar-EG")}
+                  بتاريخ: {new Date(rejectionInfo.at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               )}
             </div>
@@ -370,7 +370,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
               )}
               {cancellationInfo.at && (
                 <div className="text-xs text-zinc-700/80">
-                  بتاريخ: {new Date(cancellationInfo.at).toLocaleString("ar-EG")}
+                  بتاريخ: {new Date(cancellationInfo.at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               )}
             </div>
@@ -409,7 +409,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
                   <div className="font-mono text-xs text-muted-foreground">{doc.documentNumber}</div>
                   <div className="text-[11px] text-muted-foreground">
                     {DOCUMENT_STATUS_LABEL[doc.status] ?? doc.status}
-                    {doc.issuedAt && <> — {new Date(doc.issuedAt).toLocaleString("ar-EG")}</>}
+                    {doc.issuedAt && <> — {new Date(doc.issuedAt).toLocaleString("ar-EG-u-nu-latn")}</>}
                   </div>
                 </div>
                 {doc.isDownloadable ? (
@@ -446,7 +446,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
           ) : data.events.map((event: any) => (
             <div key={event.id} className="rounded-lg border border-border bg-background p-3 text-xs">
               <div className="font-bold">{STATUS_LABEL[event.event_type] ?? ({ created: "إنشاء الطلب", submitted: "إرسال الطلب", assigned: "تعيين المعالج", approved: "اعتماد", rejected: "رفض", returned: "إعادة للاستكمال" } as Record<string, string>)[event.event_type] ?? "تحديث الطلب"}</div>
-              <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG")}</div>
+              <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG-u-nu-latn")}</div>
               {event.notes && <div className="mt-1">{event.notes}</div>}
             </div>
           ))}
