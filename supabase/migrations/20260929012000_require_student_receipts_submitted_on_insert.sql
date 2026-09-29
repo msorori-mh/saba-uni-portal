@@ -1,8 +1,6 @@
 -- Only the student's own, unreviewed receipt may enter through the student
 -- insert path. Staff retain the existing privileged role-based insert path.
-DROP POLICY IF EXISTS pr_insert_student ON public.payment_receipts;
-CREATE POLICY pr_insert_student ON public.payment_receipts
-  FOR INSERT TO authenticated
+ALTER POLICY pr_insert_student ON public.payment_receipts
   WITH CHECK (
     public.has_any_role(auth.uid(), ARRAY['admin','system_admin','registrar','student_affairs'])
     OR (
