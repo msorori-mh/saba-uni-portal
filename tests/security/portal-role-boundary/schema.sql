@@ -32,6 +32,10 @@ CREATE TABLE public.student_grades(
  id uuid PRIMARY KEY,student_enrollment_id uuid,grade_component_id uuid,
  score numeric,status text,approved_at timestamptz,approved_by uuid
 );
+CREATE FUNCTION public.validate_student_grade() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+CREATE TRIGGER sg_validate BEFORE INSERT OR UPDATE ON public.student_grades
+FOR EACH ROW EXECUTE FUNCTION public.validate_student_grade();
 GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 CREATE POLICY sr_insert_priv ON public.student_requests FOR INSERT TO authenticated WITH CHECK(true);
 CREATE POLICY sr_delete_admin ON public.student_requests FOR DELETE TO authenticated USING(true);
