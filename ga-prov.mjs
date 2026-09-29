@@ -20,10 +20,10 @@ if (error) {
 } else userId = created.user.id;
 
 const academic_number = `${TAG}-G`;
-const { data: prof, error: pe } = await admin.from('student_profiles').upsert({
+const { data: prof, error: pe } = await admin.from('student_profiles').insert({
   user_id: userId, academic_number, full_name_ar: `خريج اختبار - ${TAG}`, email: EMAIL,
   department_id: DEPT, program_id: PROG, status: 'active', must_change_password: false,
-}, { onConflict: 'academic_number' }).select('id').single();
+}).select('id').single();
 if (pe) throw pe;
 await admin.from('user_roles').upsert({ user_id: userId, role: 'student' }, { onConflict: 'user_id,role' });
 
