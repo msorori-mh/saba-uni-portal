@@ -29,19 +29,22 @@ export const Route = createFileRoute("/mobile/student")({
       { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       throw redirect({ to: "/mobile/student-login" });
     }
     const { data: profile } = await supabase
       .from("student_profiles")
-      .select("user_id")
+      .select("user_id, must_change_password")
       .eq("user_id", data.user.id)
       .maybeSingle();
     if (!profile) {
       await supabase.auth.signOut();
       throw redirect({ to: "/mobile/student-login" });
+    }
+    if (profile.must_change_password && location.pathname !== "/mobile/student/settings") {
+      throw redirect({ to: "/mobile/student/settings" });
     }
   },
   component: MobileStudentLayout,

@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { KeyRound, Loader2, LogOut, Settings2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,20 @@ export const Route = createFileRoute("/mobile/student/settings")({
 /** Auth actions only — no privileged/admin surface is reachable from here. */
 function MobileStudentSettings() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: mustChangePassword, isPending, isError } = useQuery({
+    queryKey: ["mobile-student", "must-change-password"],
+    queryFn: async () => {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error("تعذّر التحقق من الحساب");
+      const { data, error } = await supabase.from("student_profiles")
+        .select("must_change_password").eq("user_id", auth.user.id).single();
+      if (error || !data) throw new Error("تعذّر التحقق من حالة كلمة المرور");
+      return data.must_change_password;
+    },
+    staleTime: 0,
+  });
   const [currentPassword, setCurrentPassword] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -50,6 +65,8 @@ function MobileStudentSettings() {
       if (updErr) throw updErr;
       const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
       if (rpcErr) throw rpcErr;
+      await queryClient.invalidateQueries({ queryKey: ["mobile-student", "must-change-password"] });
+      await router.invalidate();
       setPwd("");
       setConfirm("");
       setCurrentPassword("");
@@ -66,11 +83,22 @@ function MobileStudentSettings() {
     navigate({ to: "/mobile/student-login", replace: true });
   };
 
+  // Fail closed while the account's first-login password state is unknown.
+  if (isPending || isError) {
+    return <div dir="rtl" role="status" className="p-6 text-center text-sm">
+      {isPending ? "جارٍ التحقق من الحساب…" : "تعذّر التحقق من الحساب. أعد تسجيل الدخول."}
+    </div>;
+  }
+
   return (
     <div className="px-4 py-5 space-y-4" dir="rtl">
       <h1 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
         <Settings2 className="h-5 w-5 text-gold" /> الإعدادات
       </h1>
+
+      {mustChangePassword && <p role="alert" className="rounded-xl border border-gold/40 bg-card p-4 text-sm font-bold">
+        يجب تغيير كلمة المرور الأولية قبل استخدام تطبيق الطالب.
+      </p>}
 
       <section className="rounded-2xl border border-gold/40 bg-card p-4 shadow-card space-y-3">
         <div className="flex items-center gap-2 text-sm font-extrabold text-primary">
@@ -115,9 +143,9 @@ function MobileStudentSettings() {
         </form>
       </section>
 
-      <MobileSecuritySettings />
+      {!mustChangePassword && <MobileSecuritySettings />}
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-card space-y-2">
+      {!mustChangePassword && <section className="rounded-2xl border border-border bg-card p-4 shadow-card space-y-2">
         <div className="text-sm font-extrabold text-primary">معلومات التطبيق</div>
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-muted-foreground">التطبيق</span>
@@ -127,7 +155,7 @@ function MobileStudentSettings() {
           <span className="text-muted-foreground">النطاق</span>
           <span className="font-bold text-primary">بوابة الطالب فقط</span>
         </div>
-      </section>
+      </section>}
 
       <button
         type="button"
