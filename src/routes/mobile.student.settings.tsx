@@ -14,6 +14,7 @@ export const Route = createFileRoute("/mobile/student/settings")({
 /** Auth actions only — no privileged/admin surface is reachable from here. */
 function MobileStudentSettings() {
   const navigate = useNavigate();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -24,6 +25,10 @@ function MobileStudentSettings() {
     e.preventDefault();
     setError(null);
     setDone(false);
+    if (!currentPassword) {
+      setError("أدخل كلمة المرور الحالية للتحقق من هويتك");
+      return;
+    }
     if (pwd.length < 8) {
       setError("يجب أن لا تقل كلمة المرور عن 8 أحرف");
       return;
@@ -34,12 +39,20 @@ function MobileStudentSettings() {
     }
     setBusy(true);
     try {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user?.email) throw new Error("تعذّر التحقق من الحساب");
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: auth.user.email,
+        password: currentPassword,
+      });
+      if (verifyError) throw new Error("كلمة المرور الحالية غير صحيحة");
       const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
       if (updErr) throw updErr;
       const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
       if (rpcErr) throw rpcErr;
       setPwd("");
       setConfirm("");
+      setCurrentPassword("");
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر تغيير كلمة المرور");
@@ -64,6 +77,12 @@ function MobileStudentSettings() {
           <KeyRound className="h-4 w-4 text-gold" /> تغيير كلمة المرور
         </div>
         <form onSubmit={onChangePassword} className="space-y-3">
+          <PasswordInput
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="كلمة المرور الحالية"
+            autoComplete="current-password"
+          />
           <PasswordInput
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
