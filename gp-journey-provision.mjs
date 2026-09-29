@@ -25,10 +25,10 @@ for (const m of members) {
     throw error; // Existing identities must not have their credentials overwritten.
   } else userId = created.user.id;
   const academic_number = `${TAG}-${m.key}`;
-  const { data: prof, error: pe } = await admin.from('student_profiles').upsert({
+  const { data: prof, error: pe } = await admin.from('student_profiles').insert({
     user_id: userId, academic_number, full_name_ar: `${m.name} - ${TAG}`, email: m.email,
     department_id: DEPT, program_id: PROG, status: 'active', must_change_password: false,
-  }, { onConflict: 'academic_number' }).select('id').single();
+  }).select('id').single();
   if (pe) throw pe;
   const { data: existingAcademicStatus, error: statusReadError } = await admin.from('student_academic_status')
     .select('id').eq('student_profile_id', prof.id).limit(1);
