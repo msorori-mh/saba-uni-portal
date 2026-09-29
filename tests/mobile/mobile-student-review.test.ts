@@ -16,7 +16,8 @@ describe("student mobile review fixes", () => {
     expect(sql).toContain("WHERE upper(verification_code) = v_q");
     expect(sql).not.toMatch(/WHERE upper\(document_number\)\s*=/);
     const route = read("src/routes/verify-document.tsx");
-    expect(route).toContain('search.code !== undefined');
+    expect(route).toContain('documentAudience === "student"');
+    expect(route).toContain('search.token !== undefined ? "staff" : "student"');
     expect(route).not.toContain("student_name_ar");
     expect(route).not.toContain("academic_number");
   });
