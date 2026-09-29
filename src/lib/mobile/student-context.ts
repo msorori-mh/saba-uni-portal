@@ -8,6 +8,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCanonicalCurrentTerm, type CurrentTermClient } from "@/lib/current-term";
 import {
   resolveCanonicalCurrentFourthLevelEligibility,
   shouldShowStudentGpNav,
@@ -49,6 +50,7 @@ export const STUDENT_STATUS_LABELS_AR: Record<string, string> = {
 
 export const STUDY_SYSTEM_LABELS_AR: Record<string, string> = {
   general: "عام",
+  regular: "انتظام",
   private_expense: "نفقة خاصة",
 };
 
@@ -75,16 +77,21 @@ export async function fetchMobileStudentContext(): Promise<MobileStudentContext>
   const profile = (data as unknown as MobileStudentProfile) ?? null;
   if (!profile) return empty;
 
-  const { data: acad } = await supabase
+  const [acadResult, currentTerm] = await Promise.all([
+    supabase
     .from("student_academic_status")
     .select(
-      "id, level_id, created_at, updated_at, level:academic_levels(level_number, name), semester:semesters(name), academic_year:academic_years(name)",
+      "id, level_id, academic_year_id, semester_id, created_at, updated_at, level:academic_levels(level_number, name), semester:semesters(name), academic_year:academic_years(name)",
     )
-    .eq("student_profile_id", profile.id);
+    .eq("student_profile_id", profile.id),
+    fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient).catch(() => null),
+  ]);
 
-  const rows = (acad ?? []) as unknown as AcademicStatusTimestampRow[];
+  const rows = (acadResult.data ?? []) as unknown as AcademicStatusTimestampRow[];
   const canonical = resolveCanonicalCurrentFourthLevelEligibility(rows);
-  const current = canonical.current as unknown as
+  const current = rows.find((row) => currentTerm &&
+    (row as AcademicStatusTimestampRow & { academic_year_id?: string; semester_id?: string }).academic_year_id === currentTerm.year.id &&
+    (row as AcademicStatusTimestampRow & { academic_year_id?: string; semester_id?: string }).semester_id === currentTerm.semester.id) as unknown as
     | {
         level?: { name?: string | null } | null;
         semester?: { name?: string | null } | null;
@@ -104,7 +111,11 @@ export async function fetchMobileStudentContext(): Promise<MobileStudentContext>
           semesterName: current.semester?.name ?? null,
           academicYearName: current.academic_year?.name ?? null,
         }
-      : null,
+      : currentTerm ? {
+          levelName: null,
+          semesterName: currentTerm.semester.name,
+          academicYearName: currentTerm.year.name,
+        } : null,
   };
 }
 
