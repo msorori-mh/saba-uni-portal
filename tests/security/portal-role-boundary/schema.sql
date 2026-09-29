@@ -34,6 +34,7 @@ CREATE TABLE public.student_grades(
 );
 GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 CREATE POLICY sr_insert_priv ON public.student_requests FOR INSERT TO authenticated WITH CHECK(true);
+CREATE POLICY sr_delete_admin ON public.student_requests FOR DELETE TO authenticated USING(true);
 CREATE FUNCTION public.issue_official_document(uuid,text,jsonb) RETURNS jsonb
 LANGUAGE sql AS $$ SELECT '{}'::jsonb $$;
 GRANT EXECUTE ON FUNCTION public.issue_official_document(uuid,text,jsonb) TO authenticated;
