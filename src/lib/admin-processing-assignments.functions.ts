@@ -4,6 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildProfileDirectory } from "@/lib/admin/auth-users-directory.server";
 import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 
+import { validateAssignmentIdentity, type AssignmentIdentity } from "@/lib/processing-assignment-identity";
+
 const PROCESSING_ASSIGNMENT_ADMIN_ROLES = ["admin", "system_admin"] as const;
 
 async function assertProcessingAssignmentAdmin(userId: string) {
@@ -73,8 +75,8 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
           .from("request_processing_assignments")
           .select("id, unit_id, role_id, assignment_type, user_id, faculty_profile_id, staff_profile_id, is_active, starts_at, ends_at, created_at")
           .eq("is_active", true),
-        supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
-        supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
+        supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number"),
+        supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number"),
         buildProfileDirectory(),
         supabaseAdmin.from("staff_profile_departments").select("staff_profile_id, department_id"),
         supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true),
@@ -83,6 +85,8 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
     if (unitsRes.error) throw new Error(unitsRes.error.message);
     if (rolesRes.error) throw new Error(rolesRes.error.message);
     if (assignRes.error) throw new Error(assignRes.error.message);
+    if (facultyRes.error) throw new Error(facultyRes.error.message);
+    if (staffRes.error) throw new Error(staffRes.error.message);
     if (deptLinksRes.error) throw new Error(deptLinksRes.error.message);
     if (deptsRes.error) throw new Error(deptsRes.error.message);
 
@@ -91,6 +95,9 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
     const nameByUser = new Map<string, string>();
     for (const r of facultyRes.data ?? []) if (r.user_id) nameByUser.set(r.user_id, r.full_name_ar);
     for (const r of staffRes.data ?? []) if (r.user_id) nameByUser.set(r.user_id, r.full_name_ar);
+
+    const facultyById = new Map((facultyRes.data ?? []).map((p) => [p.id, p]));
+    const staffById = new Map((staffRes.data ?? []).map((p) => [p.id, p]));
 
     const deptNameById = new Map<string, string>();
     for (const d of deptsRes.data ?? []) deptNameById.set(d.id, d.name_ar);
@@ -106,13 +113,19 @@ export const listProcessingAssignments = createServerFn({ method: "GET" })
       units: unitsRes.data ?? [],
       roles: rolesRes.data ?? [],
       assignments: (assignRes.data ?? []).map((a) => {
+        const profile = a.assignment_type === "faculty_profile" && a.faculty_profile_id
+          ? facultyById.get(a.faculty_profile_id)
+          : a.assignment_type === "staff_profile" && a.staff_profile_id
+            ? staffById.get(a.staff_profile_id) : undefined;
+        const profileAssignment = a.assignment_type === "faculty_profile" || a.assignment_type === "staff_profile";
+        const effectiveUserId = profileAssignment ? profile?.user_id : a.user_id;
         const departmentIds = a.staff_profile_id
           ? [...new Set(deptIdsByStaff.get(a.staff_profile_id) ?? [])].toSorted()
           : [];
         return {
           ...a,
-          user_email: a.user_id ? emailByUser.get(a.user_id) ?? null : null,
-          user_name: a.user_id ? nameByUser.get(a.user_id) ?? null : null,
+          user_email: effectiveUserId ? emailByUser.get(effectiveUserId) ?? null : null,
+          user_name: profileAssignment ? profile?.full_name_ar ?? null : (effectiveUserId ? nameByUser.get(effectiveUserId) ?? null : null),
           department_ids: departmentIds,
           department_names: departmentIds
             .map((id) => deptNameById.get(id))
@@ -133,12 +146,15 @@ export const listAssignmentCandidates = createServerFn({ method: "GET" })
     const facultyOnly = isFacultyOnlyRoleCode(data.role_code);
 
     const [faculty, staff, auth] = await Promise.all([
-      supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
+      supabaseAdmin.from("faculty_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null).eq("status", "active"),
       facultyOnly
         ? Promise.resolve({ data: [] as Array<{ id: string; user_id: string | null; full_name_ar: string; employee_number: string | null }>, error: null })
-        : supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null),
+        : supabaseAdmin.from("staff_profiles").select("id, user_id, full_name_ar, employee_number").not("user_id", "is", null).eq("status", "active"),
       buildProfileDirectory(),
     ]);
+
+    if (faculty.error) throw new Error(faculty.error.message);
+    if (staff.error) throw new Error(staff.error.message);
 
     const emailByUser = new Map<string, string>();
     for (const u of auth) if (u.email) emailByUser.set(u.user_id, u.email);
@@ -182,10 +198,12 @@ export const listAssignmentCandidates = createServerFn({ method: "GET" })
 
 export const createProcessingAssignment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { role_id: string; user_id: string; notes?: string }) =>
+  .inputValidator((input: AssignmentIdentity & { role_id: string; notes?: string }) =>
     z.object({
       role_id: z.string().uuid(),
       user_id: z.string().uuid(),
+      profile_id: z.string().uuid(),
+      profile_kind: z.enum(["faculty", "staff"]),
       notes: z.string().max(500).optional(),
     }).parse(input))
   .handler(async ({ data, context }) => {
@@ -207,48 +225,31 @@ export const createProcessingAssignment = createServerFn({ method: "POST" })
     // Managerial roles stay singleton; specialist/non-managerial roles allow many.
     const { data: dup, error: dupErr } = await supabaseAdmin
       .from("request_processing_assignments")
-      .select("id, user_id")
+      .select("id, user_id, faculty_profile_id, staff_profile_id")
       .eq("role_id", data.role_id)
       .eq("is_active", true);
     if (dupErr) throw new Error(dupErr.message);
-    if ((dup ?? []).some((row) => row.user_id === data.user_id)) {
+    if ((dup ?? []).some((row) => row.user_id === data.user_id
+      || (data.profile_kind === "faculty" ? row.faculty_profile_id : row.staff_profile_id) === data.profile_id)) {
       throw new Error("يوجد بالفعل إسناد نشط لهذا المستخدم على نفس الدور.");
     }
     if (!allowsMultipleActiveAssignees(role) && (dup ?? []).length > 0) {
       throw new Error("يوجد إسناد نشط آخر لهذا الدور. عطّله أولاً قبل إضافة إسناد جديد.");
     }
 
-    // Faculty-only roles must pick a faculty user.
-    let assignmentType: "faculty_profile" | "staff_profile" | "user" = "user";
-    let facultyProfileId: string | null = null;
-    let staffProfileId: string | null = null;
-
-    const { data: fp } = await supabaseAdmin
-      .from("faculty_profiles")
-      .select("id, user_id")
-      .eq("user_id", data.user_id)
-      .maybeSingle();
-    const { data: sp } = fp
-      ? { data: null as { id: string } | null }
-      : await supabaseAdmin
-          .from("staff_profiles")
-          .select("id, user_id")
-          .eq("user_id", data.user_id)
-          .maybeSingle();
-
-    if (isFacultyOnlyRoleCode(role.code)) {
-      if (!fp) throw new Error("هذا الدور يتطلب اختيار عضو هيئة تدريس.");
-      assignmentType = "faculty_profile";
-      facultyProfileId = fp.id;
-    } else if (fp) {
-      assignmentType = "faculty_profile";
-      facultyProfileId = fp.id;
-    } else if (sp) {
-      assignmentType = "staff_profile";
-      staffProfileId = sp.id;
-    } else {
-      assignmentType = "user";
+    if (isFacultyOnlyRoleCode(role.code) && data.profile_kind !== "faculty") {
+      throw new Error("هذا الدور يتطلب اختيار عضو هيئة تدريس.");
     }
+    const { data: selectedProfile, error: profileErr } = await supabaseAdmin
+      .from(data.profile_kind === "faculty" ? "faculty_profiles" : "staff_profiles")
+      .select("id, user_id, status")
+      .eq("id", data.profile_id)
+      .maybeSingle();
+    if (profileErr) throw new Error(profileErr.message);
+    validateAssignmentIdentity(data, selectedProfile);
+    const assignmentType = data.profile_kind === "faculty" ? "faculty_profile" : "staff_profile";
+    const facultyProfileId = data.profile_kind === "faculty" ? data.profile_id : null;
+    const staffProfileId = data.profile_kind === "staff" ? data.profile_id : null;
 
     const nowIso = new Date().toISOString();
     const { data: inserted, error: insErr } = await supabaseAdmin
@@ -278,6 +279,8 @@ export const createProcessingAssignment = createServerFn({ method: "POST" })
         unit_id: role.unit_id,
         user_id: data.user_id,
         assignment_type: assignmentType,
+        faculty_profile_id: facultyProfileId,
+        staff_profile_id: staffProfileId,
       },
     });
 

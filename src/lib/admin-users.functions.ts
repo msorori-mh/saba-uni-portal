@@ -248,7 +248,7 @@ async function migrateUserRoles(fromUserId: string, toUserId: string): Promise<v
   }
 }
 
-function defaultRoleForProfile(kind: AccountKind, profile: Record<string, unknown>): string {
+function defaultRoleForProfile(kind: AccountKind, profile: Record<string, unknown>): string | null {
   if (kind === "student") return "student";
   if (kind === "faculty") return "faculty_member";
   return staffRoleFor(profile.role_type as string | null | undefined);
@@ -262,6 +262,7 @@ async function ensureProfileRoles(
 ): Promise<void> {
   const roles = preferredRoles?.length ? preferredRoles : [defaultRoleForProfile(kind, profile)];
   for (const role of roles) {
+    if (!role) continue;
     const { data: exists } = await supabaseAdmin
       .from("user_roles")
       .select("id")
@@ -273,14 +274,13 @@ async function ensureProfileRoles(
     }
   }
 }
-function staffRoleFor(roleType: string | null | undefined): string {
-  if (!roleType) return "registrar";
-  return staffFunctionalRoleToAppRole(roleType) ?? "registrar";
+function staffRoleFor(roleType: string | null | undefined): string | null {
+  return roleType ? staffFunctionalRoleToAppRole(roleType) : null;
 }
 
 /** Map operational app_role (+ staff role_type) to roles_catalog code for user_role_assignments sync. */
-function catalogCodeForAccount(kind: AccountKind, appRole: string, staffRoleType?: string | null): string | null {
-  if (kind === "student") return null;
+function catalogCodeForAccount(kind: AccountKind, appRole: string | null, staffRoleType?: string | null): string | null {
+  if (kind === "student" || !appRole) return null;
   if (kind === "faculty") return "faculty_member";
   switch (staffRoleType) {
     case "admin":
@@ -295,9 +295,6 @@ function catalogCodeForAccount(kind: AccountKind, appRole: string, staffRoleType
     case "graduate_affairs_manager":
     case "graduate_affairs_specialist":
     case "archive_officer":
-    case "library_officer":
-    case "labs_manager":
-    case "lab_custodian":
     case "student_affairs":
     case "lab_manager":
     case "lab_keeper":
@@ -651,14 +648,16 @@ export const createAccount = createServerFn({ method: "POST" })
         : data.kind === "faculty"
           ? "faculty_member"
           : staffRoleFor((profile as any).role_type);
-    const { data: existingRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("id")
-      .eq("user_id", newUserId!)
-      .eq("role", role as any)
-      .maybeSingle();
-    if (!existingRole) {
-      await supabaseAdmin.from("user_roles").insert({ user_id: newUserId!, role: role as any });
+    if (role) {
+      const { data: existingRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", newUserId!)
+        .eq("role", role as any)
+        .maybeSingle();
+      if (!existingRole) {
+        await supabaseAdmin.from("user_roles").insert({ user_id: newUserId!, role: role as any });
+      }
     }
 
     await syncCatalogRoleAssignment(
@@ -997,7 +996,7 @@ function portalRolesForKind(kind: AccountKind, profile: Record<string, unknown>)
       : kind === "faculty"
         ? ["faculty_member"]
         : [staffRoleFor(profile.role_type as string | null | undefined)];
-  return roles.filter((r) => !PRIVILEGED_ROLES_NEVER_STRIPPED.has(r));
+  return roles.filter((r): r is string => r != null && !PRIVILEGED_ROLES_NEVER_STRIPPED.has(r));
 }
 
 async function removePortalRolesOnly(

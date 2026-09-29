@@ -5,7 +5,7 @@
 import type { Database } from "@/integrations/supabase/types";
 import {
   ALLOWED_STAFF_ROLE_TYPES_CREATE,
-  ALLOWED_STAFF_ROLE_TYPES_UPDATE,
+  ALLOWED_STAFF_ROLE_TYPES_UPDATE as ROLE_TYPES_UPDATE,
   staffFunctionalRoleLabel,
   staffFunctionalRoleToAppRole,
   staffRoleFilterOptions,
@@ -22,7 +22,7 @@ export const STAFF_ROLE_TYPES = staffRoleFormOptionsForCreate();
 
 export const ALLOWED_STAFF_ROLE_TYPES = ALLOWED_STAFF_ROLE_TYPES_CREATE;
 
-export const ALLOWED_STAFF_ROLE_TYPES_UPDATE = ALLOWED_STAFF_ROLE_TYPES_UPDATE;
+export const ALLOWED_STAFF_ROLE_TYPES_UPDATE = ROLE_TYPES_UPDATE;
 
 export {
   staffFunctionalRoleLabel,
