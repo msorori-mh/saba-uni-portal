@@ -445,7 +445,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
             <div className="text-sm text-muted-foreground">لا توجد أحداث بعد.</div>
           ) : data.events.map((event: any) => (
             <div key={event.id} className="rounded-lg border border-border bg-background p-3 text-xs">
-              <div className="font-bold">{event.event_type}</div>
+              <div className="font-bold">{STATUS_LABEL[event.event_type] ?? ({ created: "إنشاء الطلب", submitted: "إرسال الطلب", assigned: "تعيين المعالج", approved: "اعتماد", rejected: "رفض", returned: "إعادة للاستكمال" } as Record<string, string>)[event.event_type] ?? "تحديث الطلب"}</div>
               <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG")}</div>
               {event.notes && <div className="mt-1">{event.notes}</div>}
             </div>
