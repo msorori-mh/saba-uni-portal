@@ -1,0 +1,39 @@
+# Student requests — isolated staging reality gate (2026-09-30)
+
+**Decision: HOLD for workflow/security migration apply and student-service E2E.**
+
+## Target and authority
+
+- Lovable project: `22d3d5e2-d6e7-4650-be76-51ebc0cd0935` (`saba-uni-portal-staging-isolated`).
+- Its `supabase/config.toml` identifies backend `ldjhuutywqhjxabdotmn`; production is `wpmicqriltrowwonknox`.
+- Read-only SQL was executed in this staging project's Cloud SQL editor. No production access, DDL, DML, migration apply, request update, or visibility change occurred.
+- Source under review: draft integration PR #420 (security PRs #415–#419); its migrations have not been promoted by this gate.
+
+## Observed baseline
+
+| Check | Staging observation |
+| --- | --- |
+| Public tables / functions | 210 / 649 |
+| `request_types` / workflow definitions / student requests | 6 / 1 / 10 |
+| Canonical services | Only `excused_absence` exists; active type, `student_visible=false`, one nonempty active workflow |
+| Other request types | Five `test03u_*` / `test04b_*` types, all active and student-visible |
+| `excused_absence` workflow | `wf_excused_absence_03u`: specialist intake → student affairs manager review → specialist record apply; all three steps free and without document issuance |
+| Submitted/in-review requests without runtime steps | 5, all staging test types: `test04b_general_inquiry` submitted 2 and under_review 1; `test03u_enrollment_letter` submitted 1; `test03u_grade_review` in_review 1 |
+| `submit_student_request(uuid)` | Exists, but its definition lacks the #418 fail-closed marker `STUDENT_REQUEST_WORKFLOW_INITIALIZATION_FAILED` |
+| Migration history | Five Lovable-recorded versions: `20260826014239`, `20260906194830`, `20260906202259`, `20260906204201`, `20260906233120` |
+
+The repository has 430 migration files at the integrated source baseline. The five staging history entries use Lovable-generated names; their count is **not** evidence that exactly 425 SQL files must be replayed. Staging already has substantial schema objects. Replaying all repository migrations without a schema/object-level reconciliation could conflict with existing objects and test records.
+
+The five orphan requests are test data in staging. They do not prove whether the previously observed production enrollment-certificate request is orphaned. Conversely, the isolated staging database cannot currently prove the certificate, transfer, suspension, withdrawal, final-chance, October, card, or appeal lifecycles: their request-type rows are absent there.
+
+## Required gates before apply
+
+1. Capture a restorable staging baseline and export a schema-only object inventory plus the complete five migration bodies or equivalent canonical provenance. Preserve existing test rows.
+2. Reconcile existing tables/functions/policies/triggers with the source migrations, in dependency order. Produce a forward-only, staging-specific apply manifest with exact SQL hashes, expected preconditions, and rollback/restore path. Do not mark unapplied source migration versions as applied merely to make history appear aligned.
+3. Review the intended type catalog and workflows, including `student_visible` decisions. This gate does not authorize any visibility update.
+4. Apply only the reviewed manifest to isolated staging under explicit stage authorization, with pre/post schema and row-count checks. Stop at the first mismatch.
+5. Re-run the read-only lifecycle inventory in `20260930-student-request-lifecycle-readonly-preflight.sql`, then RPC role matrix and one test-only request per service. Revisit production only after separate release authorization and evidence.
+
+## Evidence and limits
+
+Read-only queries used `to_regclass`, `pg_proc` marker inspection, `request_types`, workflow definitions and steps, aggregate `student_requests`, and `supabase_migrations.schema_migrations`. The Cloud editor displayed the result rows. This was a targeted inventory, not execution of every statement in the companion preflight file or a full schema diff. No student identifiers or request IDs were exported.
