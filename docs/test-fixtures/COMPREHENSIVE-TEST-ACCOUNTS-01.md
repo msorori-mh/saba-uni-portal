@@ -2,6 +2,8 @@
 
 Target: an isolated test backend with the same approved source release as the application. The current isolated backend has 5 recorded migrations (latest `20260906233120`), 28 linked students, 4 active faculty, 7 active staff, 3 active council memberships, 1 active position assignment, and 1 active request-processing assignment as observed on 2026-09-30. Source baseline: `main@cfe5c2190fe4d153b7af07262f57ebff0830624d`. These counts do not establish release parity or account usability.
 
+Cloudflare staging's `GET https://saba-uni-portal-staging.msorori201201.workers.dev/version.json` returned `52d33753cf3d2f7988f08f38e2d15ca220c20904` on 2026-09-30; that commit is a 2026-09-06 ancestor of current `main`. The Lovable staging-03u root responds `302 Location: https://uniportaltest.com/` and is therefore not a reliable isolated test entry point. App-source parity is definitively **FAIL** until a controlled staging deployment pins the intended release SHA. Do not provision a purportedly current-release demo against this stale target.
+
 The corrected read-only persona probe returned structural candidates for 10 of 15 rows. `vice_dean_dual_council`, `archive`, `department_council_secretary`, `student_affairs_specialist`, and `student_affairs_manager` returned `MISSING` under strict role and title matching. The two existing student-affairs role holders may need a proper specialist/manager assignment rather than two new identities. A missing match is a provisioning task or a mapping to verify, not proof that no similarly named account exists. None of the 10 candidate rows establishes a successful sign-in.
 
 ## Exit gates
@@ -19,4 +21,4 @@ Student (including a senior student), ordinary faculty, faculty department counc
 
 ## Current decision
 
-`HOLD`: the current isolated target lacks demonstrated schema parity, several persona bindings, securely handed-over credentials, and actual sign-in/E2E evidence. No account or data mutation was performed by this package.
+`HOLD`: the Cloudflare test Worker runs an older SHA; database contract parity remains unproven. Several persona bindings, securely handed-over credentials, and actual sign-in/E2E evidence are also missing. No account or data mutation was performed by this package.
