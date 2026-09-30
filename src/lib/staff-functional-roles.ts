@@ -11,7 +11,7 @@ export type StaffFunctionalRole = {
   unitLabelAr: string;
   scopeType: StaffScopeType;
   requiresLogin: boolean;
-  /** Nearest existing `user_roles.role`; null when no safe mapping exists yet. */
+  /** Nearest existing `user_roles.role`; null for profile-only login without a broad legacy role. */
   appRoleFallback: AppRole | null;
   expansionNote?: string;
 };
@@ -92,7 +92,7 @@ export const STAFF_FUNCTIONAL_ROLES: readonly StaffFunctionalRole[] = [
     scopeType: "none",
     requiresLogin: true,
     appRoleFallback: null,
-    expansionNote: "لا يوجد app_role للمكتبة حالياً — يحتاج توسيع enum قبل إنشاء حساب دخول",
+    expansionNote: "دخول لبوابة الموظف؛ مهام المكتبة تتطلب إسناداً تشغيلياً مستقلاً",
   },
   {
     key: "labs_manager",
@@ -102,7 +102,7 @@ export const STAFF_FUNCTIONAL_ROLES: readonly StaffFunctionalRole[] = [
     scopeType: "college",
     requiresLogin: true,
     appRoleFallback: null,
-    expansionNote: "لا يوجد app_role للمعامل حالياً — يحتاج توسيع enum قبل إنشاء حساب دخول",
+    expansionNote: "دخول لبوابة الموظف؛ مهام المعامل تتطلب إسناداً تشغيلياً مستقلاً",
   },
   {
     key: "lab_custodian",
@@ -112,7 +112,7 @@ export const STAFF_FUNCTIONAL_ROLES: readonly StaffFunctionalRole[] = [
     scopeType: "departments",
     requiresLogin: true,
     appRoleFallback: null,
-    expansionNote: "لا يوجد app_role للمعامل حالياً — يحتاج توسيع enum قبل إنشاء حساب دخول",
+    expansionNote: "دخول لبوابة الموظف؛ مهام المعامل تتطلب إسناداً تشغيلياً مستقلاً",
   },
 ] as const;
 
@@ -307,5 +307,6 @@ export function resolveStaffRoleTypeInput(raw: string): {
 }
 
 export function staffRoleTypeSupportsLogin(roleType: string): boolean {
-  return staffFunctionalRoleToAppRole(roleType) != null;
+  const approved = ROLE_BY_KEY.get(roleType);
+  return approved ? approved.requiresLogin : isLegacyStaffRoleKey(roleType);
 }

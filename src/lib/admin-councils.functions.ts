@@ -1,3 +1,4 @@
+import { loadCouncilFacultyEmails } from "@/lib/council-faculty-directory.server";
 // Server functions for the Academic Councils portal.
 // Overview reads may use supabaseAdmin (server-only). Membership writes use context.supabase (RLS).
 import { createServerFn } from "@tanstack/react-start";
@@ -91,7 +92,7 @@ function asCouncilRpcPayload(data: unknown): Record<string, unknown> {
 
 type FacultyProfileRow = Pick<
   Database["public"]["Tables"]["faculty_profiles"]["Row"],
-  "id" | "user_id" | "employee_number" | "full_name_ar" | "status"
+  "id" | "user_id" | "employee_number" | "full_name_ar" | "status" | "faculty_id"
 >;
 
 async function loadFacultyProfilesByUserIds(
@@ -103,17 +104,18 @@ async function loadFacultyProfilesByUserIds(
 
   const { data, error } = await sb
     .from("faculty_profiles")
-    .select("id, user_id, employee_number, full_name_ar, status, faculty:faculty_id(email)")
+    .select("id, user_id, employee_number, full_name_ar, status, faculty_id")
     .in("user_id", userIds);
   if (error) throwDbError(error);
 
+  const emails = await loadCouncilFacultyEmails(supabaseAdmin, data ?? []);
   for (const row of data ?? []) {
     const userId = row.user_id as string | null;
     if (!userId) continue;
-    const faculty = row.faculty as { email: string | null } | { email: string | null }[] | null;
-    const email = Array.isArray(faculty) ? faculty[0]?.email ?? null : faculty?.email ?? null;
+    const email = row.faculty_id ? emails.get(row.faculty_id) ?? null : null;
     map.set(userId, {
       id: row.id as string,
+      faculty_id: row.faculty_id,
       user_id: userId,
       employee_number: (row.employee_number as string | null) ?? null,
       full_name_ar: row.full_name_ar as string,
@@ -416,9 +418,11 @@ export const searchAcademicsForCouncilLink = createServerFn({ method: "POST" })
     const sb = context.supabase;
     const term = sanitizeIlikeTerm(data.query);
     const pattern = `%${term}%`;
+    // Quote the filter literal: commas and parentheses in names are not operators.
+    const orPattern = JSON.stringify(pattern);
 
     const profileSelect =
-      "id, user_id, employee_number, full_name_ar, status, faculty:faculty_id(email)";
+      "id, user_id, employee_number, full_name_ar, status, faculty_id";
 
     const { data: byProfile, error: profileErr } = await sb
       .from("faculty_profiles")
@@ -426,7 +430,7 @@ export const searchAcademicsForCouncilLink = createServerFn({ method: "POST" })
       .not("user_id", "is", null)
       .eq("status", "active")
       .or(
-        `employee_number.ilike.${pattern},full_name_ar.ilike.${pattern},full_name_en.ilike.${pattern}`,
+        `employee_number.ilike.${orPattern},full_name_ar.ilike.${orPattern},full_name_en.ilike.${orPattern}`,
       )
       .order("full_name_ar")
       .limit(25);
@@ -435,21 +439,12 @@ export const searchAcademicsForCouncilLink = createServerFn({ method: "POST" })
     const seen = new Set<string>();
     const candidates: AcademicLinkCandidate[] = [];
 
-    const pushRow = (row: {
-      id: string;
-      user_id: string | null;
-      employee_number: string | null;
-      full_name_ar: string;
-      status: string;
-      faculty: { email: string | null } | { email: string | null }[] | null;
-    }) => {
+    const emails = await loadCouncilFacultyEmails(supabaseAdmin, byProfile ?? []);
+    const pushRow = (row: FacultyProfileRow) => {
       const userId = row.user_id;
       if (!userId || seen.has(userId)) return;
       seen.add(userId);
-      const faculty = row.faculty;
-      const email = Array.isArray(faculty)
-        ? faculty[0]?.email ?? null
-        : faculty?.email ?? null;
+      const email = row.faculty_id ? emails.get(row.faculty_id) ?? null : null;
       candidates.push({
         faculty_profile_id: row.id,
         user_id: userId,
@@ -465,13 +460,14 @@ export const searchAcademicsForCouncilLink = createServerFn({ method: "POST" })
     }
 
     if (candidates.length < 25) {
-      const { data: facultyHits, error: facultyErr } = await sb
+      const { data: facultyHits, error: facultyErr } = await supabaseAdmin
         .from("faculty")
         .select("id, email")
         .ilike("email", pattern)
         .limit(25);
       if (facultyErr) throwDbError(facultyErr);
 
+      for (const f of facultyHits ?? []) emails.set(f.id, f.email);
       const facultyIds = (facultyHits ?? []).map((f) => f.id as string);
       if (facultyIds.length > 0) {
         const { data: byEmail, error: emailErr } = await sb

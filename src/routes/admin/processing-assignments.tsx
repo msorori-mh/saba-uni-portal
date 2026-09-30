@@ -1,3 +1,4 @@
+import { assignmentCandidateKey, type AssignmentIdentity } from "@/lib/processing-assignment-identity";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,7 +71,8 @@ function ProcessingAssignmentsPage() {
   });
 
   const [openFor, setOpenFor] = useState<OpenState>(null);
-  const [selectedUser, setSelectedUser] = useState<string>("");
+  const [selectedProfileKey, setSelectedProfileKey] = useState<string>("");
+  const [confirmedIdentity, setConfirmedIdentity] = useState("");
   const [notes, setNotes] = useState("");
 
   const candQ = useQuery({
@@ -79,15 +81,19 @@ function ProcessingAssignmentsPage() {
     queryFn: () => candFn({ data: { role_code: openFor!.role_code } }),
   });
 
+  const selectedCandidate = candQ.data?.candidates.find((c) => assignmentCandidateKey(c) === selectedProfileKey);
+  const selectedIdentity = selectedCandidate ? JSON.stringify(selectedCandidate) : "";
+
   const createMut = useMutation({
-    mutationFn: (vars: { role_id: string; user_id: string; notes?: string }) =>
+    mutationFn: (vars: AssignmentIdentity & { role_id: string; notes?: string }) =>
       createFn({ data: vars }),
     onSuccess: (res: { warning?: string } | undefined) => {
       if (res?.warning) toast.warning(res.warning);
       else toast.success("تم إسناد الدور بنجاح");
       qc.invalidateQueries({ queryKey: ["processing-assignments"] });
       setOpenFor(null);
-      setSelectedUser("");
+      setSelectedProfileKey("");
+      setConfirmedIdentity("");
       setNotes("");
     },
     onError: (e: Error) => toast.error(e.message ?? "تعذّر الإسناد"),
@@ -269,7 +275,8 @@ function ProcessingAssignmentsPage() {
                             unit_name: unit?.name_ar ?? "",
                             is_managerial: !!role.is_managerial,
                           });
-                          setSelectedUser("");
+                          setSelectedProfileKey("");
+                          setConfirmedIdentity("");
                           setNotes("");
                         }}
                       >
@@ -299,13 +306,13 @@ function ProcessingAssignmentsPage() {
                   ? "عضو هيئة التدريس"
                   : "الموظف"}
               </label>
-              <Select value={selectedUser} onValueChange={setSelectedUser} disabled={candQ.isLoading}>
+              <Select value={selectedProfileKey} onValueChange={(key) => { setSelectedProfileKey(key); setConfirmedIdentity(""); }} disabled={candQ.isFetching || createMut.isPending}>
                 <SelectTrigger>
                   <SelectValue placeholder={candQ.isLoading ? "جارٍ التحميل…" : "اختر مستخدماً"} />
                 </SelectTrigger>
                 <SelectContent>
                   {(candQ.data?.candidates ?? []).map((c) => (
-                    <SelectItem key={c.user_id} value={c.user_id}>
+                    <SelectItem key={assignmentCandidateKey(c)} value={assignmentCandidateKey(c)}>
                       {c.name}
                       {c.employee_number ? ` — ${c.employee_number}` : ""}
                       {c.email ? ` (${c.email})` : ""}
@@ -325,6 +332,20 @@ function ProcessingAssignmentsPage() {
                 </p>
               )}
             </div>
+            {candQ.error && <p role="alert" className="text-destructive">تعذّر تحميل الحسابات: {(candQ.error as Error).message}</p>}
+            {selectedCandidate && (
+              <div className="rounded border p-3 space-y-2 text-sm">
+                <p>سيتم إسناد الدور إلى: <strong>{selectedCandidate.name}</strong></p>
+                <p>الرقم الوظيفي: {selectedCandidate.employee_number ?? "—"}</p>
+                <p dir="ltr">{selectedCandidate.email || "—"}</p>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={confirmedIdentity === selectedIdentity}
+                    disabled={createMut.isPending}
+                    onChange={(e) => setConfirmedIdentity(e.target.checked ? selectedIdentity : "")} />
+                  تحققت من اسم الحساب ورقمه الوظيفي
+                </label>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium block mb-1">ملاحظات (اختياري)</label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
@@ -333,12 +354,14 @@ function ProcessingAssignmentsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenFor(null)}>إلغاء</Button>
             <Button
-              disabled={!selectedUser || createMut.isPending}
+              disabled={!selectedCandidate || confirmedIdentity !== selectedIdentity || candQ.isFetching || !!candQ.error || createMut.isPending}
               onClick={() =>
-                openFor &&
+                openFor && selectedCandidate && confirmedIdentity === selectedIdentity &&
                 createMut.mutate({
                   role_id: openFor.role_id,
-                  user_id: selectedUser,
+                  user_id: selectedCandidate.user_id,
+                  profile_id: selectedCandidate.profile_id,
+                  profile_kind: selectedCandidate.kind,
                   notes: notes || undefined,
                 })
               }
