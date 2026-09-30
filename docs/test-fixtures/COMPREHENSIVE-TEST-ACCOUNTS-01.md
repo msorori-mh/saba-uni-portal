@@ -2,7 +2,7 @@
 
 Target: an isolated test backend with the same approved source release as the application. The current isolated backend has 5 recorded migrations (latest `20260906233120`), 28 linked students, 4 active faculty, 7 active staff, 3 active council memberships, 1 active position assignment, and 1 active request-processing assignment as observed on 2026-09-30. Source baseline: `main@cfe5c2190fe4d153b7af07262f57ebff0830624d`. These counts do not establish release parity or account usability.
 
-The read-only persona probe returned structural candidates for 11 of 14 rows. `vice_dean`, `archive`, and `department_council_secretary` returned `MISSING` under the probe's strict matching criteria. A missing match is a provisioning task or a mapping to verify, not proof that no similarly named account exists. None of the 11 candidate rows establishes a successful sign-in.
+The corrected read-only persona probe returned structural candidates for 10 of 15 rows. `vice_dean_dual_council`, `archive`, `department_council_secretary`, `student_affairs_specialist`, and `student_affairs_manager` returned `MISSING` under strict role and title matching. The two existing student-affairs role holders may need a proper specialist/manager assignment rather than two new identities. A missing match is a provisioning task or a mapping to verify, not proof that no similarly named account exists. None of the 10 candidate rows establishes a successful sign-in.
 
 ## Exit gates
 
