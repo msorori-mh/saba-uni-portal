@@ -36,16 +36,25 @@ WITH active_faculty AS (
     JOIN active_role r ON r.user_id=f.user_id AND r.role='department_head'
     JOIN active_membership dm ON dm.user_id=f.user_id AND dm.council_type='department' AND dm.member_role='chair'
     JOIN active_membership cm ON cm.user_id=f.user_id AND cm.council_type='college' AND cm.member_role='member'
-  UNION ALL SELECT 'vice_dean', f.user_id FROM active_faculty f
-    JOIN active_staff s ON s.user_id=f.user_id AND s.job_title ILIKE '%نائب العميد%'
+  UNION ALL SELECT 'vice_dean_dual_council', f.user_id FROM active_faculty f
+    JOIN public.position_assignments pa ON pa.user_id=f.user_id AND pa.is_active
+      AND pa.assigned_from<=current_date AND (pa.assigned_to IS NULL OR pa.assigned_to>=current_date)
+    JOIN public.organizational_positions op ON op.id=pa.position_id AND op.is_active
+      AND op.code IN ('vice_dean_academic','vice_dean_students')
+    JOIN active_membership dm ON dm.user_id=f.user_id AND dm.council_type='department'
+    JOIN active_membership cm ON cm.user_id=f.user_id AND cm.council_type='college'
   UNION ALL SELECT 'dean', r.user_id FROM active_role r
     JOIN auth.users u ON u.id=r.user_id AND u.email_confirmed_at IS NOT NULL WHERE r.role='dean'
   UNION ALL SELECT 'department_council_secretary', f.user_id FROM active_faculty f
     JOIN active_membership m ON m.user_id=f.user_id AND m.council_type='department' AND m.member_role='secretary'
   UNION ALL SELECT 'registrar', s.user_id FROM active_staff s
     JOIN active_role r ON r.user_id=s.user_id AND r.role='registrar'
-  UNION ALL SELECT 'student_affairs', s.user_id FROM active_staff s
+  UNION ALL SELECT 'student_affairs_specialist', s.user_id FROM active_staff s
     JOIN active_role r ON r.user_id=s.user_id AND r.role='student_affairs'
+    WHERE s.job_title ILIKE '%أخصائي%'
+  UNION ALL SELECT 'student_affairs_manager', s.user_id FROM active_staff s
+    JOIN active_role r ON r.user_id=s.user_id AND r.role='student_affairs'
+    WHERE s.job_title ILIKE '%مدير%'
   UNION ALL SELECT 'finance', s.user_id FROM active_staff s
     JOIN active_role r ON r.user_id=s.user_id AND r.role='finance_officer'
   UNION ALL SELECT 'human_resources', s.user_id FROM active_staff s
@@ -57,8 +66,9 @@ WITH active_faculty AS (
     WHERE r.role IN ('admin','system_admin')
 ), required(persona) AS (
   VALUES ('student'),('faculty'),('faculty_department_member'),('department_head'),
-    ('department_head_college_member'),('vice_dean'),('dean'),
-    ('department_council_secretary'),('registrar'),('student_affairs'),
+    ('department_head_college_member'),('vice_dean_dual_council'),('dean'),
+    ('department_council_secretary'),('registrar'),('student_affairs_specialist'),
+    ('student_affairs_manager'),
     ('finance'),('human_resources'),('archive'),('administrator')
 )
 SELECT r.persona, count(DISTINCT c.user_id) AS linked_confirmed_candidates,
