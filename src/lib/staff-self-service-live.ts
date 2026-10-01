@@ -5,6 +5,7 @@ import {
   staffServiceDecisionSchema,
   staffServiceSubmitSchema,
 } from "@/lib/staff-self-service-contracts";
+import { fetchOwnStaffProfileId } from "@/lib/staff-self-service-read";
 
 export const STAFF_SELF_SERVICE_LIVE_BINDING_MARKER =
   "PORTAL_STAFF_SELF_SERVICE_STORAGE_BINDING_02B";
@@ -51,6 +52,7 @@ const rpc = supabase.rpc as unknown as (
 
 type ReadQuery = {
   select: (columns: string) => ReadQuery;
+  eq: (column: string, value: unknown) => ReadQuery;
   order: (column: string, options: { ascending: boolean }) => RpcResponse;
 };
 
@@ -132,14 +134,22 @@ export async function decideStaffServiceRequest(input: {
   );
 }
 
-export async function listAccessibleStaffServiceRequests(): Promise<
-  StaffServiceRequestSummary[]
-> {
-  const { data, error } = await fromReadModel("staff_service_requests")
-    .select(
-      "id,request_no,service_type,status,decision_reason,created_at,updated_at",
-    )
-    .order("created_at", { ascending: false });
+/**
+ * `ownOnly` limits the list to the caller's own requests ("طلباتي").
+ * Without it, RLS also returns requests the caller may oversee/approve.
+ */
+export async function listAccessibleStaffServiceRequests(
+  scope: { ownOnly?: boolean } = {},
+): Promise<StaffServiceRequestSummary[]> {
+  let query = fromReadModel("staff_service_requests").select(
+    "id,request_no,service_type,status,decision_reason,created_at,updated_at",
+  );
+  if (scope.ownOnly) {
+    const ownId = await fetchOwnStaffProfileId();
+    // No staff profile → match nothing rather than everything.
+    query = query.eq("staff_profile_id", ownId ?? "00000000-0000-0000-0000-000000000000");
+  }
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) throwSafeRpcError(error);
   return z.array(requestResultSchema).parse(data);

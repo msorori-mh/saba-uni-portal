@@ -403,6 +403,12 @@ type AuthorizedDownloadClient = SessionRpc & {
 export async function createAuthorizedB1AttachmentDownload(
   client: AuthorizedDownloadClient,
   attachmentId: string,
+  /**
+   * Who signs the URL AFTER the caller's RPC authorization succeeded. The
+   * secure-attachments bucket has no client SELECT policy, so production
+   * signs with the service role; defaults to the caller's client (tests).
+   */
+  signer: AuthorizedDownloadClient["storage"] = client.storage,
 ): Promise<B1AttachmentDownload> {
   let authorization: { storage_bucket: string; storage_object_path: string };
   try {
@@ -411,7 +417,7 @@ export async function createAuthorizedB1AttachmentDownload(
     throw new Error(SECURE_ATTACHMENT_ERRORS.ATTACHMENT_ACCESS_DENIED);
   }
 
-  const signed = await client.storage
+  const signed = await signer
     .from(authorization.storage_bucket)
     .createSignedUrl(authorization.storage_object_path, SECURE_ATTACHMENT_SIGNED_URL_SECONDS);
   if (signed.error || !signed.data?.signedUrl) {
@@ -432,5 +438,6 @@ export const authorizeB1UiAttachmentDownloadFn = createServerFn({ method: "POST"
     return createAuthorizedB1AttachmentDownload(
       context.supabase as unknown as AuthorizedDownloadClient,
       data.attachmentId,
+      supabaseAdmin.storage as unknown as AuthorizedDownloadClient["storage"],
     );
   });
