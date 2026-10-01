@@ -118,14 +118,16 @@ async function isFacultyOfStudent(userId: string, studentProfileId: string): Pro
   return (count ?? 0) > 0;
 }
 
-async function audit(action: string, notes: string, entityId?: string) {
+async function audit(action: string, notes: string, entityId?: string, actorUserId?: string) {
   try {
+    // log_audit runs under the service role here (auth.uid() is null), so the
+    // viewer must be recorded explicitly or the trail cannot say WHO looked.
     await supabaseAdmin.rpc("log_audit" as any, {
       _entity_type: "academic_status",
       _entity_id: entityId ?? "00000000-0000-0000-0000-000000000000",
       _action_type: action,
       _old: null,
-      _new: { notes },
+      _new: { notes, actor_user_id: actorUserId ?? null },
       _notes: notes,
     });
   } catch { /* ignore */ }
@@ -507,7 +509,7 @@ export const getStudentProgress = createServerFn({ method: "POST" })
       (await isFacultyOfStudent(userId, data.studentProfileId));
     if (!allowed) throw new Error("Forbidden");
     const dto = await computeStudentProgress(supabaseAdmin, data.studentProfileId);
-    await audit("student_progress_viewed", dto.student.academic_number, dto.student.id);
+    await audit("student_progress_viewed", dto.student.academic_number, dto.student.id, userId);
     return dto;
   });
 
@@ -519,7 +521,7 @@ export const getMyProgress = createServerFn({ method: "POST" })
       .from("student_profiles").select("id").eq("user_id", userId).maybeSingle();
     if (!sp?.id) throw new Error("Student profile not found");
     const dto = await computeStudentProgress(supabase, (sp as any).id);
-    await audit("student_progress_viewed", dto.student.academic_number, dto.student.id);
+    await audit("student_progress_viewed", dto.student.academic_number, dto.student.id, userId);
     return dto;
   });
 
@@ -528,7 +530,9 @@ export const searchStudents = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ query: z.string().trim().max(120) }).parse(d))
   .handler(async ({ data, context }) => {
     if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
-    const q = data.query.trim();
+    // Strip PostgREST filter syntax (`,` `(` `)` `*` `%` `\`) so user input can
+    // only ever be a literal inside the ilike patterns below.
+    const q = data.query.replace(/[,()*%\\]/g, " ").replace(/\s+/g, " ").trim();
     let qb = supabaseAdmin.from("student_profiles")
       .select("id, academic_number, full_name_ar, program:programs(name_ar)")
       .limit(20);
@@ -597,7 +601,7 @@ export const getAtRiskStudents = createServerFn({ method: "POST" })
         || x.standing.standing === "warning"
         || (x.progress.total_plan_hours > 0 && x.progress.completion_percentage < 25 && x.progress.passed_courses + x.progress.in_progress_courses > 0)
       );
-    await audit("at_risk_report_viewed", `count=${filtered.length}`);
+    await audit("at_risk_report_viewed", `count=${filtered.length}`, undefined, context.userId);
     return filtered.map((r) => r.summary);
   });
 
@@ -615,7 +619,7 @@ export const getGraduationCandidates = createServerFn({ method: "POST" })
          || (x.progress.completion_percentage >= NEAR_COMPLETION_PCT && x.eligibility.missing_required_courses.length <= 2 && x.progress.cumulative_official_average >= PASS_PERCENT))
       )
       .sort((a, b) => b.progress.completion_percentage - a.progress.completion_percentage);
-    await audit("graduation_candidates_viewed", `count=${candidates.length}`);
+    await audit("graduation_candidates_viewed", `count=${candidates.length}`, undefined, context.userId);
     return candidates;
   });
 

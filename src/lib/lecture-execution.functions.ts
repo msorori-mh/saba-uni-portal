@@ -12,6 +12,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const LECTURE_EXECUTION_STATUSES = [
@@ -24,6 +25,33 @@ export const LECTURE_EXECUTION_STATUSES = [
 
 export type LectureExecutionStatus = (typeof LECTURE_EXECUTION_STATUSES)[number];
 export type LectureSessionStatus = LectureExecutionStatus | "not_recorded";
+
+/* -------- input validation (server side; UI checks are not authorization) -------- */
+
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "صيغة التاريخ غير صحيحة")
+  .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), "تاريخ غير صالح");
+
+/** A lecture cannot be recorded as executed on a future day (1-day timezone slack). */
+function notInFuture(dateIso: string): boolean {
+  const limit = Date.now() + 24 * 60 * 60 * 1000;
+  return Date.parse(`${dateIso}T00:00:00Z`) <= limit;
+}
+
+const sectionInputSchema = z.object({ sectionId: z.string().uuid() });
+const planSessionInputSchema = z.object({ planSessionId: z.string().uuid() });
+const recordExecutionSchema = z.object({
+  planSessionId: z.string().uuid(),
+  status: z.enum(LECTURE_EXECUTION_STATUSES),
+  executionDate: isoDate
+    .refine(notInFuture, "لا يمكن تسجيل تنفيذ محاضرة بتاريخ مستقبلي")
+    .nullable()
+    .optional(),
+  reason: z.string().trim().max(1000).nullable().optional(),
+  compensationDate: isoDate.nullable().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+});
 
 export const LECTURE_STATUS_LABELS: Record<LectureSessionStatus, string> = {
   not_recorded: "لم تُسجَّل",
@@ -126,7 +154,7 @@ function unwrap<T>(data: unknown, error: { message: string } | null): T {
 
 export const getSectionDeliveryPlan = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sectionId: string }) => input)
+  .inputValidator((input: { sectionId: string }) => sectionInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<SectionDeliveryPlan> => {
     const { data: result, error } = await context.supabase.rpc("cdp_get_section_plan", {
       p_course_section_id: data.sectionId,
@@ -165,7 +193,7 @@ export type PlanSessionOption = {
 /** Lecture picker used when attaching a learning material to a planned lecture. */
 export const listPlanSessionsForMaterials = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sectionId: string }) => input)
+  .inputValidator((input: { sectionId: string }) => sectionInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<PlanSessionOption[]> => {
     const { data: rows, error } = await context.supabase.rpc(
       "cdp_list_plan_sessions_for_materials",
@@ -184,7 +212,7 @@ export const recordSessionExecution = createServerFn({ method: "POST" })
       reason?: string | null;
       compensationDate?: string | null;
       notes?: string | null;
-    }) => input,
+    }) => recordExecutionSchema.parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { error } = await context.supabase.rpc("cdp_record_session_execution", {
@@ -201,7 +229,7 @@ export const recordSessionExecution = createServerFn({ method: "POST" })
 
 export const clearSessionExecution = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { planSessionId: string }) => input)
+  .inputValidator((input: { planSessionId: string }) => planSessionInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { error } = await context.supabase.rpc("cdp_clear_session_execution", {
       p_plan_session_id: data.planSessionId,
@@ -219,6 +247,10 @@ export const getDeliveryOverview = createServerFn({ method: "GET" })
 
 export const MONITORING_PERIODS = ["week", "month", "term"] as const;
 export type MonitoringPeriod = (typeof MONITORING_PERIODS)[number];
+
+const monitoringInputSchema = z.object({
+  period: z.enum(MONITORING_PERIODS).optional(),
+});
 
 export const MONITORING_PERIOD_LABELS: Record<MonitoringPeriod, string> = {
   week: "أسبوعي",
@@ -291,7 +323,7 @@ export type DeliveryMonitoring = {
  */
 export const getDeliveryMonitoring = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { period?: MonitoringPeriod }) => input)
+  .inputValidator((input: { period?: MonitoringPeriod }) => monitoringInputSchema.parse(input ?? {}))
   .handler(async ({ data, context }): Promise<DeliveryMonitoring> => {
     const { data: result, error } = await context.supabase.rpc("cdp_delivery_monitoring", {
       p_period: data.period ?? "term",

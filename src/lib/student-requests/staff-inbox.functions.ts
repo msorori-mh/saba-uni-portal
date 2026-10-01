@@ -130,6 +130,21 @@ async function assertStaffInboxAccess(userId: string) {
 }
 
 
+/**
+ * The legacy overview/detail readers use the service role and apply NO
+ * per-request scoping, so they are an admin-only diagnostic view. Any other
+ * caller must fail closed when the actor RPCs error or return nothing —
+ * otherwise a processor with one assignment could read every request.
+ */
+async function canUseLegacyAdminFallback(userId: string): Promise<boolean> {
+  try {
+    const roles = await userRoles(userId);
+    return roles.includes("admin") || roles.includes("system_admin");
+  } catch {
+    return false;
+  }
+}
+
 function rpcErrorReason(message: string): StaffInboxUnavailableReason {
   if (/permission denied|42501|RLS|violates row-level|غير مصرح/i.test(message)) {
     return "unauthorized";
@@ -496,6 +511,17 @@ export const fetchStaffInbox = createServerFn({ method: "POST" })
       };
     }
 
+    if (!(await canUseLegacyAdminFallback(context.userId))) {
+      return {
+        available: false,
+        items: [],
+        reason: "workflow_schema_unavailable",
+        messageAr: STAFF_INBOX_UNAVAILABLE_MSG.workflow_schema_unavailable,
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_overview",
+      };
+    }
+
     try {
       const items = await fetchLegacyInboxItems();
       return {
@@ -575,6 +601,22 @@ export const fetchStaffRequestDetail = createServerFn({ method: "POST" })
           dataSource: "legacy_admin",
         };
       }
+    }
+
+    // Fail closed: the actor RPC returned an error or no row (not found / not
+    // accessible). Only admins may fall back to the unscoped legacy reader.
+    if (!(await canUseLegacyAdminFallback(context.userId))) {
+      const schemaMissing = Boolean(error && isWorkflowRpcUnavailable(error));
+      return {
+        available: false,
+        detail: null,
+        reason: schemaMissing ? "workflow_schema_unavailable" : "unauthorized",
+        messageAr: schemaMissing
+          ? STAFF_INBOX_UNAVAILABLE_MSG.workflow_schema_unavailable
+          : STAFF_INBOX_UNAVAILABLE_MSG.unauthorized,
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_admin",
+      };
     }
 
     try {
