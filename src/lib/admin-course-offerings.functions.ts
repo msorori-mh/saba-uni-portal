@@ -124,6 +124,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
       programId: z.string().uuid(),
       levelId: z.string().uuid(),
       semesterId: z.string().uuid(),
+      planId: z.string().uuid().optional(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -137,21 +138,28 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
     if (semErr) throw new Error(semErr.message);
 
     const semesterCode = normalizeSemesterCode(semester?.code);
-    if (!semesterCode) return { noPlan: true, courses: [] };
+    if (!semesterCode) return { noPlan: true, needsPlan: false, plans: [], courses: [] };
 
     const { data: plans, error: pErr } = await supabaseAdmin
       .from("study_plans")
-      .select("id")
+      .select("id, name, plan_code, version")
       .eq("program_id", data.programId)
       .eq("is_active", true)
       .eq("status", "active");
     if (pErr) throw new Error(pErr.message);
-    if (!plans || plans.length === 0) return { noPlan: true, courses: [] };
+    if (!plans || plans.length === 0) return { noPlan: true, needsPlan: false, plans: [], courses: [] };
 
-    const planIds = plans.map((p) => p.id as string);
+    if (data.planId && !plans.some((plan) => plan.id === data.planId)) {
+      throw new Error("الخطة المختارة غير نشطة أو لا تتبع هذا البرنامج.");
+    }
+    if (plans.length > 1 && !data.planId) {
+      return { noPlan: false, needsPlan: true, plans, courses: [] };
+    }
+
+    const planIds = [data.planId ?? plans[0].id];
     const { data: spc, error: sErr } = await supabaseAdmin
       .from("study_plan_courses")
-      .select("course_id, sort_order")
+      .select("study_plan_id, course_id, sort_order")
       .in("study_plan_id", planIds)
       .eq("level_id", data.levelId)
       .eq("semester_code", semesterCode)
@@ -159,7 +167,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
     if (sErr) throw new Error(sErr.message);
 
     const ids = Array.from(new Set((spc ?? []).map((r) => r.course_id as string)));
-    if (ids.length === 0) return { noPlan: false, courses: [] };
+    if (ids.length === 0) return { noPlan: false, needsPlan: false, plans, courses: [] };
 
     const { data: cs, error: cErr } = await supabaseAdmin
       .from("courses")
@@ -172,7 +180,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
       (a, b) => (order.get(a.id as string) ?? 0) - (order.get(b.id as string) ?? 0),
     );
 
-    return { noPlan: false, courses };
+    return { noPlan: false, needsPlan: false, plans, courses };
   });
 
 // ── Course sections (المجموعات) ────────────────────────────────────────────

@@ -12,8 +12,7 @@
  *  G-11 (LOW): imported level must not exceed the program's duration years.
  *  G-12 (LOW): study-plan prerequisites must not self-reference or form cycles
  *       (LOW-6: edges come only from otherwise-valid rows — two-pass).
- *  G-13 (LOW): at most one ACTIVE plan version per program — checked against
- *       the DB AND within the file itself (MEDIUM-5, review #193).
+ *  G-13: separate active plans by code, including equal version numbers.
  *
  * Run: bun test tests/imports/import-validators-linking.test.ts
  */
@@ -93,7 +92,7 @@ function makeLookups(): LookupMaps {
 /**
  * Generic supabase-js-ish mock for import validators.
  * `tables[tableName]` is returned for direct `select()` awaits and for
- * `.select(...).eq(...)` chains (G-13 reads active study_plans this way);
+ * `.select(...).in(...).eq(...)` chains (plan lookups);
  * `studentsIn` is returned for `.select(...).in("academic_number", ...)`
  * queries on student_profiles.
  */
@@ -102,13 +101,15 @@ function mockDb(tables: Record<string, unknown[]>, studentsIn: unknown[] = []) {
     from: (table: string) => ({
       select: () => {
         const base = Promise.resolve({ data: tables[table] ?? [], error: null });
-        return Object.assign(base, {
-          in: async () => ({
-            data: table === "student_profiles" ? studentsIn : (tables[table] ?? []),
-            error: null,
-          }),
+        const chain = Object.assign(base, {
+          in: (_column: string) => base,
           eq: () => base,
         });
+        chain.in = (column: string) => column === "academic_number"
+          ? Promise.resolve({ data: studentsIn, error: null })
+          : chain;
+        chain.eq = () => chain;
+        return chain;
       },
     }),
   };
@@ -136,6 +137,7 @@ function planRaw(overrides: Record<string, unknown> = {}) {
   return {
     program_code: "IT",
     plan_name: "خطة اختبار",
+    plan_code: "IT-OLD",
     version: "1.0",
     course_code: "CS101",
     level: "1",
@@ -197,6 +199,26 @@ describe("G-02: year-scoped semester resolution", () => {
     const lookups = await loadLookups();
     expect(lookups.semestersByYearKey?.get(`${AY_2526}|first`)).toBe(SEM_2526_FIRST);
     expect(lookups.semestersByYearKey?.get(`${AY_2627}|first`)).toBe(SEM_2627_FIRST);
+  });
+});
+
+describe("student plan assignment", () => {
+  it("pins the only active plan during import", async () => {
+    mockDb({ study_plans: [{ id: "plan-old", program_id: PROG_IT, plan_code: "IT-OLD" }] });
+    const res = await validateStudents([studentRaw()], makeLookups());
+    expect(res.invalidRows).toBe(0);
+    expect(res.rows[0]?.parsed?.study_plan_id).toBe("plan-old");
+  });
+
+  it("requires a code when two active plans belong to the program", async () => {
+    mockDb({ study_plans: [
+      { id: "plan-old", program_id: PROG_IT, plan_code: "IT-OLD" },
+      { id: "plan-new", program_id: PROG_IT, plan_code: "IT-NEW" },
+    ] });
+    const missing = await validateStudents([studentRaw()], makeLookups());
+    expect(missing.rows[0]?.errors.some((e) => e.column === "study_plan_code")).toBe(true);
+    const selected = await validateStudents([studentRaw({ study_plan_code: "IT-NEW" })], makeLookups());
+    expect(selected.rows[0]?.parsed?.study_plan_id).toBe("plan-new");
   });
 });
 
@@ -372,48 +394,29 @@ describe("G-12: prerequisite self-reference and cycles", () => {
 });
 
 // ---------------------------------------------------------------- G-13
-describe("G-13: one active plan version per program", () => {
-  it("rejects activating a second version while another is active", async () => {
-    mockDb({ study_plans: [{ program_id: PROG_IT, version: "1.0" }] });
-    const res = await validateStudyPlans([planRaw({ version: "2.0" })], makeLookups());
-    expect(res.validRows).toBe(0);
-    const err = res.rows[0]?.errors.find((e) => e.column === "plan_status");
-    expect(err?.message).toContain("خطة نشطة أخرى");
-  });
-
-  it("allows importing into the currently-active version", async () => {
-    mockDb({ study_plans: [{ program_id: PROG_IT, version: "1.0" }] });
-    const res = await validateStudyPlans([planRaw({ version: "1.0" })], makeLookups());
-    expect(res.invalidRows).toBe(0);
-  });
-
-  it("allows a new version as draft while another is active", async () => {
-    mockDb({ study_plans: [{ program_id: PROG_IT, version: "1.0" }] });
-    const res = await validateStudyPlans(
-      [planRaw({ version: "2.0", plan_status: "draft" })],
-      makeLookups(),
-    );
-    expect(res.invalidRows).toBe(0);
-  });
-
-  it("MEDIUM-5: rejects a second distinct ACTIVE version inside the same file", async () => {
-    mockDb({ study_plans: [] }); // DB has no active plans — the file itself must be coherent
-    const res = await validateStudyPlans(
-      [planRaw({ version: "1.0" }), planRaw({ version: "2.0" })],
-      makeLookups(),
-    );
-    expect(res.validRows).toBe(1);
-    const err = res.rows[1]?.errors.find((e) => e.column === "plan_status");
-    expect(err?.message).toContain("إصداراً نشطاً آخر لنفس البرنامج");
-  });
-
-  it("MEDIUM-5: allows repeated rows of the SAME active version in one file", async () => {
+describe("G-13: parallel study plans", () => {
+  it("accepts two active plans in the same program and version with different codes", async () => {
     mockDb({ study_plans: [] });
-    const res = await validateStudyPlans(
-      [planRaw({ version: "1.0" }), planRaw({ course_code: "CS102", version: "1.0" })],
-      makeLookups(),
-    );
+    const res = await validateStudyPlans([
+      planRaw({ plan_code: "IT-OLD" }),
+      planRaw({ plan_name: "خطة جديدة", plan_code: "IT-NEW", course_code: "CS102" }),
+    ], makeLookups());
     expect(res.invalidRows).toBe(0);
+  });
+
+  it("rejects changing the identity of an existing plan code", async () => {
+    mockDb({ study_plans: [{ id: "plan-old", program_id: PROG_IT, plan_code: "IT-OLD", name: "خطة قديمة", version: "1.0" }] });
+    const res = await validateStudyPlans([planRaw()], makeLookups());
+    expect(res.rows[0]?.errors.some((e) => e.column === "plan_code")).toBe(true);
+  });
+
+  it("rejects a course already recorded in this plan and semester", async () => {
+    mockDb({
+      study_plans: [{ id: "plan-old", program_id: PROG_IT, plan_code: "IT-OLD", name: "خطة اختبار", version: "1.0" }],
+      study_plan_courses: [{ study_plan_id: "plan-old", course_id: COURSE_CS101, level_id: LVL1, semester_code: "first" }],
+    });
+    const res = await validateStudyPlans([planRaw()], makeLookups());
+    expect(res.rows[0]?.errors.some((e) => e.column === "course_code")).toBe(true);
   });
 });
 

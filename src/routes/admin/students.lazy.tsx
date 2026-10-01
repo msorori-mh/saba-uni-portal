@@ -1285,6 +1285,7 @@ function AddStudentModal({
     national_id: "",
     department_id: "",
     program_id: "",
+    study_plan_id: "",
     study_system: "",
     level_id: lookups.levels[0]?.id ?? "",
     academic_year_id: currentYear?.id ?? "",
@@ -1313,6 +1314,7 @@ function AddStudentModal({
         national_id: form.national_id || undefined,
         department_id: form.department_id || undefined,
         program_id: form.program_id || undefined,
+        study_plan_id: form.study_plan_id || null,
         study_system: form.study_system || undefined,
       };
       const res = await createFn({ data: payload as any });
@@ -1380,17 +1382,27 @@ function AddStudentModal({
           <Section title="البيانات الأكاديمية">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="القسم">
-                <select value={form.department_id} onChange={(e) => { update("department_id", e.target.value); update("program_id", ""); }}
+                <select value={form.department_id} onChange={(e) => setForm((f) => ({ ...f, department_id: e.target.value, program_id: "", study_plan_id: "" }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <option value="">— اختر —</option>
                   {lookups.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
                 </select>
               </Field>
               <Field label="البرنامج">
-                <select value={form.program_id} onChange={(e) => update("program_id", e.target.value)}
+                <select value={form.program_id} onChange={(e) => setForm((f) => ({ ...f, program_id: e.target.value, study_plan_id: "" }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <option value="">— اختر —</option>
                   {filteredPrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
+                </select>
+              </Field>
+              <Field label="الخطة الدراسية للطالب">
+                <select value={form.study_plan_id} onChange={(e) => update("study_plan_id", e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  <option value="">غير محددة (برنامج بخطة واحدة)</option>
+                  {lookups.study_plans.filter((plan) => plan.program_id === form.program_id)
+                    .map((plan) => <option key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.plan_code ?? plan.version})
+                    </option>)}
                 </select>
               </Field>
               <Field label="نظام الدراسة">
@@ -1494,6 +1506,7 @@ function EditStudentModal({
       national_id: student.national_id ?? "",
       department_id: student.department_id ?? "",
       program_id: student.program_id ?? "",
+      study_plan_id: student.study_plan_id ?? "",
       study_system: student.study_system ?? "",
     });
   }
@@ -1509,6 +1522,7 @@ function EditStudentModal({
           id: studentId,
           ...form,
           study_system: form.study_system || undefined,
+          study_plan_id: form.study_plan_id || null,
         },
       });
       onSaved();
@@ -1566,19 +1580,29 @@ function EditStudentModal({
                 {lookups && (
                   <>
                     <Field label="القسم">
-                      <select value={form.department_id} onChange={(e) => { update("department_id", e.target.value); update("program_id", ""); }}
+                      <select value={form.department_id} onChange={(e) => setForm((f: any) => ({ ...f, department_id: e.target.value, program_id: "", study_plan_id: "" }))}
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                         <option value="">— اختر —</option>
                         {lookups.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
                       </select>
                     </Field>
                     <Field label="البرنامج">
-                      <select value={form.program_id} onChange={(e) => update("program_id", e.target.value)}
+                      <select value={form.program_id} onChange={(e) => setForm((f: any) => ({ ...f, program_id: e.target.value, study_plan_id: "" }))}
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                         <option value="">— اختر —</option>
                         {lookups.programs
                           .filter((p: any) => !form.department_id || p.department_id === form.department_id)
                           .map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="الخطة الدراسية المعتمدة للطالب">
+                      <select value={form.study_plan_id} onChange={(e) => update("study_plan_id", e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                        <option value="">غير محددة</option>
+                        {lookups.study_plans.filter((plan) => plan.program_id === form.program_id)
+                          .map((plan) => <option key={plan.id} value={plan.id}>
+                            {plan.name} ({plan.plan_code ?? plan.version})
+                          </option>)}
                       </select>
                     </Field>
                     <Field label="نظام الدراسة">

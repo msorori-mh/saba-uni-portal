@@ -10284,6 +10284,7 @@ export type Database = {
           program_id: string | null
           status: string
           student_study_status: string | null
+          study_plan_id: string | null
           study_system: string | null
           transferred_current_year: boolean
           updated_at: string
@@ -10305,6 +10306,7 @@ export type Database = {
           program_id?: string | null
           status?: string
           student_study_status?: string | null
+          study_plan_id?: string | null
           study_system?: string | null
           transferred_current_year?: boolean
           updated_at?: string
@@ -10326,6 +10328,7 @@ export type Database = {
           program_id?: string | null
           status?: string
           student_study_status?: string | null
+          study_plan_id?: string | null
           study_system?: string | null
           transferred_current_year?: boolean
           updated_at?: string
@@ -10345,6 +10348,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_same_program_fkey"
+            columns: ["study_plan_id", "program_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id", "program_id"]
           },
         ]
       }
@@ -11240,6 +11250,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          plan_code: string | null
           program_id: string
           status: string
           total_credit_hours: number
@@ -11251,6 +11262,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          plan_code?: string | null
           program_id: string
           status?: string
           total_credit_hours?: number
@@ -11262,6 +11274,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          plan_code?: string | null
           program_id?: string
           status?: string
           total_credit_hours?: number

@@ -172,6 +172,7 @@ export const listStudyPlansByProgram = createServerFn({ method: "POST" })
 const studyPlanPayloadSchema = z.object({
   program_id: z.string().uuid(),
   name: z.string().trim().min(1).max(200),
+  plan_code: z.string().trim().min(1).max(80),
   version: z.string().trim().min(1).max(50),
   total_credit_hours: z.number().min(0),
   status: z.enum(["active", "archived"]),
@@ -188,6 +189,7 @@ export const upsertStudyPlan = createServerFn({ method: "POST" })
     const payload = {
       program_id: data.program_id,
       name: data.name,
+      plan_code: data.plan_code,
       version: data.version,
       total_credit_hours: data.total_credit_hours,
       status: data.status,

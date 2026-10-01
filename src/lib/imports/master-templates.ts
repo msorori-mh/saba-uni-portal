@@ -532,6 +532,13 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
         example: "IT",
       },
       {
+        name: "study_plan_code",
+        description: "رمز الخطة؛ مطلوب إذا كان للبرنامج أكثر من خطة نشطة",
+        required: false,
+        type: "text",
+        example: "IT-NEW-2026-2027",
+      },
+      {
         name: "academic_level",
         description: "رقم المستوى (1-4) أو اسمه",
         required: true,
@@ -619,6 +626,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
         "ahmed@students.usr.edu.ye",
         "قسم تكنولوجيا المعلومات والاتصالات",
         "IT",
+        "IT-NEW-2026-2027",
         "1",
         "2025-2026",
         "first",
@@ -638,6 +646,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
         "fatima@students.usr.edu.ye",
         "قسم علوم الحاسوب",
         "CS",
+        "",
         "1",
         "2025-2026",
         "first",
@@ -657,6 +666,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
         "",
         "قسم نظم المعلومات",
         "IS",
+        "",
         "1",
         "2025-2026",
         "first",
@@ -761,7 +771,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     fileName: "template_study_plans.xlsx",
     title: "الخطط الدراسية",
     description:
-      "مقررات الخطة الدراسية مرتبة حسب المستوى والفصل. يحدد القسم والبرنامج واسم الخطة والإصدار من شاشة الاستيراد عند استخدام الاستيراد الموجه.",
+      "مقررات الخطة الدراسية مرتبة حسب المستوى والفصل. يحدد القسم والبرنامج واسم الخطة ورمزها وإصدارها من شاشة الاستيراد.",
     category: "courses",
     importerKey: "study_plans",
     hasValidator: true,
@@ -779,6 +789,13 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
         required: true,
         type: "text",
         example: "خطة 2024",
+      },
+      {
+        name: "plan_code",
+        description: "رمز الخطة المعتمد في منصة الجداول، يميز القديمة والجديدة",
+        required: true,
+        type: "text",
+        example: "IT-NEW-2026-2027",
       },
       {
         name: "version",
@@ -819,9 +836,9 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
       { name: "sort_order", description: "الترتيب", required: false, type: "integer", example: 1 },
     ],
     examples: [
-      ["IT", "خطة 2024", "1.0", "CS101", "1", "first", true, "", 1],
-      ["IT", "خطة 2024", "1.0", "IT101", "1", "first", true, "", 2],
-      ["IT", "خطة 2024", "1.0", "CS102", "1", "second", true, "CS101", 3],
+      ["IT", "خطة 2024", "IT-NEW-2026-2027", "1", "CS101", "1", "first", true, "", 1],
+      ["IT", "خطة 2024", "IT-NEW-2026-2027", "1", "IT101", "1", "first", true, "", 2],
+      ["IT", "خطة 2024", "IT-NEW-2026-2027", "1", "CS102", "1", "second", true, "CS101", 3],
     ],
   },
   {

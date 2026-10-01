@@ -278,7 +278,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
 }) {
   const planCoursesFn = useServerFn(getPlanCoursesForOffering);
   const upsertFn = useServerFn(upsertCourseOffering);
-  const [form, setForm] = useState<Partial<Offering> & { department_id?: string }>({});
+  const [form, setForm] = useState<Partial<Offering> & { department_id?: string; study_plan_id?: string }>({});
   const [saving, setSaving] = useState(false);
 
   useMemo(() => {
@@ -298,13 +298,14 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
   const curriculumReady = Boolean(form.academic_year_id && form.semester_id && form.program_id && form.level_id);
 
   const planCoursesQ = useQuery({
-    queryKey: ["plan-courses", form.program_id, form.level_id, form.semester_id],
+    queryKey: ["plan-courses", form.program_id, form.level_id, form.semester_id, form.study_plan_id],
     enabled: Boolean(form.program_id && form.level_id && form.semester_id),
     queryFn: () => planCoursesFn({
       data: {
         programId: form.program_id!,
         levelId: form.level_id!,
         semesterId: form.semester_id!,
+        planId: form.study_plan_id || undefined,
       },
     }),
   });
@@ -372,13 +373,24 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
           </div>
           <div>
             <Label>البرنامج *</Label>
-            <Select value={form.program_id ?? ""} onValueChange={(v) => setForm({ ...form, program_id: v, course_id: undefined })} disabled={!form.department_id}>
+            <Select value={form.program_id ?? ""} onValueChange={(v) => setForm({ ...form, program_id: v, study_plan_id: undefined, course_id: undefined })} disabled={!form.department_id}>
               <SelectTrigger><SelectValue placeholder={form.department_id ? "اختر" : "اختر القسم أولاً"} /></SelectTrigger>
               <SelectContent>
                 {programsForDept.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+          {(planCoursesQ.data?.plans.length ?? 0) > 1 && (
+            <div className="col-span-2">
+              <Label>الخطة الدراسية المعتمدة للدفعة *</Label>
+              <Select value={form.study_plan_id ?? ""} onValueChange={(v) => setForm({ ...form, study_plan_id: v, course_id: undefined })}>
+                <SelectTrigger><SelectValue placeholder="اختر الخطة القديمة أو الجديدة" /></SelectTrigger>
+                <SelectContent>
+                  {planCoursesQ.data?.plans.map((plan) => <SelectItem key={plan.id} value={plan.id}>{plan.name} ({plan.plan_code ?? plan.version})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>المستوى *</Label>
             <Select value={form.level_id ?? ""} onValueChange={(v) => setForm({ ...form, level_id: v, course_id: undefined })}>
@@ -403,13 +415,14 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
             <Select
               value={form.course_id ?? ""}
               onValueChange={(v) => setForm({ ...form, course_id: v })}
-              disabled={!curriculumReady || planCoursesQ.isLoading || !planCoursesQ.data || planCoursesQ.data.noPlan || planCoursesQ.data.courses.length === 0}
+              disabled={!curriculumReady || planCoursesQ.isLoading || !planCoursesQ.data || planCoursesQ.data.noPlan || planCoursesQ.data.needsPlan || planCoursesQ.data.courses.length === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder={
                   !curriculumReady ? "اختر السنة والفصل والبرنامج والمستوى أولاً" :
                   planCoursesQ.isLoading ? "جارٍ التحميل..." :
                   planCoursesQ.data?.noPlan ? "لا توجد خطة دراسية معتمدة لهذا البرنامج." :
+                  planCoursesQ.data?.needsPlan ? "اختر الخطة الدراسية أولاً" :
                   (planCoursesQ.data?.courses.length ?? 0) === 0 ? "لا توجد مقررات مرتبطة بهذا المستوى." :
                   "اختر المقرر"
                 } />
@@ -701,5 +714,3 @@ function ScheduleTab() {
     </div>
   );
 }
-
-

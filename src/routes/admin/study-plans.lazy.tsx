@@ -46,7 +46,7 @@ type Department = { id: string; name_ar: string };
 type Program = { id: string; name_ar: string; code: string; department_id: string | null };
 type Level = { id: string; name: string; level_number: number };
 type Plan = {
-  id: string; program_id: string; name: string; version: string;
+  id: string; program_id: string; name: string; plan_code: string | null; version: string;
   total_credit_hours: number; status: string; is_active: boolean;
   computed_credit_hours?: number;
 };
@@ -509,7 +509,7 @@ function PlansTab() {
                   <div className="min-w-0">
                     <div className="font-display font-bold text-primary truncate">{p.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {prog?.name_ar ?? "—"} • إصدار {p.version} • {(p.computed_credit_hours ?? 0) > 0 ? p.computed_credit_hours : p.total_credit_hours} ساعة
+                      {prog?.name_ar ?? "—"} • {p.plan_code ?? "بلا رمز"} • إصدار {p.version} • {(p.computed_credit_hours ?? 0) > 0 ? p.computed_credit_hours : p.total_credit_hours} ساعة
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -575,7 +575,7 @@ function PlanFormDialog({
   }, [open, editing, programs]);
 
   const save = async () => {
-    if (!form.program_id || !form.name || !form.version) { toast.error("جميع الحقول مطلوبة"); return; }
+    if (!form.program_id || !form.name || !form.plan_code || !form.version) { toast.error("البرنامج والاسم والرمز والإصدار مطلوبة"); return; }
     setSaving(true);
     try {
       await upsertFn({
@@ -583,6 +583,7 @@ function PlanFormDialog({
           id: editing?.id,
           program_id: form.program_id!,
           name: form.name!,
+          plan_code: form.plan_code!,
           version: form.version!,
           total_credit_hours: Number(form.total_credit_hours) || 0,
           status: (form.status ?? "active") as "active" | "archived",
@@ -614,6 +615,7 @@ function PlanFormDialog({
             </Select>
           </div>
           <div><Label>اسم الخطة *</Label><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div><Label>رمز الخطة *</Label><Input dir="ltr" value={form.plan_code ?? ""} onChange={(e) => setForm({ ...form, plan_code: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>الإصدار *</Label><Input value={form.version ?? ""} onChange={(e) => setForm({ ...form, version: e.target.value })} /></div>
             <div><Label>إجمالي الساعات</Label><Input type="number" value={form.total_credit_hours ?? 0} onChange={(e) => setForm({ ...form, total_credit_hours: Number(e.target.value) })} /></div>
