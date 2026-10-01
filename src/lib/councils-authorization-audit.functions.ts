@@ -83,16 +83,19 @@ export const runCouncilAuthorizationAudit = createServerFn({ method: "POST" })
       sb.rpc("has_role", { _user_id: userId, _role: "system_admin" }),
       sb
         .from("academic_council_members")
-        .select("member_role")
+        .select("council_id, member_role")
         .eq("user_id", userId)
         .eq("is_active", true),
     ]);
 
     const isPrivileged =
       adminRes.data === true || deanRes.data === true || sysRes.data === true;
-    const isCouncilOfficer = (membershipRes.data ?? []).some((row) =>
-      ["chair", "vice_chair", "secretary"].includes(String(row.member_role)),
+    const officerCouncilIds = new Set(
+      (membershipRes.data ?? [])
+        .filter((row) => ["chair", "vice_chair", "secretary"].includes(String(row.member_role)))
+        .map((row) => String(row.council_id)),
     );
+    const isCouncilOfficer = officerCouncilIds.size > 0;
     if (!isPrivileged && !isCouncilOfficer) throw new Error(AUDIT_DENIED);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -248,11 +251,18 @@ export const runCouncilAuthorizationAudit = createServerFn({ method: "POST" })
 
     // Parity comparison against the baseline (college) council.
     const baselineResult = results.find((r) => r.isBaseline) ?? null;
+    // The audit reads through the service role, so scope what is RETURNED:
+    // a council officer only sees the councils they are an officer of
+    // (names/user ids of other councils' officers stay hidden). The baseline
+    // is still used internally for the parity verdict.
+    const visibleResults = isPrivileged
+      ? results
+      : results.filter((r) => officerCouncilIds.has(r.councilId));
     let mismatchCount = 0;
     let totalChecks = 0;
     let unassignedRoleCount = 0;
 
-    for (const council of results) {
+    for (const council of visibleResults) {
       for (const roleResult of council.roles) {
         if (!roleResult.assigned) unassignedRoleCount += 1;
         const baselineRole = baselineResult?.roles.find((r) => r.role === roleResult.role);
@@ -277,7 +287,7 @@ export const runCouncilAuthorizationAudit = createServerFn({ method: "POST" })
     return {
       generatedAt: new Date().toISOString(),
       baselineCouncilId: baselineResult?.councilId ?? null,
-      councils: results,
+      councils: visibleResults,
       totalChecks,
       mismatchCount,
       unassignedRoleCount,

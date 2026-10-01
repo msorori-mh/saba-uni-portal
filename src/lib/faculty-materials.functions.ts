@@ -4,6 +4,7 @@ import { createHash } from "crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   MATERIALS_BUCKET,
+  MATERIALS_MAX_BYTES_DEFAULT,
   MATERIALS_SETTINGS_KEYS,
   MATERIAL_UPLOAD_ERRORS,
   buildMaterialStorageObjectName,
@@ -41,8 +42,13 @@ async function getFacultyProfileForUser(supabase: any, userId: string) {
     .select("id, status")
     .eq("user_id", userId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error("تعذر التحقق من ملف عضو هيئة التدريس");
   if (!data) throw new Error("لا يوجد ملف عضو هيئة تدريس");
+  // A disabled faculty account must not keep material write access through
+  // still-valid access tokens.
+  if (["inactive", "suspended", "disabled"].includes(String(data.status ?? "").toLowerCase())) {
+    throw new Error("حساب عضو هيئة التدريس غير مفعّل");
+  }
   return data as { id: string; status: string };
 }
 
@@ -325,7 +331,9 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({
       materialId: z.string().uuid(),
-      fileBase64: z.string().min(1),
+      // Bound the encoded payload before it is decoded into memory
+      // (base64 ≈ 4/3 of the hard compiled-in byte ceiling).
+      fileBase64: z.string().min(1).max(Math.ceil((MATERIALS_MAX_BYTES_DEFAULT * 4) / 3) + 16),
       filename: z.string().min(1).max(200),
       mimeType: z.string().min(1),
     }).parse(input),
@@ -501,7 +509,9 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ materialId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
+    const owned = await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
+    // Archived (withdrawn) material must not silently return to students.
+    if (owned.status === "archived") throw new Error(MATERIAL_UPLOAD_ERRORS.MATERIAL_ARCHIVED);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Authoritative publish invariant: a material may only become `published`

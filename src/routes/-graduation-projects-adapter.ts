@@ -4,6 +4,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signGraduationProjectDownloadFn } from "@/lib/graduation-projects/download.functions";
 import {
   configureGraduationProjectsRpc,
   createGraduationProjectsService,
@@ -597,9 +598,10 @@ async function runAction(
       return;
     }
     case "download": {
-      const signed = await service.signedDownload({
-        projectId,
-        fileId: action.fileId,
+      // Signed server-side: the private bucket has no client SELECT policy,
+      // so browser-side createSignedUrl always failed.
+      const signed = await signGraduationProjectDownloadFn({
+        data: { projectId, fileId: action.fileId },
       });
       if (!signed.url) throw new Error("تعذر إنشاء رابط التحميل الموقّع");
       window.location.assign(signed.url);

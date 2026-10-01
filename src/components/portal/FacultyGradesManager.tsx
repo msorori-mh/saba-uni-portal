@@ -70,51 +70,81 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
     const { error } = await (sb.from("grade_components") as any).insert({
       course_section_id: sectionId, name: newName.trim(), max_score: max, sort_order: components.length + 1,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(/100/.test(error.message ?? "") ? "مجموع الدرجات القصوى للمكونات لا يمكن أن يتجاوز 100." : "تعذر إضافة المكون.");
+      return;
+    }
     setNewName(""); setNewMax("");
     qc.invalidateQueries({ queryKey: ["fac-grade-components", sectionId] });
   };
 
   const deleteComponent = async (id: string) => {
+    // Grades already submitted/approved against a component must not lose
+    // their component (server-side guard: docs/migration-drafts/FACULTY-GRADE-INTEGRITY-01.sql).
+    if (grades.some((g) => g.grade_component_id === id && g.status !== "draft")) {
+      toast.error("لا يمكن حذف مكون له درجات مرسلة أو معتمدة.");
+      return;
+    }
     if (!confirm("حذف هذا المكون؟")) return;
     const { error } = await (sb.from("grade_components") as any).delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error("تعذر حذف المكون."); return; }
     qc.invalidateQueries({ queryKey: ["fac-grade-components", sectionId] });
     qc.invalidateQueries({ queryKey: ["fac-grades", sectionId] });
   };
 
   const saveDrafts = async (submit: boolean) => {
-    const ops: Promise<any>[] = [];
+    // Phase 1 — persist every edited cell as a DRAFT. RLS (sg_insert) only
+    // lets faculty insert status='draft', so new rows must never be inserted
+    // as 'submitted' directly (that failed and left sections half-submitted).
+    const draftOps: Promise<any>[] = [];
     for (const [enId, comps] of Object.entries(edits)) {
       for (const [cmId, scoreStr] of Object.entries(comps)) {
         if (isLocked(enId, cmId)) continue;
         const score = Number(scoreStr);
         if (Number.isNaN(score)) continue;
         const existing = gradeFor(enId, cmId);
-        const payload: any = { score, status: submit ? "submitted" : "draft", entered_by: facultyProfileId };
+        const payload: any = { score, status: "draft", entered_by: facultyProfileId };
         if (existing) {
-          ops.push((sb.from("student_grades") as any).update(payload).eq("id", existing.id));
+          draftOps.push((sb.from("student_grades") as any).update(payload).eq("id", existing.id));
         } else {
-          ops.push((sb.from("student_grades") as any).insert({ student_enrollment_id: enId, grade_component_id: cmId, ...payload }));
+          draftOps.push((sb.from("student_grades") as any).insert({ student_enrollment_id: enId, grade_component_id: cmId, ...payload }));
         }
       }
     }
-    // Also submit existing drafts that weren't edited
-    if (submit) {
-      for (const g of grades) {
-        if (g.status === "draft") {
-          const wasTouched = edits[g.student_enrollment_id]?.[g.grade_component_id];
-          if (wasTouched === undefined) {
-            ops.push((sb.from("student_grades") as any).update({ status: "submitted" }).eq("id", g.id));
-          }
-        }
-      }
+    const hasDraftsToSubmit = grades.some((g) => g.status === "draft");
+    if (draftOps.length === 0 && !(submit && hasDraftsToSubmit)) { toast.info("لا تغييرات للحفظ"); return; }
+
+    const draftResults = await Promise.all(draftOps);
+    if (draftResults.some((r: any) => r.error)) {
+      // Stop before submitting anything: a section must never be left
+      // partially submitted because one cell failed.
+      toast.error("تعذر حفظ بعض الدرجات. لم يُرسل شيء للاعتماد؛ راجع القيم وحاول مرة أخرى.");
+      qc.invalidateQueries({ queryKey: ["fac-grades", sectionId] });
+      return;
     }
-    if (ops.length === 0) { toast.info("لا تغييرات للحفظ"); return; }
-    const results = await Promise.all(ops);
-    const errs = results.filter((r: any) => r.error);
-    if (errs.length) { toast.error(errs[0].error.message); }
-    else { toast.success(submit ? "تم الإرسال للاعتماد" : "تم حفظ المسودة"); setEdits({}); }
+
+    if (!submit) {
+      toast.success("تم حفظ المسودة");
+      setEdits({});
+      qc.invalidateQueries({ queryKey: ["fac-grades", sectionId] });
+      return;
+    }
+
+    // Phase 2 — move this section's drafts (enrolled students, this section's
+    // components) to 'submitted'; sg_update_faculty allows draft → submitted.
+    const componentIds = components.map((c) => c.id);
+    const enrollmentIds = enrollments.map((e) => e.id);
+    const { error: submitErr } = await (sb.from("student_grades") as any)
+      .update({ status: "submitted" })
+      .in("grade_component_id", componentIds)
+      .in("student_enrollment_id", enrollmentIds)
+      .eq("status", "draft");
+    if (submitErr) {
+      toast.error("حُفظت الدرجات كمسودة، لكن تعذر إرسالها للاعتماد. حاول مرة أخرى.");
+    } else {
+      toast.success("تم الإرسال للاعتماد");
+      setEdits({});
+    }
     qc.invalidateQueries({ queryKey: ["fac-grades", sectionId] });
   };
 
