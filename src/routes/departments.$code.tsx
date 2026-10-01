@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Cpu, Database, Shield, Brain, BookOpen, GraduationCap, Briefcase, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programByCodeQuery, facultyQuery } from "@/lib/queries";
+import { programDescription } from "@/lib/public-site-format";
 
 export const Route = createFileRoute("/departments/$code")({
   loader: async ({ context, params }) => {
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/departments/$code")({
   },
   head: ({ loaderData, params }) => {
     const title = `${loaderData?.name_ar ?? "برنامج"} — كلية تكنولوجيا المعلومات`;
-    const description = loaderData?.description_ar ?? "";
+    const description = loaderData ? programDescription(loaderData) : "";
     const url = `https://quboolye.com/departments/${params.code}`;
     return {
       meta: [
@@ -21,6 +22,8 @@ export const Route = createFileRoute("/departments/$code")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:url", content: url },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [{
@@ -69,7 +72,7 @@ function ProgramDetail() {
 
   return (
     <>
-      <PageHeader eyebrow={program.code} title={program.name_ar} subtitle={program.description_ar ?? undefined} />
+      <PageHeader eyebrow={program.code} title={program.name_ar} subtitle={programDescription(program)} />
 
       <section className="container mx-auto px-4 py-14">
         <div className="grid gap-8 lg:grid-cols-3">
@@ -85,7 +88,7 @@ function ProgramDetail() {
                 </div>
               </div>
               <div className="divider-gold mt-5" />
-              <p className="mt-5 text-muted-foreground leading-8">{program.description_ar}</p>
+              <p className="mt-5 text-muted-foreground leading-8">{programDescription(program)}</p>
             </div>
 
             <Block icon={ClipboardCheck} title="شروط القبول">

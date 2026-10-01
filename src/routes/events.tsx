@@ -9,7 +9,11 @@ export const Route = createFileRoute("/events")({
     meta: [
       { title: "الفعاليات والأنشطة — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
       { name: "description", content: "الفعاليات والأنشطة الأكاديمية والطلابية في كلية تكنولوجيا المعلومات وعلوم الحاسوب." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/events" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/events" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(eventsQuery()),
   component: EventsPage,

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { programCountLabel } from "@/lib/public-site-format";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, BookOpen, Brain, Calendar, Code2, Cpu, Database, FileCheck,
@@ -17,7 +18,11 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "البوابة الإلكترونية الرسمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. الدخول إلى بوابات الطلاب وأعضاء هيئة التدريس والموظفين." },
       { property: "og:title", content: "البوابة الإلكترونية — كلية تكنولوجيا المعلومات وعلوم الحاسوب" },
       { property: "og:description", content: "منصة رقمية متكاملة للخدمات الأكاديمية والإدارية." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/" }],
   }),
   component: HomePage,
 });
@@ -73,14 +78,14 @@ function HomePage() {
   // intermittent mobile connections. Dynamic sections hydrate independently
   // and degrade to their existing empty/fallback states when data is delayed.
   const { data: programs = [] } = useQuery(programsQuery);
-  const { data: counts = { programs: 4, faculty: 0, research: 0, news: 0 } } =
+  const { data: counts = { programs: 0, faculty: 0, research: 0, news: 0 } } =
     useQuery(liveCountsQuery);
   const { data: settings = {} } = useQuery(settingsQuery);
   const { data: news = [] } = useQuery(newsQuery(3));
   const { data: events = [] } = useQuery(eventsQuery(3));
 
   const stats = [
-    { Icon: Layers, value: `${Math.max(counts.programs ?? 4, 4)}`, label: "برامج أكاديمية" },
+    ...(counts.programs > 0 ? [{ Icon: Layers, value: `${counts.programs}`, label: "برامج أكاديمية" }] : []),
     { Icon: BookOpen, value: "100+", label: "مقررات دراسية" },
     { Icon: ShieldCheck, value: null, label: "بوابة إلكترونية متكاملة" },
     { Icon: Users2, value: null, label: "خدمات رقمية للطلاب" },
@@ -188,7 +193,7 @@ function HomePage() {
           <SectionHeader
             eyebrow="البرامج"
             title="البرامج الأكاديمية"
-            description="أربعة برامج بكالوريوس متخصصة في علوم الحاسوب وتكنولوجيا المعلومات والأمن السيبراني."
+            description={`${programs.length > 0 ? programCountLabel(programs.length) : "برامج"} متخصصة في علوم الحاسوب وتكنولوجيا المعلومات والأمن السيبراني والذكاء الاصطناعي.`}
           />
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {programs.slice(0, 4).map((p) => {
@@ -332,7 +337,7 @@ function HomePage() {
               {[
                 { Icon: FlaskConical, label: "أبحاث منشورة", value: counts.research },
                 { Icon: GraduationCap, label: "أعضاء هيئة التدريس", value: counts.faculty },
-              ].map((c) => (
+              ].filter((c) => (c.value ?? 0) > 0).map((c) => (
                 <div key={c.label} className="rounded-xl border border-white/15 bg-white/[0.05] backdrop-blur-md p-4 md:p-5 text-center">
                   <div className="mx-auto grid h-10 w-10 md:h-12 md:w-12 place-items-center rounded-full bg-gold-gradient text-primary-deep">
                     <c.Icon className="h-5 w-5 md:h-6 md:w-6" />

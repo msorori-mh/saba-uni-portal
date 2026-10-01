@@ -9,7 +9,11 @@ export const Route = createFileRoute("/privacy")({
         content:
           "سياسة الخصوصية لتطبيق ITCS Portal والبوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/privacy" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/privacy" }],
   }),
   component: PrivacyPage,
 });
