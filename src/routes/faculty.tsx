@@ -42,16 +42,6 @@ const LEADERSHIP_SECTION: SectionDef = {
   Icon: Crown,
 };
 
-// ترجمة الرتب الأكاديمية إلى العربية للعرض الموحّد
-const RANK_AR: Record<string, string> = {
-  "Professor": "أستاذ",
-  "Associate Professor": "أستاذ مشارك",
-  "Assistant Professor": "أستاذ مساعد",
-  "Lecturer": "مدرّس",
-  "محاضر": "مدرّس",
-  "Lecturer Assistant": "محاضر مساعد",
-  "Teaching Assistant": "معيد",
-};
 
 function displayRank(rank: string | null): string | null {
   if (!rank) return null;
