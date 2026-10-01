@@ -1,6 +1,6 @@
 import { Link, useHydrated } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
+import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap, BookOpen, Briefcase } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
 import universityLogo from "@/assets/university-logo.jpeg";
 
@@ -62,11 +62,6 @@ export function Footer() {
             <li>
               <Link to="/portal-login" search={{ type: "staff" }} className="inline-flex items-center gap-2 hover:text-gold transition-colors">
                 <Briefcase className="h-4 w-4 text-gold" /> بوابة الموظفين
-              </Link>
-            </li>
-            <li>
-              <Link to="/admin" className="inline-flex items-center gap-2 hover:text-gold transition-colors">
-                <ShieldCheck className="h-4 w-4 text-gold" /> لوحة الإدارة
               </Link>
             </li>
           </ul>
