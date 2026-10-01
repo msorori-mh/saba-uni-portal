@@ -34,7 +34,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   event: "فعاليات",
 };
 
-export const Route = createFileRoute("/news")({
+export const Route = createFileRoute("/news/")({
   head: () => {
     const title = "الأخبار والفعاليات — كلية تكنولوجيا المعلومات";
     const description = "آخر الأخبار والإعلانات والفعاليات في كلية تكنولوجيا المعلومات وعلوم الحاسوب.";

@@ -15,13 +15,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DepartmentsRouteImport } from './routes/departments'
+import { Route as DepartmentsIndexRouteImport } from './routes/departments.index'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as MessagesRouteImport } from './routes/messages'
-import { Route as NewsRouteImport } from './routes/news'
+import { Route as NewsIndexRouteImport } from './routes/news.index'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResearchRouteImport } from './routes/research'
@@ -188,9 +188,9 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DepartmentsRoute = DepartmentsRouteImport.update({
-  id: '/departments',
-  path: '/departments',
+const DepartmentsIndexRoute = DepartmentsIndexRouteImport.update({
+  id: '/departments/',
+  path: '/departments/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -218,9 +218,9 @@ const MessagesRoute = MessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewsRoute = NewsRouteImport.update({
-  id: '/news',
-  path: '/news',
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalLoginRoute = PortalLoginRouteImport.update({
@@ -558,9 +558,9 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   getParentRoute: () => AdminRoute,
 } as any)
 const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
-  id: '/$code',
-  path: '/$code',
-  getParentRoute: () => DepartmentsRoute,
+  id: '/departments/$code',
+  path: '/departments/$code',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentViewIdRoute = DocumentViewIdRouteImport.update({
   id: '/document-view/$id',
@@ -635,9 +635,9 @@ const MobileStudentLoginRoute = MobileStudentLoginRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const NewsSlugRoute = NewsSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => NewsRoute,
+  id: '/news/$slug',
+  path: '/news/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/',
@@ -988,13 +988,13 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRouteWithChildren
+  '/departments/': typeof DepartmentsIndexRoute
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/messages': typeof MessagesRoute
-  '/news': typeof NewsRouteWithChildren
+  '/news/': typeof NewsIndexRoute
   '/portal-login': typeof PortalLoginRoute
   '/privacy': typeof PrivacyRoute
   '/research': typeof ResearchRoute
@@ -1140,12 +1140,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRouteWithChildren
+  '/departments': typeof DepartmentsIndexRoute
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/messages': typeof MessagesRoute
-  '/news': typeof NewsRouteWithChildren
+  '/news': typeof NewsIndexRoute
   '/portal-login': typeof PortalLoginRoute
   '/privacy': typeof PrivacyRoute
   '/research': typeof ResearchRoute
@@ -1286,13 +1286,13 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRouteWithChildren
+  '/departments/': typeof DepartmentsIndexRoute
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/messages': typeof MessagesRoute
-  '/news': typeof NewsRouteWithChildren
+  '/news/': typeof NewsIndexRoute
   '/portal-login': typeof PortalLoginRoute
   '/privacy': typeof PrivacyRoute
   '/research': typeof ResearchRoute
@@ -1441,13 +1441,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
-    | '/departments'
+    | '/departments/'
     | '/events'
     | '/faculty'
     | '/faculty-portal'
     | '/forgot-password'
     | '/messages'
-    | '/news'
+    | '/news/'
     | '/portal-login'
     | '/privacy'
     | '/research'
@@ -1738,13 +1738,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
-    | '/departments'
+    | '/departments/'
     | '/events'
     | '/faculty'
     | '/faculty-portal'
     | '/forgot-password'
     | '/messages'
-    | '/news'
+    | '/news/'
     | '/portal-login'
     | '/privacy'
     | '/research'
@@ -1892,13 +1892,15 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   ContactRoute: typeof ContactRoute
-  DepartmentsRoute: typeof DepartmentsRouteWithChildren
+  DepartmentsIndexRoute: typeof DepartmentsIndexRoute
+  DepartmentsCodeRoute: typeof DepartmentsCodeRoute
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
   FacultyPortalRoute: typeof FacultyPortalRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   MessagesRoute: typeof MessagesRoute
-  NewsRoute: typeof NewsRouteWithChildren
+  NewsIndexRoute: typeof NewsIndexRoute
+  NewsSlugRoute: typeof NewsSlugRoute
   PortalLoginRoute: typeof PortalLoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResearchRoute: typeof ResearchRoute
@@ -1944,11 +1946,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/departments': {
-      id: '/departments'
+    '/departments/': {
+      id: '/departments/'
       path: '/departments'
-      fullPath: '/departments'
-      preLoaderRoute: typeof DepartmentsRouteImport
+      fullPath: '/departments/'
+      preLoaderRoute: typeof DepartmentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -1986,11 +1988,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/news': {
-      id: '/news'
+    '/news/': {
+      id: '/news/'
       path: '/news'
-      fullPath: '/news'
-      preLoaderRoute: typeof NewsRouteImport
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal-login': {
@@ -2436,10 +2438,10 @@ declare module '@tanstack/react-router' {
     }
     '/departments/$code': {
       id: '/departments/$code'
-      path: '/$code'
+      path: '/departments/$code'
       fullPath: '/departments/$code'
       preLoaderRoute: typeof DepartmentsCodeRouteImport
-      parentRoute: typeof DepartmentsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/document-view/$id': {
       id: '/document-view/$id'
@@ -2534,10 +2536,10 @@ declare module '@tanstack/react-router' {
     }
     '/news/$slug': {
       id: '/news/$slug'
-      path: '/$slug'
+      path: '/news/$slug'
       fullPath: '/news/$slug'
       preLoaderRoute: typeof NewsSlugRouteImport
-      parentRoute: typeof NewsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/staff/': {
       id: '/staff/'
@@ -3094,18 +3096,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface DepartmentsRouteChildren {
-  DepartmentsCodeRoute: typeof DepartmentsCodeRoute
-}
-
-const DepartmentsRouteChildren: DepartmentsRouteChildren = {
-  DepartmentsCodeRoute: DepartmentsCodeRoute,
-}
-
-const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
-  DepartmentsRouteChildren,
-)
-
 interface FacultyPortalAcademicCouncilsRouteChildren {
   FacultyPortalAcademicCouncilsArchiveRoute: typeof FacultyPortalAcademicCouncilsArchiveRoute
   FacultyPortalAcademicCouncilsAuthorizationAuditRoute: typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
@@ -3203,16 +3193,6 @@ const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
 const FacultyPortalRouteWithChildren = FacultyPortalRoute._addFileChildren(
   FacultyPortalRouteChildren,
 )
-
-interface NewsRouteChildren {
-  NewsSlugRoute: typeof NewsSlugRoute
-}
-
-const NewsRouteChildren: NewsRouteChildren = {
-  NewsSlugRoute: NewsSlugRoute,
-}
-
-const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
 interface StaffRouteChildren {
   StaffAuditLogRoute: typeof StaffAuditLogRoute
@@ -3383,13 +3363,15 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   ContactRoute: ContactRoute,
-  DepartmentsRoute: DepartmentsRouteWithChildren,
+  DepartmentsIndexRoute: DepartmentsIndexRoute,
+  DepartmentsCodeRoute: DepartmentsCodeRoute,
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
   FacultyPortalRoute: FacultyPortalRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   MessagesRoute: MessagesRoute,
-  NewsRoute: NewsRouteWithChildren,
+  NewsIndexRoute: NewsIndexRoute,
+  NewsSlugRoute: NewsSlugRoute,
   PortalLoginRoute: PortalLoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResearchRoute: ResearchRoute,

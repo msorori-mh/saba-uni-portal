@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { researchPapersQuery, facultyQuery, programsQuery } from "@/lib/queries";
+import { publicFacultyOnly } from "@/lib/public-faculty";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { absoluteUrl } from "@/lib/seo";
 
 const PAGE_SIZE = 10;
 
@@ -55,7 +57,9 @@ export const Route = createFileRoute("/research")({
         content:
           "الإنتاج البحثي لأعضاء هيئة التدريس في كلية تكنولوجيا المعلومات وعلوم الحاسوب.",
       },
+      { property: "og:url", content: absoluteUrl("/research") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/research") }],
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(researchPapersQuery);
@@ -67,7 +71,9 @@ export const Route = createFileRoute("/research")({
 
 function ResearchPage() {
   const { data: papers = [], isLoading } = useQuery(researchPapersQuery);
-  const { data: faculty = [] } = useQuery(facultyQuery);
+  const { data: directory = [] } = useQuery(facultyQuery);
+  // The researcher filter lists real members only (no DEMO-/TEST- fixtures).
+  const faculty = useMemo(() => publicFacultyOnly(directory), [directory]);
   const { data: programs = [] } = useQuery(programsQuery);
 
   const [search, setSearch] = useState("");
@@ -138,13 +144,17 @@ function ResearchPage() {
       />
 
       {/* Stats Banner */}
-      <section className="bg-hero-gradient text-primary-foreground">
-        <div className="container mx-auto px-4 py-10 grid gap-6 grid-cols-1 sm:grid-cols-3">
-          <StatCard icon={BookOpen} label="إجمالي الأبحاث" value={stats.total} />
-          <StatCard icon={Quote} label="الاستشهادات" value={stats.citations} />
-          <StatCard icon={Calendar} label="سنوات النشاط البحثي" value={stats.years} />
-        </div>
-      </section>
+      {/* Shown only once there is something to count — never a row of zeros
+          (e.g. during SSR before papers load, or if the read fails). */}
+      {stats.total > 0 && (
+        <section className="bg-hero-gradient text-primary-foreground">
+          <div className="container mx-auto px-4 py-10 flex flex-wrap justify-center gap-6 [&>*]:w-full sm:[&>*]:w-[calc(33.333%-1rem)]">
+            <StatCard icon={BookOpen} label="إجمالي الأبحاث" value={stats.total} />
+            {stats.citations > 0 && <StatCard icon={Quote} label="الاستشهادات" value={stats.citations} />}
+            {stats.years > 0 && <StatCard icon={Calendar} label="سنوات النشاط البحثي" value={stats.years} />}
+          </div>
+        </section>
+      )}
 
       <section className="container mx-auto px-4 py-12">
         {/* Filters */}

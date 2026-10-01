@@ -26,3 +26,10 @@ describe("public footer attribution", () => {
     expect(home).not.toContain("صفحة التواصل الكاملة");
   });
 });
+
+describe("public footer exposure", () => {
+  test("does not advertise the admin panel on the public site", () => {
+    expect(footer).not.toContain('to="/admin"');
+    expect(footer).not.toContain("لوحة الإدارة");
+  });
+});

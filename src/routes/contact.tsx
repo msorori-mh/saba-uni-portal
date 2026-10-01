@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useHydrated } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { settingsQuery } from "@/lib/queries";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { absoluteUrl } from "@/lib/seo";
 
 const SUBJECTS = [
   "استفسار عن القبول والتسجيل",
@@ -109,7 +112,9 @@ export const Route = createFileRoute("/contact")({
         content:
           "تواصل مع كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. هاتف، بريد، عنوان، ونموذج تواصل مباشر.",
       },
+      { property: "og:url", content: absoluteUrl("/contact") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/contact") }],
     scripts: [{
       type: "application/ld+json",
       children: JSON.stringify({
@@ -233,30 +238,8 @@ function ContactPage() {
             </div>
           </div>
 
-          {/* Social */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h3 className="font-display font-extrabold text-primary mb-4">
-              تابعنا على منصات التواصل
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { icon: Facebook, label: "فيسبوك", color: "hover:bg-[#1877F2]" },
-                { icon: Twitter, label: "تويتر", color: "hover:bg-[#1DA1F2]" },
-                { icon: Instagram, label: "إنستغرام", color: "hover:bg-[#E4405F]" },
-                { icon: Youtube, label: "يوتيوب", color: "hover:bg-[#FF0000]" },
-                { icon: Linkedin, label: "لينكدإن", color: "hover:bg-[#0A66C2]" },
-              ].map((s) => (
-                <a
-                  key={s.label}
-                  href="#"
-                  aria-label={s.label}
-                  className={`grid h-11 w-11 place-items-center rounded-lg border border-border bg-background text-primary transition-all hover:text-white hover:border-transparent ${s.color}`}
-                >
-                  <s.icon className="h-5 w-5" />
-                </a>
-              ))}
-            </div>
-          </div>
+          {/* Social — only accounts configured in site settings (no dead "#" links) */}
+          <SocialLinks />
 
           {/* Map */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
@@ -443,6 +426,43 @@ function FieldWrap({
       {error && (
         <p className="mt-1.5 text-xs text-destructive font-medium">{error}</p>
       )}
+    </div>
+  );
+}
+
+const SOCIAL_LINKS = [
+  { key: "facebook_url", icon: Facebook, label: "فيسبوك", color: "hover:bg-[#1877F2]" },
+  { key: "twitter_url", icon: Twitter, label: "تويتر", color: "hover:bg-[#1DA1F2]" },
+  { key: "instagram_url", icon: Instagram, label: "إنستغرام", color: "hover:bg-[#E4405F]" },
+  { key: "youtube_url", icon: Youtube, label: "يوتيوب", color: "hover:bg-[#FF0000]" },
+  { key: "linkedin_url", icon: Linkedin, label: "لينكدإن", color: "hover:bg-[#0A66C2]" },
+] as const;
+
+function SocialLinks() {
+  // Same source and hydration guard as the footer, so server and client agree.
+  const hydrated = useHydrated();
+  const { data: settings = {} } = useQuery(settingsQuery);
+  const links = SOCIAL_LINKS.map((l) => ({ ...l, href: (settings[l.key] ?? "").trim() })).filter((l) =>
+    /^https?:\/\//i.test(l.href),
+  );
+  if (!hydrated || links.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+      <h3 className="font-display font-extrabold text-primary mb-4">تابعنا على منصات التواصل</h3>
+      <div className="flex flex-wrap gap-3">
+        {links.map((s) => (
+          <a
+            key={s.key}
+            href={s.href}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={s.label}
+            className={`grid h-11 w-11 place-items-center rounded-lg border border-border bg-background text-primary transition-all hover:text-white hover:border-transparent ${s.color}`}
+          >
+            <s.icon className="h-5 w-5" />
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
