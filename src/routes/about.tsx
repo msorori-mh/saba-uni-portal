@@ -22,6 +22,7 @@ import {
   Network,
 } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
+import { absoluteUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -30,9 +31,9 @@ export const Route = createFileRoute("/about")({
       { name: "description", content: "تعرّف على رؤية ورسالة كلية تكنولوجيا المعلومات وعلوم الحاسوب، قيمها، أهدافها، قيادتها، وكلمة العميد." },
       { property: "og:title", content: "عن الكلية — كلية تكنولوجيا المعلومات" },
       { property: "og:description", content: "رؤيتنا ورسالتنا وقيمنا وأهدافنا الاستراتيجية." },
-      { property: "og:url", content: "/about" },
+      { property: "og:url", content: absoluteUrl("/about") },
     ],
-    links: [{ rel: "canonical", href: "/about" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/about") }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(settingsQuery),
   component: AboutPage,

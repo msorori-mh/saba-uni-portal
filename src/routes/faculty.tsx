@@ -4,6 +4,13 @@ import { useMemo, useState } from "react";
 import { GraduationCap, Search, FileText, ArrowRight, Crown, BookOpen, Users } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { facultyQuery } from "@/lib/queries";
+import {
+  arabicMemberCount,
+  displayRankAr,
+  normalizeRank,
+  publicFacultyOnly,
+  type RankKey,
+} from "@/lib/public-faculty";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +22,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { absoluteUrl } from "@/lib/seo";
 
 type FacultyRow = {
   id: string;
+  employee_id: string | null;
   full_name_ar: string;
   full_name_en: string | null;
   rank: string | null;
@@ -41,20 +50,8 @@ const LEADERSHIP_SECTION: SectionDef = {
   Icon: Crown,
 };
 
-// ترجمة الرتب الأكاديمية إلى العربية للعرض الموحّد
-const RANK_AR: Record<string, string> = {
-  "Professor": "أستاذ",
-  "Associate Professor": "أستاذ مشارك",
-  "Assistant Professor": "أستاذ مساعد",
-  "Lecturer": "مدرّس",
-  "محاضر": "مدرّس",
-  "Lecturer Assistant": "محاضر مساعد",
-  "Teaching Assistant": "معيد",
-};
-
 function displayRank(rank: string | null): string | null {
-  if (!rank) return null;
-  return RANK_AR[rank.trim()] ?? rank;
+  return displayRankAr(rank);
 }
 
 // تحديد مستوى المنصب القيادي
@@ -66,22 +63,22 @@ function getLeaderTier(adminPosition: string | null): 1 | 2 | 3 {
   return 3;
 }
 
-// أقسام الرتب بالترتيب المطلوب بعد قسم القيادة
-const RANK_SECTIONS: Array<{ key: string; title: string; subtitle: string; ranks: string[]; Icon: typeof Crown }> = [
-  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", ranks: ["Associate Professor", "أستاذ مشارك"], Icon: BookOpen },
-  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", ranks: ["Assistant Professor", "أستاذ مساعد"], Icon: GraduationCap },
-  { key: "lecturer",  title: "المدرّسون", subtitle: "برتبة مدرّس (محاضر)", ranks: ["Lecturer", "محاضر", "مدرّس", "مدرس"], Icon: GraduationCap },
-  { key: "lecturer_assistant", title: "المحاضرون المساعدون", subtitle: "برتبة محاضر مساعد", ranks: ["Lecturer Assistant", "محاضر مساعد", "محاضرة مساعد"], Icon: GraduationCap },
-  { key: "teaching",  title: "المعيدون", subtitle: "برتبة معيد", ranks: ["Teaching Assistant", "معيد"], Icon: Users },
+// أقسام الرتب بالترتيب المطلوب بعد قسم القيادة (من الأعلى رتبةً إلى الأدنى)
+const RANK_SECTIONS: Array<{ key: RankKey; title: string; subtitle: string; Icon: typeof Crown }> = [
+  { key: "professor", title: "الأساتذة", subtitle: "برتبة أستاذ", Icon: Crown },
+  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", Icon: BookOpen },
+  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", Icon: GraduationCap },
+  { key: "lecturer", title: "المدرّسون", subtitle: "برتبة مدرّس (محاضر)", Icon: GraduationCap },
+  { key: "lecturer_assistant", title: "المحاضرون المساعدون", subtitle: "برتبة محاضر مساعد", Icon: GraduationCap },
+  { key: "teaching", title: "المعيدون", subtitle: "برتبة معيد", Icon: Users },
 ];
 
+// أي عضو برتبة غير معروفة أو بدون رتبة
 const OTHERS_SECTION: SectionDef = {
-  title: "محاضر مساعد",
-  subtitle: "أعضاء برتبة محاضر مساعد",
+  title: "أعضاء آخرون",
+  subtitle: "أعضاء الهيئة الأكاديمية",
   Icon: GraduationCap,
 };
-
-
 
 export const Route = createFileRoute("/faculty")({
   head: () => ({
@@ -92,7 +89,9 @@ export const Route = createFileRoute("/faculty")({
         content:
           "تعرّف على قيادة الكلية وأعضاء هيئة التدريس والهيئة المساعدة في كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
       },
+      { property: "og:url", content: absoluteUrl("/faculty") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/faculty") }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(facultyQuery),
 
@@ -100,15 +99,17 @@ export const Route = createFileRoute("/faculty")({
 });
 
 function FacultyPage() {
-  const { data: faculty = [] } = useSuspenseQuery(facultyQuery);
+  const { data: directory = [] } = useSuspenseQuery(facultyQuery);
+  // حسابات الاختبار (DEMO-/TEST-) تبقى فعّالة للاختبارات لكنها لا تُعرض للعامة
+  const faculty = useMemo(() => publicFacultyOnly(directory as FacultyRow[]), [directory]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<FacultyRow | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return faculty as FacultyRow[];
-    return (faculty as FacultyRow[]).filter((f) => {
-      const hay = `${f.full_name_ar} ${f.full_name_en ?? ""} ${f.rank ?? ""} ${f.degree ?? ""}`.toLowerCase();
+    if (!q) return faculty;
+    return faculty.filter((f) => {
+      const hay = `${f.full_name_ar} ${f.full_name_en ?? ""} ${f.rank ?? ""} ${displayRank(f.rank) ?? ""} ${f.degree ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
   }, [faculty, search]);
@@ -163,7 +164,7 @@ function FacultyPage() {
 
               for (const sec of RANK_SECTIONS) {
                 const members = rest
-                  .filter((f) => f.rank && sec.ranks.includes(f.rank.trim()))
+                  .filter((f) => normalizeRank(f.rank) === sec.key)
                   .sort(byName);
                 if (members.length === 0) continue;
                 members.forEach((m) => used.add(m.id));
@@ -190,7 +191,7 @@ function FacultyPage() {
                       </div>
                       <div>
                         <h2 className="font-display text-2xl font-extrabold text-primary">{def.title}</h2>
-                        <p className="text-sm text-muted-foreground">{def.subtitle} — {members.length} عضو</p>
+                        <p className="text-sm text-muted-foreground">{def.subtitle} — {arabicMemberCount(members.length)}</p>
                       </div>
                     </div>
                     <div className="divider-gold mb-8" />

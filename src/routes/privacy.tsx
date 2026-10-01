@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { absoluteUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -9,7 +10,9 @@ export const Route = createFileRoute("/privacy")({
         content:
           "سياسة الخصوصية لتطبيق ITCS Portal والبوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
       },
+      { property: "og:url", content: absoluteUrl("/privacy") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/privacy") }],
   }),
   component: PrivacyPage,
 });

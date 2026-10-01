@@ -3,13 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, Clock, ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { eventsQuery } from "@/lib/queries";
+import { absoluteUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/events")({
   head: () => ({
     meta: [
       { title: "الفعاليات والأنشطة — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
       { name: "description", content: "الفعاليات والأنشطة الأكاديمية والطلابية في كلية تكنولوجيا المعلومات وعلوم الحاسوب." },
+      { property: "og:url", content: absoluteUrl("/events") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/events") }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(eventsQuery()),
   component: EventsPage,

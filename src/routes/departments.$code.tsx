@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Cpu, Database, Shield, Brain, BookOpen, GraduationCap, Briefcase, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programByCodeQuery, facultyQuery } from "@/lib/queries";
+import { displayRankAr, publicFacultyOnly } from "@/lib/public-faculty";
+import { arabicYears, programDegree, programDescription, programYears } from "@/lib/program-display";
 
 export const Route = createFileRoute("/departments/$code")({
   loader: async ({ context, params }) => {
@@ -12,7 +14,7 @@ export const Route = createFileRoute("/departments/$code")({
   },
   head: ({ loaderData, params }) => {
     const title = `${loaderData?.name_ar ?? "برنامج"} — كلية تكنولوجيا المعلومات`;
-    const description = loaderData?.description_ar ?? "";
+    const description = loaderData ? programDescription(loaderData) : "";
     const url = `https://quboolye.com/departments/${params.code}`;
     return {
       meta: [
@@ -30,8 +32,8 @@ export const Route = createFileRoute("/departments/$code")({
           "@type": "EducationalOccupationalProgram",
           name: loaderData?.name_ar,
           description,
-          programType: loaderData?.degree_type ?? "بكالوريوس",
-          educationalCredentialAwarded: loaderData?.degree_type ?? "بكالوريوس",
+          programType: loaderData ? programDegree(loaderData) : "بكالوريوس",
+          educationalCredentialAwarded: loaderData ? programDegree(loaderData) : "بكالوريوس",
           provider: {
             "@type": "EducationalOrganization",
             name: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ",
@@ -63,13 +65,18 @@ function ProgramDetail() {
   const program = Route.useLoaderData();
   const { code } = Route.useParams();
   const { data: allFaculty = [] } = useQuery(facultyQuery);
-  const programFaculty = allFaculty.filter((f) => (f.programs as { code?: string } | null)?.code === code);
+  const programFaculty = publicFacultyOnly(allFaculty).filter(
+    (f) => (f.programs as { code?: string } | null)?.code === code,
+  );
+  const description = programDescription(program);
+  const degree = programDegree(program);
+  const years = programYears(program);
 
   const Icon = iconMap[program.icon ?? ""] ?? BookOpen;
 
   return (
     <>
-      <PageHeader eyebrow={program.code} title={program.name_ar} subtitle={program.description_ar ?? undefined} />
+      <PageHeader eyebrow={program.code} title={program.name_ar} subtitle={description} />
 
       <section className="container mx-auto px-4 py-14">
         <div className="grid gap-8 lg:grid-cols-3">
@@ -85,11 +92,12 @@ function ProgramDetail() {
                 </div>
               </div>
               <div className="divider-gold mt-5" />
-              <p className="mt-5 text-muted-foreground leading-8">{program.description_ar}</p>
+              <p className="mt-5 text-muted-foreground leading-8">{description}</p>
             </div>
 
             <Block icon={ClipboardCheck} title="شروط القبول">
-              {program.admission_requirements ?? "الحصول على الثانوية العامة (القسم العلمي) بمعدل لا يقل عن 70%، واجتياز اختبار القبول والمقابلة الشخصية."}
+              {program.admission_requirements ??
+                "تُعلن شروط القبول المعتمدة لهذا البرنامج من عمادة القبول والتسجيل في الجامعة. للاستفسار تواصل مع الكلية عبر صفحة التواصل."}
             </Block>
 
             <Block icon={Briefcase} title="فرص العمل بعد التخرج">
@@ -111,7 +119,7 @@ function ProgramDetail() {
                       </div>
                       <div>
                         <div className="font-bold text-primary text-sm">{f.full_name_ar}</div>
-                        <div className="text-xs text-muted-foreground">{f.rank ?? "عضو هيئة تدريس"}{f.specialization ? ` — ${f.specialization}` : ""}</div>
+                        <div className="text-xs text-muted-foreground">{displayRankAr(f.rank) ?? "عضو هيئة تدريس"}{f.specialization ? ` — ${f.specialization}` : ""}</div>
                       </div>
                     </div>
                   ))}
@@ -124,9 +132,9 @@ function ProgramDetail() {
             <div className="rounded-2xl bg-hero-gradient p-7 text-primary-foreground shadow-elegant">
               <div className="text-xs font-bold tracking-widest text-gold uppercase">معلومات سريعة</div>
               <ul className="mt-4 space-y-3 text-sm">
-                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">الدرجة</span><span className="font-bold">بكالوريوس</span></li>
-                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">مدة الدراسة</span><span className="font-bold">4 سنوات</span></li>
-                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">عدد المستويات</span><span className="font-bold">8 مستويات</span></li>
+                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">الدرجة</span><span className="font-bold">{degree}</span></li>
+                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">مدة الدراسة</span><span className="font-bold">{arabicYears(years)}</span></li>
+                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">عدد المستويات</span><span className="font-bold">{years * 2} مستويات</span></li>
                 <li className="flex justify-between"><span className="text-primary-foreground/70">لغة الدراسة</span><span className="font-bold">عربي/إنجليزي</span></li>
               </ul>
             </div>

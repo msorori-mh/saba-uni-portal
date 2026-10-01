@@ -4,20 +4,21 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpDown, Brain, Cpu, Database, GraduationCap, Search, Shield } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programsQuery } from "@/lib/queries";
+import { arabicYears, programDegree, programDescription, programYears } from "@/lib/program-display";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/departments")({
+export const Route = createFileRoute("/departments/")({
   head: () => ({
     meta: [
       { title: "الأقسام والبرامج — كلية تكنولوجيا المعلومات" },
-      { name: "description", content: "الأقسام والبرامج الأكاديمية الأربعة في كلية تكنولوجيا المعلومات وعلوم الحاسوب: علوم الحاسوب، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي." },
+      { name: "description", content: "برامج البكالوريوس والماجستير في كلية تكنولوجيا المعلومات وعلوم الحاسوب: علوم الحاسوب، تكنولوجيا المعلومات، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي." },
       { property: "og:title", content: "الأقسام والبرامج الدراسية" },
-      { property: "og:url", content: "/departments" },
+      { property: "og:url", content: "https://quboolye.com/departments" },
     ],
-    links: [{ rel: "canonical", href: "/departments" }],
+    links: [{ rel: "canonical", href: "https://quboolye.com/departments" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(programsQuery),
   component: DepartmentsPage,
@@ -80,7 +81,7 @@ function DepartmentsPage() {
       <PageHeader
         eyebrow="أكاديمي"
         title="الأقسام والبرامج الدراسية"
-        subtitle="أربعة برامج متخصصة تغطي أحدث مجالات تكنولوجيا المعلومات وعلوم الحاسوب، تجمع بين الأساس النظري المتين والتطبيق العملي."
+        subtitle="برامج بكالوريوس وماجستير متخصصة تغطي أحدث مجالات تكنولوجيا المعلومات وعلوم الحاسوب، تجمع بين الأساس النظري المتين والتطبيق العملي."
       />
 
       {/* Departments Grid */}
@@ -120,11 +121,11 @@ function DepartmentsPage() {
                   <div className="flex-1 flex flex-col p-4">
                     <h3 className="font-display text-lg font-extrabold text-primary leading-snug line-clamp-2">{p.name_ar}</h3>
                     {p.name_en && <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">{p.name_en}</div>}
-                    <p className="mt-2 text-xs text-muted-foreground leading-6 line-clamp-3">{p.description_ar}</p>
+                    <p className="mt-2 text-xs text-muted-foreground leading-6 line-clamp-3">{programDescription(p)}</p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
-                      <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{p.degree_type || meta.degree}</span>
-                      <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{p.years ?? meta.years} سنوات</span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{programDegree(p)}</span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{arabicYears(programYears(p))}</span>
                     </div>
 
                     <Link
@@ -172,7 +173,7 @@ function DepartmentsPage() {
                         </div>
                         <div>
                           <div className="font-display text-lg font-extrabold text-primary">{p.name_ar}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{p.code} — {PROGRAM_META[p.code]?.degree ?? "بكالوريوس"}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{p.code} — {programDegree(p)}</div>
                         </div>
                       </div>
                     </AccordionTrigger>
@@ -180,7 +181,7 @@ function DepartmentsPage() {
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
                           <h3 className="font-display font-bold text-primary mb-2">الوصف</h3>
-                          <p className="text-sm text-muted-foreground leading-7">{p.description_ar}</p>
+                          <p className="text-sm text-muted-foreground leading-7">{programDescription(p)}</p>
                         </div>
                         {p.admission_requirements && (
                           <div>
@@ -260,15 +261,14 @@ function DepartmentsPage() {
                     </TableRow>
                   ) : (
                     filtered.map((p) => {
-                      const meta = PROGRAM_META[p.code] ?? PROGRAM_META.CS;
                       return (
                         <TableRow key={p.id}>
                           <TableCell className="font-bold text-primary">{p.name_ar}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="border-gold text-gold">{p.code}</Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{p.degree_type || meta.degree}</TableCell>
-                          <TableCell className="text-muted-foreground">{p.years ?? meta.years} سنوات</TableCell>
+                          <TableCell className="text-muted-foreground">{programDegree(p)}</TableCell>
+                          <TableCell className="text-muted-foreground">{arabicYears(programYears(p))}</TableCell>
                           <TableCell><StatusBadge status={(p as any).status} /></TableCell>
                           <TableCell>
                             <Link

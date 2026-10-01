@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { publicFacultyOnly } from "@/lib/public-faculty";
 
 export const programsQuery = queryOptions({
   queryKey: ["programs"],
@@ -12,9 +13,9 @@ export const programsQuery = queryOptions({
     if (error) throw error;
     return data;
   },
-  // lookup table — rarely changes; cached for the session
-  staleTime: Infinity,
-  gcTime: Infinity,
+  // Programs change rarely, but an infinite cache kept newly activated programs
+  // (e.g. cisjw) out of /departments until a hard reload.
+  staleTime: 1000 * 60 * 10,
 });
 
 export const programByCodeQuery = (code: string) =>
@@ -25,6 +26,7 @@ export const programByCodeQuery = (code: string) =>
         .from("programs")
         .select("*")
         .eq("code", code)
+        .eq("is_active", true)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -112,14 +114,16 @@ export const liveCountsQuery = queryOptions({
   queryFn: async () => {
     const [programs, facultyCount, papers, news] = await Promise.all([
       supabase.from("programs").select("id", { count: "exact", head: true }).eq("is_active", true),
-      supabase.rpc("get_public_faculty_count"),
+      // Counted from the public directory so DEMO-/TEST- fixture identities
+      // are excluded, matching what /faculty actually shows.
+      supabase.rpc("get_public_faculty_directory"),
       supabase.from("research_papers").select("id", { count: "exact", head: true }).eq("is_published", true),
       supabase.from("news").select("id", { count: "exact", head: true }).eq("is_published", true),
     ]);
-    const facultyNum = Number(facultyCount.data ?? 0);
+    const facultyNum = facultyCount.error ? 0 : publicFacultyOnly(facultyCount.data ?? []).length;
     return {
       programs: programs.count ?? 0,
-      faculty: Number.isFinite(facultyNum) ? facultyNum : 0,
+      faculty: facultyNum,
       research: papers.count ?? 0,
       news: news.count ?? 0,
     };
