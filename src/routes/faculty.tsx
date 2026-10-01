@@ -91,7 +91,11 @@ export const Route = createFileRoute("/faculty")({
         content:
           "تعرّف على قيادة الكلية وأعضاء هيئة التدريس والهيئة المساعدة في كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/faculty" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/faculty" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(facultyQuery),
 

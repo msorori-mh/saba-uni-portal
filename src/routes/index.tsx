@@ -17,7 +17,11 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "البوابة الإلكترونية الرسمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. الدخول إلى بوابات الطلاب وأعضاء هيئة التدريس والموظفين." },
       { property: "og:title", content: "البوابة الإلكترونية — كلية تكنولوجيا المعلومات وعلوم الحاسوب" },
       { property: "og:description", content: "منصة رقمية متكاملة للخدمات الأكاديمية والإدارية." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/" }],
   }),
   component: HomePage,
 });

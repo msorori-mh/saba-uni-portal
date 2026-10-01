@@ -109,7 +109,11 @@ export const Route = createFileRoute("/contact")({
         content:
           "تواصل مع كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. هاتف، بريد، عنوان، ونموذج تواصل مباشر.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/contact" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/contact" }],
     scripts: [{
       type: "application/ld+json",
       children: JSON.stringify({

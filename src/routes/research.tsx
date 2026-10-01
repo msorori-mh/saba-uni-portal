@@ -55,7 +55,11 @@ export const Route = createFileRoute("/research")({
         content:
           "الإنتاج البحثي لأعضاء هيئة التدريس في كلية تكنولوجيا المعلومات وعلوم الحاسوب.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/research" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/research" }],
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(researchPapersQuery);
