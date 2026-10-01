@@ -144,9 +144,15 @@ function ResearchPage() {
       {/* Stats Banner */}
       <section className="bg-hero-gradient text-primary-foreground">
         <div className="container mx-auto px-4 py-10 grid gap-6 grid-cols-1 sm:grid-cols-3">
-          <StatCard icon={BookOpen} label="إجمالي الأبحاث" value={stats.total} />
-          <StatCard icon={Quote} label="الاستشهادات" value={stats.citations} />
-          <StatCard icon={Calendar} label="سنوات النشاط البحثي" value={stats.years} />
+          {[
+            { icon: BookOpen, label: "إجمالي الأبحاث", value: stats.total },
+            { icon: Quote, label: "الاستشهادات", value: stats.citations },
+            { icon: Calendar, label: "سنوات النشاط البحثي", value: stats.years },
+          ]
+            .filter((x) => x.value > 0)
+            .map((x) => (
+              <StatCard key={x.label} icon={x.icon} label={x.label} value={x.value} />
+            ))}
         </div>
       </section>
 
