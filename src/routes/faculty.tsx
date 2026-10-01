@@ -66,12 +66,6 @@ const RANK_SECTIONS: Array<{ key: RankKey; title: string; subtitle: string; Icon
   { key: "lecturer", title: "المحاضرون", subtitle: "برتبة محاضر", Icon: GraduationCap },
   { key: "lecturer_assistant", title: "المحاضرون المساعدون", subtitle: "برتبة محاضر مساعد", Icon: GraduationCap },
   { key: "teaching", title: "المعيدون", subtitle: "برتبة معيد", Icon: Users },
-]; Icon: typeof Crown }> = [
-  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", ranks: ["Associate Professor", "أستاذ مشارك"], Icon: BookOpen },
-  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", ranks: ["Assistant Professor", "أستاذ مساعد"], Icon: GraduationCap },
-  { key: "lecturer",  title: "المدرّسون", subtitle: "برتبة مدرّس (محاضر)", ranks: ["Lecturer", "محاضر", "مدرّس", "مدرس"], Icon: GraduationCap },
-  { key: "lecturer_assistant", title: "المحاضرون المساعدون", subtitle: "برتبة محاضر مساعد", ranks: ["Lecturer Assistant", "محاضر مساعد", "محاضرة مساعد"], Icon: GraduationCap },
-  { key: "teaching",  title: "المعيدون", subtitle: "برتبة معيد", ranks: ["Teaching Assistant", "معيد"], Icon: Users },
 ];
 
 const OTHERS_SECTION: SectionDef = {
