@@ -111,7 +111,10 @@ describe("student material server boundaries", () => {
   });
 
   it("allows only exact faculty ownership and has no generic privileged-role bypass", () => {
-    expect(source).toContain("(fp as any).id === material.faculty_profile_id");
+    // Exact ownership = the section's CURRENT lecturer (follows reassignment),
+    // never the profile that originally created the material.
+    expect(source).toContain("section.faculty_profile_id === (fp as any).id");
+    expect(source).not.toContain("=== material.faculty_profile_id");
     expect(source).toContain("if (!isOwner)");
     expect(source).not.toMatch(/isAdmin|isRegistrar|isDean|admin bypass|service_role.*allow/i);
   });
