@@ -58,6 +58,9 @@ type Offering = {
 type Section = {
   id: string; course_offering_id: string; section_code: string;
   faculty_profile_id: string | null; capacity: number | null; status: string;
+  /** Lecturers named on this section's imported LECTURE timetable rows. */
+  schedule_lecture_faculty_ids?: string[];
+  schedule_faculty_mismatch?: boolean;
 };
 
 const DAYS = [
@@ -509,6 +512,22 @@ function SectionsTab() {
                     <span className="text-muted-foreground">المدرّس: </span>
                     {findFac(s.faculty_profile_id)?.full_name_ar ?? "غير محدد"}
                   </div>
+                  {s.schedule_faculty_mismatch && (
+                    <div
+                      className="mt-2 rounded-md border border-amber-600/30 bg-amber-500/10 px-2 py-1.5 text-[11px] leading-5 text-amber-800 dark:text-amber-300"
+                      role="status"
+                      data-testid="section-schedule-faculty-mismatch"
+                    >
+                      محاضر الجدول المستورد يختلف عن المدرّس المسند:{" "}
+                      <span className="font-bold">
+                        {(s.schedule_lecture_faculty_ids ?? [])
+                          .filter((id) => id !== s.faculty_profile_id)
+                          .map((id) => findFac(id)?.full_name_ar ?? "غير معروف")
+                          .join("، ")}
+                      </span>
+                      . الدرجات والمواد تتبع المدرّس المسند هنا؛ صحّح الإسناد أو أعد استيراد الجدول.
+                    </div>
+                  )}
                 </div>
                 <Badge variant={s.status === "active" ? "default" : "secondary"}>
                   {s.status === "active" ? "نشطة" : "معطلة"}

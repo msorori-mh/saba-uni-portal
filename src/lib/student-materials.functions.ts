@@ -190,7 +190,17 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
       .select("id")
       .eq("user_id", context.userId)
       .maybeSingle();
-    const isOwner = !!fp && (fp as any).id === material.faculty_profile_id;
+    // "Owner" = the section's current lecturer (follows reassignment), not
+    // the profile that originally created the material.
+    let isOwner = false;
+    if (fp) {
+      const { data: section } = await (context.supabase as any)
+        .from("course_sections")
+        .select("faculty_profile_id")
+        .eq("id", material.course_section_id)
+        .maybeSingle();
+      isOwner = !!section && section.faculty_profile_id === (fp as any).id;
+    }
 
     if (!isOwner) {
       const student = await getStudentProfile((context.supabase as any), context.userId);
