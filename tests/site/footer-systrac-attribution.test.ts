@@ -20,6 +20,10 @@ describe("public footer attribution", () => {
     expect(footer).not.toContain("mt-20 border-t-4");
   });
 
+  test("does not link the admin dashboard from the public footer", () => {
+    expect(footer).not.toContain('to="/admin"');
+  });
+
   test("uses one consistent contact label", () => {
     expect(footer).toContain("تواصل معنا");
     expect(footer).not.toContain("صفحة التواصل");
