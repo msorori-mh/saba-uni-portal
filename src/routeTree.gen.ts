@@ -15,7 +15,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
@@ -76,6 +75,7 @@ import { Route as AdminStudentProgressRouteImport } from './routes/admin/student
 import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminUserRolesRouteImport } from './routes/admin/user-roles'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as DepartmentsIndexRouteImport } from './routes/departments.index'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
@@ -186,11 +186,6 @@ const AdminRoute = AdminRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DepartmentsRoute = DepartmentsRouteImport.update({
-  id: '/departments',
-  path: '/departments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -557,10 +552,15 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const DepartmentsIndexRoute = DepartmentsIndexRouteImport.update({
+  id: '/departments/',
+  path: '/departments/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
-  id: '/$code',
-  path: '/$code',
-  getParentRoute: () => DepartmentsRoute,
+  id: '/departments/$code',
+  path: '/departments/$code',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentViewIdRoute = DocumentViewIdRouteImport.update({
   id: '/document-view/$id',
@@ -988,7 +988,6 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
@@ -1085,6 +1084,7 @@ export interface FileRoutesByFullPath {
   '/admin/students': typeof AdminStudentsLazyRoute
   '/admin/study-plans': typeof AdminStudyPlansLazyRoute
   '/admin/transcripts': typeof AdminTranscriptsLazyRoute
+  '/departments/': typeof DepartmentsIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -1140,7 +1140,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -1230,6 +1229,7 @@ export interface FileRoutesByTo {
   '/admin/students': typeof AdminStudentsLazyRoute
   '/admin/study-plans': typeof AdminStudyPlansLazyRoute
   '/admin/transcripts': typeof AdminTranscriptsLazyRoute
+  '/departments': typeof DepartmentsIndexRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
@@ -1286,7 +1286,6 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
@@ -1383,6 +1382,7 @@ export interface FileRoutesById {
   '/admin/students': typeof AdminStudentsLazyRoute
   '/admin/study-plans': typeof AdminStudyPlansLazyRoute
   '/admin/transcripts': typeof AdminTranscriptsLazyRoute
+  '/departments/': typeof DepartmentsIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -1441,7 +1441,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
-    | '/departments'
     | '/events'
     | '/faculty'
     | '/faculty-portal'
@@ -1538,6 +1537,7 @@ export interface FileRouteTypes {
     | '/admin/students'
     | '/admin/study-plans'
     | '/admin/transcripts'
+    | '/departments/'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
@@ -1593,7 +1593,6 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/contact'
-    | '/departments'
     | '/events'
     | '/faculty'
     | '/forgot-password'
@@ -1683,6 +1682,7 @@ export interface FileRouteTypes {
     | '/admin/students'
     | '/admin/study-plans'
     | '/admin/transcripts'
+    | '/departments'
     | '/faculty-portal'
     | '/staff'
     | '/student'
@@ -1738,7 +1738,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
-    | '/departments'
     | '/events'
     | '/faculty'
     | '/faculty-portal'
@@ -1835,6 +1834,7 @@ export interface FileRouteTypes {
     | '/admin/students'
     | '/admin/study-plans'
     | '/admin/transcripts'
+    | '/departments/'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
@@ -1892,7 +1892,6 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   ContactRoute: typeof ContactRoute
-  DepartmentsRoute: typeof DepartmentsRouteWithChildren
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
   FacultyPortalRoute: typeof FacultyPortalRouteWithChildren
@@ -1908,10 +1907,12 @@ export interface RootRouteChildren {
   StudentRoute: typeof StudentRouteWithChildren
   VerifyDocumentRoute: typeof VerifyDocumentRoute
   VersionDotjsonRoute: typeof VersionDotjsonRoute
+  DepartmentsCodeRoute: typeof DepartmentsCodeRoute
   DocumentViewIdRoute: typeof DocumentViewIdRoute
   MobileStudentRoute: typeof MobileStudentRouteWithChildren
   MobileStudentForgotPasswordRoute: typeof MobileStudentForgotPasswordRoute
   MobileStudentLoginRoute: typeof MobileStudentLoginRoute
+  DepartmentsIndexRoute: typeof DepartmentsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1942,13 +1943,6 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/departments': {
-      id: '/departments'
-      path: '/departments'
-      fullPath: '/departments'
-      preLoaderRoute: typeof DepartmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -2434,12 +2428,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/departments/': {
+      id: '/departments/'
+      path: '/departments'
+      fullPath: '/departments/'
+      preLoaderRoute: typeof DepartmentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/departments/$code': {
       id: '/departments/$code'
-      path: '/$code'
+      path: '/departments/$code'
       fullPath: '/departments/$code'
       preLoaderRoute: typeof DepartmentsCodeRouteImport
-      parentRoute: typeof DepartmentsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/document-view/$id': {
       id: '/document-view/$id'
@@ -3094,18 +3095,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface DepartmentsRouteChildren {
-  DepartmentsCodeRoute: typeof DepartmentsCodeRoute
-}
-
-const DepartmentsRouteChildren: DepartmentsRouteChildren = {
-  DepartmentsCodeRoute: DepartmentsCodeRoute,
-}
-
-const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
-  DepartmentsRouteChildren,
-)
-
 interface FacultyPortalAcademicCouncilsRouteChildren {
   FacultyPortalAcademicCouncilsArchiveRoute: typeof FacultyPortalAcademicCouncilsArchiveRoute
   FacultyPortalAcademicCouncilsAuthorizationAuditRoute: typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
@@ -3383,7 +3372,6 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   ContactRoute: ContactRoute,
-  DepartmentsRoute: DepartmentsRouteWithChildren,
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
   FacultyPortalRoute: FacultyPortalRouteWithChildren,
@@ -3399,10 +3387,12 @@ const rootRouteChildren: RootRouteChildren = {
   StudentRoute: StudentRouteWithChildren,
   VerifyDocumentRoute: VerifyDocumentRoute,
   VersionDotjsonRoute: VersionDotjsonRoute,
+  DepartmentsCodeRoute: DepartmentsCodeRoute,
   DocumentViewIdRoute: DocumentViewIdRoute,
   MobileStudentRoute: MobileStudentRouteWithChildren,
   MobileStudentForgotPasswordRoute: MobileStudentForgotPasswordRoute,
   MobileStudentLoginRoute: MobileStudentLoginRoute,
+  DepartmentsIndexRoute: DepartmentsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
