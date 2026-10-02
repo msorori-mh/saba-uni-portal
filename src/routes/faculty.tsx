@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { memberCount, normalizeRank, RANK_LABEL_AR, type RankKey } from "@/lib/public-site-format";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { GraduationCap, Search, FileText, ArrowRight, Crown, BookOpen, Users } from "lucide-react";
@@ -41,20 +42,11 @@ const LEADERSHIP_SECTION: SectionDef = {
   Icon: Crown,
 };
 
-// ترجمة الرتب الأكاديمية إلى العربية للعرض الموحّد
-const RANK_AR: Record<string, string> = {
-  "Professor": "أستاذ",
-  "Associate Professor": "أستاذ مشارك",
-  "Assistant Professor": "أستاذ مساعد",
-  "Lecturer": "مدرّس",
-  "محاضر": "مدرّس",
-  "Lecturer Assistant": "محاضر مساعد",
-  "Teaching Assistant": "معيد",
-};
 
 function displayRank(rank: string | null): string | null {
   if (!rank) return null;
-  return RANK_AR[rank.trim()] ?? rank;
+  const k = normalizeRank(rank);
+  return k ? RANK_LABEL_AR[k] : rank.trim() === "TEST_ONLY" ? null : rank;
 }
 
 // تحديد مستوى المنصب القيادي
@@ -67,17 +59,18 @@ function getLeaderTier(adminPosition: string | null): 1 | 2 | 3 {
 }
 
 // أقسام الرتب بالترتيب المطلوب بعد قسم القيادة
-const RANK_SECTIONS: Array<{ key: string; title: string; subtitle: string; ranks: string[]; Icon: typeof Crown }> = [
-  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", ranks: ["Associate Professor", "أستاذ مشارك"], Icon: BookOpen },
-  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", ranks: ["Assistant Professor", "أستاذ مساعد"], Icon: GraduationCap },
-  { key: "lecturer",  title: "المدرّسون", subtitle: "برتبة مدرّس (محاضر)", ranks: ["Lecturer", "محاضر", "مدرّس", "مدرس"], Icon: GraduationCap },
-  { key: "lecturer_assistant", title: "المحاضرون المساعدون", subtitle: "برتبة محاضر مساعد", ranks: ["Lecturer Assistant", "محاضر مساعد", "محاضرة مساعد"], Icon: GraduationCap },
-  { key: "teaching",  title: "المعيدون", subtitle: "برتبة معيد", ranks: ["Teaching Assistant", "معيد"], Icon: Users },
+const RANK_SECTIONS: Array<{ key: RankKey; title: string; subtitle: string; Icon: typeof Crown }> = [
+  { key: "professor", title: "الأساتذة", subtitle: "برتبة أستاذ", Icon: Crown },
+  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", Icon: BookOpen },
+  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", Icon: GraduationCap },
+  { key: "lecturer", title: "المحاضرون", subtitle: "برتبة محاضر", Icon: GraduationCap },
+  { key: "lecturer_assistant", title: "المحاضرون المساعدون", subtitle: "برتبة محاضر مساعد", Icon: GraduationCap },
+  { key: "teaching", title: "المعيدون", subtitle: "برتبة معيد", Icon: Users },
 ];
 
 const OTHERS_SECTION: SectionDef = {
-  title: "محاضر مساعد",
-  subtitle: "أعضاء برتبة محاضر مساعد",
+  title: "أعضاء آخرون",
+  subtitle: "أعضاء هيئة التدريس",
   Icon: GraduationCap,
 };
 
@@ -92,7 +85,11 @@ export const Route = createFileRoute("/faculty")({
         content:
           "تعرّف على قيادة الكلية وأعضاء هيئة التدريس والهيئة المساعدة في كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/faculty" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/faculty" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(facultyQuery),
 
@@ -163,7 +160,7 @@ function FacultyPage() {
 
               for (const sec of RANK_SECTIONS) {
                 const members = rest
-                  .filter((f) => f.rank && sec.ranks.includes(f.rank.trim()))
+                  .filter((f) => normalizeRank(f.rank) === sec.key)
                   .sort(byName);
                 if (members.length === 0) continue;
                 members.forEach((m) => used.add(m.id));
@@ -190,7 +187,7 @@ function FacultyPage() {
                       </div>
                       <div>
                         <h2 className="font-display text-2xl font-extrabold text-primary">{def.title}</h2>
-                        <p className="text-sm text-muted-foreground">{def.subtitle} — {members.length} عضو</p>
+                        <p className="text-sm text-muted-foreground">{def.subtitle} — {memberCount(members.length)}</p>
                       </div>
                     </div>
                     <div className="divider-gold mb-8" />

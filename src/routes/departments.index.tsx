@@ -4,20 +4,23 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpDown, Brain, Cpu, Database, GraduationCap, Search, Shield } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programsQuery } from "@/lib/queries";
+import { programCountLabel, programDescription } from "@/lib/public-site-format";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/departments")({
+export const Route = createFileRoute("/departments/")({
   head: () => ({
     meta: [
       { title: "الأقسام والبرامج — كلية تكنولوجيا المعلومات" },
-      { name: "description", content: "الأقسام والبرامج الأكاديمية الأربعة في كلية تكنولوجيا المعلومات وعلوم الحاسوب: علوم الحاسوب، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي." },
+      { name: "description", content: "الأقسام والبرامج الأكاديمية في كلية تكنولوجيا المعلومات وعلوم الحاسوب: البكالوريوس والدراسات العليا." },
       { property: "og:title", content: "الأقسام والبرامج الدراسية" },
-      { property: "og:url", content: "/departments" },
+      { property: "og:description", content: "الأقسام والبرامج الأكاديمية في كلية تكنولوجيا المعلومات وعلوم الحاسوب." },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/departments" },
     ],
-    links: [{ rel: "canonical", href: "/departments" }],
+    links: [{ rel: "canonical", href: "https://quboolye.com/departments" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(programsQuery),
   component: DepartmentsPage,
@@ -80,7 +83,7 @@ function DepartmentsPage() {
       <PageHeader
         eyebrow="أكاديمي"
         title="الأقسام والبرامج الدراسية"
-        subtitle="أربعة برامج متخصصة تغطي أحدث مجالات تكنولوجيا المعلومات وعلوم الحاسوب، تجمع بين الأساس النظري المتين والتطبيق العملي."
+        subtitle={`${programCountLabel(list.length)} متخصصة تغطي أحدث مجالات تكنولوجيا المعلومات وعلوم الحاسوب، تجمع بين الأساس النظري المتين والتطبيق العملي.`}
       />
 
       {/* Departments Grid */}
@@ -120,7 +123,7 @@ function DepartmentsPage() {
                   <div className="flex-1 flex flex-col p-4">
                     <h3 className="font-display text-lg font-extrabold text-primary leading-snug line-clamp-2">{p.name_ar}</h3>
                     {p.name_en && <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">{p.name_en}</div>}
-                    <p className="mt-2 text-xs text-muted-foreground leading-6 line-clamp-3">{p.description_ar}</p>
+                    <p className="mt-2 text-xs text-muted-foreground leading-6 line-clamp-3">{programDescription(p)}</p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
                       <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{p.degree_type || meta.degree}</span>

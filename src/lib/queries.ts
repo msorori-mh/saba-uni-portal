@@ -12,9 +12,7 @@ export const programsQuery = queryOptions({
     if (error) throw error;
     return data;
   },
-  // lookup table — rarely changes; cached for the session
-  staleTime: Infinity,
-  gcTime: Infinity,
+  staleTime: 1000 * 60 * 5,
 });
 
 export const programByCodeQuery = (code: string) =>
@@ -25,6 +23,7 @@ export const programByCodeQuery = (code: string) =>
         .from("programs")
         .select("*")
         .eq("code", code)
+        .eq("is_active", true)
         .maybeSingle();
       if (error) throw error;
       return data;

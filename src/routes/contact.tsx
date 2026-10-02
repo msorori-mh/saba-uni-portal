@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { settingsQuery } from "@/lib/queries";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -109,7 +111,11 @@ export const Route = createFileRoute("/contact")({
         content:
           "تواصل مع كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. هاتف، بريد، عنوان، ونموذج تواصل مباشر.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://quboolye.com/contact" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://quboolye.com/contact" }],
     scripts: [{
       type: "application/ld+json",
       children: JSON.stringify({
@@ -233,30 +239,7 @@ function ContactPage() {
             </div>
           </div>
 
-          {/* Social */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h3 className="font-display font-extrabold text-primary mb-4">
-              تابعنا على منصات التواصل
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { icon: Facebook, label: "فيسبوك", color: "hover:bg-[#1877F2]" },
-                { icon: Twitter, label: "تويتر", color: "hover:bg-[#1DA1F2]" },
-                { icon: Instagram, label: "إنستغرام", color: "hover:bg-[#E4405F]" },
-                { icon: Youtube, label: "يوتيوب", color: "hover:bg-[#FF0000]" },
-                { icon: Linkedin, label: "لينكدإن", color: "hover:bg-[#0A66C2]" },
-              ].map((s) => (
-                <a
-                  key={s.label}
-                  href="#"
-                  aria-label={s.label}
-                  className={`grid h-11 w-11 place-items-center rounded-lg border border-border bg-background text-primary transition-all hover:text-white hover:border-transparent ${s.color}`}
-                >
-                  <s.icon className="h-5 w-5" />
-                </a>
-              ))}
-            </div>
-          </div>
+          <ContactSocials />
 
           {/* Map */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
@@ -443,6 +426,39 @@ function FieldWrap({
       {error && (
         <p className="mt-1.5 text-xs text-destructive font-medium">{error}</p>
       )}
+    </div>
+  );
+}
+
+function ContactSocials() {
+  const { data: settings = {} } = useQuery(settingsQuery);
+  const items = [
+    { key: "facebook_url", icon: Facebook, label: "فيسبوك", color: "hover:bg-[#1877F2]" },
+    { key: "twitter_url", icon: Twitter, label: "تويتر", color: "hover:bg-[#1DA1F2]" },
+    { key: "instagram_url", icon: Instagram, label: "إنستغرام", color: "hover:bg-[#E4405F]" },
+    { key: "youtube_url", icon: Youtube, label: "يوتيوب", color: "hover:bg-[#FF0000]" },
+    { key: "linkedin_url", icon: Linkedin, label: "لينكدإن", color: "hover:bg-[#0A66C2]" },
+  ]
+    .map((x) => ({ ...x, href: (settings[x.key] ?? "").trim() }))
+    .filter((x) => /^https?:\/\//i.test(x.href));
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+      <h3 className="font-display font-extrabold text-primary mb-4">تابعنا على منصات التواصل</h3>
+      <div className="flex flex-wrap gap-3">
+        {items.map((s) => (
+          <a
+            key={s.key}
+            href={s.href}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={s.label}
+            className={`grid h-11 w-11 place-items-center rounded-lg border border-border bg-background text-primary transition-all hover:text-white hover:border-transparent ${s.color}`}
+          >
+            <s.icon className="h-5 w-5" />
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
