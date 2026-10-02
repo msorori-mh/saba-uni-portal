@@ -217,6 +217,12 @@ jobs:
       fail-fast: false
       matrix:
         chain:
+          - name: study-plan-cohorts
+            files: >-
+              tests/study-plans/cohort.pg-setup.sql
+              supabase/migrations/20261002010000_study_plan_coexistence.sql
+              supabase/migrations/20261002030000_study_plan_admission_cohorts.sql
+              tests/study-plans/cohort.pg-verify.sql
           # Chain: pg-setup -> GRADUATES-AFFAIRS-MVP-FOUNDATION-01 -> verifier.
           - name: graduates-affairs-foundation
             files: >-
