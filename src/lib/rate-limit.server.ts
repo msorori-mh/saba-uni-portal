@@ -17,10 +17,26 @@ export const SERVER_RATE_LIMIT_POLICIES = {
   /** Per-target admin reset — separate action/key from public forgot-password flows. */
   adminPasswordReset: { action: "admin_password_reset", maxAttempts: 10, windowMinutes: 15, blockMinutes: 15 },
   sensitiveRpc:    { action: "sensitive_rpc",    maxAttempts: 30, windowMinutes: 10, blockMinutes: 15 },
+  reauthentication: { action: "reauthentication", maxAttempts: 5, windowMinutes: 15, blockMinutes: 15 },
 } as const;
 
 export const RATE_LIMIT_ERROR_AR =
   "تم تجاوز عدد المحاولات المسموح بها. يرجى المحاولة لاحقاً.";
+
+/** Sensitive password checks must fail closed when the counter is unavailable. */
+export async function enforceReauthenticationRateLimit(key: string): Promise<void> {
+  const policy = SERVER_RATE_LIMIT_POLICIES.reauthentication;
+  const { data, error } = await supabaseAdmin.rpc("check_and_record_rate_limit", {
+    p_key: key,
+    p_action: policy.action,
+    p_max_attempts: policy.maxAttempts,
+    p_window_minutes: policy.windowMinutes,
+    p_block_minutes: policy.blockMinutes,
+  });
+  if (error || !data || (data as { allowed?: boolean }).allowed !== true) {
+    throw new Error(RATE_LIMIT_ERROR_AR);
+  }
+}
 
 export async function enforceRateLimit(
   key: string,

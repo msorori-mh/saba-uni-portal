@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { officialDocumentUrls } from "@/lib/site-url.server";
 
 export const DOCUMENT_ADMIN_ROLES = [
   "system_admin",
@@ -92,49 +91,12 @@ const issueInput = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
+// Legacy ad-hoc issuance has no request or document_issuance step to authorize.
 export const issueOfficialDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => issueInput.parse(input))
-  .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      DOCUMENT_ADMIN_ROLES,
-      "ليس لديك صلاحية إصدار الوثائق",
-    );
-
-    // RPC checks auth.uid() — must use the authenticated user's client.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = context.supabase as any;
-    const { data: result, error } = await sb.rpc("issue_official_document", {
-      _student_profile_id: data.studentProfileId,
-      _document_type: data.documentType,
-      _metadata: data.metadata,
-    });
-    if (error) throw new Error(error.message);
-
-    const { data: student } = await supabaseAdmin
-      .from("student_profiles")
-      .select("email, full_name_ar")
-      .eq("id", data.studentProfileId)
-      .maybeSingle();
-
-    const docId = result?.id as string | undefined;
-    const document_number = result?.document_number as string | undefined;
-    const verification_code = result?.verification_code as string | undefined;
-    const urls =
-      docId && verification_code
-        ? officialDocumentUrls(docId, verification_code)
-        : { document_url: null as string | null, verify_url: null as string | null };
-
-    return {
-      id: docId,
-      document_number,
-      verification_code,
-      document_url: urls.document_url,
-      verify_url: urls.verify_url,
-      student_email: student?.email ?? null,
-      student_name: student?.full_name_ar ?? null,
-    };
+  .handler(async () => {
+    throw new Error("إصدار الوثائق متاح من خطوة إصدار الوثيقة في مسار الطلب فقط");
   });
 
 export const cancelOfficialDocument = createServerFn({ method: "POST" })

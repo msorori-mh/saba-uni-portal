@@ -117,7 +117,7 @@ function MobileStudentNotifications() {
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{n.message}</p>
               <div dir="ltr" className="mt-1 text-right text-[10px] text-muted-foreground/80">
-                {new Date(n.created_at).toLocaleString("ar")}
+                {new Date(n.created_at).toLocaleString("ar-EG-u-nu-latn")}
               </div>
             </li>
           ))}
