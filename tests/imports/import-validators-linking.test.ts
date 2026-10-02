@@ -220,6 +220,22 @@ describe("student plan assignment", () => {
     const selected = await validateStudents([studentRaw({ study_plan_code: "IT-NEW" })], makeLookups());
     expect(selected.rows[0]?.parsed?.study_plan_id).toBe("plan-new");
   });
+
+  it("selects the plan from an explicitly configured admission cohort", async () => {
+    mockDb({
+      study_plans: [
+        { id: "plan-old", program_id: PROG_IT, plan_code: "IT-OLD" },
+        { id: "plan-new", program_id: PROG_IT, plan_code: "IT-NEW" },
+      ],
+      study_plan_cohorts: [{ program_id: PROG_IT, admission_year: 2026, study_plan_id: "plan-new" }],
+    });
+    const selected = await validateStudents([studentRaw({ admission_year: 2026 })], makeLookups());
+    expect(selected.invalidRows).toBe(0);
+    expect(selected.rows[0]?.parsed?.study_plan_id).toBe("plan-new");
+    expect(selected.rows[0]?.parsed?.admission_year).toBe(2026);
+    const mismatch = await validateStudents([studentRaw({ admission_year: 2026, study_plan_code: "IT-OLD" })], makeLookups());
+    expect(mismatch.rows[0]?.errors.some((e) => e.column === "study_plan_code")).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------- G-06

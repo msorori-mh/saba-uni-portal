@@ -46,6 +46,7 @@ export type StudentRow = {
   department_id: string;
   program_id: string;
   study_plan_id: string | null;
+  admission_year: number | null;
   academic_year_id: string;
   semester_id: string;
   level_id: string;
@@ -98,6 +99,14 @@ export async function validateStudents(
     list.push(plan);
     plansByProgram.set(plan.program_id, list);
   }
+  const { data: cohortRows, error: cohortError } = programIds.length
+    ? await getImportDb().from("study_plan_cohorts")
+        .select("program_id, admission_year, study_plan_id").in("program_id", programIds)
+    : { data: [], error: null };
+  if (cohortError) throw new Error(cohortError.message);
+  const cohortByProgramYear = new Map((cohortRows ?? []).map((row) =>
+    [`${row.program_id}|${row.admission_year}`, row.study_plan_id] as const,
+  ));
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const existingSet = new Set<string>();
   if (acNumbers.length) {
@@ -150,14 +159,26 @@ export async function validateStudents(
     if (!prog)
       errors.push({ row: rowNumber, column: "program_code", message: "البرنامج غير موجود" });
     const planCode = str(raw.study_plan_code);
+    const admissionYearRaw = str(raw.admission_year);
+    const admissionYear = admissionYearRaw ? Number(admissionYearRaw) : null;
+    if (admissionYearRaw && (!/^\d{4}$/.test(admissionYearRaw) || !Number.isInteger(admissionYear) || admissionYear! < 1950 || admissionYear! > 2100)) {
+      errors.push({ row: rowNumber, column: "admission_year", message: "سنة القبول يجب أن تكون سنة صحيحة بين 1950 و2100" });
+    }
     const programPlans = prog ? (plansByProgram.get(prog.id) ?? []) : [];
+    const cohortPlanId = prog && admissionYear !== null
+      ? cohortByProgramYear.get(`${prog.id}|${admissionYear}`) : undefined;
     const selectedPlan = planCode
       ? programPlans.find((plan) => normKey(plan.plan_code) === normKey(planCode))
       : null;
     if (planCode && !selectedPlan) {
       errors.push({ row: rowNumber, column: "study_plan_code", message: "رمز الخطة غير موجود أو غير نشط لهذا البرنامج" });
-    } else if (!planCode && programPlans.length > 1) {
+    } else if (selectedPlan && cohortPlanId && selectedPlan.id !== cohortPlanId) {
+      errors.push({ row: rowNumber, column: "study_plan_code", message: "رمز الخطة لا يطابق خطة سنة القبول المعتمدة" });
+    } else if (!planCode && !cohortPlanId && programPlans.length > 1) {
       errors.push({ row: rowNumber, column: "study_plan_code", message: "يجب تحديد رمز الخطة القديمة أو الجديدة لهذا الطالب" });
+    }
+    if (cohortPlanId && !programPlans.some((plan) => plan.id === cohortPlanId)) {
+      errors.push({ row: rowNumber, column: "admission_year", message: "خطة سنة القبول غير نشطة" });
     }
 
     // G-06: program must belong to the resolved department.
@@ -283,7 +304,8 @@ export async function validateStudents(
             university_email: university_email || null,
             department_id: dep_id!,
             program_id: prog!.id,
-            study_plan_id: selectedPlan?.id ?? (programPlans.length === 1 ? programPlans[0].id : null),
+            study_plan_id: selectedPlan?.id ?? cohortPlanId ?? (programPlans.length === 1 ? programPlans[0].id : null),
+            admission_year: admissionYear,
             academic_year_id: ay_id!,
             semester_id: sem_id!,
             level_id: level_id!,

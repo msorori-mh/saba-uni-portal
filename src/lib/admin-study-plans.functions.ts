@@ -168,6 +168,49 @@ export const listStudyPlansByProgram = createServerFn({ method: "POST" })
     return list.map((p) => ({ ...p, computed_credit_hours: hours.get(p.id) ?? 0 }));
   });
 
+export const listStudyPlanCohorts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStudyPlansAdmin(context.userId);
+    const { data, error } = await supabaseAdmin.from("study_plan_cohorts")
+      .select("program_id, admission_year, study_plan_id, updated_at")
+      .order("admission_year", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const assignStudyPlanCohort = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    program_id: z.string().uuid(),
+    admission_year: z.number().int().min(1950).max(2100),
+    study_plan_id: z.string().uuid(),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertStudyPlansAdmin(context.userId);
+    const { data: plan, error: planError } = await supabaseAdmin.from("study_plans")
+      .select("id, program_id, status, is_active").eq("id", data.study_plan_id).maybeSingle();
+    if (planError) throw new Error(planError.message);
+    if (!plan || plan.program_id !== data.program_id || !plan.is_active || plan.status !== "active") {
+      throw new Error("الخطة غير نشطة أو لا تتبع البرنامج.");
+    }
+    const { data: conflicting, error: conflictError } = await supabaseAdmin.from("student_profiles")
+      .select("id").eq("program_id", data.program_id)
+      .eq("admission_year", data.admission_year)
+      .not("study_plan_id", "is", null)
+      .neq("study_plan_id", data.study_plan_id).limit(1);
+    if (conflictError) throw new Error(conflictError.message);
+    if (conflicting?.length) throw new Error("يوجد طلاب من هذه الدفعة مرتبطون بخطة أخرى؛ راجع تعييناتهم قبل تغيير قاعدة الدفعة.");
+    const { error } = await supabaseAdmin.from("study_plan_cohorts").upsert({
+      program_id: data.program_id,
+      admission_year: data.admission_year,
+      study_plan_id: data.study_plan_id,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "program_id,admission_year" });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 
 const studyPlanPayloadSchema = z.object({
   program_id: z.string().uuid(),

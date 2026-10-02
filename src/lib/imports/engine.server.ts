@@ -214,6 +214,7 @@ export async function importStudents(
         department_id: p.department_id,
         program_id: p.program_id,
         study_plan_id: p.study_plan_id,
+        admission_year: p.admission_year,
         study_system: p.study_system,
         status: p.status,
         must_change_password: p.must_change_password,

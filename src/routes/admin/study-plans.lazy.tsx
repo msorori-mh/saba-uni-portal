@@ -17,6 +17,8 @@ import {
   listStudyPlanCourses,
   upsertStudyPlanCourse,
   deleteStudyPlanCourse,
+  listStudyPlanCohorts,
+  assignStudyPlanCohort,
 } from "@/lib/admin-study-plans.functions";
 import { Plus, Pencil, Trash2, Loader2, BookOpen, GraduationCap, ListTree, Search, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,16 +71,74 @@ function StudyPlansPage() {
       </div>
 
       <Tabs defaultValue="courses" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl">
           <TabsTrigger value="courses"><BookOpen className="h-4 w-4 ml-2" />المقررات</TabsTrigger>
           <TabsTrigger value="plans"><GraduationCap className="h-4 w-4 ml-2" />الخطط الدراسية</TabsTrigger>
           <TabsTrigger value="plan-courses"><ListTree className="h-4 w-4 ml-2" />مقررات الخطة</TabsTrigger>
+          <TabsTrigger value="cohorts">دفعات القبول</TabsTrigger>
         </TabsList>
 
         <TabsContent value="courses" className="mt-6"><CoursesTab /></TabsContent>
         <TabsContent value="plans" className="mt-6"><PlansTab /></TabsContent>
         <TabsContent value="plan-courses" className="mt-6"><PlanCoursesTab /></TabsContent>
+        <TabsContent value="cohorts" className="mt-6"><CohortTab /></TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function CohortTab() {
+  const qc = useQueryClient();
+  const lookupsFn = useServerFn(getStudyPlansLookups);
+  const plansFn = useServerFn(listStudyPlans);
+  const cohortsFn = useServerFn(listStudyPlanCohorts);
+  const assignFn = useServerFn(assignStudyPlanCohort);
+  const [programId, setProgramId] = useState("");
+  const [year, setYear] = useState("");
+  const [planId, setPlanId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { data: lookups } = useQuery({ queryKey: ["study-plans-lookups"], queryFn: () => lookupsFn({ data: {} }) });
+  const { data: plans = [] } = useQuery({ queryKey: ["admin-plans"], queryFn: () => plansFn({ data: {} }) });
+  const { data: cohorts = [] } = useQuery({ queryKey: ["study-plan-cohorts"], queryFn: () => cohortsFn({ data: {} }) });
+  const activePlans = plans.filter((plan) => plan.program_id === programId && plan.is_active && plan.status === "active");
+  const save = async () => {
+    const admissionYear = Number(year);
+    if (!programId || !planId || !/^\d{4}$/.test(year) || admissionYear < 1950 || admissionYear > 2100) {
+      toast.error("اختر البرنامج وسنة قبول صحيحة والخطة."); return;
+    }
+    setBusy(true);
+    try {
+      await assignFn({ data: { program_id: programId, admission_year: admissionYear, study_plan_id: planId } });
+      toast.success("تم اعتماد خطة دفعة القبول");
+      await qc.invalidateQueries({ queryKey: ["study-plan-cohorts"] });
+      await qc.invalidateQueries({ queryKey: ["admin-student-lookups"] });
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">حدد سنة القبول الأصلية لكل دفعة. لا تُستنتج من المستوى الحالي أو الرقم الأكاديمي، ولا تغيّر هذه القاعدة خطط الطلاب الموجودين تلقائيًا.</p>
+      <div className="grid gap-3 md:grid-cols-4">
+        <Select value={programId} onValueChange={(value) => { setProgramId(value); setPlanId(""); }}>
+          <SelectTrigger><SelectValue placeholder="البرنامج" /></SelectTrigger>
+          <SelectContent>{lookups?.programs.map((program) => <SelectItem key={program.id} value={program.id}>{program.name_ar}</SelectItem>)}</SelectContent>
+        </Select>
+        <Input type="number" min={1950} max={2100} value={year} onChange={(event) => { setYear(event.target.value); setPlanId(""); }} placeholder="سنة القبول، مثل 2026" dir="ltr" />
+        <Select value={planId} onValueChange={setPlanId} disabled={!programId}>
+          <SelectTrigger><SelectValue placeholder="الخطة المعتمدة للدفعة" /></SelectTrigger>
+          <SelectContent>{activePlans.map((plan) => <SelectItem key={plan.id} value={plan.id}>{plan.name} ({plan.plan_code ?? plan.version})</SelectItem>)}</SelectContent>
+        </Select>
+        <Button onClick={save} disabled={busy}>{busy ? "جارٍ الحفظ..." : "اعتماد الربط"}</Button>
+      </div>
+      <div className="space-y-2">
+        {cohorts.filter((cohort) => !programId || cohort.program_id === programId).map((cohort) => {
+          const program = lookups?.programs.find((item) => item.id === cohort.program_id);
+          const plan = plans.find((item) => item.id === cohort.study_plan_id);
+          return <div key={`${cohort.program_id}:${cohort.admission_year}`} className="rounded-lg border bg-card p-3 text-sm">
+            {program?.name_ar ?? "برنامج غير معروف"} · دفعة {cohort.admission_year} · {plan?.name ?? "خطة غير معروفة"} ({plan?.plan_code ?? "بلا رمز"})
+          </div>;
+        })}
+      </div>
     </div>
   );
 }

@@ -325,6 +325,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
           semester_id: form.semester_id,
           program_id: form.program_id,
           level_id: form.level_id,
+          study_plan_id: form.study_plan_id || undefined,
           status: (form.status ?? "active") as "active" | "inactive",
         },
       });
@@ -346,7 +347,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>السنة الأكاديمية *</Label>
-            <Select value={form.academic_year_id ?? ""} onValueChange={(v) => setForm({ ...form, academic_year_id: v, semester_id: undefined, course_id: undefined })}>
+            <Select value={form.academic_year_id ?? ""} onValueChange={(v) => setForm({ ...form, academic_year_id: v, semester_id: undefined, study_plan_id: undefined, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {lk.years.map((y) => <SelectItem key={y.id} value={y.id}>{y.name}{y.is_current ? " (الحالية)" : ""}</SelectItem>)}
@@ -355,7 +356,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
           </div>
           <div>
             <Label>الفصل *</Label>
-            <Select value={form.semester_id ?? ""} onValueChange={(v) => setForm({ ...form, semester_id: v, course_id: undefined })}>
+            <Select value={form.semester_id ?? ""} onValueChange={(v) => setForm({ ...form, semester_id: v, study_plan_id: undefined, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {semestersForYear.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
@@ -364,7 +365,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
           </div>
           <div>
             <Label>القسم *</Label>
-            <Select value={form.department_id ?? ""} onValueChange={(v) => setForm({ ...form, department_id: v, program_id: undefined, course_id: undefined })}>
+            <Select value={form.department_id ?? ""} onValueChange={(v) => setForm({ ...form, department_id: v, program_id: undefined, study_plan_id: undefined, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {lk.departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
@@ -393,7 +394,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
           )}
           <div>
             <Label>المستوى *</Label>
-            <Select value={form.level_id ?? ""} onValueChange={(v) => setForm({ ...form, level_id: v, course_id: undefined })}>
+            <Select value={form.level_id ?? ""} onValueChange={(v) => setForm({ ...form, level_id: v, study_plan_id: undefined, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {lk.levels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
