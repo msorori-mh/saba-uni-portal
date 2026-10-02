@@ -34,22 +34,39 @@ export async function fetchMyProgramId(): Promise<string | null> {
 }
 
 export async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
-  const { data: plan, error: pErr } = await supabase
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("يجب تسجيل الدخول لعرض الخطة الدراسية.");
+  const { data: profile, error: profileError } = await supabase
+    .from("student_profiles")
+    .select("program_id, study_plan_id")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  if (!profile || profile.program_id !== programId) throw new Error("تعذر تحديد برنامج الطالب.");
+
+  let planQuery = supabase
     .from("study_plans")
     .select("id")
-    .eq("program_id", programId)
-    .eq("is_active", true)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("program_id", programId);
+  planQuery = profile.study_plan_id
+    ? planQuery.eq("id", profile.study_plan_id)
+    : planQuery.eq("is_active", true).eq("status", "active");
+  const { data: plans, error: pErr } = await planQuery.limit(2);
   if (pErr) throw pErr;
-  if (!plan) return [];
+  if (!plans?.length) {
+    if (profile.study_plan_id) throw new Error("الخطة المرتبطة بالطالب غير موجودة في برنامجه.");
+    return [];
+  }
+  if (!profile.study_plan_id && plans.length > 1) {
+    throw new Error("لم تُحدد الخطة القديمة أو الجديدة لهذا الطالب بعد. راجع شؤون الطلاب.");
+  }
+  const planId = plans[0].id;
   const { data, error } = await supabase
     .from("study_plan_courses")
     .select(
       "id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)",
     )
-    .eq("study_plan_id", plan.id)
+    .eq("study_plan_id", planId)
     .order("sort_order");
   if (error) throw error;
   return (data ?? []) as unknown as PlanCourseRow[];

@@ -125,6 +125,7 @@ const inputSchema = z.object({
       departmentId: z.string().uuid(),
       programId: z.string().uuid(),
       planName: z.string().trim().min(1).max(200),
+      planCode: z.string().trim().min(1).max(80),
       version: z.string().trim().min(1).max(50),
       planStatus: z.enum(["draft", "active"]).default("active"),
       importMode: z.enum(["full_plan", "single_semester"]),
@@ -142,6 +143,7 @@ const previewInputSchema = z.object({
       departmentId: z.string().uuid(),
       programId: z.string().uuid(),
       planName: z.string().trim().min(1).max(200),
+      planCode: z.string().trim().min(1).max(80),
       version: z.string().trim().min(1).max(50),
       planStatus: z.enum(["draft", "active"]).default("active"),
       importMode: z.enum(["full_plan", "single_semester"]),
@@ -163,6 +165,7 @@ function assertStudyPlanImportContext(
   if (!context.departmentId) throw new Error("يجب اختيار القسم.");
   if (!context.programId) throw new Error("يجب اختيار البرنامج.");
   if (!context.planName?.trim()) throw new Error("يجب إدخال اسم الخطة.");
+  if (!context.planCode?.trim()) throw new Error("يجب إدخال رمز الخطة كما هو في المصدر.");
   if (!context.version?.trim()) throw new Error("يجب إدخال إصدار الخطة.");
   if (!context.importMode) throw new Error("يجب تحديد نوع الاستيراد.");
   if (context.importMode === "single_semester" && !context.semesterCode) {
@@ -177,7 +180,7 @@ async function applyStudyPlanImportContext(
 ) {
   const requiredContext = assertStudyPlanImportContext(context);
 
-  const [{ data: program }, { data: existingPlan }] = await Promise.all([
+  const [{ data: program, error: programError }, { data: existingPlan, error: planError }, { data: sameNameVersion, error: nameError }] = await Promise.all([
     supabaseAdmin
       .from("programs")
       .select("id, code, department_id")
@@ -185,17 +188,33 @@ async function applyStudyPlanImportContext(
       .maybeSingle(),
     supabaseAdmin
       .from("study_plans")
-      .select("id")
+      .select("id, name, version, plan_code, status")
       .eq("program_id", requiredContext.programId)
+      .eq("plan_code", requiredContext.planCode)
+      .maybeSingle(),
+    supabaseAdmin.from("study_plans")
+      .select("id, plan_code")
+      .eq("program_id", requiredContext.programId)
+      .eq("name", requiredContext.planName)
       .eq("version", requiredContext.version)
       .maybeSingle(),
   ]);
+  if (programError || planError || nameError) {
+    throw new Error(programError?.message ?? planError?.message ?? nameError?.message);
+  }
   if (!program) throw new Error("البرنامج المختار غير موجود.");
   if (program.department_id !== requiredContext.departmentId) {
     throw new Error("البرنامج المختار لا يتبع القسم المحدد.");
   }
-  if (existingPlan) {
-    throw new Error("توجد خطة مسبقاً لهذا البرنامج والإصدار.");
+  if (existingPlan && (
+    existingPlan.name !== requiredContext.planName ||
+    existingPlan.version !== requiredContext.version ||
+    existingPlan.status !== requiredContext.planStatus
+  )) {
+    throw new Error("رمز الخطة مستخدم لخطة أخرى؛ راجع الاسم والإصدار والحالة قبل الإضافة.");
+  }
+  if (sameNameVersion && sameNameVersion.id !== existingPlan?.id) {
+    throw new Error("توجد خطة بنفس الاسم والإصدار ورمز مختلف لهذا البرنامج.");
   }
 
   return rows.map((row, idx) => {
@@ -210,6 +229,11 @@ async function applyStudyPlanImportContext(
     }
     next.program_code = program.code;
     next.plan_name = requiredContext.planName;
+    const filePlanCode = studyPlanCell(next.plan_code);
+    if (filePlanCode && filePlanCode !== requiredContext.planCode) {
+      throw new Error(`صف ${rowNumber}: رمز الخطة داخل الملف لا يطابق الخطة المختارة.`);
+    }
+    next.plan_code = requiredContext.planCode;
     next.version = requiredContext.version;
     next.plan_status = requiredContext.planStatus;
 
@@ -503,7 +527,7 @@ export const getStudyPlanImportContextOptions = createServerFn({ method: "POST" 
           .order("start_date", { ascending: false }),
         supabaseAdmin
           .from("study_plans")
-          .select("id, name, version, program_id, status, is_active")
+          .select("id, name, plan_code, version, program_id, status, is_active")
           .order("updated_at", { ascending: false }),
       ]);
     const firstError = [

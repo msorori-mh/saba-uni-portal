@@ -213,6 +213,8 @@ export async function importStudents(
         email: p.university_email,
         department_id: p.department_id,
         program_id: p.program_id,
+        study_plan_id: p.study_plan_id,
+        admission_year: p.admission_year,
         study_system: p.study_system,
         status: p.status,
         must_change_password: p.must_change_password,
@@ -473,38 +475,37 @@ export async function importStudyPlans(
   async function getOrCreatePlan(
     program_id: string,
     name: string,
+    plan_code: string,
     version: string,
     status: "draft" | "active",
   ): Promise<string | null> {
-    // G-14: plan identity is (program_id, version) — the DB UNIQUE key.
-    // Looking up by (program_id, name, version) missed same-version/different-name
-    // plans and produced confusing insert violations.
-    const key = `${program_id}|${version}`;
+    const key = `${program_id}|${plan_code}`;
     if (planCache.has(key)) return planCache.get(key)!;
     const { data: existing } = await sb
       .from("study_plans")
-      .select("id")
+      .select("id, name, version, status")
       .eq("program_id", program_id)
-      .eq("version", version)
+      .eq("plan_code", plan_code)
       .maybeSingle();
     if (existing) {
+      if (existing.name !== name || existing.version !== version || existing.status !== status) return null;
       planCache.set(key, existing.id);
       return existing.id;
     }
     const { data: created, error } = await sb
       .from("study_plans")
-      .insert({ program_id, name, version, status, is_active: status === "active" })
+      .insert({ program_id, name, plan_code, version, status, is_active: status === "active" })
       .select("id")
       .maybeSingle();
     if (error || !created) {
-      // Possible race/constraint on UNIQUE(program_id, version) — re-read before failing.
+      // A concurrent import may have created this plan code; re-read before failing.
       const { data: after } = await sb
         .from("study_plans")
-        .select("id")
+        .select("id, name, version, status")
         .eq("program_id", program_id)
-        .eq("version", version)
+        .eq("plan_code", plan_code)
         .maybeSingle();
-      if (after) {
+      if (after && after.name === name && after.version === version && after.status === status) {
         planCache.set(key, after.id);
         return after.id;
       }
@@ -518,6 +519,7 @@ export async function importStudyPlans(
     const planId = await getOrCreatePlan(
       r.parsed.program_id,
       r.parsed.plan_name,
+      r.parsed.plan_code,
       r.parsed.version,
       r.parsed.plan_status,
     );

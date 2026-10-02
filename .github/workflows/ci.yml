@@ -65,8 +65,7 @@ jobs:
           if node -e "const s=require('./package.json').scripts||{}; process.exit(s.typecheck?0:1)"; then
             bun run typecheck
           else
-            echo "typecheck script not found; skipping"
-            echo "typecheck script not found; skipping" >> "$GITHUB_STEP_SUMMARY"
+            bunx tsc --noEmit
           fi
 
       - name: Build
@@ -217,6 +216,12 @@ jobs:
       fail-fast: false
       matrix:
         chain:
+          - name: study-plan-cohorts
+            files: >-
+              tests/study-plans/cohort.pg-setup.sql
+              supabase/migrations/20261002010000_study_plan_coexistence.sql
+              supabase/migrations/20261002030000_study_plan_admission_cohorts.sql
+              tests/study-plans/cohort.pg-verify.sql
           # Chain: pg-setup -> GRADUATES-AFFAIRS-MVP-FOUNDATION-01 -> verifier.
           - name: graduates-affairs-foundation
             files: >-

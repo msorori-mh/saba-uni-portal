@@ -13,12 +13,12 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Re-pinned during PORTAL_REFORM_P1_STUDENT_SERVICES_SOURCE_CLOSURE_02 after the
-// approved lecture-monitoring parity report route was added. Drift verified:
-// 150 fullPaths (was 148), all unique, exactly one "/" claimant, and the only
-// delta is /faculty-portal/lecture-monitoring plus its /parity child.
+// Re-pinned after the public departments route became an index route.
+// The fullPath /departments became /departments/; /departments/$code keeps
+// its public URL but now has the root as its parent. All 151 paths stay unique
+// and exactly one route claims "/".
 const ROUTE_SEMANTIC_SHA256 =
-  "78661c78207beea5b56744727914dd7471c2f96938f4a45964c178cf8e681604";
+  "712e24922fdab32cb9556e35c1e334f513e95986f065c7dc10fcca549937b6a3";
 
 
 const FROZEN_GP_FULL_PATHS = [
@@ -129,6 +129,9 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
     expect(routeTree).toContain(
       "fullPath: '/faculty-portal/graduation-projects/'",
     );
+    expect(routeTree).toContain("fullPath: '/departments/'");
+    expect(routeTree).toContain("fullPath: '/departments/$code'");
+    expect(routeTree).not.toContain("fullPath: '/departments'");
     expect(routeSemanticHash(routeTree)).toBe(ROUTE_SEMANTIC_SHA256);
   });
 });

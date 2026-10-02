@@ -28,7 +28,7 @@ function StudyPlanPage() {
     queryFn: fetchMyProgramId,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: planError } = useQuery({
     queryKey: ["student", "study-plan", programId],
     queryFn: () => fetchMyStudyPlan(programId!),
     enabled: !!programId,
@@ -92,6 +92,11 @@ function StudyPlanPage() {
           </Link>
         </div>
 
+        {planError && (
+          <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 mb-4 text-sm text-destructive">
+            {(planError as Error).message}
+          </p>
+        )}
         <div className="rounded-xl border border-border bg-card p-4 mb-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>

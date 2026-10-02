@@ -80,6 +80,7 @@ const offeringPayloadSchema = z.object({
   semester_id: z.string().uuid(),
   program_id: z.string().uuid(),
   level_id: z.string().uuid(),
+  study_plan_id: z.string().uuid().optional(),
   status: z.enum(["active", "inactive"]),
 });
 
@@ -90,6 +91,25 @@ export const upsertCourseOffering = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertCourseOfferingsAdmin(context.userId);
+    const { data: term, error: termError } = await supabaseAdmin.from("semesters")
+      .select("code").eq("id", data.semester_id).maybeSingle();
+    if (termError) throw new Error(termError.message);
+    const semesterCode = normalizeSemesterCode(term?.code);
+    if (!semesterCode) throw new Error("الفصل الدراسي غير معروف.");
+    const { data: plans, error: plansError } = await supabaseAdmin.from("study_plans")
+      .select("id").eq("program_id", data.program_id).eq("is_active", true).eq("status", "active");
+    if (plansError) throw new Error(plansError.message);
+    if (!plans?.length) throw new Error("لا توجد خطة نشطة لهذا البرنامج.");
+    const { data: links, error: linksError } = await supabaseAdmin.from("study_plan_courses")
+      .select("study_plan_id").in("study_plan_id", plans.map((plan) => plan.id))
+      .eq("course_id", data.course_id).eq("level_id", data.level_id).eq("semester_code", semesterCode);
+    if (linksError) throw new Error(linksError.message);
+    if (!links?.length || (data.study_plan_id && !links.some((link) => link.study_plan_id === data.study_plan_id))) {
+      throw new Error("المقرر غير موجود في الخطة المختارة لهذا المستوى والفصل.");
+    }
+    if (links.length > 1 && !data.study_plan_id) {
+      throw new Error("حدد الخطة الدراسية عند تداخل الخطط لهذا المستوى والفصل.");
+    }
     const payload = {
       course_id: data.course_id,
       academic_year_id: data.academic_year_id,
@@ -124,6 +144,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
       programId: z.string().uuid(),
       levelId: z.string().uuid(),
       semesterId: z.string().uuid(),
+      planId: z.string().uuid().optional(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -137,29 +158,40 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
     if (semErr) throw new Error(semErr.message);
 
     const semesterCode = normalizeSemesterCode(semester?.code);
-    if (!semesterCode) return { noPlan: true, courses: [] };
+    if (!semesterCode) return { noPlan: true, needsPlan: false, plans: [], courses: [] };
 
     const { data: plans, error: pErr } = await supabaseAdmin
       .from("study_plans")
-      .select("id")
+      .select("id, name, plan_code, version")
       .eq("program_id", data.programId)
       .eq("is_active", true)
       .eq("status", "active");
     if (pErr) throw new Error(pErr.message);
-    if (!plans || plans.length === 0) return { noPlan: true, courses: [] };
+    if (!plans || plans.length === 0) return { noPlan: true, needsPlan: false, plans: [], courses: [] };
 
-    const planIds = plans.map((p) => p.id as string);
+    if (data.planId && !plans.some((plan) => plan.id === data.planId)) {
+      throw new Error("الخطة المختارة غير نشطة أو لا تتبع هذا البرنامج.");
+    }
+    const planIds = plans.map((plan) => plan.id);
     const { data: spc, error: sErr } = await supabaseAdmin
       .from("study_plan_courses")
-      .select("course_id, sort_order")
+      .select("study_plan_id, course_id, sort_order")
       .in("study_plan_id", planIds)
       .eq("level_id", data.levelId)
       .eq("semester_code", semesterCode)
       .order("sort_order");
     if (sErr) throw new Error(sErr.message);
 
-    const ids = Array.from(new Set((spc ?? []).map((r) => r.course_id as string)));
-    if (ids.length === 0) return { noPlan: false, courses: [] };
+    const matchingIds = new Set((spc ?? []).map((row) => row.study_plan_id));
+    const matchingPlans = plans.filter((plan) => matchingIds.has(plan.id));
+    if (matchingPlans.length > 1 && !data.planId) {
+      return { noPlan: false, needsPlan: true, plans: matchingPlans, courses: [] };
+    }
+    const pickedId = data.planId ?? matchingPlans[0]?.id;
+    const selectedRows = (spc ?? []).filter((row) => row.study_plan_id === pickedId);
+
+    const ids = Array.from(new Set(selectedRows.map((r) => r.course_id as string)));
+    if (ids.length === 0) return { noPlan: false, needsPlan: false, plans: matchingPlans, courses: [] };
 
     const { data: cs, error: cErr } = await supabaseAdmin
       .from("courses")
@@ -172,7 +204,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
       (a, b) => (order.get(a.id as string) ?? 0) - (order.get(b.id as string) ?? 0),
     );
 
-    return { noPlan: false, courses };
+    return { noPlan: false, needsPlan: false, plans: matchingPlans, courses };
   });
 
 // ── Course sections (المجموعات) ────────────────────────────────────────────

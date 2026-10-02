@@ -65,20 +65,25 @@ export const getStudentLookups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertStudentRead(context.userId);
-    const [deps, progs, levels, years, sems] = await Promise.all([
+    const [deps, progs, levels, years, sems, plans, cohorts] = await Promise.all([
       supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
       supabaseAdmin.from("programs").select("id, name_ar, department_id, code").eq("is_active", true).order("sort_order"),
       supabaseAdmin.from("academic_levels").select("id, name, level_number").eq("status", "active").order("level_number"),
       supabaseAdmin.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false }),
       supabaseAdmin.from("semesters").select("id, name, code, academic_year_id, is_current").order("start_date", { ascending: false }),
+      supabaseAdmin.from("study_plans").select("id, program_id, name, plan_code, version").eq("is_active", true).eq("status", "active").order("name"),
+      supabaseAdmin.from("study_plan_cohorts").select("program_id, admission_year, study_plan_id"),
     ]);
-    if (deps.error) throw new Error(deps.error.message);
+    const lookupError = [deps, progs, levels, years, sems, plans, cohorts].find((result) => result.error)?.error;
+    if (lookupError) throw new Error(lookupError.message);
     return {
       departments: deps.data ?? [],
       programs: progs.data ?? [],
       levels: levels.data ?? [],
       academic_years: years.data ?? [],
       semesters: sems.data ?? [],
+      study_plans: plans.data ?? [],
+      study_plan_cohorts: cohorts.data ?? [],
     };
   });
 
@@ -308,6 +313,8 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         must_change_password,
         department_id,
         program_id,
+        admission_year,
+        study_plan_id,
         departments(name_ar),
         programs(name_ar, code)
       `, { count: "exact" })
@@ -381,6 +388,8 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         must_change_password: profile.must_change_password,
         department_id: profile.department_id,
         program_id: profile.program_id,
+        admission_year: profile.admission_year,
+        study_plan_id: profile.study_plan_id,
         study_system: profile.study_system ?? null,
         department_name: profile.departments?.name_ar ?? null,
         program_name: profile.programs?.name_ar ?? null,
@@ -426,6 +435,8 @@ function buildAdminStudentsExportQuery(
       updated_at,
       department_id,
       program_id,
+      admission_year,
+      study_plan_id,
       departments(name_ar),
       programs(name_ar, code)
     `, { count: "exact" })
@@ -530,6 +541,12 @@ export const exportFilteredStudentsToExcel = createServerFn({ method: "POST" })
       }
     }
 
+    const planIds = Array.from(new Set((profiles ?? []).map((profile: any) => profile.study_plan_id).filter(Boolean))) as string[];
+    const { data: planRows, error: planError } = planIds.length
+      ? await supabaseAdmin.from("study_plans").select("id, plan_code, name").in("id", planIds)
+      : { data: [], error: null };
+    if (planError) throw new Error(planError.message);
+    const planById = new Map((planRows ?? []).map((plan) => [plan.id, plan]));
     const exportRows = (profiles ?? []).map((profile: any) => {
       const academicStatus = statusByProfile.get(profile.id);
       const level = academicStatus?.academic_levels;
@@ -550,6 +567,8 @@ export const exportFilteredStudentsToExcel = createServerFn({ method: "POST" })
         "اسم الطالب": profile.full_name_ar,
         "القسم": profile.departments?.name_ar ?? "—",
         "البرنامج": programLabel,
+        "سنة القبول": profile.admission_year ?? "—",
+        "الخطة الدراسية": (planById.get(profile.study_plan_id)?.plan_code ?? planById.get(profile.study_plan_id)?.name) ?? "غير محددة",
         "المستوى": levelLabel,
         "النظام الدراسي": studySystemLabelAr(profile.study_system),
         "الحالة الأكاديمية": studentStatusLabelAr(profile.status),
@@ -608,6 +627,8 @@ const createSchema = z.object({
   national_id: z.string().trim().max(32).optional().nullable(),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
+  study_plan_id: z.string().uuid().optional().nullable(),
+  admission_year: z.number().int().min(1950).max(2100).optional().nullable(),
   study_system: z.enum(["regular", "private"]).optional().nullable(),
   level_id: z.string().uuid(),
   academic_year_id: z.string().uuid(),
@@ -626,6 +647,40 @@ const createSchema = z.object({
   }
 });
 
+async function resolveStudentStudyPlan(
+  programId: string | null,
+  admissionYear: number | null,
+  selectedPlanId: string | null,
+): Promise<string | null> {
+  if (!programId) {
+    if (selectedPlanId) throw new Error("اختر برنامج الطالب قبل الخطة.");
+    return null;
+  }
+  const [{ data: activePlans, error: plansError }, { data: cohort, error: cohortError }] = await Promise.all([
+    supabaseAdmin.from("study_plans").select("id").eq("program_id", programId)
+      .eq("is_active", true).eq("status", "active"),
+    admissionYear == null
+      ? Promise.resolve({ data: null, error: null })
+      : supabaseAdmin.from("study_plan_cohorts").select("study_plan_id")
+          .eq("program_id", programId).eq("admission_year", admissionYear).maybeSingle(),
+  ]);
+  if (plansError || cohortError) throw new Error(plansError?.message ?? cohortError?.message);
+  if (selectedPlanId && !activePlans?.some((plan) => plan.id === selectedPlanId)) {
+    throw new Error("الخطة المختارة غير نشطة أو لا تتبع برنامج الطالب.");
+  }
+  if (cohort && selectedPlanId && selectedPlanId !== cohort.study_plan_id) {
+    throw new Error("الخطة المختارة لا تطابق سنة قبول الطالب المعتمدة لهذا البرنامج.");
+  }
+  const resolved = selectedPlanId ?? cohort?.study_plan_id ?? (activePlans?.length === 1 ? activePlans[0].id : null);
+  if (resolved && !activePlans?.some((plan) => plan.id === resolved)) {
+    throw new Error("خطة دفعة القبول غير نشطة؛ راجع إعدادات الدفعة.");
+  }
+  if (!resolved && (activePlans?.length ?? 0) > 1) {
+    throw new Error("حدد سنة القبول المعتمدة أو اختر خطة الطالب صراحة.");
+  }
+  return resolved;
+}
+
 export const createStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => createSchema.parse(input))
@@ -639,6 +694,9 @@ export const createStudent = createServerFn({ method: "POST" })
       .eq("academic_number", data.academic_number)
       .maybeSingle();
     if (existing) throw new Error("الرقم الأكاديمي مستخدم مسبقاً");
+    const assignedPlanId = await resolveStudentStudyPlan(
+      data.program_id ?? null, data.admission_year ?? null, data.study_plan_id ?? null,
+    );
 
     // Insert profile
     const { data: profile, error: pErr } = await supabaseAdmin
@@ -652,6 +710,8 @@ export const createStudent = createServerFn({ method: "POST" })
         national_id: data.national_id || null,
         department_id: data.department_id || null,
         program_id: data.program_id || null,
+        study_plan_id: assignedPlanId,
+        admission_year: data.admission_year ?? null,
         study_system: data.study_system || null,
         status: "active",
         must_change_password: true,
@@ -740,6 +800,8 @@ const updateSchema = z.object({
   national_id: z.string().trim().max(32).optional().nullable(),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
+  study_plan_id: z.string().uuid().optional().nullable(),
+  admission_year: z.number().int().min(1950).max(2100).optional().nullable(),
   study_system: z.enum(["regular", "private"]).optional().nullable(),
 });
 
@@ -752,6 +814,13 @@ export const updateStudent = createServerFn({ method: "POST" })
     const { data: old } = await supabaseAdmin
       .from("student_profiles").select("*").eq("id", data.id).maybeSingle();
     if (!old) throw new Error("الطالب غير موجود");
+    const nextProgramId = data.program_id || null;
+    const nextAdmissionYear = data.admission_year === undefined
+      ? (old.admission_year ?? null) : data.admission_year;
+    const nextPlanId = await resolveStudentStudyPlan(
+      nextProgramId, nextAdmissionYear,
+      data.study_plan_id === undefined ? old.study_plan_id : data.study_plan_id,
+    );
 
     const { error } = await supabaseAdmin
       .from("student_profiles")
@@ -763,6 +832,8 @@ export const updateStudent = createServerFn({ method: "POST" })
         national_id: data.national_id || null,
         department_id: data.department_id || null,
         program_id: data.program_id || null,
+        study_plan_id: nextPlanId,
+        admission_year: nextAdmissionYear,
         study_system: data.study_system || null,
         updated_at: new Date().toISOString(),
       } as any)
@@ -775,7 +846,7 @@ export const updateStudent = createServerFn({ method: "POST" })
       action_type: "student_updated",
       notes: `تعديل بيانات الطالب ${(old as any).academic_number}`,
       old_values: old,
-      new_values: data,
+      new_values: { ...data, admission_year: nextAdmissionYear, study_plan_id: nextPlanId },
     });
 
     return { ok: true };

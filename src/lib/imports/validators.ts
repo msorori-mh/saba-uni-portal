@@ -45,6 +45,8 @@ export type StudentRow = {
   university_email: string | null;
   department_id: string;
   program_id: string;
+  study_plan_id: string | null;
+  admission_year: number | null;
   academic_year_id: string;
   semester_id: string;
   level_id: string;
@@ -82,6 +84,29 @@ export async function validateStudents(
   rows: Record<string, unknown>[],
   lookups: LookupMaps,
 ): Promise<ValidationResult<StudentRow>> {
+  const programIds = Array.from(new Set(rows.map((row) =>
+    lookups.programsByCode.get(normKey(str(row.program_code)))?.id,
+  ).filter((id): id is string => Boolean(id))));
+  const { data: activePlans, error: planLookupError } = programIds.length
+    ? await getImportDb().from("study_plans")
+        .select("id, program_id, plan_code")
+        .in("program_id", programIds).eq("is_active", true).eq("status", "active")
+    : { data: [], error: null };
+  if (planLookupError) throw new Error(planLookupError.message);
+  const plansByProgram = new Map<string, Array<{ id: string; plan_code: string | null }>>();
+  for (const plan of activePlans ?? []) {
+    const list = plansByProgram.get(plan.program_id) ?? [];
+    list.push(plan);
+    plansByProgram.set(plan.program_id, list);
+  }
+  const { data: cohortRows, error: cohortError } = programIds.length
+    ? await getImportDb().from("study_plan_cohorts")
+        .select("program_id, admission_year, study_plan_id").in("program_id", programIds)
+    : { data: [], error: null };
+  if (cohortError) throw new Error(cohortError.message);
+  const cohortByProgramYear = new Map((cohortRows ?? []).map((row) =>
+    [`${row.program_id}|${row.admission_year}`, row.study_plan_id] as const,
+  ));
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const existingSet = new Set<string>();
   if (acNumbers.length) {
@@ -133,6 +158,28 @@ export async function validateStudents(
     const prog = lookups.programsByCode.get(normKey(str(raw.program_code)));
     if (!prog)
       errors.push({ row: rowNumber, column: "program_code", message: "البرنامج غير موجود" });
+    const planCode = str(raw.study_plan_code);
+    const admissionYearRaw = str(raw.admission_year);
+    const admissionYear = admissionYearRaw ? Number(admissionYearRaw) : null;
+    if (admissionYearRaw && (!/^\d{4}$/.test(admissionYearRaw) || !Number.isInteger(admissionYear) || admissionYear! < 1950 || admissionYear! > 2100)) {
+      errors.push({ row: rowNumber, column: "admission_year", message: "سنة القبول يجب أن تكون سنة صحيحة بين 1950 و2100" });
+    }
+    const programPlans = prog ? (plansByProgram.get(prog.id) ?? []) : [];
+    const cohortPlanId = prog && admissionYear !== null
+      ? cohortByProgramYear.get(`${prog.id}|${admissionYear}`) : undefined;
+    const selectedPlan = planCode
+      ? programPlans.find((plan) => normKey(plan.plan_code) === normKey(planCode))
+      : null;
+    if (planCode && !selectedPlan) {
+      errors.push({ row: rowNumber, column: "study_plan_code", message: "رمز الخطة غير موجود أو غير نشط لهذا البرنامج" });
+    } else if (selectedPlan && cohortPlanId && selectedPlan.id !== cohortPlanId) {
+      errors.push({ row: rowNumber, column: "study_plan_code", message: "رمز الخطة لا يطابق خطة سنة القبول المعتمدة" });
+    } else if (!planCode && !cohortPlanId && programPlans.length > 1) {
+      errors.push({ row: rowNumber, column: "study_plan_code", message: "يجب تحديد رمز الخطة القديمة أو الجديدة لهذا الطالب" });
+    }
+    if (cohortPlanId && !programPlans.some((plan) => plan.id === cohortPlanId)) {
+      errors.push({ row: rowNumber, column: "admission_year", message: "خطة سنة القبول غير نشطة" });
+    }
 
     // G-06: program must belong to the resolved department.
     if (dep_id && prog?.department_id && prog.department_id !== dep_id)
@@ -257,6 +304,8 @@ export async function validateStudents(
             university_email: university_email || null,
             department_id: dep_id!,
             program_id: prog!.id,
+            study_plan_id: selectedPlan?.id ?? cohortPlanId ?? (programPlans.length === 1 ? programPlans[0].id : null),
+            admission_year: admissionYear,
             academic_year_id: ay_id!,
             semester_id: sem_id!,
             level_id: level_id!,
@@ -555,6 +604,7 @@ export async function validateCourses(
 export type StudyPlanRow = {
   program_id: string;
   plan_name: string;
+  plan_code: string;
   version: string;
   plan_status: "draft" | "active";
   course_id: string;
@@ -601,22 +651,34 @@ export async function validateStudyPlans(
   rows: Record<string, unknown>[],
   lookups: LookupMaps,
 ): Promise<ValidationResult<StudyPlanRow>> {
-  // G-13: one active plan per program — block activating a second version.
-  const { data: activePlans } = await getImportDb()
+  const programIds = Array.from(new Set(rows.map((r) =>
+    lookups.programsByCode.get(normKey(str(r.program_code)))?.id,
+  ).filter((id): id is string => Boolean(id))));
+  const { data: existingPlans, error: plansError } = programIds.length ? await getImportDb()
     .from("study_plans")
-    .select("program_id, version")
-    .eq("is_active", true);
-  const activeVersionByProgram = new Map<string, string>();
-  (activePlans ?? []).forEach((p: { program_id: string; version: string }) => {
-    if (!activeVersionByProgram.has(p.program_id))
-      activeVersionByProgram.set(p.program_id, p.version);
+    .select("id, program_id, plan_code, name, version, status")
+    .in("program_id", programIds) : { data: [], error: null };
+  if (plansError) throw new Error(plansError.message);
+  const existingByKey = new Map<string, { id: string; name: string; version: string; status: string }>();
+  const existingByNameVersion = new Map<string, string | null>();
+  (existingPlans ?? []).forEach((p: { id: string; program_id: string; plan_code: string | null; name: string; version: string; status: string }) => {
+    if (p.plan_code) existingByKey.set(`${p.program_id}|${normKey(p.plan_code)}`, p);
+    existingByNameVersion.set(`${p.program_id}|${p.name}|${p.version}`, p.plan_code);
   });
+  const existingIds = Array.from(existingByKey.values()).map((p) => p.id);
+  const { data: existingCourses, error: coursesError } = existingIds.length
+    ? await getImportDb().from("study_plan_courses")
+        .select("study_plan_id, course_id, level_id, semester_code")
+        .in("study_plan_id", existingIds)
+    : { data: [], error: null };
+  if (coursesError) throw new Error(coursesError.message);
+  const existingCourseKeys = new Set((existingCourses ?? []).map((r) =>
+    `${r.study_plan_id}|${r.course_id}|${r.level_id}|${r.semester_code}`,
+  ));
 
   const seen = new Set<string>();
-  // MEDIUM-5 (review #193): also track ACTIVE versions seen inside this file —
-  // the DB check above passes two different active versions of one program
-  // arriving together in the same file.
-  const activeVersionInFileByProgram = new Map<string, string>();
+  const filePlanIdentity = new Map<string, string>();
+  const fileNameVersion = new Map<string, string>();
   // G-12 pass 1 collects candidate edges; pass 2 (after the loop) evaluates
   // cycles using only rows that are otherwise error-free (LOW-6), so a row
   // that fails for another reason never contributes a false cycle edge.
@@ -675,30 +737,31 @@ export async function validateStudyPlans(
     const plan_name = str(raw.plan_name);
     if (!plan_name)
       errors.push({ row: rowNumber, column: "plan_name", message: "اسم الخطة مطلوب" });
+    const plan_code = str(raw.plan_code);
+    if (!plan_code)
+      errors.push({ row: rowNumber, column: "plan_code", message: "رمز الخطة مطلوب" });
     const version = str(raw.version) || "1.0";
     const planStatusRaw = str(raw.plan_status) || "active";
     const plan_status = planStatusRaw === "draft" ? "draft" : "active";
-
-    // G-13: refuse activating a second plan version for the same program.
-    if (prog && plan_status === "active") {
-      const activeVersion = activeVersionByProgram.get(prog.id);
-      if (activeVersion && normKey(activeVersion) !== normKey(version))
-        errors.push({
-          row: rowNumber,
-          column: "plan_status",
-          message: `توجد خطة نشطة أخرى لهذا البرنامج (إصدار ${activeVersion}) — عطّلها أولاً أو استورد كمسودة`,
-        });
-      // MEDIUM-5: same rule within the file itself.
-      const fileActiveVersion = activeVersionInFileByProgram.get(prog.id);
-      if (fileActiveVersion && normKey(fileActiveVersion) !== normKey(version)) {
-        errors.push({
-          row: rowNumber,
-          column: "plan_status",
-          message: `الملف يحتوي إصداراً نشطاً آخر لنفس البرنامج (${fileActiveVersion}) — إصدار نشط واحد فقط لكل برنامج`,
-        });
-      } else if (!fileActiveVersion) {
-        activeVersionInFileByProgram.set(prog.id, version);
+    if (prog && plan_code) {
+      const key = `${prog.id}|${normKey(plan_code)}`;
+      const identity = `${plan_name}|${version}`;
+      const existing = existingByKey.get(key);
+      if (existing && (existing.name !== plan_name || existing.version !== version || existing.status !== plan_status)) {
+        errors.push({ row: rowNumber, column: "plan_code", message: "رمز الخطة يخص اسماً أو إصداراً أو حالة مختلفة" });
       }
+      if (filePlanIdentity.has(key) && filePlanIdentity.get(key) !== identity) {
+        errors.push({ row: rowNumber, column: "plan_code", message: "رمز الخطة مكرر مع اسم أو إصدار مختلف داخل الملف" });
+      }
+      filePlanIdentity.set(key, identity);
+      const nameKey = `${prog.id}|${identity}`;
+      const otherCode = existingByNameVersion.has(nameKey)
+        ? existingByNameVersion.get(nameKey)
+        : fileNameVersion.get(nameKey);
+      if (otherCode !== undefined && normKey(otherCode) !== normKey(plan_code)) {
+        errors.push({ row: rowNumber, column: "plan_name", message: "الاسم والإصدار مستخدمان برمز خطة آخر" });
+      }
+      fileNameVersion.set(nameKey, plan_code);
     }
 
     const preReqCode = str(raw.prerequisite_course_code);
@@ -747,7 +810,7 @@ export async function validateStudyPlans(
       } else {
         pendingPrereqEdges.push({
           outIndex: out.length,
-          planKey: `${prog?.id}|${plan_name}|${version}`,
+          planKey: `${prog?.id}|${plan_code}`,
           courseKey,
           prereqKey,
           rowNumber,
@@ -755,14 +818,20 @@ export async function validateStudyPlans(
       }
     }
 
-    const dedupKey = `${prog?.id}|${plan_name}|${version}|${course?.id}`;
-    if (seen.has(dedupKey)) errors.push({ row: rowNumber, message: "مقرر مكرر داخل الخطة" });
-    if (course && prog && plan_name) seen.add(dedupKey);
-
     const semRaw = str(raw.semester);
     const semester_code = semRaw
       ? (STUDY_PLAN_SEMESTER_CODES.get(normKey(semRaw)) ?? null)
       : "first";
+    const dedupKey = `${prog?.id}|${plan_code}|${course?.id}|${level_id}|${semester_code}`;
+    if (seen.has(dedupKey)) errors.push({ row: rowNumber, message: "مقرر مكرر داخل الخطة" });
+    if (course && prog && plan_name) seen.add(dedupKey);
+    const existingPlan = prog && plan_code
+      ? existingByKey.get(`${prog.id}|${normKey(plan_code)}`)
+      : undefined;
+    if (existingPlan && course && level_id && semester_code &&
+        existingCourseKeys.has(`${existingPlan.id}|${course.id}|${level_id}|${semester_code}`)) {
+      errors.push({ row: rowNumber, column: "course_code", message: "المقرر موجود مسبقاً في هذه الخطة والمستوى والفصل" });
+    }
     if (!semester_code)
       errors.push({
         row: rowNumber,
@@ -783,6 +852,7 @@ export async function validateStudyPlans(
         : {
             program_id: prog!.id,
             plan_name,
+            plan_code,
             version,
             plan_status,
             course_id: course!.id,

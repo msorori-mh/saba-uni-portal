@@ -21,7 +21,7 @@ function MobileStudyPlan() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: planError } = useQuery({
     queryKey: ["mobile-student", "study-plan", programId],
     queryFn: () => fetchMyStudyPlan(programId!),
     enabled: !!programId,
@@ -40,6 +40,10 @@ function MobileStudyPlan() {
         <div className="grid place-items-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : planError ? (
+        <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-sm text-destructive">
+          {(planError as Error).message}
+        </p>
       ) : groups.length === 0 ? (
         <p className="rounded-xl border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
           لا توجد خطة دراسية معتمدة لبرنامجك حالياً.

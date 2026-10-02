@@ -147,6 +147,7 @@ type StudyPlanImportContextState = {
   departmentId: string;
   programId: string;
   planName: string;
+  planCode: string;
   version: string;
   planStatus: "draft" | "active";
   importMode: "full_plan" | "single_semester" | "";
@@ -199,6 +200,7 @@ type StudyPlanImportContextOptions = {
   studyPlans: Array<{
     id: string;
     name: string;
+    plan_code: string | null;
     version: string;
     program_id: string;
     status: string;
@@ -219,6 +221,7 @@ const EMPTY_STUDY_PLAN_IMPORT_CONTEXT: StudyPlanImportContextState = {
   departmentId: "",
   programId: "",
   planName: "",
+  planCode: "",
   version: "1.0",
   planStatus: "active",
   importMode: "",
@@ -369,6 +372,7 @@ function hasAnyStudyPlanContextValue(context: StudyPlanImportContextState) {
     context.departmentId ||
     context.programId ||
     context.planName.trim() ||
+    context.planCode.trim() ||
     context.version.trim() ||
     context.importMode ||
     context.semesterCode,
@@ -380,6 +384,7 @@ function studyPlanContextReady(context: StudyPlanImportContextState) {
     context.departmentId &&
     context.programId &&
     context.planName.trim() &&
+    context.planCode.trim() &&
     context.version.trim() &&
     context.importMode &&
     (context.importMode !== "single_semester" || context.semesterCode),
@@ -392,6 +397,7 @@ function studyPlanContextPayload(context: StudyPlanImportContextState) {
     departmentId: context.departmentId,
     programId: context.programId,
     planName: context.planName.trim(),
+    planCode: context.planCode.trim(),
     version: context.version.trim(),
     planStatus: context.planStatus,
     importMode: context.importMode as "full_plan" | "single_semester",
@@ -418,6 +424,11 @@ function applyStudyPlanContextToRows(
     }
     next.program_code = program.code;
     next.plan_name = context.planName.trim();
+    const filePlanCode = cellText(next.plan_code);
+    if (filePlanCode && filePlanCode !== context.planCode.trim()) {
+      throw new Error(`صف ${rowNumber}: رمز الخطة داخل الملف لا يطابق الخطة المختارة.`);
+    }
+    next.plan_code = context.planCode.trim();
     next.version = context.version.trim();
     next.plan_status = context.planStatus;
 
@@ -514,11 +525,16 @@ function ImportsPage() {
   );
   const existingStudyPlanConflict = Boolean(
     studyPlanImportContext.programId &&
-    studyPlanImportContext.version.trim() &&
+    studyPlanImportContext.planCode.trim() &&
     studyPlanContextOptions?.studyPlans.some(
       (plan) =>
         plan.program_id === studyPlanImportContext.programId &&
-        compareKey(plan.version) === compareKey(studyPlanImportContext.version),
+        (compareKey(plan.plan_code) === compareKey(studyPlanImportContext.planCode) &&
+          (plan.name !== studyPlanImportContext.planName.trim() ||
+            plan.version !== studyPlanImportContext.version.trim()) ||
+          plan.plan_code !== studyPlanImportContext.planCode.trim() &&
+            plan.name === studyPlanImportContext.planName.trim() &&
+            plan.version === studyPlanImportContext.version.trim()),
     ),
   );
   const studentTemplateOverrides = useMemo(
@@ -591,7 +607,7 @@ function ImportsPage() {
       if (!hasAnyStudyPlanContextValue(studyPlanImportContext) || !isStudyPlanContextReady) {
         throw new Error(STUDY_PLAN_CONTEXT_REQUIRED_MESSAGE);
       }
-      if (existingStudyPlanConflict) throw new Error("توجد خطة مسبقاً لهذا البرنامج والإصدار.");
+      if (existingStudyPlanConflict) throw new Error("رمز الخطة أو اسمها وإصدارها يتعارض مع خطة أخرى.");
       return applyStudyPlanContextToRows(parsed, studyPlanImportContext, studyPlanContextOptions);
     }
     return parsed;
@@ -1279,6 +1295,16 @@ function StudyPlanImportContextWizard({
           />
         </label>
         <label className="space-y-1 text-xs font-bold text-primary">
+          <span>رمز الخطة في منصة الجداول</span>
+          <input
+            value={value.planCode}
+            onChange={(event) => set({ planCode: event.target.value })}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+            dir="ltr"
+            placeholder="IT-NEW-2026-2027"
+          />
+        </label>
+        <label className="space-y-1 text-xs font-bold text-primary">
           <span>الإصدار</span>
           <input
             value={value.version}
@@ -1321,12 +1347,12 @@ function StudyPlanImportContextWizard({
 
       {existingPlanConflict && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
-          توجد خطة مسبقاً لهذا البرنامج والإصدار. لا يتم الاستبدال الصامت في هذه المرحلة.
+          رمز الخطة أو اسمها وإصدارها يتعارض مع خطة أخرى. يمكن إضافة مقررات فصل آخر للخطة نفسها.
         </div>
       )}
       {!isReady && !existingPlanConflict && (
         <div className="text-xs text-muted-foreground">
-          يجب اختيار القسم والبرنامج واسم الخطة والإصدار ونوع الاستيراد قبل المعاينة أو الاستيراد.
+          يجب اختيار القسم والبرنامج واسم الخطة ورمزها والإصدار ونوع الاستيراد قبل المعاينة أو الاستيراد.
         </div>
       )}
     </div>
