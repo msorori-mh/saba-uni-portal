@@ -65,8 +65,7 @@ jobs:
           if node -e "const s=require('./package.json').scripts||{}; process.exit(s.typecheck?0:1)"; then
             bun run typecheck
           else
-            echo "typecheck script not found; skipping"
-            echo "typecheck script not found; skipping" >> "$GITHUB_STEP_SUMMARY"
+            bunx tsc --noEmit
           fi
 
       - name: Build
