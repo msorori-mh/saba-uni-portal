@@ -81,7 +81,7 @@ export function EnrollmentCertificateIssueButton(
         toast.success("تمت معالجة إصدار شهادة القيد");
       }
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["staff-request-detail", props.requestId] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", props.requestId] }),
         queryClient.invalidateQueries({ queryKey: ["request-document-archive", props.requestId] }),
         queryClient.invalidateQueries({ queryKey: ["staff-inbox"] }),
       ]);

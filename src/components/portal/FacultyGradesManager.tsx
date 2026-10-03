@@ -32,14 +32,17 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
     queryKey: ["fac-grade-enrollments", sectionId],
     enabled: !!sectionId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("student_enrollments")
-        .select("id, student:student_profiles(academic_number, full_name_ar)")
-        .eq("course_section_id", sectionId)
-        .eq("enrollment_status", "enrolled");
+      // Name + academic number only, for sections the caller teaches/heads.
+      const { data, error } = await (supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+      }).rpc("get_section_student_names", { p_section_id: sectionId });
       if (error) throw error;
+      type Row = { student_enrollment_id: string; academic_number: string; full_name_ar: string };
       type R = { id: string; student: { academic_number: string; full_name_ar: string } | null };
-      return (data ?? []) as unknown as R[];
+      return ((data ?? []) as Row[]).map((r) => ({
+        id: r.student_enrollment_id,
+        student: { academic_number: r.academic_number, full_name_ar: r.full_name_ar },
+      })) as R[];
     },
   });
 

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { fetchMySectionFacultyNames } from "@/lib/student-faculty-names";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,16 +75,17 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
 
   const { data, error } = await supabase
     .from("student_enrollments")
-    .select("id, enrollment_status, section:course_sections(id, section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty:faculty_profiles(full_name_ar)))")
+    .select("id, enrollment_status, section:course_sections(id, section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty_profile_id))")
     .eq("student_profile_id", (sp as any).id)
     .eq("enrollment_status", "enrolled");
   if (error) throw error;
+  const facultyNames = await fetchMySectionFacultyNames();
 
   type Raw = { id: string; section: { section_code: string; status: string; offering: { academic_year_id: string; semester_id: string; status: string; course: { code: string; name_ar: string } | null } | null;
       schedule: Array<{ id: string; schedule_type: string; status: string;
         time_slot: { day_of_week: string; start_time: string; end_time: string } | null;
         room: { name_ar: string; code: string } | null;
-        faculty: { full_name_ar: string } | null; }> | null; } | null; };
+        faculty_profile_id: string | null; }> | null; } | null; };
   const rows: ScheduleRow[] = [];
   const currentEnrollments = filterActiveCurrentTermSections((data ?? []) as unknown as Raw[], currentTerm);
   for (const e of currentEnrollments) {
@@ -95,7 +97,7 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
         course_code: sec.offering?.course?.code ?? "—",
         course_name: sec.offering?.course?.name_ar ?? "—",
         section_code: sec.section_code,
-        faculty: s.faculty?.full_name_ar ?? null,
+        faculty: (facultyNames.get(s.faculty_profile_id ?? "") ?? null),
         room: s.room?.name_ar ?? s.room?.code ?? null,
         schedule_type: s.schedule_type,
         day_of_week: s.time_slot.day_of_week,
