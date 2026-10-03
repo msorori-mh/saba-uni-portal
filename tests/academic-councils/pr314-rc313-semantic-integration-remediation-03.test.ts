@@ -36,7 +36,8 @@ const ALL_COUNCILS_SURFACE = `${ROUTE_SRC}\n${COUNCILS_UI_SRC}`;
 // Re-pinned: public /departments list moved to departments.index.tsx; only delta
 // is /departments → /departments/ and /departments/$code.
 const ROUTE_SEMANTIC_SHA256 =
-  "712e24922fdab32cb9556e35c1e334f513e95986f065c7dc10fcca549937b6a3";
+  // Re-pinned: added /staff/processing-requests (staff processing inbox for assigned actors).
+  "77c39de9a583f03ae73c90c6943d970ab958ade05e360f5e051da939287d0239";
 
 function routeSemanticHash(routeTree: string): string {
   const semanticLines = routeTree

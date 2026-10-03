@@ -19,7 +19,8 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // delta is /faculty-portal/lecture-monitoring plus its /parity child.
 // Re-pinned: public /departments list moved to departments.index.tsx (detail pages render their own content).
 const ROUTE_SEMANTIC_SHA256 =
-  "712e24922fdab32cb9556e35c1e334f513e95986f065c7dc10fcca549937b6a3";
+  // Re-pinned: added /staff/processing-requests (staff processing inbox for assigned actors).
+  "77c39de9a583f03ae73c90c6943d970ab958ade05e360f5e051da939287d0239";
 
 
 const FROZEN_GP_FULL_PATHS = [
