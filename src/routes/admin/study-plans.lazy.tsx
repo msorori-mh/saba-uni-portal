@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
+import { getPlanAssignmentCounts } from "@/lib/student-plan-assignment.functions";
 import {
   getStudyPlansLookups,
   listCourses,
@@ -402,6 +403,11 @@ function PlansTab() {
   const qc = useQueryClient();
   const lookupsFn = useServerFn(getStudyPlansLookups);
   const plansFn = useServerFn(listStudyPlans);
+  const countsFn = useServerFn(getPlanAssignmentCounts);
+  const { data: assignedCounts = {} } = useQuery({
+    queryKey: ["admin-plan-assignment-counts"],
+    queryFn: () => countsFn(),
+  });
   const deleteFn = useServerFn(deleteStudyPlan);
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Plan | null>(null);
@@ -511,6 +517,9 @@ function PlansTab() {
                     <div className="font-display font-bold text-primary truncate">{p.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {prog?.name_ar ?? "—"} • إصدار {p.version} • {(p.computed_credit_hours ?? 0) > 0 ? p.computed_credit_hours : p.total_credit_hours} ساعة
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      الطلاب المعيّنون: <span className="font-bold text-primary">{assignedCounts[p.id] ?? 0}</span>
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">

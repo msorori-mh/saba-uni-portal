@@ -1702,8 +1702,20 @@ function ImportStats() {
 function PreviewBlock({ validation }: { validation: ValidationResult<any> }) {
   const { totalRows, validRows, invalidRows, rows } = validation;
   const errorRows = useMemo(() => rows.filter((r) => r.errors.length > 0).slice(0, 100), [rows]);
+  const warningMessages = useMemo(
+    () => Array.from(new Set(rows.flatMap((r) => (r.warnings ?? []).map((w) => w.message)))).slice(0, 20),
+    [rows],
+  );
   return (
     <div className="space-y-3">
+      {warningMessages.length > 0 && (
+        <div className="rounded-lg border border-gold/40 bg-gold/10 p-3 text-xs space-y-1">
+          <div className="flex items-center gap-2 text-sm font-bold text-primary">
+            <AlertTriangle className="h-4 w-4" /> تنبيهات (لا تمنع الاستيراد)
+          </div>
+          {warningMessages.map((m) => <div key={m}>{m}</div>)}
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         <Stat label="إجمالي الصفوف" value={totalRows} tone="neutral" />
         <Stat label="صفوف صالحة" value={validRows} tone="ok" />
