@@ -27,6 +27,8 @@ function StaffLayout() {
   const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
   const lastUserId = useRef<string | null>(null);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +70,7 @@ function StaffLayout() {
 
       if (
         profile.must_change_password &&
-        pathname !== "/staff/change-password"
+        pathnameRef.current !== "/staff/change-password"
       ) {
         navigate({
           to: "/staff/change-password",
@@ -107,7 +109,7 @@ function StaffLayout() {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [navigate, pathname, queryClient]);
+  }, [navigate, queryClient]);
 
   if (!ready) {
     return (

@@ -4,7 +4,8 @@
  * The token is opaque; the page never reveals private, payroll or contact data.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { createFileRoute } from "@tanstack/react-router";
 import { BadgeCheck, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
@@ -19,11 +20,35 @@ const DOC_TYPE_AR: Record<string, string> = {
   clearance_certificate: "شهادة إخلاء طرف",
 };
 
-type VerifySearch = { token?: string };
+type VerifySearch = { token?: string; code?: string };
+
+type StudentVerifyResult = {
+  valid: boolean;
+  reason?: string;
+  document_type?: string;
+  document_number?: string;
+  status?: string;
+  issued_at?: string;
+};
+
+const STUDENT_DOC_TYPE_AR: Record<string, string> = {
+  enrollment_certificate: "شهادة قيد",
+  student_status_certificate: "إفادة بالحالة الدراسية",
+  official_transcript: "السجل الأكاديمي الرسمي",
+  financial_receipt: "سند مالي رسمي",
+};
+
+async function verifyStudentDocument(code: string): Promise<StudentVerifyResult> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc("verify_document", { _query: code.trim() });
+  if (error) throw new Error("تعذر إتمام التحقق حالياً.");
+  return data as StudentVerifyResult;
+}
 
 export const Route = createFileRoute("/verify-document")({
   validateSearch: (search: Record<string, unknown>): VerifySearch => ({
     token: typeof search.token === "string" ? search.token : undefined,
+    code: typeof search.code === "string" ? search.code : undefined,
   }),
   head: () => ({
     meta: [
@@ -60,17 +85,32 @@ function dateLabel(value: string | null) {
 
 function VerifyDocumentPage() {
   const search = Route.useSearch();
-  const [token, setToken] = useState(search.token ?? "");
+  const [token, setToken] = useState(search.token ?? search.code ?? "");
   const [state, setState] = useState<StaffDocumentVerification | null>(null);
+  const [studentState, setStudentState] = useState<StudentVerifyResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function check(value: string) {
+  // mode: "student" for ?code= QR links, "staff" for ?token=, "auto" for manual input.
+  async function check(value: string, mode: "student" | "staff" | "auto" = "auto") {
     setLoading(true);
     setError(null);
     setState(null);
+    setStudentState(null);
     try {
-      setState(await verifyIssuedDocument(value));
+      if (mode === "student") {
+        setStudentState(await verifyStudentDocument(value));
+        return;
+      }
+      const staff = await verifyIssuedDocument(value);
+      if (mode === "auto" && staff.result === "invalid" && value.trim().length >= 6) {
+        const student = await verifyStudentDocument(value);
+        if (student.valid || student.reason !== "not_found") {
+          setStudentState(student);
+          return;
+        }
+      }
+      setState(staff);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "تعذر إتمام التحقق حالياً.",
@@ -79,6 +119,19 @@ function VerifyDocumentPage() {
       setLoading(false);
     }
   }
+
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current) return;
+    if (search.code && search.code.trim().length >= 6) {
+      autoRan.current = true;
+      void check(search.code, "student");
+    } else if (search.token && search.token.trim()) {
+      autoRan.current = true;
+      void check(search.token, "staff");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.code, search.token]);
 
   const valid = state && state.result === "valid";
 
@@ -123,6 +176,33 @@ function VerifyDocumentPage() {
           <p className="mt-4 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
             {error}
           </p>
+        )}
+
+        {studentState && (
+          <div data-testid="student-document-verification-result" className="mt-5 rounded-xl border border-border p-4 text-xs">
+            <p className="mb-2 flex items-center gap-2 text-sm font-bold">
+              {studentState.valid ? (
+                <BadgeCheck className="h-5 w-5 text-primary" />
+              ) : (
+                <ShieldAlert className="h-5 w-5 text-destructive" />
+              )}
+              {studentState.valid
+                ? "وثيقة صحيحة وصادرة عن الكلية"
+                : studentState.status === "cancelled"
+                  ? "وثيقة ملغاة"
+                  : "رمز تحقق غير صالح"}
+            </p>
+            {studentState.document_type && (
+              <dl className="grid grid-cols-2 gap-2 text-muted-foreground">
+                <dt>نوع الوثيقة</dt>
+                <dd>{STUDENT_DOC_TYPE_AR[studentState.document_type] ?? studentState.document_type}</dd>
+                <dt>رقم الوثيقة</dt>
+                <dd>{studentState.document_number ?? "—"}</dd>
+                <dt>تاريخ الإصدار</dt>
+                <dd>{dateLabel(studentState.issued_at ?? null)}</dd>
+              </dl>
+            )}
+          </div>
         )}
 
         {state && (

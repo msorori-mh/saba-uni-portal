@@ -56,7 +56,9 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
     expect(staffGuard).toContain('to: "/portal-login"');
     expect(staffGuard).toContain('search: { type: "staff" }');
     expect(staffGuard).toContain("profileError || !profile");
-    expect(staffGuard).toContain('pathname !== "/staff/change-password"');
+    expect(staffGuard).toContain('pathnameRef.current !== "/staff/change-password"');
+    // Session check runs once per mount, not on every in-portal navigation.
+    expect(staffGuard).toContain("}, [navigate, queryClient]);");
   });
 
   test("keeps one employee operational surface and the admin workspace mounted", () => {

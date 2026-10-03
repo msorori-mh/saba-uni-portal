@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { validateStudentUniversityEmailInput, STUDENT_UNIVERSITY_EMAIL_SUFFIX } from "@/lib/university-email-auth";
 import {
   listUsers, createAccount, resetPassword, setActive, addRole, removeRole,
   adminAccountCounts, createAdminAccount, removeLoginAccount,
@@ -203,7 +204,18 @@ function UsersPage() {
                           {!hasAccount && (
                             <button disabled={!!busy}
                               onClick={() => run(`create-${r.id}`, async () => {
-                                const res = await create({ data: { kind, profile_id: r.id } });
+                                let university_email: string | undefined;
+                                if (kind === "student") {
+                                  const entered = window.prompt(
+                                    `أدخل الإيميل الجامعي للطالب ${r.full_name_ar} (ينتهي بـ ${STUDENT_UNIVERSITY_EMAIL_SUFFIX})`,
+                                    "",
+                                  );
+                                  if (entered === null) return;
+                                  const msg = validateStudentUniversityEmailInput(entered);
+                                  if (msg) throw new Error(msg);
+                                  university_email = entered.trim().toLowerCase();
+                                }
+                                const res = await create({ data: { kind, profile_id: r.id, university_email } });
                                 if (res.password) {
                                   setPasswordReveal({ name: r.full_name_ar, password: res.password });
                                 }

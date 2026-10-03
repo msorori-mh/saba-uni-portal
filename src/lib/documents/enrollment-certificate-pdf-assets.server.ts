@@ -44,25 +44,37 @@ type RuntimeRequest = Request & {
 let cachedFont: Uint8Array | null = null;
 let cachedLogo: Uint8Array | null = null;
 
-function getCloudflareAssetsBinding(): CloudflareAssetsBinding {
-  const request = getRequest() as RuntimeRequest;
-  const runtime = request.runtime;
-  if (runtime?.name !== "cloudflare") {
-    throw new Error("Cloudflare request runtime is required to load the Cairo PDF font");
-  }
-
-  const binding = runtime.cloudflare?.env?.ASSETS;
-  if (!binding) {
-    throw new Error("Cloudflare ASSETS binding is required to load the Cairo PDF font");
-  }
-  return binding;
+function getCloudflareAssetsBinding(request: RuntimeRequest): CloudflareAssetsBinding | null {
+  if (request.runtime?.name !== "cloudflare") return null;
+  return request.runtime.cloudflare?.env?.ASSETS ?? null;
 }
 
+/**
+ * Loads the Cairo font for PDF builders. Prefers the Cloudflare ASSETS
+ * binding; otherwise (other runtimes, or deploys whose binding lacks the
+ * asset) fetches the same static file from this deployment's own origin —
+ * the font ships in public/__worker-assets/ so every build serves it.
+ */
 export async function getCairoFontBytes(): Promise<Uint8Array> {
   if (cachedFont) return cachedFont;
 
-  const assets = getCloudflareAssetsBinding();
-  cachedFont = await readCairoFontFromCloudflareAssets(assets);
+  const request = getRequest() as RuntimeRequest;
+  const assets = getCloudflareAssetsBinding(request);
+  if (assets) {
+    try {
+      cachedFont = await readCairoFontFromCloudflareAssets(assets);
+      return cachedFont;
+    } catch {
+      // fall through to same-origin fetch
+    }
+  }
+
+  const url = new URL(CLOUDFLARE_CAIRO_FONT_PATH, request.url);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Unable to load the Cairo PDF font (${response.status})`);
+  }
+  cachedFont = new Uint8Array(await response.arrayBuffer());
   return cachedFont;
 }
 
