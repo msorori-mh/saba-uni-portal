@@ -10,6 +10,10 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+// staff_profiles.status values that must not reach the staff portal
+// (admin deactivation sets 'inactive' — see admin-staff-deletion.functions.ts).
+const DISABLED_STAFF_STATUSES = new Set(["inactive", "suspended", "disabled"]);
+
 export const Route = createFileRoute("/staff")({
   ssr: false,
   head: () => ({
@@ -26,6 +30,7 @@ function StaffLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
+  const [guardError, setGuardError] = useState(false);
   const lastUserId = useRef<string | null>(null);
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
@@ -33,6 +38,7 @@ function StaffLayout() {
   useEffect(() => {
     let cancelled = false;
     setReady(false);
+    setGuardError(false);
 
     const goToStaffLogin = () => {
       if (cancelled) return;
@@ -56,13 +62,20 @@ function StaffLayout() {
 
       const { data: profile, error: profileError } = await supabase
         .from("staff_profiles")
-        .select("must_change_password")
+        .select("must_change_password, status")
         .eq("user_id", data.user.id)
         .maybeSingle();
 
       if (cancelled) return;
 
-      if (profileError || !profile) {
+      // A transient read failure must not sign the user out: show a retry.
+      if (profileError) {
+        setGuardError(true);
+        return;
+      }
+
+      // Not a staff account, or a deactivated staff profile.
+      if (!profile || DISABLED_STAFF_STATUSES.has(String(profile.status ?? "").toLowerCase())) {
         await supabase.auth.signOut();
         goToStaffLogin();
         return;
@@ -110,6 +123,23 @@ function StaffLayout() {
       subscription.unsubscribe();
     };
   }, [navigate, queryClient]);
+
+  if (guardError) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-surface px-4" dir="rtl" role="alert">
+        <div className="text-center space-y-3">
+          <p className="text-sm text-muted-foreground">تعذر التحقق من ملف الموظف. تحقق من الاتصال وحاول مرة أخرى.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (

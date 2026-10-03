@@ -55,7 +55,11 @@ describe("PORTAL_STAFF_OPERATIONAL_VISUAL_CLOSURE_02K", () => {
     expect(staffGuard).toContain("staff-auth-guard-loading");
     expect(staffGuard).toContain('to: "/portal-login"');
     expect(staffGuard).toContain('search: { type: "staff" }');
-    expect(staffGuard).toContain("profileError || !profile");
+    // Fail-closed: a profile read error blocks the portal (retry screen,
+    // no sign-out); a missing or deactivated profile signs out.
+    expect(staffGuard).toContain("if (profileError)");
+    expect(staffGuard).toContain("setGuardError(true)");
+    expect(staffGuard).toContain("DISABLED_STAFF_STATUSES");
     expect(staffGuard).toContain('pathnameRef.current !== "/staff/change-password"');
     // Session check runs once per mount, not on every in-portal navigation.
     expect(staffGuard).toContain("}, [navigate, queryClient]);");

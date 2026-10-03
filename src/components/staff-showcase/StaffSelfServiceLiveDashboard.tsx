@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import {
   acknowledgeCorrespondence,
-  authorizePayrollStatementDownload,
   fetchStaffCareerHistory,
   fetchStaffCorrespondence,
   fetchStaffCustody,
@@ -158,15 +157,16 @@ function StateBlock({
 export function StaffSelfServiceLiveDashboard() {
   const leave = useQuery({
     queryKey: ["staff-02d", "leave"],
-    queryFn: fetchStaffLeaveBalances,
+    // Employee dashboard: own rows only (RLS also returns oversight rows).
+    queryFn: () => fetchStaffLeaveBalances({ ownOnly: true }),
   });
   const payroll = useQuery({
     queryKey: ["staff-02d", "payroll"],
-    queryFn: fetchStaffPayrollStatements,
+    queryFn: () => fetchStaffPayrollStatements({ ownOnly: true }),
   });
   const career = useQuery({
     queryKey: ["staff-02d", "career"],
-    queryFn: fetchStaffCareerHistory,
+    queryFn: () => fetchStaffCareerHistory({ ownOnly: true }),
   });
   const letters = useQuery({
     queryKey: ["staff-02d", "correspondence"],
@@ -174,7 +174,7 @@ export function StaffSelfServiceLiveDashboard() {
   });
   const custody = useQuery({
     queryKey: ["staff-02d", "custody"],
-    queryFn: fetchStaffCustody,
+    queryFn: () => fetchStaffCustody({ ownOnly: true }),
   });
   const timeline = useQuery({
     queryKey: ["staff-02d", "timeline"],
@@ -182,7 +182,7 @@ export function StaffSelfServiceLiveDashboard() {
   });
   const notifications = useQuery({
     queryKey: ["staff-02d", "notifications"],
-    queryFn: () => fetchStaffNotifications(30),
+    queryFn: () => fetchStaffNotifications(30, { ownOnly: true }),
   });
 
   const refreshAll = () => {
@@ -388,7 +388,8 @@ function PayrollPanel({
     setBusyId(statementId);
     setDownloadError(null);
     try {
-      await authorizePayrollStatementDownload(statementId);
+      // Authorization (and its audit row) happens once, inside the server
+      // function; a client pre-call wrote a duplicate audit event.
       const result = await generateStaffPayrollStatementPdf({
         data: { statementId },
       });
@@ -401,10 +402,9 @@ function PayrollPanel({
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
+      const message = err instanceof Error ? err.message : "";
       setDownloadError(
-        err instanceof Error
-          ? err.message
-          : "تعذر إصدار كشف الراتب بأمان.",
+        /[\u0600-\u06FF]/.test(message) ? message : "تعذر إصدار كشف الراتب بأمان.",
       );
     } finally {
       setBusyId(null);

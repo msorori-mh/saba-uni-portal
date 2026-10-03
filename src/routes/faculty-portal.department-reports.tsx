@@ -72,7 +72,11 @@ function FacultyDepartmentReportsPage() {
           </div>
         ) : error ? (
           <p className="text-sm text-destructive" role="alert">
-            {(error as Error).message || "تعذر تحميل تقارير القسم"}
+            {/* Arabic server messages (e.g. scope denials) are safe to show;
+                raw technical text is not. */}
+            {/[\u0600-\u06FF]/.test((error as Error).message ?? "")
+              ? (error as Error).message
+              : "تعذر تحميل تقارير القسم. حاول مرة أخرى لاحقاً."}
           </p>
         ) : (
           <ReportsOperationalWorkspace

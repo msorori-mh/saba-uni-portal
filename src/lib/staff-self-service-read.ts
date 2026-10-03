@@ -298,6 +298,21 @@ const rpc = supabase.rpc as unknown as (
   params: Record<string, unknown>,
 ) => Promise<{ data: unknown; error: unknown }>;
 
+/**
+ * Employee ("my services") views must only show the caller's own rows. RLS
+ * also returns oversight rows to HR / finance / managers / admins, so the
+ * employee views pass `{ ownOnly: true }`; the admin workbench keeps the
+ * default (all rows RLS allows).
+ */
+export type StaffReadScope = { ownOnly?: boolean };
+
+const NO_OWN_PROFILE = "00000000-0000-0000-0000-000000000000";
+
+async function ownProfileFilterId(): Promise<string> {
+  // A non-staff account gets a filter that matches nothing (never "all rows").
+  return (await fetchOwnStaffProfileId()) ?? NO_OWN_PROFILE;
+}
+
 async function readRows<T>(
   build: () => QueryLike,
   schema: z.ZodType<T>,
@@ -307,24 +322,28 @@ async function readRows<T>(
   return z.array(schema).parse(data ?? []);
 }
 
-export async function fetchStaffLeaveBalances(): Promise<StaffLeaveBalance[]> {
+export async function fetchStaffLeaveBalances(
+  scope: StaffReadScope = {},
+): Promise<StaffLeaveBalance[]> {
+  const ownId = scope.ownOnly ? await ownProfileFilterId() : null;
   return readRows(
-    () =>
-      fromTable("staff_leave_balances")
-        .select(staffReadProjections.leaveBalances)
-        .order("balance_year", { ascending: false }),
+    () => {
+      const q = fromTable("staff_leave_balances").select(staffReadProjections.leaveBalances);
+      return (ownId ? q.eq("staff_profile_id", ownId) : q).order("balance_year", { ascending: false });
+    },
     staffLeaveBalanceSchema,
   );
 }
 
-export async function fetchStaffPayrollStatements(): Promise<
-  StaffPayrollStatementWithComponents[]
-> {
+export async function fetchStaffPayrollStatements(
+  scope: StaffReadScope = {},
+): Promise<StaffPayrollStatementWithComponents[]> {
+  const ownId = scope.ownOnly ? await ownProfileFilterId() : null;
   const statements = await readRows(
-    () =>
-      fromTable("staff_payroll_statements")
-        .select(staffReadProjections.payrollStatements)
-        .order("period_start", { ascending: false }),
+    () => {
+      const q = fromTable("staff_payroll_statements").select(staffReadProjections.payrollStatements);
+      return (ownId ? q.eq("staff_profile_id", ownId) : q).order("period_start", { ascending: false });
+    },
     staffPayrollStatementSchema,
   );
 
@@ -350,12 +369,15 @@ export async function fetchStaffPayrollStatements(): Promise<
   }));
 }
 
-export async function fetchStaffCareerHistory(): Promise<StaffCareerEvent[]> {
+export async function fetchStaffCareerHistory(
+  scope: StaffReadScope = {},
+): Promise<StaffCareerEvent[]> {
+  const ownId = scope.ownOnly ? await ownProfileFilterId() : null;
   return readRows(
-    () =>
-      fromTable("staff_career_history")
-        .select(staffReadProjections.careerHistory)
-        .order("effective_on", { ascending: false }),
+    () => {
+      const q = fromTable("staff_career_history").select(staffReadProjections.careerHistory);
+      return (ownId ? q.eq("staff_profile_id", ownId) : q).order("effective_on", { ascending: false });
+    },
     staffCareerEventSchema,
   );
 }
@@ -471,12 +493,15 @@ export async function fetchStaffServiceCapabilities(): Promise<StaffServiceCapab
   return staffServiceCapabilitiesSchema.parse(data);
 }
 
-export async function fetchStaffCustody(): Promise<StaffCustodyItem[]> {
+export async function fetchStaffCustody(
+  scope: StaffReadScope = {},
+): Promise<StaffCustodyItem[]> {
+  const ownId = scope.ownOnly ? await ownProfileFilterId() : null;
   return readRows(
-    () =>
-      fromTable("staff_custody_assignments")
-        .select(staffReadProjections.custody)
-        .order("delivered_on", { ascending: false }),
+    () => {
+      const q = fromTable("staff_custody_assignments").select(staffReadProjections.custody);
+      return (ownId ? q.eq("staff_profile_id", ownId) : q).order("delivered_on", { ascending: false });
+    },
     staffCustodySchema,
   );
 }
@@ -496,25 +521,33 @@ export async function fetchStaffTimelineEvents(
 
 export async function fetchStaffNotifications(
   limit = 40,
+  scope: StaffReadScope = {},
 ): Promise<StaffNotification[]> {
+  let recipient: string | null = null;
+  if (scope.ownOnly) {
+    const { data: auth } = await supabase.auth.getUser();
+    recipient = auth.user?.id ?? NO_OWN_PROFILE;
+  }
   return readRows(
-    () =>
-      fromTable("staff_service_notifications_outbox")
-        .select(staffReadProjections.notifications)
+    () => {
+      const q = fromTable("staff_service_notifications_outbox").select(staffReadProjections.notifications);
+      return (recipient ? q.eq("recipient_user_id", recipient) : q)
         .order("created_at", { ascending: false })
-        .limit(limit),
+        .limit(limit);
+    },
     staffNotificationSchema,
   );
 }
 
-export async function fetchStaffServiceRequestRows(): Promise<
-  StaffRequestRow[]
-> {
+export async function fetchStaffServiceRequestRows(
+  scope: StaffReadScope = {},
+): Promise<StaffRequestRow[]> {
+  const ownId = scope.ownOnly ? await ownProfileFilterId() : null;
   return readRows(
-    () =>
-      fromTable("staff_service_requests")
-        .select(staffReadProjections.requests)
-        .order("submitted_at", { ascending: false }),
+    () => {
+      const q = fromTable("staff_service_requests").select(staffReadProjections.requests);
+      return (ownId ? q.eq("staff_profile_id", ownId) : q).order("submitted_at", { ascending: false });
+    },
     staffRequestRowSchema,
   );
 }

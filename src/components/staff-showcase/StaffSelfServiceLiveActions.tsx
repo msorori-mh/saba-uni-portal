@@ -68,7 +68,8 @@ export function StaffSelfServiceLiveActions({
 }) {
   const requests = useQuery({
     queryKey: ["staff-self-service-live", variant],
-    queryFn: listAccessibleStaffServiceRequests,
+    // Employee view = own requests only; approver view keeps the RLS-scoped queue.
+    queryFn: () => listAccessibleStaffServiceRequests({ ownOnly: variant === "employee" }),
     staleTime: 15_000,
   });
 

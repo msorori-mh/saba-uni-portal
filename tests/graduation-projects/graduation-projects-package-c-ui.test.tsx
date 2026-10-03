@@ -183,7 +183,9 @@ describe("Package C routed UI contracts", () => {
     expect(source).toContain("@/lib/graduation-projects");
     expect(source).toContain("createGraduationProjectsService");
     expect(source).toContain("uploadPrivateFile");
-    expect(source).toContain("signedDownload");
+    // Downloads are signed server-side after RPC authorization (private bucket
+    // has no client SELECT policy).
+    expect(source).toContain("signGraduationProjectDownloadFn");
     expect(source).not.toMatch(/getPublicUrl|publicUrl/);
     expect(source).not.toContain("prepare_graduation_project_private_upload");
     expect(source).not.toContain("finalize_graduation_project_private_upload");

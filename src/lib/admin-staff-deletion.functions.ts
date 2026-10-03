@@ -516,11 +516,21 @@ export const deactivateStaffProfile = createServerFn({ method: "POST" })
       throw new Error(preflight.blockingReasons[0] ?? "تعذر تعطيل ملف الموظف.");
     }
 
+    // Block the login first (same pattern as admin-users setUserActive):
+    // marking the profile inactive alone left the account able to sign in and
+    // keep using still-valid sessions/processing assignments.
+    if (preflight.user_id) {
+      const { error: banErr } = await supabaseAdmin.auth.admin.updateUserById(preflight.user_id, {
+        ban_duration: "876000h", // ~100 years; reactivation sets "none"
+      } as any);
+      if (banErr) throw new Error("تعذّر تعطيل حساب الدخول للموظف. لم يتم تغيير الملف.");
+    }
+
     const { error } = await supabaseAdmin
       .from("staff_profiles")
       .update({ status: "inactive" } as any)
       .eq("id", data.staffProfileId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error("تعذر تعطيل ملف الموظف.");
 
     let auditError: unknown = null;
     try {

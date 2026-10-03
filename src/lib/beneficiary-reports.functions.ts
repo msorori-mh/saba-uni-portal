@@ -360,24 +360,27 @@ async function loadDepartmentScopedCounts(departmentId: string) {
     tableCount("courses", (q) => q.eq("department_id", departmentId)),
   ]);
 
-  // Teaching load within department via offerings→courses.department_id
-  const { data: offerings } = await supabaseAdmin
+  // Teaching load within department via offerings→courses.department_id.
+  // Filter in the database: fetching everything and filtering in JS silently
+  // dropped rows beyond the PostgREST max-rows cap (default 1000).
+  const { data: offerings, error: offeringsError } = await supabaseAdmin
     .from("course_offerings")
-    .select("id, course_id, courses(department_id, credit_hours, code)")
-    .limit(5000);
-  const deptOfferingIds = new Set(
-    ((offerings ?? []) as any[])
-      .filter((o) => o.courses?.department_id === departmentId)
-      .map((o) => o.id),
-  );
-  const { data: sections } = await supabaseAdmin
-    .from("course_sections")
-    .select("id, course_offering_id, faculty_profile_id, section_code, status")
-    .eq("status", "active")
-    .limit(5000);
-  const scopedSections = ((sections ?? []) as any[]).filter((s) =>
-    deptOfferingIds.has(s.course_offering_id),
-  );
+    .select("id, course_id, courses!inner(department_id, credit_hours, code)")
+    .eq("courses.department_id", departmentId);
+  if (offeringsError) throw new Error("تعذر تحميل عبء التدريس للقسم");
+  const deptOfferingIds = ((offerings ?? []) as any[]).map((o) => o.id as string);
+
+  const scopedSections: any[] = [];
+  const CHUNK = 150; // keep `in.(…)` filters well under URL limits
+  for (let i = 0; i < deptOfferingIds.length; i += CHUNK) {
+    const { data: chunk, error: sectionsError } = await supabaseAdmin
+      .from("course_sections")
+      .select("id, course_offering_id, faculty_profile_id, section_code, status")
+      .eq("status", "active")
+      .in("course_offering_id", deptOfferingIds.slice(i, i + CHUNK));
+    if (sectionsError) throw new Error("تعذر تحميل عبء التدريس للقسم");
+    scopedSections.push(...((chunk ?? []) as any[]));
+  }
   const assignmentRows = scopedSections.map((s) => {
     const offering = ((offerings ?? []) as any[]).find((o) => o.id === s.course_offering_id);
     return {
