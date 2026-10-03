@@ -396,15 +396,15 @@ describe("G-13: several active plan versions per program (warning)", () => {
     expect(res.invalidRows).toBe(0);
   });
 
-  it("MEDIUM-5: rejects a second distinct ACTIVE version inside the same file", async () => {
+  it("MEDIUM-5: warns on a second distinct ACTIVE version inside the same file", async () => {
     mockDb({ study_plans: [] }); // DB has no active plans — the file itself must be coherent
     const res = await validateStudyPlans(
       [planRaw({ version: "1.0" }), planRaw({ version: "2.0" })],
       makeLookups(),
     );
-    expect(res.validRows).toBe(1);
-    const err = res.rows[1]?.errors.find((e) => e.column === "plan_status");
-    expect(err?.message).toContain("إصداراً نشطاً آخر لنفس البرنامج");
+    expect(res.validRows).toBe(2);
+    const w = res.rows[1]?.warnings?.find((e) => e.column === "plan_status");
+    expect(w?.message).toContain("إصداراً نشطاً آخر لنفس البرنامج");
   });
 
   it("MEDIUM-5: allows repeated rows of the SAME active version in one file", async () => {
