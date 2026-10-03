@@ -1,5 +1,8 @@
 // DEMO_ONLY_UNIVERSITY_PRESENTATION_01 — create 2 GP teammates (auth + profile only).
 import { createClient } from '@supabase/supabase-js';
+if (process.env.ALLOW_TEST_FIXTURES !== '1' || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_URL.includes('wpmicqriltrowwonknox')) {
+  throw new Error('Explicit fixture authorization and a non-production Supabase target are required');
+}
 const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
@@ -8,7 +11,8 @@ const PROG = '97638001-87cd-4df0-abe9-63c829504072';
 const YEAR = '1b9e6972-0870-41d6-b849-bdcbc7b6c0d6';
 const SEM = 'dc917e4d-607d-43ce-9d78-020de14eccf0';
 const L4 = 'aab5f2cb-17a8-4eab-bb85-3baba0a00331';
-const PASS = 'Demo#Portal2026';
+const PASS = process.env.TEST_ONLY_PASSWORD;
+if (!PASS || PASS.length < 16) throw new Error('TEST_ONLY_PASSWORD (at least 16 characters) is required');
 const team = [
   { email: 'demo.student.gp2@testonly.invalid', name: 'سارة عبدالملك الشرجبي', num: 'DEMO-2023-0102' },
   { email: 'demo.student.gp3@testonly.invalid', name: 'يوسف محمد القدسي', num: 'DEMO-2023-0103' },
@@ -20,18 +24,14 @@ for (const m of team) {
     email: m.email, password: PASS, email_confirm: true, user_metadata: { full_name: m.name },
   });
   if (error) {
-    if (!/already|registered|exists/i.test(error.message)) throw error;
-    const { data: prof } = await admin.from('student_profiles').select('user_id').eq('email', m.email).maybeSingle();
-    userId = prof?.user_id;
-    if (!userId) throw new Error('cannot resolve existing user ' + m.email);
-    await admin.auth.admin.updateUserById(userId, { password: PASS, email_confirm: true });
+    throw error; // A fixture must never reset an existing user's credentials.
   } else userId = created.user.id;
 
-  const { data: sp, error: pe } = await admin.from('student_profiles').upsert({
+  const { data: sp, error: pe } = await admin.from('student_profiles').insert({
     user_id: userId, academic_number: m.num, full_name_ar: m.name, email: m.email,
     department_id: DEPT, program_id: PROG, status: 'active', must_change_password: false,
     study_system: 'regular',
-  }, { onConflict: 'academic_number' }).select('id').single();
+  }).select('id').single();
   if (pe) throw pe;
 
   const { data: st } = await admin.from('student_academic_status')
