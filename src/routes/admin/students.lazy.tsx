@@ -7,10 +7,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX, Printer,
-  GraduationCap, Upload, CheckCircle2, Copy, Unlink, AlertTriangle, FileSpreadsheet,
+  GraduationCap, Upload, BookOpen, CheckCircle2, Copy, Unlink, AlertTriangle, FileSpreadsheet,
 } from "lucide-react";
 import { createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
 import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
+import { toast } from "sonner";
+import { BulkAssignPlanModal, StudyPlanSelect } from "@/components/admin/StudentPlanAssignment";
+import { getStudentPlanAssignment, assignStudentsStudyPlan } from "@/lib/student-plan-assignment.functions";
 import {
   isStudentUniversityEmail,
   validateStudentUniversityEmailInput,
@@ -77,6 +80,7 @@ function StudentsPage() {
   });
 
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulkPlan, setShowBulkPlan] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   // STUDENT-PROVISIONING-EMAIL-02T: «إنشاء حساب» opens a review dialog first —
   // no account is created on the first click.
@@ -529,6 +533,13 @@ function StudentsPage() {
           >
             <Upload className="h-4 w-4" /> استيراد من Excel
           </Link>
+          <button
+            onClick={() => setShowBulkPlan(true)}
+            disabled={!lookups}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary disabled:opacity-50"
+          >
+            <BookOpen className="h-4 w-4" /> تعيين خطة
+          </button>
           <button
             onClick={() => { setShowAdd(true); setError(null); }}
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-bold hover:opacity-90 shadow-sm"
@@ -1115,6 +1126,14 @@ function StudentsPage() {
         />
       )}
 
+      {showBulkPlan && canWrite && lookups && (
+        <BulkAssignPlanModal
+          lookups={lookups}
+          onClose={() => setShowBulkPlan(false)}
+          onDone={(n) => { setShowBulkPlan(false); refresh(); toast.success(`تم تعيين الخطة لـ ${n} طالب`); }}
+        />
+      )}
+
       {editId && canWrite && (
         <EditStudentModal
           studentId={editId}
@@ -1387,7 +1406,7 @@ function AddStudentModal({
                 </select>
               </Field>
               <Field label="البرنامج">
-                <select value={form.program_id} onChange={(e) => update("program_id", e.target.value)}
+                <select value={form.program_id} onChange={(e) => { update("program_id", e.target.value); setPlanChoice(""); }}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <option value="">— اختر —</option>
                   {filteredPrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
@@ -1476,6 +1495,15 @@ function EditStudentModal({
 }) {
   const getFn = useServerFn(getStudent);
   const updateFn = useServerFn(updateStudent);
+  const getPlanFn = useServerFn(getStudentPlanAssignment);
+  const assignPlanFn = useServerFn(assignStudentsStudyPlan);
+  const { data: planAssignment } = useQuery({
+    queryKey: ["admin-student-plan", studentId],
+    queryFn: () => getPlanFn({ data: { studentId } }),
+  });
+  const [planChoice, setPlanChoice] = useState<string | null>(null);
+  const currentPlan = planAssignment?.studyPlanId ?? "";
+  const effectivePlan = planChoice ?? currentPlan;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1511,6 +1539,9 @@ function EditStudentModal({
           study_system: form.study_system || undefined,
         },
       });
+      if (planAssignment && effectivePlan !== currentPlan) {
+        await assignPlanFn({ data: { studentIds: [studentId], studyPlanId: effectivePlan || null } });
+      }
       onSaved();
     } catch (e: any) {
       setErr(e?.message ?? "تعذّر التحديث");
@@ -1580,6 +1611,9 @@ function EditStudentModal({
                           .filter((p: any) => !form.department_id || p.department_id === form.department_id)
                           .map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
                       </select>
+                    </Field>
+                    <Field label="الخطة الدراسية">
+                      <StudyPlanSelect programId={form.program_id} value={effectivePlan} onChange={setPlanChoice} />
                     </Field>
                     <Field label="نظام الدراسة">
                       <select value={form.study_system} onChange={(e) => update("study_system", e.target.value)}

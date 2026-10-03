@@ -17,8 +17,9 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // approved lecture-monitoring parity report route was added. Drift verified:
 // 150 fullPaths (was 148), all unique, exactly one "/" claimant, and the only
 // delta is /faculty-portal/lecture-monitoring plus its /parity child.
+// Re-pinned: public /departments list moved to departments.index.tsx (detail pages render their own content).
 const ROUTE_SEMANTIC_SHA256 =
-  "78661c78207beea5b56744727914dd7471c2f96938f4a45964c178cf8e681604";
+  "712e24922fdab32cb9556e35c1e334f513e95986f065c7dc10fcca549937b6a3";
 
 
 const FROZEN_GP_FULL_PATHS = [

@@ -10,6 +10,7 @@ import {
   SEMESTER_LABELS,
   fetchMyProgramId,
   fetchMyStudyPlan,
+  type PlanCourseRow,
 } from "@/lib/student-study-plan";
 
 export const Route = createFileRoute("/student/study-plan")({
@@ -114,6 +115,7 @@ function StudyPlanPage() {
                   <SelectItem value="all">كل الفصول</SelectItem>
                   <SelectItem value="first">الفصل الأول</SelectItem>
                   <SelectItem value="second">الفصل الثاني</SelectItem>
+                  <SelectItem value="summer">الفصل الصيفي</SelectItem>
                 </SelectContent>
               </Select>
             </div>

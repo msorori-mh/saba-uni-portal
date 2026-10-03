@@ -12,8 +12,8 @@
  *  G-11 (LOW): imported level must not exceed the program's duration years.
  *  G-12 (LOW): study-plan prerequisites must not self-reference or form cycles
  *       (LOW-6: edges come only from otherwise-valid rows — two-pass).
- *  G-13 (LOW): at most one ACTIVE plan version per program — checked against
- *       the DB AND within the file itself (MEDIUM-5, review #193).
+ *  G-13 (relaxed): several ACTIVE plan versions per program are allowed
+ *       (cohort plans) — reported as a non-blocking warning (DB and in-file).
  *
  * Run: bun test tests/imports/import-validators-linking.test.ts
  */
@@ -372,13 +372,13 @@ describe("G-12: prerequisite self-reference and cycles", () => {
 });
 
 // ---------------------------------------------------------------- G-13
-describe("G-13: one active plan version per program", () => {
-  it("rejects activating a second version while another is active", async () => {
+describe("G-13: several active plan versions per program (warning)", () => {
+  it("warns but accepts a second active version while another is active", async () => {
     mockDb({ study_plans: [{ program_id: PROG_IT, version: "1.0" }] });
     const res = await validateStudyPlans([planRaw({ version: "2.0" })], makeLookups());
-    expect(res.validRows).toBe(0);
-    const err = res.rows[0]?.errors.find((e) => e.column === "plan_status");
-    expect(err?.message).toContain("خطة نشطة أخرى");
+    expect(res.invalidRows).toBe(0);
+    const w = res.rows[0]?.warnings?.find((e) => e.column === "plan_status");
+    expect(w?.message).toContain("خطة نشطة أخرى");
   });
 
   it("allows importing into the currently-active version", async () => {
@@ -396,15 +396,15 @@ describe("G-13: one active plan version per program", () => {
     expect(res.invalidRows).toBe(0);
   });
 
-  it("MEDIUM-5: rejects a second distinct ACTIVE version inside the same file", async () => {
+  it("MEDIUM-5: warns on a second distinct ACTIVE version inside the same file", async () => {
     mockDb({ study_plans: [] }); // DB has no active plans — the file itself must be coherent
     const res = await validateStudyPlans(
       [planRaw({ version: "1.0" }), planRaw({ version: "2.0" })],
       makeLookups(),
     );
-    expect(res.validRows).toBe(1);
-    const err = res.rows[1]?.errors.find((e) => e.column === "plan_status");
-    expect(err?.message).toContain("إصداراً نشطاً آخر لنفس البرنامج");
+    expect(res.validRows).toBe(2);
+    const w = res.rows[1]?.warnings?.find((e) => e.column === "plan_status");
+    expect(w?.message).toContain("إصداراً نشطاً آخر لنفس البرنامج");
   });
 
   it("MEDIUM-5: allows repeated rows of the SAME active version in one file", async () => {

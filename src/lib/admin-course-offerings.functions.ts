@@ -139,16 +139,43 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
     const semesterCode = normalizeSemesterCode(semester?.code);
     if (!semesterCode) return { noPlan: true, courses: [] };
 
-    const { data: plans, error: pErr } = await supabaseAdmin
-      .from("study_plans")
-      .select("id")
-      .eq("program_id", data.programId)
-      .eq("is_active", true)
-      .eq("status", "active");
-    if (pErr) throw new Error(pErr.message);
-    if (!plans || plans.length === 0) return { noPlan: true, courses: [] };
+    // Cohort-specific plans: distinct study_plan_id of students at this level
+    // in this term; fall back to the program's active plans when none assigned.
+    let planIds: string[] = [];
+    let planSource: "cohort" | "active" = "active";
+    const { data: sasRows, error: sasErr } = await supabaseAdmin
+      .from("student_academic_status")
+      .select("student_profile_id")
+      .eq("level_id", data.levelId)
+      .eq("semester_id", data.semesterId);
+    if (sasErr) throw new Error(sasErr.message);
+    const cohortIds = Array.from(new Set((sasRows ?? []).map((r) => r.student_profile_id as string)));
+    if (cohortIds.length) {
+      const assigned = new Set<string>();
+      for (let i = 0; i < cohortIds.length; i += 500) {
+        const { data: spRows, error: spErr } = await supabaseAdmin
+          .from("student_profiles")
+          .select("study_plan_id")
+          .in("id", cohortIds.slice(i, i + 500))
+          .eq("program_id", data.programId)
+          .not("study_plan_id", "is", null);
+        if (spErr) throw new Error(spErr.message);
+        for (const r of spRows ?? []) assigned.add(r.study_plan_id as string);
+      }
+      if (assigned.size) { planIds = Array.from(assigned); planSource = "cohort"; }
+    }
+    if (!planIds.length) {
+      const { data: plans, error: pErr } = await supabaseAdmin
+        .from("study_plans")
+        .select("id")
+        .eq("program_id", data.programId)
+        .eq("is_active", true)
+        .eq("status", "active");
+      if (pErr) throw new Error(pErr.message);
+      if (!plans || plans.length === 0) return { noPlan: true, courses: [] };
+      planIds = plans.map((p) => p.id as string);
+    }
 
-    const planIds = plans.map((p) => p.id as string);
     const { data: spc, error: sErr } = await supabaseAdmin
       .from("study_plan_courses")
       .select("course_id, sort_order")
@@ -159,7 +186,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
     if (sErr) throw new Error(sErr.message);
 
     const ids = Array.from(new Set((spc ?? []).map((r) => r.course_id as string)));
-    if (ids.length === 0) return { noPlan: false, courses: [] };
+    if (ids.length === 0) return { noPlan: false, courses: [], planIds, planSource };
 
     const { data: cs, error: cErr } = await supabaseAdmin
       .from("courses")
@@ -172,7 +199,7 @@ export const getPlanCoursesForOffering = createServerFn({ method: "POST" })
       (a, b) => (order.get(a.id as string) ?? 0) - (order.get(b.id as string) ?? 0),
     );
 
-    return { noPlan: false, courses };
+    return { noPlan: false, courses, planIds, planSource };
   });
 
 // ── Course sections (المجموعات) ────────────────────────────────────────────

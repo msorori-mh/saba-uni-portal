@@ -10284,6 +10284,7 @@ export type Database = {
           program_id: string | null
           status: string
           student_study_status: string | null
+          study_plan_id: string | null
           study_system: string | null
           transferred_current_year: boolean
           updated_at: string
@@ -10305,6 +10306,7 @@ export type Database = {
           program_id?: string | null
           status?: string
           student_study_status?: string | null
+          study_plan_id?: string | null
           study_system?: string | null
           transferred_current_year?: boolean
           updated_at?: string
@@ -10326,6 +10328,7 @@ export type Database = {
           program_id?: string | null
           status?: string
           student_study_status?: string | null
+          study_plan_id?: string | null
           study_system?: string | null
           transferred_current_year?: boolean
           updated_at?: string
@@ -10344,6 +10347,13 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_profiles_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -11624,6 +11634,10 @@ export type Database = {
         }
         Returns: string
       }
+      admin_assign_student_study_plan: {
+        Args: { p_student_ids: string[]; p_study_plan_id: string }
+        Returns: number
+      }
       admin_create_enrollment_certificate_e2e_draft: {
         Args: {
           p_e2e_marker: string
@@ -11980,6 +11994,7 @@ export type Database = {
           program_id: string | null
           status: string
           student_study_status: string | null
+          study_plan_id: string | null
           study_system: string | null
           transferred_current_year: boolean
           updated_at: string
