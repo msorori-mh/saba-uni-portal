@@ -6,6 +6,10 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyPortalError, FacultyPortalNotFound } from "@/components/portal/FacultyPortalError";
 
+// faculty_profiles.status values that must not reach the portal
+// (admin "disable account" sets 'inactive' — see faculty-accounts.functions.ts).
+const DISABLED_FACULTY_STATUSES = new Set(["inactive", "suspended", "disabled"]);
+
 export const Route = createFileRoute("/faculty-portal")({
   ssr: false,
   head: () => ({
@@ -22,13 +26,21 @@ export const Route = createFileRoute("/faculty-portal")({
       throw redirect({ to: "/portal-login" });
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("faculty_profiles")
-      .select("must_change_password")
+      .select("must_change_password, status")
       .eq("user_id", data.user.id)
       .maybeSingle();
 
-    if (!profile) {
+    // A transient read failure must not sign the user out; surface it via the
+    // route error boundary (retry) instead.
+    if (profileError) {
+      throw new Error("تعذر التحقق من ملف عضو هيئة التدريس. حاول مرة أخرى.");
+    }
+
+    // No faculty profile (student/staff account), or a disabled faculty
+    // account: end the session and return to login.
+    if (!profile || DISABLED_FACULTY_STATUSES.has(String(profile.status ?? "").toLowerCase())) {
       await supabase.auth.signOut();
       throw redirect({ to: "/portal-login" });
     }

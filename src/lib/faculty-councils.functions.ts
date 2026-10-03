@@ -1473,22 +1473,59 @@ export const prepareCouncilTopicAttachmentUpload = createServerFn({ method: "POS
       data.file_name,
     );
 
-    const { data: inserted, error: insertErr } = await sb
-      .from("academic_council_topic_attachments")
-      .insert({
-        id: attachmentId,
-        topic_id: data.topic_id,
-        council_id: data.council_id,
-        uploaded_by: context.userId,
-        file_name: data.file_name,
-        file_path: filePath,
-        file_size: data.file_size,
-        mime_type: data.mime_type,
-        file_ext: normalizedExt,
-        storage_bucket: COUNCIL_TOPIC_ATTACHMENTS_BUCKET,
-      })
-      .select("id, file_path, storage_bucket")
-      .maybeSingle();
+    // C0 hardening revoked direct INSERT on this table from `authenticated`;
+    // the narrow SECURITY DEFINER writer re-checks upload permission
+    // (docs/migration-drafts/COUNCILS-FACULTY-REVIEW-FIXES-01.sql). Until it
+    // is deployed, fall back to the legacy direct insert.
+    const rpcArgs = {
+      p_attachment_id: attachmentId,
+      p_topic_id: data.topic_id,
+      p_council_id: data.council_id,
+      p_file_name: data.file_name,
+      p_file_path: filePath,
+      p_file_size: data.file_size,
+      p_mime_type: data.mime_type,
+      p_file_ext: normalizedExt,
+    };
+    const rpcRes = await (sb as any).rpc("create_council_topic_attachment", rpcArgs);
+    const rpcMissing = Boolean(
+      rpcRes.error
+        && (rpcRes.error.code === "PGRST202"
+          || rpcRes.error.code === "42883"
+          || /could not find the function|does not exist/i.test(String(rpcRes.error.message ?? ""))),
+    );
+
+    let inserted: { id: unknown; file_path: unknown; storage_bucket: unknown } | null = null;
+    let insertErr: any = null;
+    if (!rpcMissing) {
+      insertErr = rpcRes.error;
+      inserted = rpcRes.data
+        ? {
+            id: (rpcRes.data as any).id,
+            file_path: (rpcRes.data as any).file_path,
+            storage_bucket: (rpcRes.data as any).storage_bucket,
+          }
+        : null;
+    } else {
+      const legacy = await sb
+        .from("academic_council_topic_attachments")
+        .insert({
+          id: attachmentId,
+          topic_id: data.topic_id,
+          council_id: data.council_id,
+          uploaded_by: context.userId,
+          file_name: data.file_name,
+          file_path: filePath,
+          file_size: data.file_size,
+          mime_type: data.mime_type,
+          file_ext: normalizedExt,
+          storage_bucket: COUNCIL_TOPIC_ATTACHMENTS_BUCKET,
+        })
+        .select("id, file_path, storage_bucket")
+        .maybeSingle();
+      inserted = legacy.data;
+      insertErr = legacy.error;
+    }
 
     if (insertErr) mapAttachmentDbError(insertErr);
     if (!inserted) throw new Error(RLS_DENIED_MESSAGE);
