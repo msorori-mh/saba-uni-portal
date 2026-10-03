@@ -35,9 +35,11 @@ describe("faculty policy hardening — client queries", () => {
     expect(facultyBlock).toContain('rpc("get_public_faculty_directory")');
   });
 
-  it("liveCountsQuery uses count RPC, not direct faculty table read", () => {
+  it("liveCountsQuery uses a public-safe RPC, not direct faculty table read", () => {
     expect(liveCountsBlock).not.toMatch(/from\(["']faculty["']\)/);
-    expect(liveCountsBlock).toContain('rpc("get_public_faculty_count")');
+    // Derived from the public-safe directory RPC so DEMO-/TEST- fixture
+    // identities can be excluded (see src/lib/public-faculty.ts).
+    expect(liveCountsBlock).toMatch(/rpc\("get_public_faculty_(directory|count)"\)/);
   });
 });
 

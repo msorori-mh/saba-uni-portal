@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { publicFacultyOnly } from "@/lib/public-faculty";
 
 export const programsQuery = queryOptions({
   queryKey: ["programs"],
@@ -36,7 +37,9 @@ export const facultyQuery = queryOptions({
   queryFn: async () => {
     const { data, error } = await supabase.rpc("get_public_faculty_directory");
     if (error) throw error;
-    return data ?? [];
+    // DEMO-/TEST- fixture identities stay active for the test suites but are
+    // never shown on the public site (faculty page, research, program pages).
+    return publicFacultyOnly(data ?? []);
   },
   staleTime: 1000 * 60 * 5,
 });
@@ -111,11 +114,13 @@ export const liveCountsQuery = queryOptions({
   queryFn: async () => {
     const [programs, facultyCount, papers, news] = await Promise.all([
       supabase.from("programs").select("id", { count: "exact", head: true }).eq("is_active", true),
-      supabase.rpc("get_public_faculty_count"),
+      // Counted from the public directory so fixture identities are excluded,
+      // matching what /faculty actually shows.
+      supabase.rpc("get_public_faculty_directory"),
       supabase.from("research_papers").select("id", { count: "exact", head: true }).eq("is_published", true),
       supabase.from("news").select("id", { count: "exact", head: true }).eq("is_published", true),
     ]);
-    const facultyNum = Number(facultyCount.data ?? 0);
+    const facultyNum = facultyCount.error ? 0 : publicFacultyOnly(facultyCount.data ?? []).length;
     return {
       programs: programs.count ?? 0,
       faculty: Number.isFinite(facultyNum) ? facultyNum : 0,
