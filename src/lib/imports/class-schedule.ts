@@ -43,6 +43,7 @@ export type ScheduleParsedRow = {
   status: string;
   // dedup keys
   _slotKey: string; // day|start|end
+  _courseTerm?: string | null; // course_id|year|semester for joint-lecture detection
 };
 
 export type ScheduleValidatedRow = {
@@ -74,7 +75,36 @@ export type ScheduleLookups = {
   facultyByEmployeeNumber: Map<string, string>;
   /** day|start|end → time_slot id */
   timeSlotByKey: Map<string, string>;
+  /** offering id → course id (context offerings) */
+  courseByOffering?: Map<string, string>;
 };
+
+/** A slot booking used for joint-lecture comparison. */
+export type JointLectureKey = {
+  section_id: string;
+  room_id: string;
+  faculty_profile_id: string | null;
+  slot: string;
+  /** course_id|academic_year_id|semester_id, or null when unknown */
+  course_term: string | null;
+};
+
+/**
+ * Joint lecture: same slot, same room, same non-null lecturer, same course in the
+ * same year/semester, but different sections. Exempt from room/lecturer conflicts only.
+ * Mirrors public.validate_class_schedule_conflict().
+ */
+export function isJointLecture(a: JointLectureKey, b: JointLectureKey): boolean {
+  return (
+    a.slot === b.slot &&
+    a.room_id === b.room_id &&
+    !!a.faculty_profile_id &&
+    a.faculty_profile_id === b.faculty_profile_id &&
+    a.section_id !== b.section_id &&
+    !!a.course_term &&
+    a.course_term === b.course_term
+  );
+}
 
 export async function loadScheduleLookups(
   ctx: ScheduleContext,
@@ -92,7 +122,9 @@ export async function loadScheduleLookups(
 
   const offerings = (offRows ?? []) as Array<{ id: string; course_id: string; courses: { code: string } }>;
   const offeringByCourseCode = new Map<string, string>();
+  const courseByOffering = new Map<string, string>();
   offerings.forEach((o) => {
+    if (o.course_id) courseByOffering.set(o.id, o.course_id);
     if (o.courses?.code) offeringByCourseCode.set(o.courses.code.toLowerCase(), o.id);
   });
 
@@ -139,6 +171,7 @@ export async function loadScheduleLookups(
     roomByCode,
     facultyByEmployeeNumber,
     timeSlotByKey,
+    courseByOffering,
   };
 }
 
@@ -157,8 +190,8 @@ export async function validateClassSchedule(
   const sb = client ?? defaultClient();
   const out: ScheduleValidatedRow[] = [];
   // In-file conflict detection maps
-  const roomSlot = new Map<string, number>(); // room_id|slotKey → first rowNumber
-  const facSlot = new Map<string, number>();
+  const roomSlot = new Map<string, Array<JointLectureKey & { row: number }>>(); // room_id|slotKey → bookings
+  const facSlot = new Map<string, Array<JointLectureKey & { row: number }>>();
   const secSlot = new Map<string, number>();
   const secSlotRoom = new Map<string, number>();
   const blockingConflicts: RowError[] = [];
@@ -225,13 +258,24 @@ export async function validateClassSchedule(
     const fsKey = faculty_profile_id ? `${faculty_profile_id}|${slotKey}` : "";
     const ssKey = `${section_id}|${slotKey}`;
     const ssrKey = `${section_id}|${slotKey}|${room_id}`;
-    if (roomSlot.has(rsKey))
-      blockingConflicts.push({ row: rowNumber, message: `تعارض قاعة: نفس القاعة (${room_code}) ونفس الفترة مع الصف ${roomSlot.get(rsKey)}` });
-    else roomSlot.set(rsKey, rowNumber);
+    const courseId = lookups.courseByOffering?.get(offering_id!);
+    const me: JointLectureKey & { row: number } = {
+      row: rowNumber,
+      section_id: section_id!,
+      room_id: room_id!,
+      faculty_profile_id,
+      slot: slotKey,
+      course_term: courseId ? `${courseId}|${ctx.academic_year_id}|${ctx.semester_id}` : null,
+    };
+    const roomHit = (roomSlot.get(rsKey) ?? []).find((o) => !isJointLecture(me, o));
+    if (roomHit)
+      blockingConflicts.push({ row: rowNumber, message: `تعارض قاعة: نفس القاعة (${room_code}) ونفس الفترة مع الصف ${roomHit.row}` });
+    roomSlot.set(rsKey, [...(roomSlot.get(rsKey) ?? []), me]);
     if (fsKey) {
-      if (facSlot.has(fsKey))
-        blockingConflicts.push({ row: rowNumber, message: `تعارض مدرس: نفس المدرس (${empNum}) ونفس الفترة مع الصف ${facSlot.get(fsKey)}` });
-      else facSlot.set(fsKey, rowNumber);
+      const facHit = (facSlot.get(fsKey) ?? []).find((o) => !isJointLecture(me, o));
+      if (facHit)
+        blockingConflicts.push({ row: rowNumber, message: `تعارض مدرس: نفس المدرس (${empNum}) ونفس الفترة مع الصف ${facHit.row}` });
+      facSlot.set(fsKey, [...(facSlot.get(fsKey) ?? []), me]);
     }
     if (secSlot.has(ssKey))
       blockingConflicts.push({ row: rowNumber, message: `تعارض مجموعة: نفس المجموعة (${course_code}/${section_code}) ونفس الفترة مع الصف ${secSlot.get(ssKey)}` });
@@ -254,6 +298,7 @@ export async function validateClassSchedule(
         schedule_type: typeRaw,
         status: statusRaw,
         _slotKey: slotKey,
+        _courseTerm: me.course_term,
       },
     });
   });
@@ -277,24 +322,44 @@ export async function validateClassSchedule(
     const dbRows = (existing ?? []) as Array<{
       course_section_id: string; room_id: string; faculty_profile_id: string | null; time_slot_id: string; status: string;
     }>;
-    // index DB by composite keys, excluding rows we will replace
-    const dbRoomSlot = new Set<string>();
-    const dbFacSlot = new Set<string>();
-    const dbSecSlot = new Set<string>();
-    for (const d of dbRows) {
-      if (contextSectionSet.has(d.course_section_id)) continue; // will be wiped by Replace Context
-      if (d.status === "cancelled") continue;
-      dbRoomSlot.add(`${d.room_id}|${d.time_slot_id}`);
-      if (d.faculty_profile_id) dbFacSlot.add(`${d.faculty_profile_id}|${d.time_slot_id}`);
-      dbSecSlot.add(`${d.course_section_id}|${d.time_slot_id}`);
+    const kept = dbRows.filter(
+      (d) => !contextSectionSet.has(d.course_section_id) && d.status !== "cancelled",
+    );
+    // Resolve course/term of existing sections for joint-lecture detection.
+    const courseTermBySection = new Map<string, string>();
+    const secIds = Array.from(new Set(kept.map((d) => d.course_section_id)));
+    if (secIds.length) {
+      const { data: secs } = await sb
+        .from("course_sections")
+        .select("id, offering:course_offerings(course_id, academic_year_id, semester_id)")
+        .in("id", secIds);
+      for (const s of (secs ?? []) as Array<{ id: string; offering: { course_id: string; academic_year_id: string; semester_id: string } | null }>) {
+        if (s.offering) courseTermBySection.set(s.id, `${s.offering.course_id}|${s.offering.academic_year_id}|${s.offering.semester_id}`);
+      }
     }
+    const dbBookings: JointLectureKey[] = kept.map((d) => ({
+      section_id: d.course_section_id,
+      room_id: d.room_id,
+      faculty_profile_id: d.faculty_profile_id,
+      slot: d.time_slot_id,
+      course_term: courseTermBySection.get(d.course_section_id) ?? null,
+    }));
+    const dbSecSlot = new Set<string>(kept.map((d) => `${d.course_section_id}|${d.time_slot_id}`));
     for (const r of out) {
       if (!r.parsed) continue;
       const slotId = lookups.timeSlotByKey.get(`${r.parsed.day_of_week}|${r.parsed.start_time}|${r.parsed.end_time}`);
       if (!slotId) continue;
-      if (dbRoomSlot.has(`${r.parsed.room_id}|${slotId}`))
+      const me: JointLectureKey = {
+        section_id: r.parsed.course_section_id,
+        room_id: r.parsed.room_id,
+        faculty_profile_id: r.parsed.faculty_profile_id,
+        slot: slotId,
+        course_term: r.parsed._courseTerm ?? null,
+      };
+      const p = r.parsed;
+      if (dbBookings.some((d) => d.slot === slotId && d.room_id === p.room_id && !isJointLecture(me, d)))
         blockingConflicts.push({ row: r.rowNumber, message: "تعارض مع جدول آخر: نفس القاعة محجوزة في هذه الفترة لسياق مختلف" });
-      if (r.parsed.faculty_profile_id && dbFacSlot.has(`${r.parsed.faculty_profile_id}|${slotId}`))
+      if (p.faculty_profile_id && dbBookings.some((d) => d.slot === slotId && d.faculty_profile_id === p.faculty_profile_id && !isJointLecture(me, d)))
         blockingConflicts.push({ row: r.rowNumber, message: "تعارض مع جدول آخر: عضو هيئة التدريس محجوز في هذه الفترة لسياق مختلف" });
       if (dbSecSlot.has(`${r.parsed.course_section_id}|${slotId}`))
         blockingConflicts.push({ row: r.rowNumber, message: "تعارض مع جدول آخر: المجموعة محجوزة في هذه الفترة" });
