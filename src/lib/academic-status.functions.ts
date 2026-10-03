@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { resolveStudentPlanId } from "@/lib/study-plan-resolution";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -193,7 +194,7 @@ async function computeStudentProgress(
 ): Promise<StudentProgressDTO> {
   const { data: spRaw } = await supabase
     .from("student_profiles")
-    .select("id, academic_number, full_name_ar, status, program_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")
+    .select("id, academic_number, full_name_ar, status, program_id, study_plan_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")
     .eq("id", studentProfileId).maybeSingle();
   const sp: any = spRaw;
   if (!sp) throw new Error("Student not found");
@@ -254,18 +255,17 @@ async function computeStudentProgress(
     for (const c of (cRaw ?? []) as any[]) coursesById.set(c.id, c);
   }
 
-  // Study plan: latest active plan for program
+  // Study plan: shared resolver (assigned cohort plan, else active program plan)
+  const resolvedPlanId = await resolveStudentPlanId(supabase, sp);
   let planCourses: Array<{ course_id: string; level_id: string; is_required: boolean; level_name: string | null }> = [];
   let totalPlanHours = 0;
   let planCourseIds: string[] = [];
-  if (sp.program_id) {
+  if (resolvedPlanId) {
     const { data: planRaw } = await supabase
       .from("study_plans")
       .select("id, total_credit_hours, courses:study_plan_courses(course_id, level_id, is_required, level:academic_levels(name))")
-      .eq("program_id", sp.program_id)
-      .eq("is_active", true)
-      .order("updated_at", { ascending: false })
-      .limit(1).maybeSingle();
+      .eq("id", resolvedPlanId)
+      .maybeSingle();
     const plan: any = planRaw;
     if (plan) {
       totalPlanHours = Number(plan.total_credit_hours ?? 0);

@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { resolveStudentPlanId } from "@/lib/study-plan-resolution";
 
 export type PlanCourseRow = {
   id: string;
@@ -19,6 +20,7 @@ export type PlanCourseRow = {
 export const SEMESTER_LABELS: Record<string, string> = {
   first: "الفصل الأول",
   second: "الفصل الثاني",
+  summer: "الفصل الصيفي",
 };
 
 export async function fetchMyProgramId(): Promise<string | null> {
@@ -34,16 +36,20 @@ export async function fetchMyProgramId(): Promise<string | null> {
 }
 
 export async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
-  const { data: plan, error: pErr } = await supabase
-    .from("study_plans")
-    .select("id")
-    .eq("program_id", programId)
-    .eq("is_active", true)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (pErr) throw pErr;
-  if (!plan) return [];
+  const { data: auth } = await supabase.auth.getUser();
+  let assigned: string | null = null;
+  if (auth.user) {
+    const { data: prof, error: profErr } = await supabase
+      .from("student_profiles")
+      .select("study_plan_id")
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+    if (profErr) throw profErr;
+    assigned = (prof?.study_plan_id as string | null) ?? null;
+  }
+  const planId = await resolveStudentPlanId(supabase, { study_plan_id: assigned, program_id: programId });
+  if (!planId) return [];
+  const plan = { id: planId };
   const { data, error } = await supabase
     .from("study_plan_courses")
     .select(
