@@ -139,7 +139,7 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
     section_code: r.section?.section_code ?? "—",
     course_code: r.section?.offering?.course?.code ?? "—",
     course_name: r.section?.offering?.course?.name_ar ?? "—",
-    faculty_name: r.(facultyNames.get(section?.faculty_profile_id ?? "") ?? null),
+    faculty_name: facultyNames.get(r.section?.faculty_profile_id ?? "") ?? null,
     slots: flattenSched(r.section?.schedule),
   }));
 }
