@@ -25,8 +25,13 @@ export type PwaInstallVisibilityInput = {
 };
 
 /** Browsers on Android may allow installation without dispatching beforeinstallprompt. */
+/** In-app browsers (WhatsApp, Facebook, Instagram, Android WebView…) cannot install a PWA. */
+export function isInAppBrowser(ua: string): boolean {
+  return /; wv\)|FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|Twitter|TikTok|MicroMessenger/i.test(ua);
+}
+
 export function isAndroidBrowser(ua: string): boolean {
-  return /Android/i.test(ua);
+  return /Android/i.test(ua) && !isInAppBrowser(ua);
 }
 
 export function isStandaloneDisplay(

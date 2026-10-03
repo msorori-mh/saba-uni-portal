@@ -281,6 +281,9 @@ describe("install visibility helpers", () => {
     expect(shouldShowAndroidInstallFallback({ ...base, isStandalone: true })).toBe(false);
     expect(shouldShowAndroidInstallFallback({ ...base, dismissedAt: Date.now() })).toBe(false);
     expect(shouldShowAndroidInstallFallback({ ...base, isAndroid: false })).toBe(false);
+    // In-app browsers cannot install, so they never get the drawer.
+    expect(isAndroidBrowser("Mozilla/5.0 (Linux; Android 15; wv) WhatsApp/2.24")).toBe(false);
+    expect(isAndroidBrowser("Mozilla/5.0 (Linux; Android 15) [FBAN/FB4A;FBAV/400]")).toBe(false);
   });
 });
 
