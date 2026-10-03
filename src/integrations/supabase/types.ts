@@ -3045,6 +3045,7 @@ export type Database = {
           idempotency_key: string
           official_document_id: string | null
           prepared_at: string | null
+          reserved_document_number: string | null
           snapshot: Json | null
           status: string
           storage_bucket: string
@@ -3072,6 +3073,7 @@ export type Database = {
           idempotency_key: string
           official_document_id?: string | null
           prepared_at?: string | null
+          reserved_document_number?: string | null
           snapshot?: Json | null
           status: string
           storage_bucket?: string
@@ -3099,6 +3101,7 @@ export type Database = {
           idempotency_key?: string
           official_document_id?: string | null
           prepared_at?: string | null
+          reserved_document_number?: string | null
           snapshot?: Json | null
           status?: string
           storage_bucket?: string
@@ -14307,6 +14310,10 @@ export type Database = {
       require_student_gp_fourth_level_eligibility: {
         Args: { p_student_profile_id: string }
         Returns: undefined
+      }
+      reserve_enrollment_certificate_document_number: {
+        Args: { p_attempt_id: string }
+        Returns: Json
       }
       resolve_agenda_item: {
         Args: { p_agenda_item_id: string; p_resolution?: string }
