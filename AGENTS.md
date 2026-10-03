@@ -67,3 +67,7 @@
 - العوائق
 - أثر الإنتاج
 - قرار PASS أو HOLD
+
+## الخطط الدراسية
+- Resolve a student's study plan only via src/lib/study-plan-resolution.ts (assigned student_profiles.study_plan_id, else latest active program plan) — one rule for plan page, progress, at-risk and graduation reports.
+- Assign plans only through the admin_assign_student_study_plan RPC — it enforces role, program match and audit logging.
