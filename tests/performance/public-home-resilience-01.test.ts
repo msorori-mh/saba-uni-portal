@@ -12,7 +12,7 @@ describe("PERFORMANCE_RECOVERY_01 public home contract", () => {
 
   it("keeps safe render defaults for every dynamic home section", () => {
     expect(source).toContain("data: programs = []");
-    expect(source).toContain("programs: 4, faculty: 0, research: 0, news: 0");
+    expect(source).toContain("programs: 0, faculty: 0, research: 0, news: 0");
     expect(source).toContain("data: settings = {}");
     expect(source).toContain("data: news = []");
     expect(source).toContain("data: events = []");
