@@ -95,11 +95,11 @@ function StatCard({
 export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
   const leave = useQuery({
     queryKey: ["staff-portal-home", "leave"],
-    queryFn: fetchStaffLeaveBalances,
+    queryFn: () => fetchStaffLeaveBalances({ ownOnly: true }),
   });
   const requests = useQuery({
     queryKey: ["staff-portal-home", "requests"],
-    queryFn: listAccessibleStaffServiceRequests,
+    queryFn: () => listAccessibleStaffServiceRequests({ ownOnly: true }),
   });
   const letters = useQuery({
     queryKey: ["staff-portal-home", "correspondence"],
@@ -107,7 +107,7 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
   });
   const custody = useQuery({
     queryKey: ["staff-portal-home", "custody"],
-    queryFn: fetchStaffCustody,
+    queryFn: () => fetchStaffCustody({ ownOnly: true }),
   });
   const assignedStudentRequests = useQuery({
     queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY,
@@ -120,7 +120,7 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
   const unreadLetters = (letters.data ?? []).filter((item) => !item.receipt?.read_at);
   const activeCustody = (custody.data ?? []).filter((item) => !item.returned_on);
   const attentionCustody = activeCustody.filter(
-    (item) => item.condition_state === "needs_maintenance" || item.condition_state === "damaged",
+    (item) => item.condition === "needs_maintenance" || item.condition === "damaged",
   );
   const latestRequests = (requests.data ?? []).slice(0, 5);
   const assignedCount = assignedStudentRequests.data?.length ?? null;

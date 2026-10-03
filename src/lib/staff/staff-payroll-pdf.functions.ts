@@ -44,10 +44,15 @@ export const generateStaffPayrollStatementPdf = createServerFn({ method: "POST" 
       { p_statement_id: data.statementId } as never,
     );
     if (error) {
-      throw new Error("STAFF_SERVICE_PAYROLL_ACCESS_DENIED");
+      throw new Error("لا تملك صلاحية تنزيل كشف الراتب هذا، أو أنه غير منشور بعد.");
     }
 
-    const contract = contractSchema.parse(raw);
+    // A contract drift must not surface a raw ZodError to the user.
+    const parsedContract = contractSchema.safeParse(raw);
+    if (!parsedContract.success) {
+      throw new Error("تعذر إصدار كشف الراتب حالياً. حاول مرة أخرى لاحقاً.");
+    }
+    const contract = parsedContract.data;
     const { buildStaffPayrollPdfBytes } = await import(
       "@/lib/staff/staff-payroll-pdf.server"
     );

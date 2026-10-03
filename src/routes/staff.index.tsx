@@ -28,14 +28,21 @@ export const Route = createFileRoute("/staff/")({
 
 function StaffDashboard() {
   const handleLogout = useStaffLogout();
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, isError } = useQuery({
     queryKey: ["staff", "me"],
     queryFn: fetchMyStaffProfile,
   });
 
   return (
     <PortalShell title="بوابة الموظفين" onLogout={handleLogout} headerClassName="print:hidden">
-      {isLoading || !profile ? (
+      {isError || (!isLoading && !profile) ? (
+        // Never spin forever on a failed query or a missing profile.
+        <div className="grid min-h-[70vh] place-items-center px-4" role="alert">
+          <div className="text-center text-sm text-muted-foreground">
+            تعذر تحميل ملف الموظف. حدّث الصفحة أو تواصل مع الدعم الفني.
+          </div>
+        </div>
+      ) : isLoading || !profile ? (
         <div className="grid min-h-[70vh] place-items-center">
           <div className="text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
