@@ -77,6 +77,11 @@ export type ScheduleLookups = {
   timeSlotByKey: Map<string, string>;
   /** offering id → course id (context offerings) */
   courseByOffering?: Map<string, string>;
+  /**
+   * section id → lecturer assigned to the section (course_sections.faculty_profile_id).
+   * Optional for backward compatibility; when absent the consistency rule is skipped.
+   */
+  sectionFacultyById?: Map<string, string | null>;
 };
 
 /** A slot booking used for joint-lecture comparison. */
@@ -132,14 +137,16 @@ export async function loadScheduleLookups(
   const offeringIds = offerings.map((o) => o.id);
   const sectionByOfferingAndCode = new Map<string, string>();
   const contextSectionIds: string[] = [];
+  const sectionFacultyById = new Map<string, string | null>();
   if (offeringIds.length) {
     const { data: sects } = await sb
       .from("course_sections")
-      .select("id, course_offering_id, section_code")
+      .select("id, course_offering_id, section_code, faculty_profile_id")
       .in("course_offering_id", offeringIds);
-    (sects ?? []).forEach((s: { id: string; course_offering_id: string; section_code: string }) => {
+    (sects ?? []).forEach((s: { id: string; course_offering_id: string; section_code: string; faculty_profile_id?: string | null }) => {
       sectionByOfferingAndCode.set(`${s.course_offering_id}|${s.section_code.toLowerCase()}`, s.id);
       contextSectionIds.push(s.id);
+      sectionFacultyById.set(s.id, s.faculty_profile_id ?? null);
     });
   }
 
@@ -172,6 +179,7 @@ export async function loadScheduleLookups(
     facultyByEmployeeNumber,
     timeSlotByKey,
     courseByOffering,
+    sectionFacultyById,
   };
 }
 
@@ -245,6 +253,26 @@ export async function validateClassSchedule(
       const fid = lookups.facultyByEmployeeNumber.get(empNum.toLowerCase());
       if (!fid) errors.push({ row: rowNumber, column: "faculty_employee_number", message: "عضو هيئة التدريس غير موجود" });
       else faculty_profile_id = fid;
+    }
+
+    // One source of truth for the LECTURE instructor: the section's assigned
+    // lecturer owns grades, materials and lecture execution, so a lecture row
+    // must not name someone else (labs/tutorials/exams may). A lecture row
+    // without an employee number inherits the assigned lecturer so the
+    // timetable shows up in their portal.
+    const assignedFaculty =
+      section_id && lookups.sectionFacultyById ? lookups.sectionFacultyById.get(section_id) ?? null : null;
+    if (typeRaw === "lecture" && assignedFaculty) {
+      if (!faculty_profile_id && !empNum) {
+        faculty_profile_id = assignedFaculty;
+      } else if (faculty_profile_id && faculty_profile_id !== assignedFaculty) {
+        errors.push({
+          row: rowNumber,
+          column: "faculty_employee_number",
+          message:
+            "محاضر الجدول يختلف عن المدرّس المسند لهذه المجموعة. عدّل إسناد المجموعة أولاً أو صحّح الرقم الوظيفي.",
+        });
+      }
     }
 
     if (errors.length) {

@@ -71,7 +71,17 @@ async function assertOwnsMaterial(supabase: any, materialId: string, facultyProf
     .eq("id", materialId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data || data.faculty_profile_id !== facultyProfileId) {
+  if (!data) throw new Error(MATERIAL_UPLOAD_ERRORS.NOT_MATERIAL_OWNER);
+  // Authority follows the section's CURRENT lecturer, not whoever created the
+  // material: after a reassignment the new lecturer manages the section's
+  // materials and the previous one loses write access.
+  const { data: section, error: sectionError } = await supabase
+    .from("course_sections")
+    .select("faculty_profile_id")
+    .eq("id", data.course_section_id)
+    .maybeSingle();
+  if (sectionError) throw new Error("تعذر التحقق من إسناد المجموعة");
+  if (!section || section.faculty_profile_id !== facultyProfileId) {
     throw new Error(MATERIAL_UPLOAD_ERRORS.NOT_MATERIAL_OWNER);
   }
   return data as {
