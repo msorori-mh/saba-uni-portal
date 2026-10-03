@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { RateLimitResult } from "@/lib/rate-limit";
 import { RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
+import { localRateLimit } from "@/lib/rate-limit-fallback";
 
 const publicActionSchema = z.enum(["login_attempt", "forgot_password"]);
 
@@ -34,12 +35,14 @@ export const checkPublicRateLimit = createServerFn({ method: "POST" })
         },
       );
       if (error) {
-        console.warn("[rate-limit.public] RPC error", error);
-        return { allowed: true, reason: "rpc_error" };
+        // Never fail open: degrade to the in-memory limiter with the same policy.
+        console.warn("[rate-limit.public] RPC error — using local fallback", error);
+        return localRateLimit(`${policy.action}:${key}`, policy);
       }
-      return (result ?? { allowed: true }) as RateLimitResult;
+      if (!result) return localRateLimit(`${policy.action}:${key}`, policy);
+      return result as RateLimitResult;
     } catch (e) {
-      console.warn("[rate-limit.public] threw", e);
-      return { allowed: true, reason: "exception" };
+      console.warn("[rate-limit.public] threw — using local fallback", e);
+      return localRateLimit(`${policy.action}:${key}`, policy);
     }
   });

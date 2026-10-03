@@ -152,7 +152,55 @@ export const FACULTY_CMS_ROLES = [
   "hr_officer",
 ] as const;
 
+/**
+ * Short-lived role cache (per server instance).
+ *
+ * Every authorized server function calls userRoles(), which costs two database
+ * round-trips; a single dashboard load fans out into 10+ such calls. Results
+ * are cached for a few seconds and concurrent lookups for the same user share
+ * one in-flight request. Trade-off: a role grant/revocation takes effect after
+ * at most ROLE_CACHE_TTL_MS on a warm instance. RLS and SECURITY DEFINER RPCs
+ * are unaffected (they always read the live tables). Disabled under tests.
+ */
+const ROLE_CACHE_TTL_MS = 10_000;
+const ROLE_CACHE_MAX = 2000;
+const roleCache = new Map<string, { at: number; roles: string[] }>();
+const roleInFlight = new Map<string, Promise<string[]>>();
+
+function roleCacheEnabled(): boolean {
+  return typeof process === "undefined" || process.env?.NODE_ENV !== "test";
+}
+
+/** Drop cached roles (call after changing a user's roles). */
+export function invalidateUserRolesCache(userId?: string): void {
+  if (userId) roleCache.delete(userId);
+  else roleCache.clear();
+}
+
 export async function userRoles(userId: string): Promise<string[]> {
+  if (!roleCacheEnabled()) return loadUserRoles(userId);
+
+  const hit = roleCache.get(userId);
+  if (hit && Date.now() - hit.at < ROLE_CACHE_TTL_MS) return [...hit.roles];
+
+  const pending = roleInFlight.get(userId);
+  if (pending) return [...(await pending)];
+
+  const load = loadUserRoles(userId)
+    .then((roles) => {
+      if (roleCache.size >= ROLE_CACHE_MAX) roleCache.clear();
+      roleCache.set(userId, { at: Date.now(), roles });
+      return roles;
+    })
+    .finally(() => {
+      roleInFlight.delete(userId);
+    });
+  roleInFlight.set(userId, load);
+  // Errors are never cached: a failed lookup rejects and the next call retries.
+  return [...(await load)];
+}
+
+async function loadUserRoles(userId: string): Promise<string[]> {
   const [legacyRes, assignRes] = await Promise.all([
     supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
     supabaseAdmin
