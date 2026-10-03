@@ -234,7 +234,7 @@ const planCoursePayloadSchema = z.object({
   study_plan_id: z.string().uuid(),
   course_id: z.string().uuid(),
   level_id: z.string().uuid(),
-  semester_code: z.enum(["first", "second"]),
+  semester_code: z.enum(["first", "second", "summer"]),
   is_required: z.boolean(),
   prerequisite_course_id: z.string().uuid().nullable(),
   sort_order: z.number().int().min(0),

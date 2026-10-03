@@ -779,6 +779,7 @@ export async function validateStudyPlans(
       rowNumber,
       raw,
       errors,
+      ...(warnings.length ? { warnings } : {}),
       parsed: errors.length
         ? null
         : {

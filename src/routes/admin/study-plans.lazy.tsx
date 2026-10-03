@@ -58,6 +58,7 @@ type PlanCourse = {
 const SEMESTERS = [
   { code: "first", label: "الفصل الأول" },
   { code: "second", label: "الفصل الثاني" },
+  { code: "summer", label: "الفصل الصيفي" },
 ];
 
 function StudyPlansPage() {
@@ -916,7 +917,7 @@ function PlanCourseFormDialog({
           study_plan_id: planId,
           course_id: form.course_id!,
           level_id: form.level_id!,
-          semester_code: form.semester_code! as "first" | "second",
+          semester_code: form.semester_code! as "first" | "second" | "summer",
           is_required: form.is_required ?? true,
           prerequisite_course_id: form.prerequisite_course_id ?? null,
           sort_order: Number(form.sort_order) || 0,
