@@ -43,6 +43,7 @@ export type ScheduleParsedRow = {
   status: string;
   // dedup keys
   _slotKey: string; // day|start|end
+  _courseTerm?: string | null; // course_id|year|semester for joint-lecture detection
 };
 
 export type ScheduleValidatedRow = {
