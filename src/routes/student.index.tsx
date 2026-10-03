@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { fetchMySectionFacultyNames } from "@/lib/student-faculty-names";
 import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
@@ -117,16 +118,17 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
   const { data, error } = await supabase
     .from("student_enrollments")
     .select(
-      "id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code)))",
+      "id, enrollment_status, section:course_sections(id, section_code, faculty_profile_id, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code)))",
     )
     .eq("student_profile_id", studentId);
   if (error) throw error;
+  const facultyNames = await fetchMySectionFacultyNames();
   type Raw = {
     id: string;
     enrollment_status: string;
     section: {
       section_code: string;
-      faculty: { full_name_ar: string } | null;
+      faculty_profile_id: string | null;
       offering: { course: { code: string; name_ar: string } | null } | null;
       schedule: RawSched[] | null;
     } | null;
@@ -137,7 +139,7 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
     section_code: r.section?.section_code ?? "—",
     course_code: r.section?.offering?.course?.code ?? "—",
     course_name: r.section?.offering?.course?.name_ar ?? "—",
-    faculty_name: r.section?.faculty?.full_name_ar ?? null,
+    faculty_name: r.(facultyNames.get(section?.faculty_profile_id ?? "") ?? null),
     slots: flattenSched(r.section?.schedule),
   }));
 }
@@ -195,17 +197,18 @@ async function fetchMySchedule(
   const { data: sections, error: sErr } = await supabase
     .from("course_sections")
     .select(
-      "id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
+      "id, section_code, course_offering_id, faculty_profile_id, schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
     )
     .in("course_offering_id", offeringIds)
     .eq("status", "active");
   if (sErr) throw sErr;
+  const facultyNames = await fetchMySectionFacultyNames();
   type RawOff = { id: string; course: { code: string; name_ar: string } | null };
   type RawSec = {
     id: string;
     section_code: string;
     course_offering_id: string;
-    faculty: { full_name_ar: string } | null;
+    faculty_profile_id: string | null;
     schedule: RawSched[] | null;
   };
   const offMap = new Map((offerings as unknown as RawOff[]).map((o) => [o.id, o.course]));
@@ -216,7 +219,7 @@ async function fetchMySchedule(
       section_code: s.section_code,
       course_code: c?.code ?? "—",
       course_name: c?.name_ar ?? "—",
-      faculty_name: s.faculty?.full_name_ar ?? null,
+      faculty_name: (facultyNames.get(s.faculty_profile_id ?? "") ?? null),
       slots: flattenSched(s.schedule),
     };
   });
