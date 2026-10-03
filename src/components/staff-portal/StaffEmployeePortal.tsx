@@ -302,7 +302,21 @@ function PortalView({
 }) {
   if (section === "home") return <StaffEmployeeHome profile={profile} onOpen={(value) => onSelect(value as StaffPortalSection)} />;
   if (section === "profile") return <StaffProfileView profile={profile} />;
-  if (section === "student-requests") return <B1StaffWorkspace embedded />;
+  if (section === "student-requests") {
+    return (
+      <div className="space-y-4">
+        <Link
+          to="/staff/processing-requests"
+          data-testid="staff-processing-inbox-link"
+          className="flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm font-semibold text-primary hover:bg-muted"
+        >
+          <ClipboardCheck className="h-4 w-4" aria-hidden />
+          صندوق معالجة جميع الخدمات المسندة إليك (ومنها تأكيد السداد لشهادة القيد)
+        </Link>
+        <B1StaffWorkspace embedded />
+      </div>
+    );
+  }
   if (section === "requests") {
     return (
       <div className="space-y-5">
