@@ -98,6 +98,7 @@ import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-p
 import { Route as StaffFeeAssessmentBoardRouteImport } from './routes/staff.fee-assessment-board'
 import { Route as StaffFixturesDiagnosticsRouteImport } from './routes/staff.fixtures-diagnostics'
 import { Route as StaffGraduatesAffairsRouteImport } from './routes/staff.graduates-affairs'
+import { Route as StaffProcessingRequestsRouteImport } from './routes/staff.processing-requests'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StudentGraduationProjectsRouteImport } from './routes/student.graduation-projects'
@@ -675,6 +676,11 @@ const StaffGraduatesAffairsRoute = StaffGraduatesAffairsRouteImport.update({
   path: '/graduates-affairs',
   getParentRoute: () => StaffRoute,
 } as any)
+const StaffProcessingRequestsRoute = StaffProcessingRequestsRouteImport.update({
+  id: '/processing-requests',
+  path: '/processing-requests',
+  getParentRoute: () => StaffRoute,
+} as any)
 const StudentIndexRoute = StudentIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -1068,6 +1074,7 @@ export interface FileRoutesByFullPath {
   '/staff/fee-assessment-board': typeof StaffFeeAssessmentBoardRoute
   '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
+  '/staff/processing-requests': typeof StaffProcessingRequestsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsRouteWithChildren
   '/student/notifications': typeof StudentNotificationsRoute
@@ -1215,6 +1222,7 @@ export interface FileRoutesByTo {
   '/staff/fee-assessment-board': typeof StaffFeeAssessmentBoardRoute
   '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
+  '/staff/processing-requests': typeof StaffProcessingRequestsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
@@ -1366,6 +1374,7 @@ export interface FileRoutesById {
   '/staff/fee-assessment-board': typeof StaffFeeAssessmentBoardRoute
   '/staff/fixtures-diagnostics': typeof StaffFixturesDiagnosticsRoute
   '/staff/graduates-affairs': typeof StaffGraduatesAffairsRoute
+  '/staff/processing-requests': typeof StaffProcessingRequestsRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/graduation-projects': typeof StudentGraduationProjectsRouteWithChildren
   '/student/notifications': typeof StudentNotificationsRoute
@@ -1521,6 +1530,7 @@ export interface FileRouteTypes {
     | '/staff/fee-assessment-board'
     | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
+    | '/staff/processing-requests'
     | '/student/change-password'
     | '/student/graduation-projects'
     | '/student/notifications'
@@ -1668,6 +1678,7 @@ export interface FileRouteTypes {
     | '/staff/fee-assessment-board'
     | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
+    | '/staff/processing-requests'
     | '/student/change-password'
     | '/student/notifications'
     | '/student/progress'
@@ -1818,6 +1829,7 @@ export interface FileRouteTypes {
     | '/staff/fee-assessment-board'
     | '/staff/fixtures-diagnostics'
     | '/staff/graduates-affairs'
+    | '/staff/processing-requests'
     | '/student/change-password'
     | '/student/graduation-projects'
     | '/student/notifications'
@@ -2589,6 +2601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffGraduatesAffairsRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/staff/processing-requests': {
+      id: '/staff/processing-requests'
+      path: '/processing-requests'
+      fullPath: '/staff/processing-requests'
+      preLoaderRoute: typeof StaffProcessingRequestsRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/student/': {
       id: '/student/'
       path: '/'
@@ -3210,6 +3229,7 @@ interface StaffRouteChildren {
   StaffFeeAssessmentBoardRoute: typeof StaffFeeAssessmentBoardRoute
   StaffFixturesDiagnosticsRoute: typeof StaffFixturesDiagnosticsRoute
   StaffGraduatesAffairsRoute: typeof StaffGraduatesAffairsRoute
+  StaffProcessingRequestsRoute: typeof StaffProcessingRequestsRoute
   StaffIndexRoute: typeof StaffIndexRoute
 }
 
@@ -3220,6 +3240,7 @@ const StaffRouteChildren: StaffRouteChildren = {
   StaffFeeAssessmentBoardRoute: StaffFeeAssessmentBoardRoute,
   StaffFixturesDiagnosticsRoute: StaffFixturesDiagnosticsRoute,
   StaffGraduatesAffairsRoute: StaffGraduatesAffairsRoute,
+  StaffProcessingRequestsRoute: StaffProcessingRequestsRoute,
   StaffIndexRoute: StaffIndexRoute,
 }
 
