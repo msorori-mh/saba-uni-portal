@@ -154,6 +154,18 @@ export const executeEnrollmentCertificatePdfStorageSaga = createServerFn({
         throw new Error("رمز التحقق مفقود من محاولة التوليد");
       }
 
+      // Reserve the FINAL document number before rendering so the PDF prints
+      // the same value finalize stores in official_documents.document_number.
+      const reserved = await rpcAuthed(
+        context.supabase as never,
+        "reserve_enrollment_certificate_document_number",
+        { p_attempt_id: attemptId },
+      );
+      const documentNumber = String(reserved?.document_number ?? "").trim();
+      if (!documentNumber) {
+        throw new Error("تعذر حجز رقم الوثيقة");
+      }
+
       const verifyUrl = `${publicAppOrigin()}/verify-document?code=${encodeURIComponent(verificationToken)}`;
 
       const built = await buildEnrollmentCertificatePdfBytes({
@@ -166,7 +178,7 @@ export const executeEnrollmentCertificatePdfStorageSaga = createServerFn({
           semester_name: String(snapshot.semester_name ?? ""),
           level_name: String(snapshot.level_name ?? ""),
         },
-        documentNumber: `PENDING-${attemptId.slice(0, 8)}`,
+        documentNumber,
         verificationUrl: verifyUrl,
       });
 
