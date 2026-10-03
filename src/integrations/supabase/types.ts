@@ -13104,6 +13104,13 @@ export type Database = {
           workflow_step_runtime_id: string
         }[]
       }
+      get_my_section_faculty_names: {
+        Args: never
+        Returns: {
+          faculty_profile_id: string
+          full_name_ar: string
+        }[]
+      }
       get_my_student_requests: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
@@ -13169,6 +13176,14 @@ export type Database = {
           sort_order: number
           specialization: string
           start_year: number
+        }[]
+      }
+      get_section_student_names: {
+        Args: { p_section_id: string }
+        Returns: {
+          academic_number: string
+          full_name_ar: string
+          student_enrollment_id: string
         }[]
       }
       get_student_request_detail_for_actor: {
