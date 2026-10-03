@@ -344,7 +344,7 @@ export const getStudentRequestFormReferenceData = createServerFn({ method: "POST
   });
 
 async function assertStudentEligibleForRequestType(
-  client: { rpc: RpcClient["rpc"] },
+  client: SupabaseClient<Database>,
   userId: string,
   requestTypeCode: string,
 ): Promise<void> {
@@ -355,7 +355,7 @@ async function assertStudentEligibleForRequestType(
     throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
   }
 
-  const levelNumber = await currentStudentLevelNumber(userId);
+  const levelNumber = await currentStudentLevelNumber(client, userId);
   const restrictedRows = applyLevelOneRequestTypeRestrictions(rows, levelNumber);
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
   const match = restrictedRows.find((row) => normalizeStudentRequestTypeCode(row.code) === normalized);
