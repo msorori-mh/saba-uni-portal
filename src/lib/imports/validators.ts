@@ -679,22 +679,23 @@ export async function validateStudyPlans(
     const planStatusRaw = str(raw.plan_status) || "active";
     const plan_status = planStatusRaw === "draft" ? "draft" : "active";
 
-    // G-13: refuse activating a second plan version for the same program.
+    // G-13 (relaxed): several active plans per program are allowed (cohort
+    // plans). A second active version is reported as a non-blocking warning.
+    const warnings: RowError[] = [];
     if (prog && plan_status === "active") {
       const activeVersion = activeVersionByProgram.get(prog.id);
       if (activeVersion && normKey(activeVersion) !== normKey(version))
-        errors.push({
+        warnings.push({
           row: rowNumber,
           column: "plan_status",
-          message: `توجد خطة نشطة أخرى لهذا البرنامج (إصدار ${activeVersion}) — عطّلها أولاً أو استورد كمسودة`,
+          message: `تنبيه: توجد خطة نشطة أخرى لهذا البرنامج (إصدار ${activeVersion}) — ستصبح الخطتان نشطتين معاً`,
         });
-      // MEDIUM-5: same rule within the file itself.
       const fileActiveVersion = activeVersionInFileByProgram.get(prog.id);
       if (fileActiveVersion && normKey(fileActiveVersion) !== normKey(version)) {
-        errors.push({
+        warnings.push({
           row: rowNumber,
           column: "plan_status",
-          message: `الملف يحتوي إصداراً نشطاً آخر لنفس البرنامج (${fileActiveVersion}) — إصدار نشط واحد فقط لكل برنامج`,
+          message: `تنبيه: الملف يحتوي إصداراً نشطاً آخر لنفس البرنامج (${fileActiveVersion})`,
         });
       } else if (!fileActiveVersion) {
         activeVersionInFileByProgram.set(prog.id, version);

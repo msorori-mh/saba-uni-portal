@@ -45,6 +45,8 @@ export type ValidatedRow<T = unknown> = {
   raw: Record<string, unknown>;
   parsed: T | null;
   errors: RowError[];
+  /** Non-blocking notices (row still imports). */
+  warnings?: RowError[];
 };
 
 export type ValidationResult<T> = {
