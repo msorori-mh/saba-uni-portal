@@ -14,6 +14,7 @@ import {
   hashStepUpPayload,
   isStepUpSensitiveService,
 } from "./step-up-contract";
+import { buildB1StepUpPayload } from "@/lib/student-requests/student-request-submit-contract";
 
 const registerDeviceSchema = z
   .object({
@@ -97,7 +98,10 @@ export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
     if (!req || req.student_profile_id !== (await currentStudentProfileId(context.userId))) {
       throw new Error("REQUEST_NOT_FOUND");
     }
-    const canonical = req.request_type;
+    // Accept canonical and legacy stored codes (e.g. absence_excuse).
+    const formData = (req.form_data as Record<string, unknown> | null) ?? {};
+    const stepUpPayload = buildB1StepUpPayload(data.requestId, String(req.request_type), formData);
+    const canonical = stepUpPayload.canonicalCode;
     if (!isStepUpSensitiveService(canonical)) {
       throw new Error("STEP_UP_NOT_REQUIRED_FOR_SERVICE");
     }
@@ -105,23 +109,8 @@ export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
       throw new Error("REQUEST_NOT_SUBMITTABLE");
     }
 
-    // Load attachment ids for the signed payload hash.
-    const { data: attachments } = await supabaseAdmin
-      .from("student_request_attachments")
-      .select("attachment_id:id")
-      .eq("student_request_id", data.requestId)
-      .is("rejected_at", null);
-    const attachmentIds = ((attachments ?? []) as { id: string }[])
-      .map((a) => a.id)
-      .sort();
-    const formData = (req.form_data as Record<string, unknown> | null) ?? {};
-
-    const payloadHash = await hashStepUpPayload({
-      requestId: data.requestId,
-      canonicalCode: canonical,
-      formData,
-      attachmentIds,
-    });
+    // Same payload the submit caller hashes (attachment ids from form_data).
+    const payloadHash = await hashStepUpPayload(stepUpPayload);
 
     const descriptor = getStepUpDescriptor(canonical)!;
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(24)))
@@ -186,7 +175,10 @@ export const performWebStepUpFn = createServerFn({ method: "POST" })
     if (!req || req.student_profile_id !== (await currentStudentProfileId(context.userId))) {
       throw new Error("REQUEST_NOT_FOUND");
     }
-    const canonical = req.request_type;
+    // Accept canonical and legacy stored codes (e.g. absence_excuse).
+    const formData = (req.form_data as Record<string, unknown> | null) ?? {};
+    const stepUpPayload = buildB1StepUpPayload(data.requestId, String(req.request_type), formData);
+    const canonical = stepUpPayload.canonicalCode;
     if (!isStepUpSensitiveService(canonical)) {
       throw new Error("STEP_UP_NOT_REQUIRED_FOR_SERVICE");
     }
@@ -203,22 +195,8 @@ export const performWebStepUpFn = createServerFn({ method: "POST" })
     });
     if (authError) throw new Error("REAUTHENTICATION_FAILED");
 
-    // Build the same canonical hash the native signing path binds to.
-    const { data: attachments } = await supabaseAdmin
-      .from("student_request_attachments")
-      .select("attachment_id:id")
-      .eq("student_request_id", data.requestId)
-      .is("rejected_at", null);
-    const attachmentIds = ((attachments ?? []) as { id: string }[])
-      .map((a) => a.id)
-      .sort();
-    const formData = (req.form_data as Record<string, unknown> | null) ?? {};
-    const payloadHash = await hashStepUpPayload({
-      requestId: data.requestId,
-      canonicalCode: canonical,
-      formData,
-      attachmentIds,
-    });
+    // Same payload the submit caller hashes (attachment ids from form_data).
+    const payloadHash = await hashStepUpPayload(stepUpPayload);
 
     const descriptor = getStepUpDescriptor(canonical)!;
     const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))

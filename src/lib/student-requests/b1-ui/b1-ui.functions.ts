@@ -9,7 +9,7 @@ import { hashStepUpPayload } from "@/lib/security/step-up-contract";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rpcGetAvailableRequestTypes } from "@/lib/student-request-rpc";
-import { extractB1SecureAttachmentIds } from "@/lib/student-requests/student-request-submit-contract";
+import { buildB1StepUpPayload, extractB1SecureAttachmentIds } from "@/lib/student-requests/student-request-submit-contract";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
 import { assertB1DetailsRowPresentForStep } from "@/lib/student-requests/b1-details-preflight.server";
@@ -166,12 +166,7 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
       attachmentIds,
       stepUpProof: data.stepUpProof ?? null,
       stepUpPayloadHash: data.stepUpProof
-        ? await hashStepUpPayload({
-            requestId: data.requestId,
-            canonicalCode: canonical,
-            formData,
-            attachmentIds: [...attachmentIds].sort(),
-          })
+        ? await hashStepUpPayload(buildB1StepUpPayload(data.requestId, String(req.request_type), formData))
         : null,
     });
 

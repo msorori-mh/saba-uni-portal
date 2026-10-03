@@ -99,6 +99,22 @@ export function extractB1SecureAttachmentIds(
   return ids;
 }
 
+/**
+ * Single source for the step-up signed payload of a B1 submit. Used by the
+ * proof issuer (web + native) AND the submit caller so both hash identical
+ * input: normalized canonical code, stored form_data, and the secure
+ * attachment ids from form_data (sorted).
+ */
+export function buildB1StepUpPayload(
+  requestId: string,
+  storedRequestTypeCode: string,
+  formData: Record<string, unknown>,
+): { requestId: string; canonicalCode: string; formData: Record<string, unknown>; attachmentIds: string[] } {
+  const canonicalCode = normalizeStudentRequestTypeCode(storedRequestTypeCode);
+  const attachmentIds = [...extractB1SecureAttachmentIds(canonicalCode, formData)].sort();
+  return { requestId, canonicalCode, formData, attachmentIds };
+}
+
 const BASE64_DATA_URL = /^data:[^;]+;base64,/i;
 const HTML_TAG = /<[^>]+>/;
 
