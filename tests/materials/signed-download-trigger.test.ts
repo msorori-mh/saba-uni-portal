@@ -28,19 +28,29 @@ function withFakeDocument(run: () => Promise<void>): Promise<{ anchors: FakeAnch
     },
     body: { appendChild: () => {} },
   };
-  const originalWindow = (globalThis as any).window;
-  const original = (globalThis as any).document;
-  (globalThis as any).window = fakeWindow;
-  (globalThis as any).document = fakeDocument;
+  const globalRef = globalThis as any;
+  const windowExisted = Object.prototype.hasOwnProperty.call(globalRef, "window");
+  const documentExisted = Object.prototype.hasOwnProperty.call(globalRef, "document");
+  const originalWindow = globalRef.window;
+  const originalDocument = globalRef.document;
+  globalRef.window = fakeWindow;
+  globalRef.document = fakeDocument;
+  const cleanup = () => {
+    // Restore the exact pre-test global shape: a property that did not exist
+    // before must be deleted again (leaving `window: undefined` on globalThis
+    // fails no-window environment assertions in other tests of the same run).
+    if (windowExisted) globalRef.window = originalWindow;
+    else delete globalRef.window;
+    if (documentExisted) globalRef.document = originalDocument;
+    else delete globalRef.document;
+  };
   return run().then(
     () => {
-      (globalThis as any).window = originalWindow;
-      (globalThis as any).document = original;
+      cleanup();
       return { anchors };
     },
     (error) => {
-      (globalThis as any).window = originalWindow;
-      (globalThis as any).document = original;
+      cleanup();
       throw error;
     },
   );
