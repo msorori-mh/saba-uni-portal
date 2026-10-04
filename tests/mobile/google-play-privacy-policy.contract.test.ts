@@ -16,7 +16,7 @@ describe("Google Play public privacy policy", () => {
     expect(privacy).toContain("لا نبيع البيانات الشخصية");
     expect(privacy).toContain("لا يجمع التطبيق صورة البصمة");
     expect(privacy).toContain("طلبات التصحيح أو الحذف");
-    expect(privacy).toContain("support@it.saba.edu.ye");
+    expect(privacy).toContain("itandcs@usr.edu.ye");
   });
 
   test("is discoverable from the public site footer", () => {

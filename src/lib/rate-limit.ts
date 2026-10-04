@@ -20,6 +20,7 @@ export const RATE_LIMIT_POLICIES = {
   forgotPassword:        { action: "forgot_password",        maxAttempts: 3,  windowMinutes: 30, blockMinutes: 30 },
   resetPassword:         { action: "reset_password",         maxAttempts: 5,  windowMinutes: 30, blockMinutes: 30 },
   loginAttempt:          { action: "login_attempt",          maxAttempts: 5,  windowMinutes: 10, blockMinutes: 15 },
+  contactMessage:        { action: "contact_message",        maxAttempts: 3,  windowMinutes: 30, blockMinutes: 30 },
   accountCreation:       { action: "account_creation",       maxAttempts: 20, windowMinutes: 10, blockMinutes: 15 },
   accountImport:         { action: "account_import",         maxAttempts: 3,  windowMinutes: 30, blockMinutes: 30 },
   sensitiveRpc:          { action: "sensitive_rpc",          maxAttempts: 30, windowMinutes: 10, blockMinutes: 15 },
@@ -37,7 +38,11 @@ export async function checkRateLimit(
   keyParts: string,
   policy: RateLimitPolicy,
 ): Promise<RateLimitResult> {
-  if (policy.action !== "login_attempt" && policy.action !== "forgot_password") {
+  if (
+    policy.action !== "login_attempt" &&
+    policy.action !== "forgot_password" &&
+    policy.action !== "contact_message"
+  ) {
     console.warn("[rate-limit] unsupported pre-auth action", policy.action);
     return { allowed: true, reason: "unsupported_action" };
   }

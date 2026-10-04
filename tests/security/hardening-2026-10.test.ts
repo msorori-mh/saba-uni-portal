@@ -130,3 +130,38 @@ describe("committed production env file holds public values only", () => {
     }
   });
 });
+
+describe("follow-ups 2026-10-04", () => {
+  it("HTML gets a bounded shared-cache lifetime; non-200 and explicit policies are untouched", () => {
+    const ok = withSecurityHeaders(
+      new Request("https://quboolye.com/faculty"),
+      new Response("<html></html>", { headers: { "content-type": "text/html" } }),
+    );
+    expect(ok.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=60, stale-while-revalidate=300");
+    const notFound = withSecurityHeaders(
+      new Request("https://quboolye.com/x"),
+      new Response("<html></html>", { status: 404, headers: { "content-type": "text/html" } }),
+    );
+    expect(notFound.headers.get("cache-control")).toBeNull();
+    const explicit = withSecurityHeaders(
+      new Request("https://quboolye.com/x"),
+      new Response("<html></html>", { headers: { "content-type": "text/html", "cache-control": "no-store" } }),
+    );
+    expect(explicit.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("contact form is throttled through the public limiter", () => {
+    expect(read("src/routes/contact.tsx")).toContain("RATE_LIMIT_POLICIES.contactMessage");
+    expect(read("src/lib/rate-limit.functions.ts")).toContain('"contact_message"');
+  });
+
+  it("program detail shows the real degree and duration", async () => {
+    const { programDegree, programYears, arabicYears } = await import("../../src/lib/public-site-format");
+    expect(programDegree({ code: "MCS", degree_type: null })).toBe("ماجستير");
+    expect(programDegree({ code: "CS", degree_type: null })).toBe("بكالوريوس");
+    expect(arabicYears(programYears({ code: "MCS", degree_type: "ماجستير", years: null }))).toBe("سنتان");
+    const detail = read("src/routes/departments.$code.tsx");
+    expect(detail).not.toContain('<span className="font-bold">بكالوريوس</span>');
+    expect(detail).not.toContain("70%");
+  });
+});

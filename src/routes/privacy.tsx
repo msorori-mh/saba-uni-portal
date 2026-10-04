@@ -93,7 +93,7 @@ function PrivacyPage() {
         <Section title="10. التواصل">
           <p>
             للاستفسارات المتعلقة بالخصوصية أو الحساب، تواصل عبر البريد{" "}
-            <a className="font-bold text-primary underline" href="mailto:support@it.saba.edu.ye">support@it.saba.edu.ye</a>
+            <a className="font-bold text-primary underline" href="mailto:itandcs@usr.edu.ye">itandcs@usr.edu.ye</a>
             {" "}أو عبر <a className="font-bold text-primary underline" href="/contact">صفحة التواصل</a>.
           </p>
         </Section>

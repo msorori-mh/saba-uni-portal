@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { checkRateLimit, RATE_LIMIT_MESSAGE, RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -52,11 +53,11 @@ const SUBJECTS = [
 const FAQS = [
   {
     q: "ما هي شروط القبول في الكلية؟",
-    a: "يجب أن يكون المتقدم حاصلاً على الثانوية العامة (القسم العلمي) بمعدل لا يقل عن 70%، مع اجتياز اختبار القبول والمقابلة الشخصية.",
+    a: "تُعلن شروط القبول ومواعيد التسجيل وامتحانات المفاضلة لكل عام جامعي عبر موقع جامعة إقليم سبأ وصفحة الأخبار. للاستفسار تواصل مع الكلية عبر أرقام التواصل أو النموذج أدناه.",
   },
   {
     q: "ما هي البرامج الأكاديمية المتاحة؟",
-    a: "تقدم الكلية برامج بكالوريوس: علوم الحاسوب، تكنولوجيا المعلومات والاتصالات، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي (سيُدشَّن 2026-2027م)، إضافة إلى ماجستير علوم الحاسوب وماجستير تكنولوجيا المعلومات (قيد التدشين).",
+    a: "تقدم الكلية خمسة برامج بكالوريوس: علوم الحاسوب، تكنولوجيا المعلومات، نظم المعلومات، الأمن السيبراني، والذكاء الاصطناعي (يركز على علم البيانات)، إضافة إلى برنامجي ماجستير علوم الحاسوب وماجستير تكنولوجيا المعلومات.",
   },
   {
     q: "كم تستغرق الدراسة في الكلية؟",
@@ -64,7 +65,7 @@ const FAQS = [
   },
   {
     q: "كيف أصل إلى بوابة الطالب؟",
-    a: "يمكنك الدخول إلى بوابة الطالب عبر زر «بوابة الطالب» في أعلى الموقع، أو مباشرة عبر portal.it.saba.edu.ye باستخدام بياناتك الجامعية.",
+    a: "يمكنك الدخول إلى بوابة الطالب عبر زر «بوابة الطالب» في أعلى الموقع باستخدام بياناتك الجامعية.",
   },
   {
     q: "هل توجد منح دراسية؟",
@@ -147,6 +148,12 @@ function ContactPage() {
   });
 
   const onSubmit = async (values: ContactValues) => {
+    // Throttle repeated submissions from the same sender (spam flooding).
+    const limit = await checkRateLimit(`contact:${values.email}`, RATE_LIMIT_POLICIES.contactMessage);
+    if (!limit.allowed) {
+      toast.error(RATE_LIMIT_MESSAGE);
+      return;
+    }
     const subjectFull = values.phone
       ? `${values.subject} — هاتف: ${values.phone}`
       : values.subject;
@@ -180,7 +187,7 @@ function ContactPage() {
             {
               icon: MapPin,
               title: "العنوان",
-              lines: ["الجمهورية اليمنية", "جامعة إقليم سبأ"],
+              lines: ["اليمن — مأرب — المدينة", "جامعة إقليم سبأ"],
             },
             {
               icon: Phone,

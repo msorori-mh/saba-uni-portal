@@ -5,11 +5,12 @@ import type { RateLimitResult } from "@/lib/rate-limit";
 import { RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
 import { localRateLimit } from "@/lib/rate-limit-fallback";
 
-const publicActionSchema = z.enum(["login_attempt", "forgot_password"]);
+const publicActionSchema = z.enum(["login_attempt", "forgot_password", "contact_message"]);
 
 const PUBLIC_POLICY_BY_ACTION = {
   login_attempt: RATE_LIMIT_POLICIES.loginAttempt,
   forgot_password: RATE_LIMIT_POLICIES.forgotPassword,
+  contact_message: RATE_LIMIT_POLICIES.contactMessage,
 } as const;
 
 /** Pre-auth rate limit via service role — replaces direct anon RPC calls. */
