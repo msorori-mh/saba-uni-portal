@@ -117,7 +117,7 @@ function StudentFileRow({ file }: { file: any }) {
     setErr(null);
     try {
       const { url } = await getCourseMaterialDownloadUrl({ data: { fileId: file.id } });
-      window.open(url, "_blank", "noopener");
+      await triggerSignedFileDownload(url, file.original_filename);
     } catch (e: any) {
       setErr(e.message ?? "فشل التنزيل");
     } finally {

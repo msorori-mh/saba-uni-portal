@@ -107,11 +107,7 @@ function MobileFileRow({ file }: { file: any }) {
     setErr(null);
     try {
       const { url } = await getCourseMaterialDownloadUrl({ data: { fileId: file.id } });
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.click();
+      await triggerSignedFileDownload(url, file.original_filename);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "تعذر تحميل الملف");
     } finally {
