@@ -11,6 +11,7 @@ import {
   Clock,
   GraduationCap,
 } from "lucide-react";
+import { useMobileStudentContext } from "@/lib/mobile/student-context";
 import { getMyProgress } from "@/lib/academic-status.functions";
 
 export const Route = createFileRoute("/mobile/student/academic-record")({
@@ -39,9 +40,12 @@ const STATUS_BADGE = {
 } as const;
 
 function MobileStudentAcademicRecordPage() {
+  const studentContext = useMobileStudentContext();
+  const studentProfileId = studentContext.data?.profile?.id;
   const fetchMine = useServerFn(getMyProgress);
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ["mobile-student", "academic-record"],
+    queryKey: ["mobile-student", "academic-record", studentProfileId],
+    enabled: Boolean(studentProfileId),
     queryFn: () => fetchMine(),
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
@@ -68,17 +72,20 @@ function MobileStudentAcademicRecordPage() {
         </Link>
       </header>
 
-      {isLoading && <RecordSkeleton />}
+      {(studentContext.isLoading || isLoading) && <RecordSkeleton />}
 
-      {isError && (
+      {(isError || studentContext.isError || (!studentContext.isLoading && !studentProfileId)) && (
         <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-center space-y-3">
           <div className="flex items-center justify-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
             <span className="text-sm font-extrabold">تعذّر تحميل السجل</span>
           </div>
           <button
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={() => {
+              void studentContext.refetch();
+              if (studentProfileId) void refetch();
+            }}
+            disabled={isFetching || studentContext.isFetching}
             className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-card px-3 py-1.5 text-xs font-bold text-primary disabled:opacity-50"
           >
             {isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -109,6 +116,9 @@ function RecordBody({ d }: { d: Awaited<ReturnType<typeof getMyProgress>> }) {
 
   return (
     <div className="space-y-4">
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        عرض للاطلاع على نتائجك المعتمدة والتقدم في خطتك الدراسية. الوثائق الرسمية متاحة من قسم الوثائق.
+      </p>
       {/* Standing + official results */}
       <section className="rounded-2xl bg-primary-deep text-primary-foreground p-4 space-y-3 shadow-elegant">
         <div className="flex items-center justify-between gap-2">
@@ -264,13 +274,16 @@ function CourseItem({ c, variant }: { c: CourseRow; variant: keyof typeof STATUS
           {badge.label}
         </span>
       </div>
-      {c.best_percentage != null && (
+      {c.official_result != null && (
         <div className="mt-2 flex items-center justify-between text-[11px]">
-          <span className="text-muted-foreground">أفضل نتيجة</span>
+          <span className="text-muted-foreground">النتيجة المعتمدة</span>
           <span dir="ltr" className="font-mono font-extrabold text-primary">
-            {c.best_percentage}%
+            {c.official_result}%
           </span>
         </div>
+      )}
+      {c.grade_label && (
+        <p className="mt-1 text-[11px] font-bold text-primary">التقدير: {c.grade_label}</p>
       )}
       {c.attempts > 1 && (
         <div className="mt-1 text-[10px] text-amber-700 font-bold">

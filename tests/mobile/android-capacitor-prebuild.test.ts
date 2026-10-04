@@ -131,8 +131,8 @@ describe("android identity script", () => {
   const script = read("scripts/mobile/apply-android-identity.mjs");
   test("freezes identity, version and the permission allowlist", () => {
     expect(script).toContain('APPLICATION_ID = "ye.edu.usr.fitcs.portal"');
-    expect(script).toContain("VERSION_CODE = 2");
-    expect(script).toContain('VERSION_NAME = "0.2.0"');
+    expect(script).toContain("VERSION_CODE = 3");
+    expect(script).toContain('VERSION_NAME = "0.3.0"');
     expect(script).toContain('ALLOWED_PERMISSIONS = ["android.permission.INTERNET"]');
     expect(script).toContain("cleartext traffic is enabled");
   });

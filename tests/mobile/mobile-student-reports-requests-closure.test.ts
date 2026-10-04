@@ -73,3 +73,28 @@ describe("mobile academic self report", () => {
     expect(src).toContain('title="التقارير المتاحة"');
   });
 });
+
+describe("mobile academic record release", () => {
+  for (const input of [
+    { gpEligible: false, isGraduate: false },
+    { gpEligible: true, isGraduate: false },
+    { gpEligible: false, isGraduate: true },
+  ]) {
+    test(`academic record is reachable for ${JSON.stringify(input)} without duplicate cards`, () => {
+      const records = buildMobileHomeServices(input).filter((item) => item.key === "academic-record");
+      expect(records).toHaveLength(1);
+      expect(records[0].to).toBe("/mobile/student/academic-record");
+      expect(buildMobileMoreHub(input).some((item) => item.key === "academic-record")).toBe(false);
+    });
+  }
+
+  test("record uses self-scoped data and official course results", () => {
+    const page = read("src/routes/mobile.student.academic-record.tsx");
+    expect(page).toContain("useServerFn(getMyProgress)");
+    expect(page).toContain('queryKey: ["mobile-student", "academic-record", studentProfileId]');
+    expect(page).toContain("enabled: Boolean(studentProfileId)");
+    expect(page).toContain("{c.official_result}%");
+    expect(page).not.toContain("{c.best_percentage}%");
+    expect(page).toContain("إعادة المحاولة");
+  });
+});
