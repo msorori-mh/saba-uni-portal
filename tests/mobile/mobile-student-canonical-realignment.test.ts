@@ -74,10 +74,11 @@ describe("mobile containment — no escape to other portal surfaces", () => {
 describe("mobile student home cards", () => {
   const home = read("src/routes/mobile.student.index.tsx");
 
-  test("no finance card", () => {
-    expect(home).not.toContain("/mobile/student/finance");
-    expect(home).not.toContain("الرسوم");
-    expect(home).not.toContain("المالية");
+  test("finance is exposed through the shared mobile services catalog", () => {
+    const services = read("src/lib/mobile/student-services.ts");
+    expect(services).toContain("portalFeatures.studentFinance");
+    expect(services).toContain('to: "/mobile/student/finance"');
+    expect(home).toContain("finance: Wallet");
   });
 
   test("no academic-progress card", () => {

@@ -49,9 +49,9 @@ function StudentProgressPage() {
             <TabsList>
               <TabsTrigger value="transcript">السجل الأكاديمي</TabsTrigger>
               <TabsTrigger value="audit">تدقيق المقررات</TabsTrigger>
-            <TabsContent value="transcript" className="mt-4"><AcademicTranscript d={data} printable /></TabsContent>
               <TabsTrigger value="eligibility">أهلية التخرج</TabsTrigger>
             </TabsList>
+            <TabsContent value="transcript" className="mt-4"><AcademicTranscript d={data} printable /></TabsContent>
             <TabsContent value="audit" className="mt-4"><DegreeAudit d={data} /></TabsContent>
             <TabsContent value="eligibility" className="mt-4"><EligibilityCard d={data} /></TabsContent>
           </Tabs>

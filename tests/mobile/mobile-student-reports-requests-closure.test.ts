@@ -93,8 +93,12 @@ describe("mobile academic record release", () => {
     expect(page).toContain("useServerFn(getMyProgress)");
     expect(page).toContain('queryKey: ["mobile-student", "academic-record", studentProfileId]');
     expect(page).toContain("enabled: Boolean(studentProfileId)");
-    expect(page).toContain("{c.official_result}%");
-    expect(page).not.toContain("{c.best_percentage}%");
+    expect(page).toContain("<AcademicTranscript d={d} />");
+    const transcript = read("src/components/academic/AcademicTranscript.tsx");
+    expect(transcript).toContain("سجل أكاديمي غير رسمي");
+    expect(transcript).toContain("قيد الدراسة");
+    expect(transcript).toContain("المعدل الفصلي");
+    expect(transcript).toContain("المعدل التراكمي");
     expect(page).toContain("إعادة المحاولة");
   });
 });

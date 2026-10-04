@@ -56,4 +56,12 @@ describe("mobile student header actions", () => {
     expect(notifications).not.toContain('.in("id", unread.map');
     expect(notifications).toContain("qc.setQueriesData(");
   });
+
+  test("opens a notification, marks it read, and preserves manual toggle", () => {
+    expect(notifications).toContain("openItem");
+    expect(notifications).toContain("setExpandedId");
+    expect(notifications).toContain("reference_type, reference_id");
+    expect(notifications).toContain("تعليم كغير مقروء");
+    expect(notifications).toContain('getNotificationLink(n, "mobile")');
+  });
 });

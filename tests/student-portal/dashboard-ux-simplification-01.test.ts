@@ -10,12 +10,12 @@ import { filterDashboardAvailableServices } from "../../src/components/portal/St
 const ROOT = join(import.meta.dir, "../..");
 
 describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
-  it("1 — finance and transcript feature flags are off", () => {
-    expect(portalFeatures.studentFinance).toBe(false);
+  it("1 — student finance is enabled while admin finance and legacy transcript stay off", () => {
+    expect(portalFeatures.studentFinance).toBe(true);
     expect(portalFeatures.adminFinance).toBe(false);
     expect(portalFeatures.studentRegisteredCourses).toBe(false);
     expect(portalFeatures.studentUnofficialTranscript).toBe(false);
-    expect(isPortalFeatureEnabled("studentFinance")).toBe(false);
+    expect(isPortalFeatureEnabled("studentFinance")).toBe(true);
   });
 
   it("2 — student dashboard hides courses and unofficial transcript behind flags", () => {
@@ -99,15 +99,15 @@ describe("STUDENT-PORTAL-DASHBOARD-UX-SIMPLIFICATION-01", () => {
     expect(finance).toContain("!portalFeatures.adminFinance");
   });
 
-  it("6 — mobile finance respects studentFinance flag", () => {
+  it("6 — mobile finance is enabled through the shared guarded catalog", () => {
     const mobile = readFileSync(join(ROOT, "src/routes/mobile.student.finance.tsx"), "utf8");
     expect(mobile).toContain("portalFeatures.studentFinance");
     expect(mobile).toContain("STUDENT_FINANCE_FROZEN_MSG");
-    // The mobile home surface must not expose an unguarded finance entry point.
+    expect(mobile).toContain("لا توجد رسوم مسجلة");
     const home = readFileSync(join(ROOT, "src/routes/mobile.student.index.tsx"), "utf8");
-    if (home.includes("/mobile/student/finance")) {
-      expect(home).toContain("portalFeatures.studentFinance");
-    }
+    const services = readFileSync(join(ROOT, "src/lib/mobile/student-services.ts"), "utf8");
+    expect(services).toContain("portalFeatures.studentFinance");
+    expect(services).toContain('to: "/mobile/student/finance"');
     expect(home).not.toContain("PRIMARY_CARDS");
     expect(home).not.toContain('to: "/mobile/student/schedule"');
     expect(home).not.toContain('to: "/mobile/student/requests"');

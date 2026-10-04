@@ -29,6 +29,19 @@ describe("client: getNotificationLink", () => {
     ).toBeNull();
   });
 
+  it("routes referenced requests and grade notifications inside the mobile shell", () => {
+    expect(
+      getNotificationLink({
+        notification_type: "student_request_completed",
+        reference_type: "student_request",
+        reference_id: "11111111-1111-1111-1111-111111111111",
+      }, "mobile"),
+    ).toBe("/mobile/student/requests/11111111-1111-1111-1111-111111111111");
+    expect(
+      getNotificationLink({ notification_type: "grade", reference_type: null, reference_id: null }, "mobile"),
+    ).toBe("/mobile/student/grades");
+  });
+
   it("returns null for unrelated notification types", () => {
     expect(
       getNotificationLink({
