@@ -6,6 +6,7 @@ import {
   getCourseMaterialDownloadUrl,
   listStudentMaterialsForCourse,
 } from "@/lib/student-materials.functions";
+import { triggerSignedFileDownload } from "@/lib/materials/signed-download";
 import { formatWeekLectureLabel } from "@/lib/course-materials.shared";
 import { CourseDeliveryPlanGrid } from "@/components/portal/CourseDeliveryPlanGrid";
 
