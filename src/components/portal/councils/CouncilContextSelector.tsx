@@ -74,6 +74,7 @@ export function CouncilContextSelector({
         ) : null}
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {memberships.length > 1 ? `لديك ${memberships.length} مجالس فعّالة. ` : ""}
         كل ما يظهر أدناه يخص المجلس المحدد فقط، ووفق دورك المعتمد فيه.
       </p>
     </section>

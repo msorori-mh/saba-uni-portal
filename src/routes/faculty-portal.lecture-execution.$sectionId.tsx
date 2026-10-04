@@ -79,7 +79,7 @@ function FacultyLectureExecutionSection() {
   return (
     <FacultyPortalShell
       title="بوابة عضو هيئة التدريس"
-      breadcrumbs={[{ label: "متابعة تنفيذ المحاضرات" }]}
+      breadcrumbs={[{ label: "تنفيذ المحاضرات" }]}
     >
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-4">
@@ -109,6 +109,10 @@ function FacultyLectureExecutionSection() {
               <p className="mt-1 text-xs text-muted-foreground">
                 <span className="font-mono">{data?.course?.course_code}</span> • المجموعة{" "}
                 {data?.course?.section_code}
+                {data?.course?.program_name && ` • ${data.course.program_name}`}
+                {data?.course?.level_name && ` • ${data.course.level_name}`}
+                {typeof data?.course?.student_count === "number" &&
+                  ` • ${data.course.student_count} طالب`}
                 {studySystem && ` • النظام: ${SECTION_STUDY_SYSTEM_LABELS[studySystem]}`}
                 {data?.plan?.source === "syllabus" && data.plan.syllabus_version
                   ? ` • توصيف معتمد (إصدار ${data.plan.syllabus_version})`

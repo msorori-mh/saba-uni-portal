@@ -31,6 +31,8 @@ import {
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
 import { portalFeatures } from "@/lib/portal-features";
+import { academicRankLabel } from "@/lib/public-site-format";
+import { listFacultyDeliverySections } from "@/lib/lecture-execution.functions";
 
 type FacultyProfileRow = {
   id: string;
@@ -62,7 +64,7 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
   const { data, error } = await supabase
     .from("course_sections")
     .select(
-      "id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
+      "id, section_code, offering:course_offerings(program:programs(name_ar), level:academic_levels(name), course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
     )
     .eq("faculty_profile_id", facultyProfileId)
     .eq("status", "active");
@@ -76,13 +78,19 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
   type Raw = {
     id: string;
     section_code: string;
-    offering: { course: { code: string; name_ar: string } | null } | null;
+    offering: {
+      program: { name_ar: string } | null;
+      level: { name: string } | null;
+      course: { code: string; name_ar: string } | null;
+    } | null;
     schedule: RawSched[] | null;
   };
   return ((data ?? []) as unknown as Raw[]).map((r) => ({
     id: r.id,
     section_code: r.section_code,
     course: r.offering?.course ?? null,
+    program_name: r.offering?.program?.name_ar ?? null,
+    level_name: r.offering?.level?.name ?? null,
     schedule: (r.schedule ?? [])
       .filter((s) => s.status !== "cancelled" && s.time_slot)
       .map((s) => ({
@@ -117,6 +125,16 @@ function FacultyDashboard() {
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+  const { data: deliverySections = [] } = useQuery({
+    queryKey: ["faculty", "lecture-execution", "sections"],
+    queryFn: () => listFacultyDeliverySections(),
+    enabled: !!profile?.id,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const deliveryBySection = new Map(
+    deliverySections.map((section) => [section.course_section_id, section]),
+  );
   const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
   const { data: processingAccess } = useQuery({
     queryKey: ["faculty-portal", "processing-access"],
@@ -167,7 +185,7 @@ function FacultyDashboard() {
                 </h1>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm">
                   {profile.academic_rank && (
-                    <span className="font-semibold opacity-90">{profile.academic_rank}</span>
+                    <span className="font-semibold opacity-90">{academicRankLabel(profile.academic_rank)}</span>
                   )}
                   {profile.academic_rank && profile.position_title && (
                     <span className="opacity-50" aria-hidden>
@@ -188,6 +206,11 @@ function FacultyDashboard() {
                     {statusLabel[profile.status] ?? profile.status}
                   </span>
                 </div>
+                       {(s.programName || s.levelName) && (
+                         <div className="mt-1 text-[11px] text-muted-foreground">
+                           {[s.programName, s.levelName].filter(Boolean).join(" • ")}
+                         </div>
+                       )}
               </div>
             </div>
 
@@ -317,6 +340,9 @@ function FacultyDashboard() {
                     section_code: t.section_code,
                     course_code: t.course?.code ?? "—",
                     course_name: t.course?.name_ar ?? "—",
+                     program_name: t.program_name,
+                     level_name: t.level_name,
+                     student_count: deliveryBySection.get(t.id)?.student_count,
                   }))}
                 />
               </LazyMount>
@@ -381,7 +407,7 @@ function FacultyDashboard() {
                     <CalendarCheck className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-primary text-sm">متابعة تنفيذ المحاضرات</div>
+                    <div className="font-bold text-primary text-sm">تنفيذ المحاضرات</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       خطة المحاضرات المرقمة وتسجيل ما نُفذ وما تعذر
                     </div>
@@ -454,7 +480,7 @@ function FacultyDashboard() {
                 <StatCard
                   icon={Award}
                   label="الدرجة العلمية"
-                  value={profile.academic_rank ?? "—"}
+                  value={academicRankLabel(profile.academic_rank) ?? "—"}
                   density="compact"
                 />
                 <StatCard
@@ -466,9 +492,6 @@ function FacultyDashboard() {
               </div>
             </section>
 
-            <div className="mt-5 rounded-xl border border-dashed border-border bg-card p-3 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية الأخرى (الحضور، التقارير) في المراحل القادمة.
-            </div>
           </>
         )}
       </main>

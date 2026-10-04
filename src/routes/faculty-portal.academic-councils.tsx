@@ -84,6 +84,7 @@ export const Route = createFileRoute("/faculty-portal/academic-councils")({
 
 const INTAKE_CLOSED_NOTICE =
   "أُغلق استقبال الموضوعات لهذا الاجتماع بعد اعتماد جدول الأعمال.";
+const NO_OPEN_INTAKE_NOTICE = "لا يوجد اجتماع مفتوح لاستقبال الموضوعات حاليًا.";
 
 function FacultyAcademicCouncilsPage() {
   const fetchMembershipsV2 = useServerFn(getMyAcademicCouncilMembershipsV2);
@@ -205,7 +206,7 @@ function FacultyAcademicCouncilsPage() {
   const summary = useMemo(
     () =>
       buildOperationalSummary({
-        currentMemberships: councilMemberships,
+        currentMemberships,
         chairMemberships,
         agendaWriteMemberships,
         upcomingMeetings: councilUpcomingMeetings,
@@ -213,7 +214,7 @@ function FacultyAcademicCouncilsPage() {
         formatDateTime,
       }),
     [
-      councilMemberships,
+      currentMemberships,
       chairMemberships,
       agendaWriteMemberships,
       councilUpcomingMeetings,
@@ -280,12 +281,13 @@ function FacultyAcademicCouncilsPage() {
     (m: { council_id?: string }) => !selectedCouncilId || m.council_id === selectedCouncilId,
   );
   const hasOpenIntake = openIntakeMeetings.length > 0;
+  const noOpenIntakeNotice = nextMeeting ? INTAKE_CLOSED_NOTICE : NO_OPEN_INTAKE_NOTICE;
   const intakeNoticeForNextMeeting =
     nextMeeting &&
     !openIntakeMeetings.some(
       (m: { meeting_id?: string }) => m.meeting_id === nextMeeting.meeting_id,
     )
-      ? INTAKE_CLOSED_NOTICE
+                       ? noOpenIntakeNotice
       : null;
 
   const pageLoading =
@@ -400,7 +402,7 @@ function FacultyAcademicCouncilsPage() {
                   data-testid="councils-submit-topic-disabled-reason"
                   className="w-full text-[11px] leading-relaxed text-muted-foreground"
                 >
-                  {INTAKE_CLOSED_NOTICE}
+                   {noOpenIntakeNotice}
                 </p>
               ) : null}
             </div>
