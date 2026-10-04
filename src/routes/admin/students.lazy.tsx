@@ -1406,7 +1406,7 @@ function AddStudentModal({
                 </select>
               </Field>
               <Field label="البرنامج">
-                <select value={form.program_id} onChange={(e) => { update("program_id", e.target.value); setPlanChoice(""); }}
+                <select value={form.program_id} onChange={(e) => update("program_id", e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <option value="">— اختر —</option>
                   {filteredPrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
