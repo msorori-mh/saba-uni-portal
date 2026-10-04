@@ -13,6 +13,7 @@ type FakeAnchor = {
 
 function withFakeDocument(run: () => Promise<void>): Promise<{ anchors: FakeAnchor[] }> {
   const anchors: FakeAnchor[] = [];
+  const fakeWindow = {};
   const fakeDocument = {
     createElement: () => {
       const anchor: FakeAnchor = {
@@ -27,14 +28,18 @@ function withFakeDocument(run: () => Promise<void>): Promise<{ anchors: FakeAnch
     },
     body: { appendChild: () => {} },
   };
+  const originalWindow = (globalThis as any).window;
   const original = (globalThis as any).document;
+  (globalThis as any).window = fakeWindow;
   (globalThis as any).document = fakeDocument;
   return run().then(
     () => {
+      (globalThis as any).window = originalWindow;
       (globalThis as any).document = original;
       return { anchors };
     },
     (error) => {
+      (globalThis as any).window = originalWindow;
       (globalThis as any).document = original;
       throw error;
     },
