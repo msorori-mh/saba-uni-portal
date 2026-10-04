@@ -13,7 +13,7 @@
  */
 
 import { isNativePlatform } from "@/lib/native/platform";
-import { openExternalUrl } from "@/lib/native/external-links";
+import { openSignedUrlInSystemBrowser } from "@/lib/native/file-redirect";
 
 /** Opens/downloads a signed URL without relying on a post-await popup. */
 export async function triggerSignedFileDownload(
@@ -21,8 +21,7 @@ export async function triggerSignedFileDownload(
   filename?: string,
 ): Promise<void> {
   if (isNativePlatform()) {
-    const decision = await openExternalUrl(signedUrl);
-    if (decision.kind === "blocked") throw new Error(decision.reason);
+    openSignedUrlInSystemBrowser(signedUrl);
     return;
   }
   if (typeof window === "undefined") return;

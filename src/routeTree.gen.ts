@@ -108,6 +108,7 @@ import { Route as StudentReportsRouteImport } from './routes/student.reports'
 import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
+import { Route as ApiPublicFileRedirectRouteImport } from './routes/api/public/file-redirect'
 import { Route as FacultyPortalAcademicCouncilsArchiveRouteImport } from './routes/faculty-portal.academic-councils.archive'
 import { Route as FacultyPortalAcademicCouncilsAuthorizationAuditRouteImport } from './routes/faculty-portal.academic-councils.authorization-audit'
 import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './routes/faculty-portal.academic-councils.reports'
@@ -727,6 +728,11 @@ const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
   path: '/study-plan',
   getParentRoute: () => StudentRoute,
 } as any)
+const ApiPublicFileRedirectRoute = ApiPublicFileRedirectRouteImport.update({
+  id: '/api/public/file-redirect',
+  path: '/api/public/file-redirect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FacultyPortalAcademicCouncilsArchiveRoute =
   FacultyPortalAcademicCouncilsArchiveRouteImport.update({
     id: '/archive',
@@ -1096,6 +1102,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
+  '/api/public/file-redirect': typeof ApiPublicFileRedirectRoute
   '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
   '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
@@ -1242,6 +1249,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/admin': typeof AdminIndexLazyRoute
+  '/api/public/file-redirect': typeof ApiPublicFileRedirectRoute
   '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
   '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
@@ -1396,6 +1404,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
+  '/api/public/file-redirect': typeof ApiPublicFileRedirectRoute
   '/faculty-portal/academic-councils/archive': typeof FacultyPortalAcademicCouncilsArchiveRoute
   '/faculty-portal/academic-councils/authorization-audit': typeof FacultyPortalAcademicCouncilsAuthorizationAuditRoute
   '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
@@ -1552,6 +1561,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
+    | '/api/public/file-redirect'
     | '/faculty-portal/academic-councils/archive'
     | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
@@ -1698,6 +1708,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/admin'
+    | '/api/public/file-redirect'
     | '/faculty-portal/academic-councils/archive'
     | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
@@ -1851,6 +1862,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
+    | '/api/public/file-redirect'
     | '/faculty-portal/academic-councils/archive'
     | '/faculty-portal/academic-councils/authorization-audit'
     | '/faculty-portal/academic-councils/reports'
@@ -1925,6 +1937,7 @@ export interface RootRouteChildren {
   MobileStudentForgotPasswordRoute: typeof MobileStudentForgotPasswordRoute
   MobileStudentLoginRoute: typeof MobileStudentLoginRoute
   DepartmentsIndexRoute: typeof DepartmentsIndexRoute
+  ApiPublicFileRedirectRoute: typeof ApiPublicFileRedirectRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -2671,6 +2684,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentStudyPlanRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/api/public/file-redirect': {
+      id: '/api/public/file-redirect'
+      path: '/api/public/file-redirect'
+      fullPath: '/api/public/file-redirect'
+      preLoaderRoute: typeof ApiPublicFileRedirectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/faculty-portal/academic-councils/archive': {
       id: '/faculty-portal/academic-councils/archive'
       path: '/archive'
@@ -3414,6 +3434,7 @@ const rootRouteChildren: RootRouteChildren = {
   MobileStudentForgotPasswordRoute: MobileStudentForgotPasswordRoute,
   MobileStudentLoginRoute: MobileStudentLoginRoute,
   DepartmentsIndexRoute: DepartmentsIndexRoute,
+  ApiPublicFileRedirectRoute: ApiPublicFileRedirectRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
