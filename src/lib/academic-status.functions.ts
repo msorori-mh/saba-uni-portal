@@ -169,8 +169,11 @@ type EnrollmentRow = {
       academic_year_id: string;
       semester_id: string;
       level_id: string;
-      academic_year: { name: string; start_date: string } | null;
-      semester: { name: string; code: string; start_date: string } | null;
+      // Academic year comes through semesters (course_offerings has no FK to academic_years).
+      semester: {
+        name: string; code: string; start_date: string;
+        academic_year: { name: string; start_date: string } | null;
+      } | null;
     } | null;
   } | null;
 };
@@ -233,10 +236,11 @@ async function computeStudentProgress(
   const sas: any = sasRaw;
 
   // All enrollments (with their offering + section)
-  const { data: enrRaw } = await supabase
+  const { data: enrRaw, error: enrError } = await supabase
     .from("student_enrollments")
-    .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, academic_year:academic_years(name, start_date), semester:semesters(name, code, start_date)))")
+    .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, semester:semesters(name, code, start_date, academic_year:academic_years(name, start_date))))")
     .eq("student_profile_id", studentProfileId);
+  if (enrError) throw new Error(`تعذّر تحميل السجل: ${enrError.message}`);
   const enrollments = ((enrRaw ?? []) as unknown as EnrollmentRow[])
     .filter((e) => e.enrollment_status !== "dropped" && e.section?.offering);
 
@@ -246,7 +250,7 @@ async function computeStudentProgress(
   // All approved grades for these enrollments
   const grades: GradeRow[] = [];
   if (enrollmentIds.length) {
-    const { data: gRaw } = await supabase
+    const { data: gRaw, error: gError } = await supabase
       .from("student_grades")
       // No embed: `student_grades` has no PostgREST relationship to
       // `grade_components`, so embedding silently fails the whole query and the
@@ -255,14 +259,16 @@ async function computeStudentProgress(
       .select("student_enrollment_id, score")
       .in("student_enrollment_id", enrollmentIds)
       .eq("status", "approved");
+    if (gError) throw new Error(`تعذّر تحميل السجل: ${gError.message}`);
     for (const g of (gRaw ?? []) as unknown as GradeRow[]) grades.push(g);
   }
 
   // All grade components for involved sections (to know section totals)
   const componentsBySection = new Map<string, number>();
   if (sectionIds.length) {
-    const { data: cRaw } = await supabase
+    const { data: cRaw, error: compError } = await supabase
       .from("grade_components").select("course_section_id, max_score").in("course_section_id", sectionIds);
+    if (compError) throw new Error(`تعذّر تحميل السجل: ${compError.message}`);
     for (const c of (cRaw ?? []) as any[]) {
       componentsBySection.set(c.course_section_id, (componentsBySection.get(c.course_section_id) ?? 0) + Number(c.max_score));
     }
@@ -477,7 +483,9 @@ async function computeStudentProgress(
 
   const transcriptCourses: StudentProgressDTO["transcript"]["courses"] = enrollments.flatMap((enrollment) => {
     const offering = enrollment.section?.offering;
-    if (!offering?.academic_year || !offering.semester) return [];
+    const semester = offering?.semester;
+    const academicYear = semester?.academic_year;
+    if (!offering || !semester || !academicYear) return [];
     const course = coursesById.get(offering.course_id);
     if (!course) return [];
     const raw = pctMap.get(enrollment.id)?.pct ?? null;
@@ -495,12 +503,12 @@ async function computeStudentProgress(
       course_name_ar: course.name_ar,
       credit_hours: course.credit_hours,
       academic_year_id: offering.academic_year_id,
-      academic_year_name: offering.academic_year.name,
-      academic_year_start_date: offering.academic_year.start_date,
+      academic_year_name: academicYear.name,
+      academic_year_start_date: academicYear.start_date,
       semester_id: offering.semester_id,
-      semester_name: offering.semester.name,
-      semester_code: offering.semester.code,
-      semester_start_date: offering.semester.start_date,
+      semester_name: semester.name,
+      semester_code: semester.code,
+      semester_start_date: semester.start_date,
       official_result: officialResult,
       grade_label: officialResult == null ? null : gradeArabicLabel(raw),
       result,
