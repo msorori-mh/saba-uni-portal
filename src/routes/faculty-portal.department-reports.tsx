@@ -58,6 +58,8 @@ function FacultyDepartmentReportsPage() {
         : [],
     [data],
   );
+  const errorMessage = (error as Error | null)?.message ?? "";
+  const isAccessDenied = /صلاحية|مصرح|النطاق|القسم/.test(errorMessage);
 
   return (
     <FacultyPortalShell
@@ -72,10 +74,8 @@ function FacultyDepartmentReportsPage() {
           </div>
         ) : error ? (
           <p className="text-sm text-destructive" role="alert">
-            {/* Arabic server messages (e.g. scope denials) are safe to show;
-                raw technical text is not. */}
-            {/[\u0600-\u06FF]/.test((error as Error).message ?? "")
-              ? (error as Error).message
+            {isAccessDenied
+              ? "هذه التقارير متاحة لرئيس القسم والعميد وإدارة النظام."
               : "تعذر تحميل تقارير القسم. حاول مرة أخرى لاحقاً."}
           </p>
         ) : (
