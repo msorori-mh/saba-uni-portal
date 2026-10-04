@@ -154,7 +154,7 @@ export function CouncilMemberWorkspace({
         </div>
       ) : query.isError ? (
         <div className="rounded-md border border-muted/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-          {query.error instanceof Error ? query.error.message : "مساحة عمل عضو المجلس غير متاحة حالياً."}
+          {safeCouncilErrorMessage(query.error, "مساحة عمل عضو المجلس غير متاحة حالياً.")}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

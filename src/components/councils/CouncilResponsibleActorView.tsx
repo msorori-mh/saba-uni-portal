@@ -110,7 +110,7 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
       setNote("");
       void qc.invalidateQueries({ queryKey: ["council-responsible-decisions", userId] });
     } catch (err: any) {
-      toast.error(err?.message || "تعذر حفظ التحديث");
+      toast.error(safeCouncilErrorMessage(err, "تعذر حفظ التحديث"));
     } finally {
       setBusy(false);
     }
@@ -129,7 +129,7 @@ export function CouncilResponsibleActorView({ userId }: CouncilResponsibleActorV
         </div>
       ) : query.isError ? (
         <div className="rounded-md border border-muted/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-          {query.error instanceof Error ? query.error.message : "قائمة القرارات المكلفة غير متاحة حالياً."}
+          {safeCouncilErrorMessage(query.error, "قائمة القرارات المكلفة غير متاحة حالياً.")}
         </div>
       ) : decisions.length === 0 ? (
         <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
