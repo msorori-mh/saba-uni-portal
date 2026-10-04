@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Cpu, Database, Shield, Brain, BookOpen, GraduationCap, Briefcase, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programByCodeQuery, facultyQuery } from "@/lib/queries";
-import { programDescription, arabicYears, programDegree, programYears } from "@/lib/public-site-format";
+import { academicRankLabel, programDescription, arabicYears, programDegree, programYears } from "@/lib/public-site-format";
 
 export const Route = createFileRoute("/departments/$code")({
   loader: async ({ context, params }) => {
@@ -115,7 +115,7 @@ function ProgramDetail() {
                       </div>
                       <div>
                         <div className="font-bold text-primary text-sm">{f.full_name_ar}</div>
-                        <div className="text-xs text-muted-foreground">{f.rank ?? "عضو هيئة تدريس"}{f.specialization ? ` — ${f.specialization}` : ""}</div>
+                        <div className="text-xs text-muted-foreground">{academicRankLabel(f.rank) ?? "عضو هيئة تدريس"}{f.specialization ? ` — ${f.specialization}` : ""}</div>
                       </div>
                     </div>
                   ))}

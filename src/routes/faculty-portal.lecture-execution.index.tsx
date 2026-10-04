@@ -8,12 +8,12 @@ export const Route = createFileRoute("/faculty-portal/lecture-execution/")({
   component: FacultyLectureExecutionList,
   head: () => ({
     meta: [
-      { title: "متابعة تنفيذ المحاضرات | بوابة عضو هيئة التدريس" },
+      { title: "تنفيذ المحاضرات | بوابة عضو هيئة التدريس" },
       {
         name: "description",
         content: "خطة المحاضرات المرقمة لكل مجموعة وتسجيل تنفيذ المحاضرات أولاً بأول.",
       },
-      { property: "og:title", content: "متابعة تنفيذ المحاضرات" },
+      { property: "og:title", content: "تنفيذ المحاضرات" },
       {
         property: "og:description",
         content: "خطة المحاضرات المرقمة لكل مجموعة وتسجيل تنفيذ المحاضرات.",
@@ -41,11 +41,11 @@ function FacultyLectureExecutionList() {
   return (
     <FacultyPortalShell
       title="بوابة عضو هيئة التدريس"
-      breadcrumbs={[{ label: "متابعة تنفيذ المحاضرات" }]}
+      breadcrumbs={[{ label: "تنفيذ المحاضرات" }]}
     >
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="font-display text-xl font-extrabold text-primary mb-4 flex items-center gap-2">
-          <CalendarCheck className="h-5 w-5 text-gold" aria-hidden /> متابعة تنفيذ المحاضرات
+          <CalendarCheck className="h-5 w-5 text-gold" aria-hidden /> تنفيذ المحاضرات
         </h1>
 
         {isLoading ? (
@@ -69,8 +69,12 @@ function FacultyLectureExecutionList() {
                   <span className="font-mono">{s.course_code}</span> — {s.course_name_ar}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  المجموعة: <span className="font-bold">{s.section_code}</span> • الخطة:{" "}
-                  {PLAN_STATUS_LABELS[s.plan_status] ?? s.plan_status}
+                  المجموعة: <span className="font-bold">{s.section_code}</span>
+                  {s.program_name && <> • {s.program_name}</>}
+                  {s.level_name && <> • {s.level_name}</>}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  الخطة: {PLAN_STATUS_LABELS[s.plan_status] ?? s.plan_status} • {s.student_count} طالب
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   المنفذ {s.executed_count} من {s.planned_session_count}
