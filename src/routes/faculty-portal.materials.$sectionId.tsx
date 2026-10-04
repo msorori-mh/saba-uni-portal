@@ -25,6 +25,7 @@ import {
   listCourseMaterialAccessLogs,
 } from "@/lib/faculty-materials.functions";
 import { getCourseMaterialDownloadUrl } from "@/lib/student-materials.functions";
+import { triggerSignedFileDownload } from "@/lib/materials/signed-download";
 import {
   MATERIALS_ALLOWED_MIME,
   MATERIALS_ALLOWED_EXT,
@@ -518,7 +519,7 @@ function FileRow({ file }: { file: MaterialFileItem }) {
     setError(null);
     try {
       const { url } = await getCourseMaterialDownloadUrl({ data: { fileId: file.id } });
-      window.open(url, "_blank", "noopener");
+      await triggerSignedFileDownload(url, file.original_filename);
     } catch {
       setError("تعذّر تنزيل الملف حالياً.");
     } finally {

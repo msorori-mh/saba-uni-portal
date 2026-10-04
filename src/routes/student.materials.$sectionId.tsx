@@ -6,6 +6,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { listStudentMaterialsForCourse, getCourseMaterialDownloadUrl } from "@/lib/student-materials.functions";
+import { triggerSignedFileDownload } from "@/lib/materials/signed-download";
 import { formatWeekLectureLabel } from "@/lib/course-materials.shared";
 import { CourseDeliveryPlanGrid } from "@/components/portal/CourseDeliveryPlanGrid";
 
@@ -117,7 +118,7 @@ function StudentFileRow({ file }: { file: any }) {
     setErr(null);
     try {
       const { url } = await getCourseMaterialDownloadUrl({ data: { fileId: file.id } });
-      window.open(url, "_blank", "noopener");
+      await triggerSignedFileDownload(url, file.original_filename);
     } catch (e: any) {
       setErr(e.message ?? "فشل التنزيل");
     } finally {
