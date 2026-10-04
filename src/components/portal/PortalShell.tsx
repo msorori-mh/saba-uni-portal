@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LogOut } from "lucide-react";
+import { Globe, LogOut } from "lucide-react";
 import universityLogo from "@/assets/university-logo.jpeg";
 import { cn } from "@/lib/utils";
 import { PageBackButton } from "@/components/navigation/PageBackButton";
@@ -55,6 +55,21 @@ export function PortalShell({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <a
+              href="/"
+              data-testid="portal-public-site-link"
+              className="hidden items-center gap-1 rounded-md px-2 py-2 text-xs font-bold text-primary-foreground/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:inline-flex"
+            >
+              <Globe className="h-4 w-4" aria-hidden />
+              الموقع الإلكتروني
+            </a>
+            <a
+              href="/"
+              aria-label="الموقع الإلكتروني"
+              className="inline-flex items-center rounded-md p-2 text-primary-foreground/80 hover:text-gold sm:hidden"
+            >
+              <Globe className="h-4 w-4" aria-hidden />
+            </a>
             <PageBackButton className="border-gold/40 text-gold hover:bg-gold hover:text-primary-deep" />
             {shellActions}
             <button
@@ -69,6 +84,9 @@ export function PortalShell({
         </div>
       </header>
       {children}
+      <footer className="no-print border-t border-border py-3 text-center text-[11px] text-muted-foreground">
+        © {new Date().getFullYear()} كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ
+      </footer>
     </div>
   );
 }

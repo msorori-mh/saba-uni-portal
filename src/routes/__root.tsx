@@ -235,6 +235,12 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Internal portals render their own PortalShell header — no public site chrome. */
+export const INTERNAL_PORTAL_PREFIXES = ["/student", "/faculty-portal", "/staff"] as const;
+export function isInternalPortalPath(pathname: string): boolean {
+  return INTERNAL_PORTAL_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouter().state.location.pathname;
@@ -243,7 +249,7 @@ function RootComponent() {
   // suppresses browser PWA registration and the install invitation.
   const isMobileApp = isMobileAppPath(pathname);
   const isNativeMobileApp = isMobileApp && isNativePlatform();
-  const bare = isAdmin || isMobileApp;
+  const bare = isAdmin || isMobileApp || isInternalPortalPath(pathname);
 
   useEffect(() => {
     if (isNativeMobileApp) {

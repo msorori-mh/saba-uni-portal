@@ -23,7 +23,13 @@ import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/pro
 export type HasActiveProcessingAssignmentResult = {
   hasAssignment: boolean;
   isAdmin: boolean;
+  /** UI gate mirroring cdp_delivery_monitoring roles; the page/RPC stay authoritative. */
+  canMonitorDelivery: boolean;
 };
+
+export const DELIVERY_MONITORING_ROLES = [
+  "department_head", "dean", "registrar", "student_affairs", "admin", "system_admin",
+] as const;
 
 export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -35,5 +41,9 @@ export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
       context.userId,
     );
 
-    return { hasAssignment, isAdmin };
+    const canMonitorDelivery = roles.some((r) =>
+      (DELIVERY_MONITORING_ROLES as readonly string[]).includes(r),
+    );
+
+    return { hasAssignment, isAdmin, canMonitorDelivery };
   });
