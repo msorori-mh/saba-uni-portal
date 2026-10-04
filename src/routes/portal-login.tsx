@@ -303,7 +303,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
               </div>
 
               <div className="text-center text-xs text-muted-foreground border-t border-border pt-3">
-                <a href="mailto:support@it.saba.edu.ye" className="text-primary hover:text-gold font-bold">الدعم الفني</a>
+                <a href="mailto:itandcs@usr.edu.ye" className="text-primary hover:text-gold font-bold">الدعم الفني</a>
               </div>
             </form>
           </div>
