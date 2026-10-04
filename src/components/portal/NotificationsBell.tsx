@@ -82,14 +82,20 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
 
   const markRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => item.id === id ? { ...item, is_read: true } : item),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const markAll = async () => {
     const ids = items.filter((n) => !n.is_read).map((n) => n.id);
     if (ids.length === 0) return;
     await supabase.from("notifications").update({ is_read: true }).in("id", ids);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => ({ ...item, is_read: true })),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const openItem = async (n: Notification) => {

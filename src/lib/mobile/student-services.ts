@@ -131,6 +131,7 @@ export const MOBILE_HOME_SERVICE_KEYS: readonly MobileServiceKey[] = [
   "study-plan",
   "materials",
   "reports",
+  "finance",
 ] as const;
 
 /** Header destinations are available through global shell actions, not cards. */

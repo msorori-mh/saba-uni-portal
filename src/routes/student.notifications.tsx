@@ -58,18 +58,27 @@ function NotificationsPage() {
     const ids = items.filter((n) => !n.is_read).map((n) => n.id);
     if (ids.length === 0) return;
     await supabase.from("notifications").update({ is_read: true }).in("id", ids);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => ({ ...item, is_read: true })),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const toggle = async (n: Notification) => {
     await supabase.from("notifications").update({ is_read: !n.is_read }).eq("id", n.id);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => item.id === n.id ? { ...item, is_read: !n.is_read } : item),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const openItem = async (n: Notification) => {
     setExpandedId((current) => current === n.id ? null : n.id);
     if (!n.is_read) {
       await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+      qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+        current?.map((item) => item.id === n.id ? { ...item, is_read: true } : item),
+      );
       await qc.invalidateQueries({ queryKey: ["notifications"] });
     }
   };

@@ -87,6 +87,9 @@ function MobileStudentNotifications() {
       .update({ is_read: !notification.is_read })
       .eq("id", notification.id);
     if (error) return toast.error("تعذّر تحديث الإشعار. حاول مرة أخرى.");
+    qc.setQueryData<NotificationRow[]>(["mobile-student", "notifications"], (current) =>
+      current?.map((item) => item.id === notification.id ? { ...item, is_read: !notification.is_read } : item),
+    );
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["mobile-student", "notifications"] }),
       qc.invalidateQueries({ queryKey: ["mobile-student", "notifications", "unread-count"] }),
@@ -101,6 +104,9 @@ function MobileStudentNotifications() {
       qc.setQueriesData<number>(
         { queryKey: ["mobile-student", "notifications", "unread-count"] },
         (count) => Math.max(0, (count ?? 0) - 1),
+      );
+      qc.setQueryData<NotificationRow[]>(["mobile-student", "notifications"], (current) =>
+        current?.map((item) => item.id === notification.id ? { ...item, is_read: true } : item),
       );
       await qc.invalidateQueries({ queryKey: ["mobile-student", "notifications"] });
     }
