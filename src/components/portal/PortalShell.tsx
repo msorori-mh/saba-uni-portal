@@ -33,7 +33,7 @@ export function PortalShell({
   const shellTitle = title ?? portalTitle ?? "البوابة الإلكترونية";
   const shellActions = actions ?? notifications;
   return (
-    <div dir="rtl" className={cn("min-h-screen bg-background", className)}>
+    <div dir="rtl" data-portal-shell className={cn("min-h-screen bg-background", className)}>
       <header
         className={cn(
           "border-b-2 border-gold/40 bg-primary-deep text-primary-foreground",

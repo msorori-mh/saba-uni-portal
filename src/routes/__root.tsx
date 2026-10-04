@@ -24,6 +24,7 @@ import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
 import { isInternalPortalPath } from "@/lib/portal-scope";
+import { PortalFallbackBar } from "@/components/portal/PortalFallbackBar";
 import { isNativePlatform } from "@/lib/native/platform";
 
 function NotFoundComponent() {
@@ -256,7 +257,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {bare ? (
+      {isInternalPortalPath(pathname) ? (
+        <>
+          <PortalFallbackBar pathname={pathname} />
+          <Outlet />
+        </>
+      ) : bare ? (
         <Outlet />
       ) : (
         <div className="flex min-h-screen flex-col">
