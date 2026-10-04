@@ -13,11 +13,12 @@ import { join } from "node:path";
 
 const SRC_ROOT = "src";
 
-function listFiles(dir: string, acc: string[] = []): string[] {
+function listFiles(dir: string): string[] {
+  const acc: string[] = [];
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) {
-      acc.push(...listFiles(path, acc));
+      acc.push(...listFiles(path));
     } else if (/\.tsx?$/.test(path)) {
       acc.push(path);
     }
