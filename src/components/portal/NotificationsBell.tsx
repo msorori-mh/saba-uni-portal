@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, Loader2 } from "lucide-react";
+import { Bell, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getNotificationLink } from "@/lib/notifications/notification-link";
 
@@ -44,6 +44,7 @@ async function fetchTop(): Promise<Notification[]> {
 
 export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
   const [open, setOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
@@ -81,21 +82,25 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
 
   const markRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => item.id === id ? { ...item, is_read: true } : item),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const markAll = async () => {
     const ids = items.filter((n) => !n.is_read).map((n) => n.id);
     if (ids.length === 0) return;
     await supabase.from("notifications").update({ is_read: true }).in("id", ids);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => ({ ...item, is_read: true })),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const openItem = async (n: Notification) => {
     if (!n.is_read) await markRead(n.id);
-    setOpen(false);
-    const target = getNotificationLink(n) ?? seeAllHref;
-    if (target) navigate({ to: target });
+    setExpandedId((current) => current === n.id ? null : n.id);
   };
 
   return (
@@ -178,9 +183,22 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
                             </span>
                           </div>
                           <div className="font-bold text-sm text-foreground">{n.title}</div>
-                          <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                           <div className={`text-xs text-muted-foreground mt-0.5 ${expandedId === n.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>
                             {n.message}
                           </div>
+                           {expandedId === n.id && getNotificationLink(n) && (
+                             <button
+                               type="button"
+                               onClick={(event) => {
+                                 event.stopPropagation();
+                                 setOpen(false);
+                                 navigate({ to: getNotificationLink(n) ?? seeAllHref ?? "/student/notifications" });
+                               }}
+                               className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-bold text-primary-foreground"
+                             >
+                               <ExternalLink className="h-3 w-3" /> فتح
+                             </button>
+                           )}
                         </div>
                       </div>
                     </button>

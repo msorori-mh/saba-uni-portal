@@ -29,7 +29,8 @@ export type MobileServiceKey =
   | "settings"
   | "graduation-projects"
   | "graduates-affairs"
-  | "academic-record";
+  | "academic-record"
+  | "finance";
 
 export type MobileServiceItem = {
   readonly key: MobileServiceKey;
@@ -56,8 +57,8 @@ export type MobileServicesInput = {
 
 /**
  * Builds the eligible additional-services list.
- * Finance remains hidden. The mobile academic record is explicitly enabled
- * independently of the browser unofficial-transcript feature flag.
+ * The mobile academic record is explicitly enabled independently of the
+ * browser unofficial-transcript feature flag.
  */
 export function buildMobileStudentServices(
   input: MobileServicesInput,
@@ -79,6 +80,10 @@ export function buildMobileStudentServices(
     { key: "study-plan", label: "الخطة الدراسية", to: "/mobile/student/study-plan", group: "academic" },
     { key: "reports", label: "تقاريري", to: "/mobile/student/reports", group: "academic" },
   );
+
+  if (portalFeatures.studentFinance) {
+    items.push({ key: "finance", label: "الرسوم والمدفوعات", to: "/mobile/student/finance", group: "account" });
+  }
 
   items.push({
     key: "academic-record",
@@ -126,6 +131,7 @@ export const MOBILE_HOME_SERVICE_KEYS: readonly MobileServiceKey[] = [
   "study-plan",
   "materials",
   "reports",
+  "finance",
 ] as const;
 
 /** Header destinations are available through global shell actions, not cards. */

@@ -11,6 +11,7 @@ import {
   Settings2,
   UserRound,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -37,6 +38,7 @@ const ICONS: Record<MobileServiceKey, LucideIcon> = {
   "graduation-projects": GraduationCap,
   "graduates-affairs": Users,
   "academic-record": BookOpen,
+  finance: Wallet,
 };
 
 function IdentityRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

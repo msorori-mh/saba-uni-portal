@@ -204,7 +204,7 @@ function MobileStudentFinance() {
       <div className="px-4 py-6">
         <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center">
           <Wallet className="h-8 w-8 text-muted-foreground/60 mx-auto mb-2" />
-          <div className="text-sm font-bold text-primary">لا توجد رسوم أو مدفوعات حالياً.</div>
+          <div className="text-sm font-bold text-primary">لا توجد رسوم مسجلة</div>
         </div>
       </div>
     );

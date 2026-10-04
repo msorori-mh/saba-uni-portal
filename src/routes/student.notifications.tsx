@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bell, CheckCheck, Loader2 } from "lucide-react";
+import { ArrowRight, Bell, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getNotificationLink } from "@/lib/notifications/notification-link";
 
 export const Route = createFileRoute("/student/notifications")({
   component: NotificationsPage,
@@ -13,6 +14,8 @@ type Notification = {
   title: string;
   message: string;
   notification_type: string;
+  reference_type: string | null;
+  reference_id: string | null;
   is_read: boolean;
   created_at: string;
 };
@@ -38,6 +41,7 @@ function NotificationsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [type, setType] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["notifications", "all", type],
@@ -54,12 +58,29 @@ function NotificationsPage() {
     const ids = items.filter((n) => !n.is_read).map((n) => n.id);
     if (ids.length === 0) return;
     await supabase.from("notifications").update({ is_read: true }).in("id", ids);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => ({ ...item, is_read: true })),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const toggle = async (n: Notification) => {
     await supabase.from("notifications").update({ is_read: !n.is_read }).eq("id", n.id);
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+      current?.map((item) => item.id === n.id ? { ...item, is_read: !n.is_read } : item),
+    );
+    await qc.invalidateQueries({ queryKey: ["notifications"] });
+  };
+
+  const openItem = async (n: Notification) => {
+    setExpandedId((current) => current === n.id ? null : n.id);
+    if (!n.is_read) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+      qc.setQueriesData<Notification[]>({ queryKey: ["notifications"] }, (current) =>
+        current?.map((item) => item.id === n.id ? { ...item, is_read: true } : item),
+      );
+      await qc.invalidateQueries({ queryKey: ["notifications"] });
+    }
   };
 
   return (
@@ -112,10 +133,10 @@ function NotificationsPage() {
             {items.map((n) => (
               <li
                 key={n.id}
-                className={`rounded-lg border border-border bg-card p-4 ${n.is_read ? "opacity-75" : "border-r-4 border-r-primary"}`}
+                className={`rounded-lg border border-border bg-card p-4 ${n.is_read ? "" : "border-r-4 border-r-primary"}`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                  <button type="button" onClick={() => openItem(n)} className="min-w-0 flex-1 text-right">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${TYPE_COLORS[n.notification_type] ?? "bg-muted"}`}>
                         {TYPES.find((t) => t.value === n.notification_type)?.label ?? n.notification_type}
@@ -125,8 +146,8 @@ function NotificationsPage() {
                       </span>
                     </div>
                     <div className="font-bold text-foreground">{n.title}</div>
-                    <div className="text-sm text-muted-foreground mt-1">{n.message}</div>
-                  </div>
+                    <div className={`text-sm text-muted-foreground mt-1 ${expandedId === n.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{n.message}</div>
+                  </button>
                   <button
                     onClick={() => toggle(n)}
                     className="text-[11px] font-bold text-primary hover:underline shrink-0"
@@ -134,6 +155,17 @@ function NotificationsPage() {
                     {n.is_read ? "غير مقروء" : "مقروء"}
                   </button>
                 </div>
+                {expandedId === n.id && getNotificationLink(n) && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate({ to: getNotificationLink(n) ?? "/student/notifications" })}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> فتح
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -231,8 +231,8 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).toContain("break-all");
   });
 
-  it("11 — finance feature flags remain frozen; no finance fee UI forced on", () => {
-    expect(portalFeatures.studentFinance).toBe(false);
+  it("11 — student finance is enabled while admin finance remains frozen", () => {
+    expect(portalFeatures.studentFinance).toBe(true);
     expect(portalFeatures.adminFinance).toBe(false);
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
     expect(page).toContain("portalFeatures.studentFinance");
@@ -267,7 +267,7 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
       'to: "/student/schedule"',
     );
     expect(readFileSync(join(ROOT, "src/lib/portal-features.ts"), "utf8")).toContain(
-      "studentFinance: false",
+      "studentFinance: true",
     );
   });
 });

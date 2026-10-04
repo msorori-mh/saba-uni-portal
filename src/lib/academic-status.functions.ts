@@ -47,6 +47,7 @@ export type StudentProgressDTO = {
     status_label: string;
     profile_status: string;
     enrollment_status: string | null;
+    study_system: string | null;
   };
   progress: {
     total_plan_hours: number;
@@ -88,6 +89,25 @@ export type StudentProgressDTO = {
       official_result: number | null;
       grade_label: string | null;
       attempts: number;
+    }>;
+  };
+  transcript: {
+    courses: Array<{
+      enrollment_id: string;
+      course_id: string;
+      course_code: string;
+      course_name_ar: string;
+      credit_hours: number;
+      academic_year_id: string;
+      academic_year_name: string;
+      academic_year_start_date: string;
+      semester_id: string;
+      semester_name: string;
+      semester_code: string;
+      semester_start_date: string;
+      official_result: number | null;
+      grade_label: string | null;
+      result: "passed" | "failed" | "in_progress";
     }>;
   };
 };
@@ -149,6 +169,8 @@ type EnrollmentRow = {
       academic_year_id: string;
       semester_id: string;
       level_id: string;
+      academic_year: { name: string; start_date: string } | null;
+      semester: { name: string; code: string; start_date: string } | null;
     } | null;
   } | null;
 };
@@ -196,7 +218,7 @@ async function computeStudentProgress(
 ): Promise<StudentProgressDTO> {
   const { data: spRaw } = await supabase
     .from("student_profiles")
-    .select("id, academic_number, full_name_ar, status, program_id, study_plan_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")
+    .select("id, academic_number, full_name_ar, status, study_system, program_id, study_plan_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")
     .eq("id", studentProfileId).maybeSingle();
   const sp: any = spRaw;
   if (!sp) throw new Error("Student not found");
@@ -213,7 +235,7 @@ async function computeStudentProgress(
   // All enrollments (with their offering + section)
   const { data: enrRaw } = await supabase
     .from("student_enrollments")
-    .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id))")
+    .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, academic_year:academic_years(name, start_date), semester:semesters(name, code, start_date)))")
     .eq("student_profile_id", studentProfileId);
   const enrollments = ((enrRaw ?? []) as unknown as EnrollmentRow[])
     .filter((e) => e.enrollment_status !== "dropped" && e.section?.offering);
@@ -453,6 +475,38 @@ async function computeStudentProgress(
   }
   auditCourses.sort((a, b) => (a.level ?? "").localeCompare(b.level ?? "") || a.code.localeCompare(b.code));
 
+  const transcriptCourses: StudentProgressDTO["transcript"]["courses"] = enrollments.flatMap((enrollment) => {
+    const offering = enrollment.section?.offering;
+    if (!offering?.academic_year || !offering.semester) return [];
+    const course = coursesById.get(offering.course_id);
+    if (!course) return [];
+    const raw = pctMap.get(enrollment.id)?.pct ?? null;
+    const isCurrent = Boolean(
+      sas && offering.academic_year_id === sas.academic_year_id && offering.semester_id === sas.semester_id,
+    );
+    const result = raw == null || (isCurrent && enrollment.enrollment_status !== "completed")
+      ? "in_progress"
+      : raw >= PASS_PERCENT ? "passed" : "failed";
+    const officialResult = result === "in_progress" ? null : normalizeOfficialResult(raw);
+    return [{
+      enrollment_id: enrollment.id,
+      course_id: course.id,
+      course_code: course.code,
+      course_name_ar: course.name_ar,
+      credit_hours: course.credit_hours,
+      academic_year_id: offering.academic_year_id,
+      academic_year_name: offering.academic_year.name,
+      academic_year_start_date: offering.academic_year.start_date,
+      semester_id: offering.semester_id,
+      semester_name: offering.semester.name,
+      semester_code: offering.semester.code,
+      semester_start_date: offering.semester.start_date,
+      official_result: officialResult,
+      grade_label: officialResult == null ? null : gradeArabicLabel(raw),
+      result,
+    }];
+  });
+
   const STATUS_LABELS: Record<string, string> = {
     active: "نشط", suspended: "موقوف", graduated: "متخرج", dropped_out: "منسحب",
   };
@@ -469,6 +523,7 @@ async function computeStudentProgress(
       status_label: STATUS_LABELS[sp.status] ?? sp.status,
       profile_status: sp.status,
       enrollment_status: sas?.enrollment_status ?? null,
+      study_system: sp.study_system ?? null,
     },
     progress: {
       total_plan_hours: totalPlanHours,
@@ -493,6 +548,7 @@ async function computeStudentProgress(
     },
     standing: { standing, reason },
     audit: { courses: auditCourses },
+    transcript: { courses: transcriptCourses },
   };
 }
 

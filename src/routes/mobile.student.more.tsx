@@ -13,6 +13,7 @@ import {
   Settings2,
   UserRound,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +43,7 @@ const ICONS: Record<MobileServiceKey, LucideIcon> = {
   "graduation-projects": GraduationCap,
   "graduates-affairs": Users,
   "academic-record": BookOpen,
+  finance: Wallet,
 };
 
 const GROUP_LABELS: Record<MobileServiceGroup, string> = {
