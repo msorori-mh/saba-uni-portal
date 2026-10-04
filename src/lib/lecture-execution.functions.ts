@@ -165,14 +165,85 @@ export const getSectionDeliveryPlan = createServerFn({ method: "GET" })
     const { data: result, error } = await context.supabase.rpc("cdp_get_section_plan", {
       p_course_section_id: data.sectionId,
     });
-    return unwrap<SectionDeliveryPlan>(result, error);
+    const plan = unwrap<SectionDeliveryPlan>(result, error);
+    if (!plan.course) return plan;
+    const [{ data: section, error: sectionError }, { data: students, error: studentsError }] =
+      await Promise.all([
+        context.supabase
+          .from("course_sections")
+          .select(
+            "offering:course_offerings(program:programs(name_ar), level:academic_levels(name))",
+          )
+          .eq("id", data.sectionId)
+          .maybeSingle(),
+        context.supabase.rpc("get_section_student_names", { p_section_id: data.sectionId }),
+      ]);
+    if (sectionError) throw new Error(sectionError.message);
+    if (studentsError) throw new Error(studentsError.message);
+    const offering = section?.offering as unknown as {
+      program: { name_ar: string } | null;
+      level: { name: string } | null;
+    } | null;
+    return {
+      ...plan,
+      course: {
+        ...plan.course,
+        program_name: offering?.program?.name_ar ?? null,
+        level_name: offering?.level?.name ?? null,
+        student_count: students?.length ?? 0,
+      },
+    };
   });
 
 export const listFacultyDeliverySections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<FacultyDeliverySection[]> => {
     const { data, error } = await context.supabase.rpc("cdp_list_my_faculty_sections");
-    return unwrap<FacultyDeliverySection[]>(data ?? [], error);
+    const rows = unwrap<Omit<FacultyDeliverySection, "program_name" | "level_name" | "student_count">[]>(
+      data ?? [],
+      error,
+    );
+    if (rows.length === 0) return [];
+    const sectionIds = rows.map((row) => row.course_section_id);
+    const { data: sections, error: sectionsError } = await context.supabase
+      .from("course_sections")
+      .select(
+        "id, offering:course_offerings(program:programs(name_ar), level:academic_levels(name))",
+      )
+      .in("id", sectionIds);
+    if (sectionsError) throw new Error(sectionsError.message);
+    const contexts = new Map(
+      (sections ?? []).map((section) => {
+        const offering = section.offering as unknown as {
+          program: { name_ar: string } | null;
+          level: { name: string } | null;
+        } | null;
+        return [
+          section.id,
+          {
+            program_name: offering?.program?.name_ar ?? null,
+            level_name: offering?.level?.name ?? null,
+          },
+        ] as const;
+      }),
+    );
+    const counts = await Promise.all(
+      rows.map(async (row) => {
+        const { data: students, error: studentsError } = await context.supabase.rpc(
+          "get_section_student_names",
+          { p_section_id: row.course_section_id },
+        );
+        if (studentsError) throw new Error(studentsError.message);
+        return [row.course_section_id, students?.length ?? 0] as const;
+      }),
+    );
+    const countBySection = new Map(counts);
+    return rows.map((row) => ({
+      ...row,
+      program_name: contexts.get(row.course_section_id)?.program_name ?? null,
+      level_name: contexts.get(row.course_section_id)?.level_name ?? null,
+      student_count: countBySection.get(row.course_section_id) ?? 0,
+    }));
   });
 
 export const listStudentDeliverySections = createServerFn({ method: "GET" })

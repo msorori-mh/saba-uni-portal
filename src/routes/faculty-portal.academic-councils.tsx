@@ -287,7 +287,7 @@ function FacultyAcademicCouncilsPage() {
     !openIntakeMeetings.some(
       (m: { meeting_id?: string }) => m.meeting_id === nextMeeting.meeting_id,
     )
-                       ? noOpenIntakeNotice
+      ? INTAKE_CLOSED_NOTICE
       : null;
 
   const pageLoading =
@@ -382,7 +382,7 @@ function FacultyAcademicCouncilsPage() {
                   disabled={openIntakeQuery.isLoading || !hasOpenIntake}
                   title={
                     !openIntakeQuery.isLoading && !hasOpenIntake
-                      ? INTAKE_CLOSED_NOTICE
+                       ? noOpenIntakeNotice
                       : undefined
                   }
                   onClick={() => setSubmitOpen(true)}
@@ -402,7 +402,7 @@ function FacultyAcademicCouncilsPage() {
                   data-testid="councils-submit-topic-disabled-reason"
                   className="w-full text-[11px] leading-relaxed text-muted-foreground"
                 >
-                   {noOpenIntakeNotice}
+                  {noOpenIntakeNotice}
                 </p>
               ) : null}
             </div>
