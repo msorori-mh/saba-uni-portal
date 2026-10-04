@@ -6,7 +6,8 @@ import { ChevronLeft } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { useFacultyLogout } from "@/lib/faculty-portal/use-faculty-logout";
-import { hasActiveProcessingAssignment, hasLectureMonitoringAccess } from "@/lib/faculty-portal/processing-access.functions";
+import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
+import { hasLectureMonitoringAccess } from "@/lib/faculty-portal/monitoring-access.functions";
 import { portalFeatures } from "@/lib/portal-features";
 import { cn } from "@/lib/utils";
 
