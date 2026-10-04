@@ -418,7 +418,7 @@ function FacultyAcademicCouncilsPage() {
                   data-testid="councils-tab-overview"
                 >
                   <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
-                  نظرة المجلس
+                  ملخص المجلس
                 </TabsTrigger>
                 <TabsTrigger
                   value="meetings"
@@ -462,7 +462,7 @@ function FacultyAcademicCouncilsPage() {
                 </TabsTrigger>
               </TabsList>
 
-              {/* نظرة المجلس — أولوية تشغيلية: جلسة حية ← إجراء مطلوب ← الاجتماع القادم */}
+              {/* ملخص المجلس — أولوية تشغيلية: جلسة حية ← إجراء مطلوب ← الاجتماع القادم */}
               <TabsContent value="overview" className="mt-4 space-y-4">
                 {liveMeeting ? (
                   <SectionShell
