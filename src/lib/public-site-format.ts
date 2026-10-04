@@ -71,6 +71,7 @@ export function academicRankLabel(rank: string | null | undefined): string | nul
   if (!rank) return null;
   const trimmed = rank.trim();
   if (!trimmed || trimmed === "TEST_ONLY") return null;
+  if (/[\u0600-\u06FF]/.test(trimmed)) return trimmed;
   const normalized = trimmed.replace(/\s+/g, " ").toLowerCase();
   if (normalized === "assistant lecturer") return "مدرس";
   const key = normalizeRank(trimmed);
