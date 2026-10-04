@@ -56,8 +56,8 @@ export type MobileServicesInput = {
 
 /**
  * Builds the eligible additional-services list.
- * Frozen features (finance, unofficial transcript) stay out while their flags
- * are false — no placeholder, no «قريباً».
+ * Finance remains hidden. The mobile academic record is explicitly enabled
+ * independently of the browser unofficial-transcript feature flag.
  */
 export function buildMobileStudentServices(
   input: MobileServicesInput,
@@ -80,14 +80,12 @@ export function buildMobileStudentServices(
     { key: "reports", label: "تقاريري", to: "/mobile/student/reports", group: "academic" },
   );
 
-  if (portalFeatures.studentUnofficialTranscript) {
-    items.push({
-      key: "academic-record",
-      label: "السجل الأكاديمي",
-      to: "/mobile/student/academic-record",
-      group: "academic",
-    });
-  }
+  items.push({
+    key: "academic-record",
+    label: "السجل الأكاديمي",
+    to: "/mobile/student/academic-record",
+    group: "academic",
+  });
 
   items.push(
     {
@@ -124,6 +122,7 @@ export function buildMobileStudentServices(
 /** Keys promoted to the home dashboard grid (max 8 cards incl. bottom-nav shortcuts). */
 export const MOBILE_HOME_SERVICE_KEYS: readonly MobileServiceKey[] = [
   "grades",
+  "academic-record",
   "study-plan",
   "materials",
   "reports",

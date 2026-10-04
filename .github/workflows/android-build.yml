@@ -3,7 +3,7 @@ name: Android Build — بوابة الطالب
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feat/mobile-student-release-03]
     paths:
       - "src/**"
       - "public/**"
@@ -63,6 +63,11 @@ jobs:
 
       - name: Install dependencies (bun)
         run: bun install --frozen-lockfile
+
+      - name: Verify student app source
+        run: |
+          bunx tsc --noEmit
+          bun test tests/mobile tests/student-requests
 
       - name: Build web assets (Vite)
         env:
