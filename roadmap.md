@@ -1,6 +1,8 @@
 # Roadmap
 
-- [ ] Enable and verify student finance on web and mobile; update pinned tests.
-- [ ] Add shared chronological unofficial academic transcript to web and mobile while preserving degree audit.
-- [ ] Add notification expansion, read-state synchronization, and reference navigation across web, mobile, and bell.
-- [ ] Run affected tests, required project checks, and inspect preview build status.
+- [ ] Verify and distinguish faculty course groups with program and level across schedule, execution, grades, home, print, and export.
+- [ ] Verify and fix multi-council membership selection and accurate topic-submission empty state.
+- [ ] Remove the temporary faculty-home scope note and unify faculty lecture-execution naming.
+- [ ] Add a clear unauthorized state for department reports.
+- [ ] Centralize Arabic academic-rank labels across faculty and public surfaces.
+- [ ] Update pinned tests and run the affected Web CI checks without publishing or production writes.
