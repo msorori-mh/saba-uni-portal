@@ -29,7 +29,7 @@ export type MobileServiceKey =
   | "settings"
   | "graduation-projects"
   | "graduates-affairs"
-  | "academic-record";
+  | "academic-record"
   | "finance";
 
 export type MobileServiceItem = {

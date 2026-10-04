@@ -13,13 +13,21 @@ export type NotificationLinkInput = {
   reference_id: string | null;
 };
 
-export function getNotificationLink(n: NotificationLinkInput): string | null {
+export function getNotificationLink(
+  n: NotificationLinkInput,
+  surface: "web" | "mobile" = "web",
+): string | null {
   if (
     n.notification_type === "student_request_completed" &&
     n.reference_type === "student_request" &&
     n.reference_id
   ) {
-    return `/student/requests/${n.reference_id}`;
+    return surface === "mobile"
+      ? `/mobile/student/requests/${n.reference_id}`
+      : `/student/requests/${n.reference_id}`;
+  }
+  if (n.notification_type === "grade") {
+    return surface === "mobile" ? "/mobile/student/grades" : "/student/progress";
   }
   return null;
 }
