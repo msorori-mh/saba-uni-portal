@@ -8,7 +8,7 @@
  * - No public URL and no storage path is ever constructed on the client.
  */
 
-import { openExternalUrl } from "@/lib/native/external-links";
+import { openSignedUrlInSystemBrowser } from "@/lib/native/file-redirect";
 import { isNativePlatform } from "@/lib/native/platform";
 
 export type SignedUrlResult = { signedUrl: string; expiresInSeconds: number };
@@ -32,9 +32,9 @@ export function documentNotDownloadableMessage(status: string | null | undefined
 /** Opens an already-signed PDF URL with the right runtime behaviour. */
 export async function openSignedPdf(signedUrl: string): Promise<void> {
   if (isNativePlatform()) {
-    // Android: hand the real PDF to the system handler (viewer / downloader),
-    // where the user can also print via the system print UI.
-    await openExternalUrl(signedUrl);
+    // Android: leave the WebView via the redirect host so the system browser
+    // downloads/opens the real PDF.
+    openSignedUrlInSystemBrowser(signedUrl);
     return;
   }
   if (typeof window !== "undefined") {
