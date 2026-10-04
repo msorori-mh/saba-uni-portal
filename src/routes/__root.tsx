@@ -23,6 +23,7 @@ import { GlobalBackButton } from "@/components/navigation/PageBackButton";
 import { registerPortalPWA } from "@/lib/pwa/register-portal-pwa";
 import { disablePwaInNativeShell } from "@/lib/pwa/native-pwa-cleanup";
 import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
+import { isInternalPortalPath } from "@/lib/portal-scope";
 import { isNativePlatform } from "@/lib/native/platform";
 
 function NotFoundComponent() {
@@ -233,12 +234,6 @@ function RootShell({ children }: { children: ReactNode }) {
       </body>
     </html>
   );
-}
-
-/** Internal portals render their own PortalShell header — no public site chrome. */
-export const INTERNAL_PORTAL_PREFIXES = ["/student", "/faculty-portal", "/staff"] as const;
-export function isInternalPortalPath(pathname: string): boolean {
-  return INTERNAL_PORTAL_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 function RootComponent() {
