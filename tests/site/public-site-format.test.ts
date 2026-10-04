@@ -13,6 +13,7 @@ describe("public site formatting", () => {
     expect(academicRankLabel("Lecturer Assistant")).toBe("مدرس مساعد");
     expect(academicRankLabel("Assistant Lecturer")).toBe("مدرس");
     expect(academicRankLabel("أستاذ مشارك")).toBe("أستاذ مشارك");
+    expect(academicRankLabel("محاضر مساعد")).toBe("محاضر مساعد");
   });
   test("Arabic count agreement", () => {
     expect(memberCount(1)).toBe("عضو واحد");
