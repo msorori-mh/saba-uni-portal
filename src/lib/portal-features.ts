@@ -5,7 +5,7 @@
 export const portalFeatures = {
   studentRegisteredCourses: false,
   studentUnofficialTranscript: false,
-  studentFinance: false,
+  studentFinance: true,
   adminFinance: false,
   /** Course materials — ON after PORTAL-COURSE-MATERIALS-PRODUCTION-SAFE-MIGRATION-01. */
   facultyCourseMaterials: true,

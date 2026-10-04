@@ -2,17 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  BookOpen,
   ArrowRight,
   AlertTriangle,
   Loader2,
-  CheckCircle2,
-  XCircle,
-  Clock,
   GraduationCap,
 } from "lucide-react";
 import { useMobileStudentContext } from "@/lib/mobile/student-context";
 import { getMyProgress } from "@/lib/academic-status.functions";
+import { AcademicTranscript } from "@/components/academic/AcademicTranscript";
 
 export const Route = createFileRoute("/mobile/student/academic-record")({
   head: () => ({
@@ -31,13 +28,6 @@ const STANDING_LABEL: Record<string, { label: string; cls: string }> = {
   suspended: { label: "موقوف القيد", cls: "bg-red-100 text-red-800" },
   graduated: { label: "خرّيج", cls: "bg-primary/10 text-primary" },
 };
-
-const STATUS_BADGE = {
-  completed: { label: "مكتمل", cls: "bg-green-100 text-green-800", Icon: CheckCircle2 },
-  failed: { label: "راسب", cls: "bg-red-100 text-red-800", Icon: XCircle },
-  in_progress: { label: "قيد الدراسة", cls: "bg-amber-100 text-amber-800", Icon: Clock },
-  missing: { label: "لم يُدرس", cls: "bg-muted text-muted-foreground", Icon: BookOpen },
-} as const;
 
 function MobileStudentAcademicRecordPage() {
   const studentContext = useMobileStudentContext();
@@ -105,15 +95,6 @@ function RecordBody({ d }: { d: Awaited<ReturnType<typeof getMyProgress>> }) {
     cls: "bg-muted text-foreground",
   };
 
-  const courses = [...d.audit.courses].sort((a, b) => {
-    const order = { completed: 0, in_progress: 1, failed: 2, missing: 3 } as const;
-    return order[a.status] - order[b.status];
-  });
-
-  const completed = courses.filter((c) => c.status === "completed");
-  const inProgress = courses.filter((c) => c.status === "in_progress");
-  const failed = courses.filter((c) => c.status === "failed");
-
   return (
     <div className="space-y-4">
       <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -162,14 +143,7 @@ function RecordBody({ d }: { d: Awaited<ReturnType<typeof getMyProgress>> }) {
         </div>
       </section>
 
-      {/* Course buckets */}
-      <CoursesGroup title="مقررات مكتملة" Icon={CheckCircle2} courses={completed} variant="completed" />
-      {inProgress.length > 0 && (
-        <CoursesGroup title="قيد الدراسة" Icon={Clock} courses={inProgress} variant="in_progress" />
-      )}
-      {failed.length > 0 && (
-        <CoursesGroup title="مقررات راسبة" Icon={XCircle} courses={failed} variant="failed" />
-      )}
+      <AcademicTranscript d={d} />
     </div>
   );
 }
@@ -196,101 +170,6 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub?: s
         {sub && <span className="text-[10px] text-muted-foreground">{sub}</span>}
       </div>
     </div>
-  );
-}
-
-type CourseRow = Awaited<ReturnType<typeof getMyProgress>>["audit"]["courses"][number];
-
-function CoursesGroup({
-  title,
-  Icon,
-  courses,
-  variant,
-}: {
-  title: string;
-  Icon: typeof CheckCircle2;
-  courses: CourseRow[];
-  variant: keyof typeof STATUS_BADGE;
-}) {
-  if (courses.length === 0) {
-    return (
-      <section>
-        <SectionHeader title={title} Icon={Icon} count={0} />
-        <div className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-[11px] text-muted-foreground">
-          لا توجد مقررات في هذه الفئة.
-        </div>
-      </section>
-    );
-  }
-  return (
-    <section>
-      <SectionHeader title={title} Icon={Icon} count={courses.length} />
-      <ul className="space-y-2">
-        {courses.map((c) => (
-          <li key={c.course_id}>
-            <CourseItem c={c} variant={variant} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function SectionHeader({
-  title,
-  Icon,
-  count,
-}: {
-  title: string;
-  Icon: typeof CheckCircle2;
-  count: number;
-}) {
-  return (
-    <div className="flex items-center gap-2 mb-2 px-1">
-      <Icon className="h-4 w-4 text-gold" />
-      <h2 className="font-display text-sm font-extrabold text-primary">{title}</h2>
-      <span className="text-[10px] font-bold text-muted-foreground">({count})</span>
-    </div>
-  );
-}
-
-function CourseItem({ c, variant }: { c: CourseRow; variant: keyof typeof STATUS_BADGE }) {
-  const badge = STATUS_BADGE[variant];
-  const BadgeIcon = badge.Icon;
-  return (
-    <article className="rounded-xl border border-border bg-card p-3 shadow-card">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-display text-[12.5px] font-extrabold text-primary leading-tight">
-            {c.name_ar}
-          </h3>
-          <div dir="ltr" className="mt-0.5 text-[10px] font-mono text-muted-foreground text-right">
-            {c.code} • {c.credit_hours} ساعة
-            {c.is_required && <span className="text-primary"> • إجباري</span>}
-          </div>
-        </div>
-        <span className={`shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${badge.cls}`}>
-          <BadgeIcon className="h-3 w-3" />
-          {badge.label}
-        </span>
-      </div>
-      {c.official_result != null && (
-        <div className="mt-2 flex items-center justify-between text-[11px]">
-          <span className="text-muted-foreground">النتيجة المعتمدة</span>
-          <span dir="ltr" className="font-mono font-extrabold text-primary">
-            {c.official_result}%
-          </span>
-        </div>
-      )}
-      {c.grade_label && (
-        <p className="mt-1 text-[11px] font-bold text-primary">التقدير: {c.grade_label}</p>
-      )}
-      {c.attempts > 1 && (
-        <div className="mt-1 text-[10px] text-amber-700 font-bold">
-          عدد المحاولات: {c.attempts}
-        </div>
-      )}
-    </article>
   );
 }
 

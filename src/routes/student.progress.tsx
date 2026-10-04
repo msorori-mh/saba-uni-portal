@@ -5,6 +5,7 @@ import { ArrowRight, Loader2, GraduationCap } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getMyProgress } from "@/lib/academic-status.functions";
 import { ProgressSummary, DegreeAudit, EligibilityCard } from "@/components/academic/ProgressSummary";
+import { AcademicTranscript } from "@/components/academic/AcademicTranscript";
 
 export const Route = createFileRoute("/student/progress")({
   head: () => ({ meta: [{ title: "تقدمي الأكاديمي — بوابة الطالب" }, { name: "robots", content: "noindex, nofollow" }] }),
@@ -44,9 +45,11 @@ function StudentProgressPage() {
       ) : data ? (
         <>
           <ProgressSummary d={data} />
-          <Tabs defaultValue="audit">
+          <Tabs defaultValue="transcript">
             <TabsList>
+              <TabsTrigger value="transcript">السجل الأكاديمي</TabsTrigger>
               <TabsTrigger value="audit">تدقيق المقررات</TabsTrigger>
+            <TabsContent value="transcript" className="mt-4"><AcademicTranscript d={data} printable /></TabsContent>
               <TabsTrigger value="eligibility">أهلية التخرج</TabsTrigger>
             </TabsList>
             <TabsContent value="audit" className="mt-4"><DegreeAudit d={data} /></TabsContent>
