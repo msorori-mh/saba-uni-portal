@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Cpu, Database, Shield, Brain, BookOpen, GraduationCap, Briefcase, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programByCodeQuery, facultyQuery } from "@/lib/queries";
-import { programDescription } from "@/lib/public-site-format";
+import { programDescription, arabicYears, programDegree, programYears } from "@/lib/public-site-format";
 
 export const Route = createFileRoute("/departments/$code")({
   loader: async ({ context, params }) => {
@@ -33,8 +33,8 @@ export const Route = createFileRoute("/departments/$code")({
           "@type": "EducationalOccupationalProgram",
           name: loaderData?.name_ar,
           description,
-          programType: loaderData?.degree_type ?? "بكالوريوس",
-          educationalCredentialAwarded: loaderData?.degree_type ?? "بكالوريوس",
+          programType: loaderData ? programDegree(loaderData) : "بكالوريوس",
+          educationalCredentialAwarded: loaderData ? programDegree(loaderData) : "بكالوريوس",
           provider: {
             "@type": "EducationalOrganization",
             name: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ",
@@ -92,7 +92,8 @@ function ProgramDetail() {
             </div>
 
             <Block icon={ClipboardCheck} title="شروط القبول">
-              {program.admission_requirements ?? "الحصول على الثانوية العامة (القسم العلمي) بمعدل لا يقل عن 70%، واجتياز اختبار القبول والمقابلة الشخصية."}
+              {program.admission_requirements ??
+                "تُعلن شروط القبول المعتمدة لهذا البرنامج من عمادة القبول والتسجيل في الجامعة. للاستفسار تواصل مع الكلية عبر صفحة التواصل."}
             </Block>
 
             <Block icon={Briefcase} title="فرص العمل بعد التخرج">
@@ -127,9 +128,9 @@ function ProgramDetail() {
             <div className="rounded-2xl bg-hero-gradient p-7 text-primary-foreground shadow-elegant">
               <div className="text-xs font-bold tracking-widest text-gold uppercase">معلومات سريعة</div>
               <ul className="mt-4 space-y-3 text-sm">
-                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">الدرجة</span><span className="font-bold">بكالوريوس</span></li>
-                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">مدة الدراسة</span><span className="font-bold">4 سنوات</span></li>
-                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">عدد المستويات</span><span className="font-bold">8 مستويات</span></li>
+                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">الدرجة</span><span className="font-bold">{programDegree(program)}</span></li>
+                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">مدة الدراسة</span><span className="font-bold">{arabicYears(programYears(program))}</span></li>
+                <li className="flex justify-between border-b border-white/10 pb-2"><span className="text-primary-foreground/70">عدد المستويات</span><span className="font-bold">{programYears(program) * 2} مستويات</span></li>
                 <li className="flex justify-between"><span className="text-primary-foreground/70">لغة الدراسة</span><span className="font-bold">عربي/إنجليزي</span></li>
               </ul>
             </div>

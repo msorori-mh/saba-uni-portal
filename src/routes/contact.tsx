@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { checkRateLimit, RATE_LIMIT_MESSAGE, RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,12 @@ function ContactPage() {
   });
 
   const onSubmit = async (values: ContactValues) => {
+    // Throttle repeated submissions from the same sender (spam flooding).
+    const limit = await checkRateLimit(`contact:${values.email}`, RATE_LIMIT_POLICIES.contactMessage);
+    if (!limit.allowed) {
+      toast.error(RATE_LIMIT_MESSAGE);
+      return;
+    }
     const subjectFull = values.phone
       ? `${values.subject} — هاتف: ${values.phone}`
       : values.subject;

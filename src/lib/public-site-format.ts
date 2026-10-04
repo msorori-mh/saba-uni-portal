@@ -65,3 +65,27 @@ export const RANK_LABEL_AR: Record<RankKey, string> = {
   lecturer_assistant: "محاضر مساعد",
   teaching: "معيد",
 };
+
+type ProgramDegreeLike = { code: string; degree_type?: string | null; years?: number | null };
+
+const DEGREE_DEFAULT_YEARS: Record<string, number> = { "بكالوريوس": 4, "ماجستير": 2, "دكتوراه": 3 };
+
+/** Degree label: stored value first, then inferred from the program code (M… = master). */
+export function programDegree(p: ProgramDegreeLike): string {
+  const stored = p.degree_type?.trim();
+  if (stored) return stored;
+  return /^M[A-Z]/.test(p.code) ? "ماجستير" : "بكالوريوس";
+}
+
+export function programYears(p: ProgramDegreeLike): number {
+  if (typeof p.years === "number" && p.years > 0) return p.years;
+  return DEGREE_DEFAULT_YEARS[programDegree(p)] ?? 4;
+}
+
+/** Arabic duration with correct agreement: سنة واحدة، سنتان، 4 سنوات. */
+export function arabicYears(n: number): string {
+  if (n === 1) return "سنة واحدة";
+  if (n === 2) return "سنتان";
+  if (n >= 3 && n <= 10) return `${n} سنوات`;
+  return `${n} سنة`;
+}
