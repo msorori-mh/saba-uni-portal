@@ -18,12 +18,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userRoles } from "@/lib/authz.server";
+import { canSeeDeliveryMonitoring } from "@/lib/faculty-portal/delivery-monitoring-roles";
 import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
 
 export type HasActiveProcessingAssignmentResult = {
   hasAssignment: boolean;
   isAdmin: boolean;
+  /** UI gate mirroring cdp_delivery_monitoring roles; the page/RPC stay authoritative. */
+  canMonitorDelivery: boolean;
 };
+
+
 
 export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -35,5 +40,7 @@ export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
       context.userId,
     );
 
-    return { hasAssignment, isAdmin };
+    const canMonitorDelivery = canSeeDeliveryMonitoring(roles);
+
+    return { hasAssignment, isAdmin, canMonitorDelivery };
   });
