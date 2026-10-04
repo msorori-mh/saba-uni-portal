@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { memberCount, normalizeRank, RANK_LABEL_AR, type RankKey } from "@/lib/public-site-format";
+import { academicRankLabel, memberCount, normalizeRank, type RankKey } from "@/lib/public-site-format";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { GraduationCap, Search, FileText, ArrowRight, Crown, BookOpen, Users } from "lucide-react";
@@ -44,9 +44,7 @@ const LEADERSHIP_SECTION: SectionDef = {
 
 
 function displayRank(rank: string | null): string | null {
-  if (!rank) return null;
-  const k = normalizeRank(rank);
-  return k ? RANK_LABEL_AR[k] : rank.trim() === "TEST_ONLY" ? null : rank;
+  return academicRankLabel(rank);
 }
 
 // تحديد مستوى المنصب القيادي

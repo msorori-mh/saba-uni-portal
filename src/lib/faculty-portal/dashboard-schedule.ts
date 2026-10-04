@@ -28,6 +28,9 @@ export type TeachingSection = {
   id: string;
   section_code: string;
   course: { code: string; name_ar: string } | null;
+  program_name: string | null;
+  level_name: string | null;
+  student_count?: number;
   schedule: TeachingScheduleSlot[];
 };
 
@@ -36,6 +39,8 @@ export type TeachingSession = {
   sectionCode: string;
   courseCode: string;
   courseName: string;
+  programName: string | null;
+  levelName: string | null;
   day_of_week: string;
   start_time: string;
   end_time: string;
@@ -63,6 +68,8 @@ export function flattenTeachingSessions(sections: TeachingSection[]): TeachingSe
         sectionCode: section.section_code,
         courseCode: section.course?.code ?? "—",
         courseName: section.course?.name_ar ?? "—",
+        programName: section.program_name,
+        levelName: section.level_name,
         day_of_week: slot.day_of_week,
         start_time: slot.start_time,
         end_time: slot.end_time,

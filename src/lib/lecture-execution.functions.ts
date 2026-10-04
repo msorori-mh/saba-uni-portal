@@ -90,6 +90,9 @@ export type SectionDeliveryPlan = {
     section_code: string;
     course_code: string;
     course_name_ar: string;
+    program_name: string | null;
+    level_name: string | null;
+    student_count: number;
     study_system: SectionStudySystem | null;
     faculty_name: string;
   } | null;
@@ -111,6 +114,9 @@ export type FacultyDeliverySection = {
   section_code: string;
   course_code: string;
   course_name_ar: string;
+  program_name: string | null;
+  level_name: string | null;
+  student_count: number;
   study_system: SectionStudySystem | null;
   plan_status: string;
   plan_source: "syllabus" | "legacy_faculty" | null;
