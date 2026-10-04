@@ -22,6 +22,14 @@ describe("public content matches the university site", () => {
   it("FAQ lists the five official bachelor programs and no invented admission numbers", () => {
     expect(contact).toContain("الذكاء الاصطناعي (يركز على علم البيانات)");
     expect(contact).not.toContain("70%");
-    expect(contact).not.toContain("ماجستير");
+    expect(contact).toContain("ماجستير علوم الحاسوب وماجستير تكنولوجيا المعلومات");
+  });
+  it("about page carries the official about text, values and goals", () => {
+    const about = read("src/routes/about.tsx");
+    expect(about).toContain("نبذة عن الكلية");
+    expect(about).toContain("إحدى الكليات العلمية الرائدة في إعداد كوادر مؤهلة");
+    expect(about).toContain("تعزيز الانتماء للكلية، وتطبيق اللوائح والقوانين والأنظمة.");
+    expect(about).toContain("والإسهام في التنمية الاجتماعية والاقتصادية.");
+    expect(about).toContain("whitespace-pre-line");
   });
 });
