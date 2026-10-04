@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { isInternalPortalPath } from "../../src/lib/portal-scope";
-import { DELIVERY_MONITORING_ROLES } from "../../src/lib/faculty-portal/processing-access.functions";
+import { DELIVERY_MONITORING_ROLES, canSeeDeliveryMonitoring } from "../../src/lib/faculty-portal/delivery-monitoring-roles";
 
 describe("internal portal chrome", () => {
   test("portal paths hide the public header/footer", () => {
@@ -18,6 +18,8 @@ describe("internal portal chrome", () => {
     expect([...DELIVERY_MONITORING_ROLES].sort()).toEqual(
       ["admin", "dean", "department_head", "registrar", "student_affairs", "system_admin"],
     );
+    expect(canSeeDeliveryMonitoring(["faculty_member"])).toBe(false);
+    expect(canSeeDeliveryMonitoring(["faculty_member", "department_head"])).toBe(true);
     const shell = readFileSync("src/components/portal/FacultyPortalShell.tsx", "utf8");
     expect(shell).toContain("canMonitorDelivery");
     expect(shell).not.toMatch(/NAV_ITEMS: NavItem\[\] = \[[^\]]*lecture-monitoring/);

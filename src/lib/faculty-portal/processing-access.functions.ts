@@ -18,6 +18,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userRoles } from "@/lib/authz.server";
+import { canSeeDeliveryMonitoring } from "@/lib/faculty-portal/delivery-monitoring-roles";
 import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
 
 export type HasActiveProcessingAssignmentResult = {
@@ -27,9 +28,7 @@ export type HasActiveProcessingAssignmentResult = {
   canMonitorDelivery: boolean;
 };
 
-export const DELIVERY_MONITORING_ROLES = [
-  "department_head", "dean", "registrar", "student_affairs", "admin", "system_admin",
-] as const;
+
 
 export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -41,9 +40,7 @@ export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
       context.userId,
     );
 
-    const canMonitorDelivery = roles.some((r) =>
-      (DELIVERY_MONITORING_ROLES as readonly string[]).includes(r),
-    );
+    const canMonitorDelivery = canSeeDeliveryMonitoring(roles);
 
     return { hasAssignment, isAdmin, canMonitorDelivery };
   });
