@@ -6,7 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { useFacultyLogout } from "@/lib/faculty-portal/use-faculty-logout";
-import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
+import { hasActiveProcessingAssignment, hasLectureMonitoringAccess } from "@/lib/faculty-portal/processing-access.functions";
 import { portalFeatures } from "@/lib/portal-features";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +46,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/faculty-portal", label: "الرئيسية", exact: true },
   { to: "/faculty-portal/schedule", label: "جدول التدريس" },
   { to: "/faculty-portal/lecture-execution", label: "تنفيذ المحاضرات" },
-  { to: "/faculty-portal/lecture-monitoring", label: "متابعة التنفيذ" },
   { to: "/faculty-portal/reports", label: "تقاريري" },
   { to: "/faculty-portal/academic-councils", label: "المجالس الأكاديمية" },
   { to: "/faculty-portal/graduation-projects", label: "مشاريع التخرج" },
@@ -68,6 +67,14 @@ export function FacultyPortalShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const logout = useFacultyLogout();
 
+  const monitoringAccessFn = useServerFn(hasLectureMonitoringAccess);
+  const { data: monitoringAccess } = useQuery({
+    queryKey: ["faculty-portal", "lecture-monitoring-access"],
+    queryFn: () => monitoringAccessFn(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
   const { data: processingAccess } = useQuery({
     queryKey: ["faculty-portal", "processing-access"],
@@ -79,7 +86,11 @@ export function FacultyPortalShell({
     !!processingAccess && (processingAccess.hasAssignment || processingAccess.isAdmin);
 
   const items: NavItem[] = [
-    ...NAV_ITEMS,
+    ...NAV_ITEMS.slice(0, 3),
+    ...(monitoringAccess === true
+      ? [{ to: "/faculty-portal/lecture-monitoring", label: "متابعة التنفيذ" }]
+      : []),
+    ...NAV_ITEMS.slice(3),
     ...(portalFeatures.facultyCourseMaterials
       ? [{ to: "/faculty-portal/materials", label: "المواد التعليمية" }]
       : []),

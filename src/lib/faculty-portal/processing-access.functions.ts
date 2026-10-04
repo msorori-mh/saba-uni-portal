@@ -37,3 +37,13 @@ export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
 
     return { hasAssignment, isAdmin };
   });
+
+/** UI visibility only; the monitoring RPC remains the authorization boundary. */
+export const hasLectureMonitoringAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<boolean> => {
+    const roles = await userRoles(context.userId);
+    return roles.some((role) =>
+      ["department_head", "dean", "registrar", "student_affairs", "admin", "system_admin"].includes(role),
+    );
+  });
