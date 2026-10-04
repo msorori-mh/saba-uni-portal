@@ -206,7 +206,7 @@ function FacultyAcademicCouncilsPage() {
   const summary = useMemo(
     () =>
       buildOperationalSummary({
-        currentMemberships,
+        currentMemberships: councilMemberships,
         chairMemberships,
         agendaWriteMemberships,
         upcomingMeetings: councilUpcomingMeetings,
@@ -214,7 +214,7 @@ function FacultyAcademicCouncilsPage() {
         formatDateTime,
       }),
     [
-      currentMemberships,
+      councilMemberships,
       chairMemberships,
       agendaWriteMemberships,
       councilUpcomingMeetings,
