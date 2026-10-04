@@ -20,7 +20,7 @@ const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 // Re-pinned: public /departments list moved to departments.index.tsx (detail pages render their own content).
 const ROUTE_SEMANTIC_SHA256 =
   // Re-pinned: added /staff/processing-requests (staff processing inbox for assigned actors).
-  "77c39de9a583f03ae73c90c6943d970ab958ade05e360f5e051da939287d0239";
+  "a2a03aa0a027c9fce23e7e694aeabe146eacb704575cf2aa3fab22768b372715";
 
 
 const FROZEN_GP_FULL_PATHS = [
