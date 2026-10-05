@@ -51,6 +51,9 @@ export const B1_SECURE_DRAFT_KNOWN_CODES = [
   "B1_STUDENT_PROFILE_NOT_ACTIVE",
   "B1_REFERENCE_NOT_TRUSTED",
   B1_INPUT_VALIDATION_FAILED,
+  // Admin paused the student services (STUDENT-SERVICES-GLOBAL-SWITCH-01):
+  // must reach the adapter so the student sees the pause, not "قيد التحديث".
+  "STUDENT_SERVICES_TEMPORARILY_DISABLED",
 ] as const;
 
 function knownCodeIn(message: string): string | null {

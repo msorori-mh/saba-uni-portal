@@ -6,9 +6,14 @@ import { getB1UiAdapter, type B1ServiceAvailability } from "@/lib/student-reques
 import { B1EmptyState } from "./B1EmptyState";
 import { B1ErrorState } from "./B1ErrorState";
 import { B1LoadingState } from "./B1LoadingState";
+import {
+  StudentServicesPausedButton,
+  useStudentServicesStatus,
+} from "@/components/student-requests/StudentServicesPausedNotice";
 
 export function B1StudentServiceList() {
   const routes = useStudentRequestRoutes();
+  const { paused } = useStudentServicesStatus();
   const [services, setServices] = useState<readonly B1ServiceAvailability[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -51,13 +56,19 @@ export function B1StudentServiceList() {
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {service.descriptionAr}
                 </p>
-                <Link
-                  to={routes.b1Service}
-                  params={{ service: service.code }}
-                  className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
-                >
-                  تقديم طلب
-                </Link>
+                {paused ? (
+                  <div className="mt-3">
+                    <StudentServicesPausedButton className="inline-flex min-h-10 cursor-not-allowed items-center rounded-lg border border-border bg-muted/40 px-4 text-sm font-bold text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Link
+                    to={routes.b1Service}
+                    params={{ service: service.code }}
+                    className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
+                  >
+                    تقديم طلب
+                  </Link>
+                )}
               </div>
             </div>
           </article>

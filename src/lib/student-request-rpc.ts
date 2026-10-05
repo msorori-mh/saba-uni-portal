@@ -1,4 +1,5 @@
 /** Local types for student-request RPCs (migrations may not be applied / generated types stale). */
+import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
 
 export const STUDENT_REQUEST_SERVICE_UPDATING_MSG =
   "خدمة الطلبات قيد التحديث. يرجى المحاولة لاحقاً.";
@@ -46,6 +47,9 @@ export function mapStudentRequestRpcError(error: RpcErrorLike): string {
   ) {
     return STUDENT_REQUEST_SERVICE_UPDATING_MSG;
   }
+  // A submit that raced the admin switch: say so plainly instead of the raw code.
+  const paused = studentServicesDisabledMessageAr(msg);
+  if (paused) return paused;
   return msg || "حدث خطأ غير متوقع";
 }
 
