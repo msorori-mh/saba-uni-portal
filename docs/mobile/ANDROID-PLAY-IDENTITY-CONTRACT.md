@@ -21,8 +21,8 @@ fails closed on a wrong applicationId, cleartext traffic, or an undocumented per
 
 | Field | Current value |
 | --- | --- |
-| `versionCode` | `4` |
-| `versionName` | `0.4.0` |
+| `versionCode` | `5` |
+| `versionName` | `0.4.1` |
 
 Rules:
 
