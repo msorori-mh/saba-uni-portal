@@ -166,7 +166,10 @@ export const getSectionDeliveryPlan = createServerFn({ method: "GET" })
       p_course_section_id: data.sectionId,
     });
     const plan = unwrap<SectionDeliveryPlan>(result, error);
-    if (!plan.course) return plan;
+    // Program/level/student-count enrichment uses get_section_student_names,
+    // which is faculty/department-head only. Students and other viewers
+    // allowed by cdp_can_view_section must still get the plan itself.
+    if (!plan.course || !plan.can_manage) return plan;
     const [{ data: section, error: sectionError }, { data: students, error: studentsError }] =
       await Promise.all([
         context.supabase
