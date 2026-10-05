@@ -206,11 +206,6 @@ function FacultyDashboard() {
                     {statusLabel[profile.status] ?? profile.status}
                   </span>
                 </div>
-                       {(s.programName || s.levelName) && (
-                         <div className="mt-1 text-[11px] text-muted-foreground">
-                           {[s.programName, s.levelName].filter(Boolean).join(" • ")}
-                         </div>
-                       )}
               </div>
             </div>
 
