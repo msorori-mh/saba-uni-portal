@@ -29,6 +29,11 @@ export const B1_STEP_LABELS_AR: Readonly<Record<string, string>> = {
   student_affairs_intake: "المراجعة الأولية",
   manager_review: "مراجعة مدير شؤون الطلاب",
   record_apply: "تطبيق القرار",
+  dean_review: "مراجعة العميد وإحالة الطلب",
+  registrar_fee_referral: "قرار مسجل الكلية بشأن الرسوم",
+  department_head_signature: "توقيع رئيس القسم",
+  dean_signature: "توقيع العميد",
+  student_affairs_manager_signature: "توقيع مدير شؤون الطلاب",
   library_clearance: "إخلاء طرف المكتبة",
   labs_clearance: "إخلاء طرف المعامل",
   activities_clearance: "إخلاء طرف الأنشطة الطلابية",
@@ -49,7 +54,19 @@ export const B1_FEE_POLICY_LABELS_AR: Readonly<Record<B1FeePolicy, string>> = {
   FREE_NO_PAYMENT: "خدمة مجانية — لا توجد رسوم داخل البوابة",
   EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION:
     "السداد يتم في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا تسجّل البوابة مبلغًا أو عملة",
+  REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT:
+    "يحدد مسجل الكلية لكل طلب إن كانت الرسوم مستحقة؛ وعند استحقاقها تظهر لك قيمة الرسوم ويتم السداد في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا يتم أي سداد داخل البوابة",
 };
+
+/** Step that waits for the manual external-payment confirmation by the revenue officer. */
+export const B1_EXTERNAL_PAYMENT_STEP_KEY = "payment_confirmation" as const;
+
+/**
+ * Student-facing guidance while a request waits on the external payment step.
+ * The portal never collects a payment and never shows a figure for it.
+ */
+export const B1_EXTERNAL_PAYMENT_STUDENT_GUIDANCE_AR =
+  "طلبك بانتظار سداد رسوم الخدمة. سدّد الرسوم في النظام الجامعي الرئيسي، وبعد أن يؤكد موظف الإيرادات الاستلام ينتقل الطلب تلقائيًا إلى الخطوة التالية. لا يتم أي سداد داخل هذه البوابة.";
 
 /**
  * Arabic display labels for known readonly contract slugs that appear in form

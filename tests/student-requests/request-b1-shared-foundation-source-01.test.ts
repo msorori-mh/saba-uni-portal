@@ -6,7 +6,9 @@ import {
   B1_CANONICAL_CODES,
   B1_FEE_POLICIES,
   B1_SERVICE_ADAPTERS,
+  B1_STUDENT_DEPARTMENT_SCOPED_STEPS,
   B1_WORKFLOWS,
+  EXCUSED_ABSENCE_LEGACY_FREE_WORKFLOW,
   FINAL_CHANCE_TYPE,
   canActOnB1Step,
   canActOnDepartmentHeadStep,
@@ -91,13 +93,45 @@ describe("B1 adapter, reference and detail foundation", () => {
 });
 
 describe("B1 workflows and payment policy", () => {
-  it("encodes the exact free suspension and absence workflows", () => {
+  it("encodes the exact free suspension workflow", () => {
     expect(B1_WORKFLOWS.enrollment_suspension.map((s) => [s.key, s.unit, s.role, s.action])).toEqual([
       ["initial_review", "student_affairs", "student_affairs_specialist", "review"],
       ["manager_approval", "student_affairs", "student_affairs_manager", "approve"],
       ["registrar_apply", "registrar", "registrar_general", "apply_decision"],
     ]);
-    expect(B1_WORKFLOWS.excused_absence.map((s) => s.key)).toEqual(["student_affairs_intake", "manager_review", "record_apply"]);
+  });
+  it("encodes the exact excused-absence workflow: dean → registrar fee decision → payment (when due) → three signatures → registrar → archive", () => {
+    expect(B1_WORKFLOWS.excused_absence.map((s) => [s.key, s.unit, s.role, s.action])).toEqual([
+      ["dean_review", "dean", "dean", "review"],
+      ["registrar_fee_referral", "registrar", "registrar_general", "review"],
+      ["payment_confirmation", "finance", "revenue_finance_officer", "confirm_payment"],
+      ["department_head_signature", "department", "department_head", "approve"],
+      ["dean_signature", "dean", "dean", "approve"],
+      ["student_affairs_manager_signature", "student_affairs", "student_affairs_manager", "approve"],
+      ["record_apply", "registrar", "registrar_general", "apply_decision"],
+      ["archive", "archive", "archive_officer", "archive"],
+    ]);
+    // every staff step names its processing unit and role
+    expect(B1_WORKFLOWS.excused_absence.every((s) => s.unit.length > 0 && s.role.length > 0)).toBe(true);
+    // signatures are approvals: the B1 executor has no sign action and a signature creates no document
+    expect(B1_WORKFLOWS.excused_absence.some((s) => ["sign", "assess_fee", "issue_document"].includes(s.action))).toBe(false);
+    // payment is confirmed strictly after the registrar referral and strictly before every signature
+    const keys = B1_WORKFLOWS.excused_absence.map((s) => s.key);
+    expect(keys.indexOf("payment_confirmation")).toBe(keys.indexOf("registrar_fee_referral") + 1);
+    for (const signature of ["department_head_signature", "dean_signature", "student_affairs_manager_signature"]) {
+      expect(keys.indexOf(signature)).toBeGreaterThan(keys.indexOf("payment_confirmation"));
+      expect(keys.indexOf(signature)).toBeLessThan(keys.indexOf("record_apply"));
+    }
+    expect(keys.at(-1)).toBe("archive");
+    expect(B1_STUDENT_DEPARTMENT_SCOPED_STEPS.excused_absence).toEqual(["department_head_signature"]);
+  });
+  it("keeps the retired three-step free absence cycle as read-only history for in-flight requests", () => {
+    expect(EXCUSED_ABSENCE_LEGACY_FREE_WORKFLOW.map((s) => [s.key, s.unit, s.role, s.action])).toEqual([
+      ["student_affairs_intake", "student_affairs", "student_affairs_specialist", "review"],
+      ["manager_review", "student_affairs", "student_affairs_manager", "approve"],
+      ["record_apply", "student_affairs", "student_affairs_specialist", "apply_decision"],
+    ]);
+    expect(EXCUSED_ABSENCE_LEGACY_FREE_WORKFLOW).not.toBe(B1_WORKFLOWS.excused_absence);
   });
   it("encodes file withdrawal as a non-parallel seven-step chain", () => {
     expect(B1_WORKFLOWS.file_withdrawal.map((s) => s.key)).toEqual([
@@ -107,8 +141,14 @@ describe("B1 workflows and payment policy", () => {
     expect(B1_WORKFLOWS.file_withdrawal.every((s) => !["sign", "assess_fee", "confirm_payment"].includes(s.action))).toBe(true);
   });
   it("uses external university confirmation without portal fee assessment", () => {
+    // غياب بعذر: same external confirmation, but only when the registrar decides a fee is due.
+    expect(B1_FEE_POLICIES.excused_absence).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     for (const code of ["department_transfer", "final_chance"] as const) {
       expect(B1_FEE_POLICIES[code]).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+      expect(B1_SERVICE_ADAPTERS[code].feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    }
+    for (const code of ["department_transfer", "final_chance", "excused_absence"] as const) {
       const keys = B1_WORKFLOWS[code].map((s) => s.key);
       expect(keys).not.toContain("fee_assessment");
       expect(keys).toContain("payment_confirmation");
@@ -162,11 +202,31 @@ describe("B1 workflows and payment policy", () => {
     expect(route).toContain(": { ok: true as const };");
   });
   it("keeps free services free and document-free in their previews", () => {
-    for (const code of ["enrollment_suspension", "excused_absence", "file_withdrawal"] as const) {
+    for (const code of ["enrollment_suspension", "file_withdrawal"] as const) {
       expect(B1_FEE_POLICIES[code]).toBe("FREE_NO_PAYMENT");
       const preview = getCanonicalWorkflowPreview(code)!;
       expect(preview.steps.some((s) => s.requiresFee || s.issuesDocument || s.actionType === "sign" || s.actionType === "issue_document")).toBe(false);
     }
+  });
+  it("previews excused absence as a paid, document-free signature cycle", () => {
+    const preview = getCanonicalWorkflowPreview("excused_absence")!;
+    expect(preview.steps.map((s) => [s.key, s.processingUnitCode, s.roleKey, s.actionType])).toEqual(
+      B1_WORKFLOWS.excused_absence.map((s) => [s.key, s.unit, s.role, s.action]),
+    );
+    // the only fee step is the manual external confirmation; nothing issues a document or signs a PDF
+    expect(preview.steps.filter((s) => s.requiresFee).map((s) => s.key)).toEqual(["payment_confirmation"]);
+    expect(preview.steps.some((s) => s.issuesDocument || s.actionType === "sign" || s.actionType === "issue_document")).toBe(false);
+    expect(preview.steps.filter((s) => s.isArchiveStep).map((s) => s.key)).toEqual(["archive"]);
+    expect(preview.steps.every((s) => /[\u0600-\u06FF]/.test(s.labelAr) && s.labelAr !== s.key)).toBe(true);
+    const notes = preview.specNotesAr.join(" ");
+    expect(notes).toContain("النظام الجامعي الأساسي");
+    expect(notes).toContain("مرفقات العذر إلزامية");
+    expect(notes).not.toMatch(/ريال|دولار|\d+\s*(?:ر\.ي|YER|USD)/);
+    // the legacy alias resolves to the same cycle
+    expect(getCanonicalWorkflowPreview("absence_excuse")!.steps.map((s) => s.key)).toEqual(preview.steps.map((s) => s.key));
+    expect(getStudentRequestTypeDefinition("excused_absence")).toMatchObject({
+      requiresAttachment: true, requiresFee: true, producesDocument: false, requiresArchive: true,
+    });
   });
   it("maps actions explicitly with no fallback", () => {
     expect(B1_ACTION_OUTCOME).toEqual({
@@ -200,6 +260,22 @@ describe("B1 direct assignment and authorization source contract", () => {
     expect(resolveDirectDepartmentHead(null, [head])).toEqual({ ok: false, reason: "missing_department_id" });
     expect(resolveDirectDepartmentHead("target", [head])).toEqual({ ok: false, reason: "department_head_not_found" });
     expect(resolveDirectDepartmentHead("source", [head, { ...head, facultyProfileId: "other" }])).toEqual({ ok: false, reason: "ambiguous_department_head" });
+  });
+  it("scopes the excused-absence department-head signature to the student's own department", () => {
+    const step = B1_WORKFLOWS.excused_absence.find((s) => s.key === "department_head_signature")!;
+    const base = { step, assignedFacultyProfileId: "head-cs", actor: { facultyProfileId: "head-cs", unit: "department", role: "department_head", departmentId: "cs" }, action: "approve", predecessorComplete: true };
+    expect(canActOnDepartmentHeadStep({ ...base, requiredDepartmentId: "cs" })).toBe(true);
+    // head of another department — even if (wrongly) stored as the assignee
+    expect(canActOnDepartmentHeadStep({ ...base, assignedFacultyProfileId: "head-is", actor: { ...base.actor, facultyProfileId: "head-is", departmentId: "is" }, requiredDepartmentId: "cs" })).toBe(false);
+    expect(canActOnDepartmentHeadStep({ ...base, actor: { ...base.actor, facultyProfileId: "head-is", departmentId: "is" }, requiredDepartmentId: "cs" })).toBe(false);
+    // student without a department: fail closed, never fall back to any head
+    expect(canActOnDepartmentHeadStep({ ...base, requiredDepartmentId: null })).toBe(false);
+    expect(canActOnDepartmentHeadStep({ ...base, requiredDepartmentId: undefined })).toBe(false);
+    for (const role of ["admin", "registrar_general", "dean", "student_affairs_manager"]) {
+      expect(canActOnDepartmentHeadStep({ ...base, actor: { ...base.actor, role }, requiredDepartmentId: "cs" })).toBe(false);
+    }
+    expect(canActOnDepartmentHeadStep({ ...base, action: "sign", requiredDepartmentId: "cs" })).toBe(false);
+    expect(canActOnDepartmentHeadStep({ ...base, predecessorComplete: false, requiredDepartmentId: "cs" })).toBe(false);
   });
   it("isolates source and target department heads by direct assignment and department scope", () => {
     const sourceStep = B1_WORKFLOWS.department_transfer.find((s) => s.key === "source_department_head_approval")!;
