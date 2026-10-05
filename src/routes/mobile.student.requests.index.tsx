@@ -114,7 +114,7 @@ function MobileStudentRequests() {
     const error = typesQuery.error ?? requestsQuery.error;
     return (
       <ErrorBox
-        message={error instanceof Error ? error.message : "تعذر تحميل الطلبات"}
+        message={error instanceof Error ? error.message : "تعذر تحميل الخدمات الطلابية"}
         onRetry={refetch}
         busy={isFetching}
       />
