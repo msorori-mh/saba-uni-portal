@@ -359,13 +359,13 @@ describe("release build hardening and version", () => {
     }
   });
 
-  test("version is 4 / 0.4.0 everywhere and the applicationId is unchanged", () => {
-    expect(gradle).toContain("versionCode 4");
-    expect(gradle).toContain('versionName "0.4.0"');
+  test("version is 5 / 0.4.1 everywhere and the applicationId is unchanged", () => {
+    expect(gradle).toContain("versionCode 5");
+    expect(gradle).toContain('versionName "0.4.1"');
     expect(gradle).toContain('applicationId "ye.edu.usr.fitcs.portal"');
     const script = read("scripts/mobile/apply-android-identity.mjs");
-    expect(script).toContain("VERSION_CODE = 4;");
-    expect(script).toContain('VERSION_NAME = "0.4.0";');
+    expect(script).toContain("VERSION_CODE = 5;");
+    expect(script).toContain('VERSION_NAME = "0.4.1";');
     expect(script).toContain("versionCode   = 4");
     expect(script).toContain("versionName   = 0.4.0");
     const contract = read("docs/mobile/ANDROID-PLAY-IDENTITY-CONTRACT.md");
