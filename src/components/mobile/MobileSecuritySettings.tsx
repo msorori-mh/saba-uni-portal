@@ -14,6 +14,7 @@ import {
   registerTrustedDeviceFn,
 } from "@/lib/security/device-trust.functions";
 import type { StepUpRpcClient } from "@/lib/security/step-up-client";
+import { wipeMobileOfflineData } from "@/lib/mobile/offline/offline-store";
 
 const rpcClient: StepUpRpcClient = {
   rpc: (fn, args) =>
@@ -81,6 +82,7 @@ export function MobileSecuritySettings() {
   const signOutThisDevice = async () => {
     await revokeThisDevice(rpcClient, deviceId);
     revokeLocalTrust();
+    wipeMobileOfflineData();
     await supabase.auth.signOut();
     navigate({ to: "/mobile/student-login", replace: true });
   };
@@ -88,6 +90,7 @@ export function MobileSecuritySettings() {
   const signOutAllDevices = async () => {
     await revokeAllDevices(rpcClient);
     revokeLocalTrust();
+    wipeMobileOfflineData();
     await supabase.auth.signOut({ scope: "global" });
     navigate({ to: "/mobile/student-login", replace: true });
   };

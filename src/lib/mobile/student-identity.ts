@@ -13,21 +13,98 @@
  * row-level security and the RPCs still verify the JWT server-side on every
  * data call, so a stale or tampered local session only yields empty/denied
  * results.
+ *
+ * Offline (OFFLINE-FIRST-01): without a network the access token cannot be
+ * refreshed and the profile check cannot reach the server. Neither may be
+ * read as "signed out" / "not a student":
+ *  - the user id falls back to the session supabase-js already keeps on the
+ *    device (see offline/stored-session.ts);
+ *  - the profile check falls back to the `{ userId, studentProfileId }` pair
+ *    persisted the last time the server confirmed it (per user, 7 days max).
+ * Online, the server stays authoritative: an account without a student
+ * profile is still reported as `null` and signed out by the callers.
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { isMobileOnline, resolveMobileLaunchConnectivity } from "@/lib/mobile/offline/connectivity";
+import {
+  readPersistedMobileIdentity,
+  wipeMobileOfflineData,
+  writePersistedMobileIdentity,
+} from "@/lib/mobile/offline/offline-store";
+import {
+  readStoredSupabaseSession,
+  storedSessionNeedsRefresh,
+} from "@/lib/mobile/offline/stored-session";
 
 export type MobileStudentIdentity = { userId: string; studentProfileId: string };
 
 const IDENTITY_TTL_MS = 10 * 60_000;
+/** How long the guard waits for a token refresh before trusting the local session. */
+const SESSION_REFRESH_WAIT_MS = 3_000;
 
 let cached: (MobileStudentIdentity & { at: number }) | null = null;
 let inflight: { userId: string; promise: Promise<MobileStudentIdentity | null> } | null = null;
 
-/** Locally stored session user id (no network unless the token must refresh). */
+function wait<T>(ms: number, value: T): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+}
+
+/** A failed token refresh that says nothing about the session itself (no network / 5xx). */
+function isRetryableAuthError(error: unknown): boolean {
+  const candidate = error as { name?: string; status?: number } | null;
+  if (!candidate) return false;
+  if (candidate.name === "AuthRetryableFetchError") return true;
+  return (
+    typeof candidate.status === "number" && (candidate.status === 0 || candidate.status >= 500)
+  );
+}
+
+/**
+ * Signed-in user id from the locally stored session.
+ *
+ * No network when the token is still valid. When it has expired:
+ *  - offline, the stored session is trusted immediately (supabase-js would
+ *    otherwise retry the refresh for ~25 s and then answer "no session");
+ *  - online, the refresh is awaited briefly; a network failure or a slow
+ *    refresh keeps the student signed in, while a real rejection (revoked
+ *    refresh token → supabase-js deletes the stored session) returns null.
+ */
 export async function getMobileSessionUserId(): Promise<string | null> {
+  const stored = readStoredSupabaseSession();
+  if (stored) {
+    await resolveMobileLaunchConnectivity();
+    if (!isMobileOnline()) return stored.userId;
+    if (storedSessionNeedsRefresh(stored)) {
+      const outcome = await Promise.race([
+        supabase.auth.getSession().then(
+          (result) => ({ kind: "settled" as const, result }),
+          () => ({ kind: "failed" as const }),
+        ),
+        wait(SESSION_REFRESH_WAIT_MS, { kind: "pending" as const }),
+      ]);
+      if (outcome.kind === "settled") {
+        const sessionUserId = outcome.result.data.session?.user?.id;
+        if (sessionUserId) return sessionUserId;
+        if (!isRetryableAuthError(outcome.result.error)) return null;
+      }
+      // Could not confirm: the session is whatever is still stored on the device.
+      return readStoredSupabaseSession()?.userId ?? null;
+    }
+  }
   const { data } = await supabase.auth.getSession();
   return data.session?.user?.id ?? null;
+}
+
+/** The server said this account has no student profile: forget everything and sign out. */
+async function revokeNonStudent(userId: string): Promise<void> {
+  if (cached?.userId === userId) cached = null;
+  wipeMobileOfflineData();
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    /* the auth listener of the layout still handles the missing session */
+  }
 }
 
 /**
@@ -44,7 +121,15 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
   if (cached && cached.userId === userId && Date.now() - cached.at < IDENTITY_TTL_MS) {
     return { userId, studentProfileId: cached.studentProfileId };
   }
-  if (inflight && inflight.userId === userId) return inflight.promise;
+
+  const persisted = readPersistedMobileIdentity(userId);
+  if (!isMobileOnline()) {
+    if (persisted) return persisted;
+    throw new Error("MOBILE_IDENTITY_UNAVAILABLE_OFFLINE");
+  }
+  if (inflight && inflight.userId === userId) {
+    return persisted ? persisted : inflight.promise;
+  }
 
   const promise = (async (): Promise<MobileStudentIdentity | null> => {
     const { data, error } = await supabase
@@ -56,12 +141,25 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
     const studentProfileId = (data as { id?: string } | null)?.id;
     if (!studentProfileId) return null;
     cached = { userId, studentProfileId, at: Date.now() };
+    writePersistedMobileIdentity({ userId, studentProfileId });
     return { userId, studentProfileId };
   })().finally(() => {
     if (inflight?.promise === promise) inflight = null;
   });
   inflight = { userId, promise };
-  return promise;
+
+  if (!persisted) return promise;
+
+  // Confirmed as a student on this device before: answer from the device now
+  // and let the server check finish in the background (first paint does not
+  // wait for the network). A definite "no student profile" still signs out.
+  void promise.then(
+    (identity) => {
+      if (identity === null) void revokeNonStudent(userId);
+    },
+    () => undefined,
+  );
+  return persisted;
 }
 
 /** Drop the cached identity (sign-out, account switch). */
