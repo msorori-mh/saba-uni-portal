@@ -4,6 +4,7 @@
 - **الفرع:** `feat/excused-absence-paid-signature-workflow`
 - **مسودة قاعدة البيانات:** `docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql` (مسودة مراجعة فقط، لا تُطبَّق من هذا المسار).
 - **المراجعة الثانية:** تنفّذ قرارات المالك السبعة على الأسئلة المفتوحة في المراجعة الأولى.
+- **المراجعة الثالثة:** استعلامات جاهزية التطبيق (فحص مسبق وتحقق لاحق) وملف تراجع مُبرهن (القسم 13 و14)، وفحص الخدمتين المدفوعتين الأخريين (`docs/reviews/B1-PAID-SERVICES-ZERO-FEE-CHECK-01.md`).
 - **القرار:** المصدر **PASS** لكل ما نُفِّذ. **HOLD** على بند واحد لم يُنفَّذ عمداً: «المبلغ المستحق كقيمة للعرض» (انظر القسم 11)، وعلى التطبيق في الإنتاج حتى يكتمل تحقق CI على PostgreSQL 17.
 
 ## 1. الملخص
@@ -130,15 +131,19 @@
 | طالب بلا قسم / قسم بلا رئيس | لا يستطيع التقديم | رسالة واضحة؛ استعلام قراءة قبل التطبيق؛ `WARNING` في المسودة |
 | إعادة التقديم بعد تغيّر رئيس القسم | تُرفض (`B1_RUNTIME_RESUBMIT_CONTRACT_INVALID`) | فشل مغلق؛ يُعالج إدارياً |
 | تفاصيل الطلب لا تكشف حالة `skipped` | الواجهة تخفي خطوة السداد اعتماداً على القرار | مغطّى في الواجهة؛ لم نعدّل RPC التفاصيل |
-| **ملاحظة خارج النطاق:** فرع «الرسوم = صفر» في `department_transfer`/`final_chance` v2 يتجاوز خطوة سداد `can_skip=false` | يُرجَّح أن الخطوة التالية تُرفض بفحص السوابق نفسه | لم يُلمس؛ يحتاج فحصاً مستقلاً من المالك |
+| **خارج النطاق — مؤكَّد:** فرع «لا رسوم» في `department_transfer`/`final_chance` v2 يتجاوز خطوة سداد `can_skip=false` | كل طلب يتوقف عند `registrar_apply` (`B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED`) | مُثبت وله مسودة إصلاح مستقلة: `docs/reviews/B1-PAID-SERVICES-ZERO-FEE-CHECK-01.md`. هذه المسودة لا تغيّر سلوك الخدمتين (مُثبت) |
 | البروفة على PostgreSQL 16 | فرق محتمل مع 17 | ساق CI «PG 17 verifier» |
 
 ## 11. ما لم يُنفَّذ (ولماذا)
 
-1. **المبلغ المستحق كقيمة للعرض، واستثناء AGENTS.md.** طُلب أن يُدخل المسجل المبلغ المستحق (للعرض فقط)، وأن يُضاف استثناء في قسم «الرسوم» من `AGENTS.md`. لم يُنفَّذ أيٌّ منهما:
-   - `AGENTS.md` ينص: «لا توجد بوابة دفع أو مبالغ أو عملات داخل البوابة». هذا ملف تعليمات المشروع الملزم، وطلب تعديله وصل عبر رسالة منسّق لا عبر المالك مباشرة؛ الوكيل لا يعدّل قواعده بنفسه بناءً على رسالة وكيل آخر.
-   - لذلك قرار الرسوم يخزّن القرار والسبب فقط، وإشعار `FEE_REQUIRED` يوجّه الطالب للسداد في النظام الرئيسي **دون ذكر مبلغ**.
-   - **المطلوب من المالك:** تعديل قسم «الرسوم» في `AGENTS.md` بنفسه (أو تأكيد صريح مباشر). بعدها الإضافة محدودة: عمود عرض واحد، معامل في الـRPC، سطر في الإشعار والبطاقة، وحالات في البروفة.
+1. **المبلغ المستحق كقيمة للعرض، واستثناء AGENTS.md — ما زال غير منفَّذ.** في المراجعة الثالثة نقل المنسّق أن المالك وافق صراحةً («نعم اضف استثناء لهذه القاعدة»). لم يُنفَّذ مع ذلك، للسبب نفسه:
+   - `AGENTS.md` هو ملف تعليمات المشروع الملزم، وما زال ينص: «لا توجد بوابة دفع أو مبالغ أو عملات داخل البوابة». الموافقة وصلت لهذا الوكيل **منقولة عبر وكيل آخر** لا من المالك مباشرة؛ والوكيل لا يعدّل ملف تعليماته ولا يخالفه استناداً إلى رسالة وكيل.
+   - **المطلوب:** أن يُضاف الاستثناء إلى `AGENTS.md` من الجلسة الرئيسية (التي تملك رسالة المالك المباشرة) أو من المالك نفسه. النص المقترح، سطر واحد يُضاف في آخر قسم «الرسوم» دون تغيير باقي الأسطر:
+
+     > - **استثناء معتمد من المالك (2026-10-06) — «غياب بعذر» فقط:** في خطوة قرار الرسوم يُدخل مسجل الكلية المبلغ المستحق كقيمة **للعرض فقط**، تظهر للطالب في الإشعار وفي تفاصيل الطلب مع توجيهه للسداد في النظام الجامعي الرئيسي. تبقى البوابة بلا بوابة دفع وبلا أرصدة وبلا إيصالات وبلا أي حساب على العملات.
+
+   - بعد وجود هذا السطر في الملف، الإضافة محدودة ومحدَّدة: عمود `amount_due numeric(12,2)` على `excused_absence_fee_decisions` (إلزامي وأكبر من صفر عند `FEE_REQUIRED`، و`NULL` إلزاماً عند `FEE_NOT_REQUIRED`، غير قابل للتعديل مع القرار)، معامل خامس في `record_excused_absence_fee_decision`، حقل في بطاقة المسجل، سطر في بطاقة الطالب وفي نص الإشعار، وحالات في البروفة (موجود/غائب/غير صالح، وذكر المبلغ مرة واحدة). **الصياغة المقترحة للوحدة:** كلمة «ريال» ثابتة في النص العربي، بلا عمود عملة وبلا أي تحويل أو حساب.
+   - حتى ذلك الحين: القرار يخزّن النتيجة والسبب فقط، وإشعار `FEE_REQUIRED` يوجّه للسداد في النظام الرئيسي **دون مبلغ**. تطبيق المسودة الحالية على الإنتاج ممكن تقنياً بهذا الشكل، وإضافة المبلغ لاحقاً ترحيل إضافي صغير (عمود جديد قابل للإضافة دون مساس بالقرارات السابقة).
 2. لم تُعدَّل RPC تفاصيل الطلب للطالب لكشف حالة `skipped` (القسم 10).
 3. لا مسار وثائق: الأرشفة إغلاق للمعاملة فقط.
 4. لم تُعَد توليد المصفوفات والبصمات التاريخية للسلسلة المطبّقة (تُعاد بعد الترقية والتطبيق، كما في المراجعة الأولى).
@@ -162,25 +167,371 @@
 
 **لم تُعدَّل:** `can_current_user_act_on_step`، `user_matches_workflow_runtime_step`، `apply_b1_excused_absence_effect`، `protect_student_request`.
 
-## 13. إجراء التطبيق (بعد تفويض صريح فقط)
+## 13. إجراء التطبيق (جاهزية الإنتاج)
 
-1. حسم بند المبلغ (القسم 11) وتعديل المسودة إن لزم.
-2. CI أخضر: `tsc --noEmit`، `bun test tests/student-requests`، وساق «PG 17 verifier · excused-absence-paid-signature-workflow».
-3. بروفة محلية معزولة: `scripts/excused-absence-paid-signature-01-pg17/run.sh` (عنقود مؤقت؛ 12 مجسّ فشل-مغلق، مجسّ الضرورة، تطبيق مرتين ببصمة متطابقة، ثم المصفوفة). المطلوب: `EXCUSED_ABSENCE_PAID_SIGNATURE_WORKFLOW_01_REHEARSAL_PASS`.
-4. فحص قراءة فقط على الإنتاج: إصدار نشط واحد `excused_absence_free_workflow`؛ مكلّف مباشر واحد لكل وحدة/دور؛ رئيس واحد فعّال لكل قسم فيه طلاب وعدد الطلاب بلا قسم؛ `pg_get_functiondef` للدوال الست والتأكد أن كل نقطة ارتكاز تظهر مرة واحدة؛ عدم وجود الرمز `EXCUSED_ABSENCE_FEE_NOT_REQUIRED` معطّلاً في الكتالوج.
-5. الترقية: نسخ المسودة حرفياً إلى `supabase/migrations/<timestamp>_…sql` مع حذف سطر «DRAFT ONLY» في فرع ترقية مستقل.
-6. التطبيق: ترحيل واحد في نافذة هدوء. المسودة معاملة واحدة؛ أي حارس يفشل يتراجع عن كل شيء.
-7. تحقق لاحق (قراءة فقط): الإصدار الجديد نشط والقديم `retired`؛ 8 صفوف تثبيت عقد؛ 17 انتقالاً؛ `request_types.student_visible` لم يتغيّر؛ خطوات الطلب القائم كما هي؛ جدول القرارات فارغ.
-8. نشر الواجهة **بعد** نجاح الترحيل مباشرة.
-9. E2E بحساب اختبار واحد للمسارين (رسوم / لا رسوم) وللإرجاع والرفض.
+الملفات بجوار المسودة:
+
+| الملف | النوع | الغرض |
+|---|---|---|
+| `docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.preflight.sql` | قراءة فقط، عبارة `SELECT` واحدة | يطابق كل حارس ونقطة ارتكاز في المسودة ويعيد صفاً واحداً من القيم المنطقية |
+| `docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql` | المسودة (معاملة واحدة) | التغيير نفسه |
+| `docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.verify.sql` | قراءة فقط، عبارة `SELECT` واحدة | تحقق لاحق: صف واحد من القيم المنطقية |
+| `docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.rollback-by-forward.sql` | مسودة تراجع (معاملة واحدة) | القسم 14 |
+
+**الخطوات:**
+
+1. CI أخضر: `tsc --noEmit`، `bun test tests/student-requests`، وساق «PG 17 verifier · excused-absence-paid-signature-workflow».
+2. شغّل **الفحص المسبق** أدناه من أي لوحة SQL. لا تطبّق إلا إذا كان `ready_to_apply = true`. إن كان `false` فالأعمدة المنطقية تحدد الحارس الفاشل، و`failing_anchors` و`roles_without_single_assignee` يسمّيان السبب. سجّل قيم `request_type_student_visible` و`processing_assignment_count` و`open_requests_of_this_service` للمقارنة بعد التطبيق. الأعمدة `student_departments_without_head` و`students_without_department` معلوماتية: هؤلاء الطلاب لن يستطيعوا التقديم بعد التحويل.
+3. الترقية: انسخ المسودة حرفياً إلى `supabase/migrations/<timestamp>_excused_absence_paid_signature_workflow_01.sql` مع حذف سطر «DRAFT ONLY» فقط.
+4. التطبيق: ترحيل واحد في نافذة هدوء. أي حارس يفشل يتراجع عن كل شيء.
+5. شغّل **التحقق اللاحق** أدناه. التطبيق سليم فقط إذا كان `applied_correctly = true`، و`requests_on_the_new_cycle = 0`، و`fee_decisions_recorded = 0`، وقيم `request_type_student_visible` و`processing_assignment_count` و`open_requests_of_this_service` مطابقة لما سُجِّل في الخطوة 2.
+6. انشر الواجهة **بعد** نجاح الترحيل مباشرة (ترتيب معكوس يعرض للطالب دورة لا يعرفها الخادم).
+7. E2E بحساب اختبار واحد للمسارين (رسوم / لا رسوم) وللإرجاع والرفض.
+
+الاستعلامان مُبرهنان في البروفة: الفحص المسبق أخضر قبل التطبيق، أحمر عند انحراف نقطة ارتكاز أو غياب مكلّف (ويسمّي السبب)، ولا يكتب شيئاً؛ والتحقق اللاحق أخضر بعد التطبيق وبعد حركة طلبات حقيقية.
+
+### الفحص المسبق (قراءة فقط)
+
+```sql
+-- EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — production PRE-FLIGHT.
+-- READ-ONLY: one SELECT, no writes, no locks beyond ordinary reads. Safe to
+-- run from any SQL console. It mirrors every guard of
+-- docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql and
+-- returns ONE row. Apply the draft only when `ready_to_apply` is true.
+--
+-- If a relation or function the draft needs does not exist at all, this query
+-- fails with the missing object's name instead of returning a row — that is
+-- also a NO-GO.
+--
+-- The anchor list below is generated from the draft; a test keeps both in sync.
+WITH anchors(fn, marker, anchor) AS (
+  VALUES
+    ('public.initialize_b1_request_workflow_strict(uuid,text)', 'EAWF01:init-student-department-scope',
+      'ELSIF v_is_p1 THEN'),
+    ('public.initialize_b1_request_workflow_strict(uuid,text)', 'EAWF01:resubmit-student-department-scope',
+      'ELSE public.p1_runtime_step_department_scope(p_canonical_code,s.step_key,p_request_id) END'),
+    ('public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)', 'EAWF01:activation-student-department-scope',
+      'IF v_canonical = ''department_transfer'''),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:effect-before-archive',
+      'v_action=''apply_decision'' AND v_canonical=''file_withdrawal'''),
+    ('public.record_external_university_payment_confirmation(uuid,text)', 'EAWF01:external-payment-service',
+      '''october_exam_entry_form'',''replacement_student_card'')'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:step-decision-gate',
+      'IF v_config.action_type IS NULL OR p_action IS DISTINCT FROM v_config.action_type THEN'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:before-step-action-hook',
+      'IF COALESCE(p_payload,''{}''::jsonb)<>''{}''::jsonb THEN RAISE EXCEPTION ''B1_CLIENT_ACTION_PAYLOAD_FORBIDDEN''; END IF;'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:decision-reason-on-request',
+      'UPDATE public.student_requests SET status=CASE v_action WHEN ''reject'' THEN ''rejected'''),
+    ('public.evaluate_workflow_transition_condition(uuid,jsonb)', 'EAWF01:fee-not-required-condition',
+      'IF v_code = ''FEE_IS_ZERO'' THEN'),
+    ('public.initialize_b1_request_workflow_strict(uuid,text)', 'EAWF01:resubmit-restart-at-first-step',
+      'RETURN jsonb_build_object(''initialized'',false,''resumed'',true,''active_step_id'',v_active_step_id);'),
+    ('public.trg_notify_student_request()', 'EAWF01:notification-service-label',
+      'WHEN ''absence_excuse'' THEN ''عذر غياب''')
+),
+anchor_state AS (
+  SELECT a.marker,
+         d.def IS NOT NULL AS fn_exists,
+         COALESCE(position(a.marker in d.def) > 0, false) AS already_patched,
+         CASE WHEN d.def IS NULL THEN 0
+              ELSE (length(d.def) - length(replace(d.def, a.anchor, ''))) / length(a.anchor) END AS hits
+  FROM anchors a
+  LEFT JOIN LATERAL (SELECT pg_get_functiondef(to_regprocedure(a.fn)) AS def) d ON true
+),
+rt AS (
+  SELECT rt.* FROM public.request_types rt WHERE rt.code = ANY (ARRAY['excused_absence','absence_excuse'])
+),
+pairs(unit_code, role_code) AS (
+  VALUES ('dean','dean'), ('registrar','registrar_general'), ('finance','revenue_finance_officer'),
+         ('student_affairs','student_affairs_manager'), ('archive','archive_officer'), ('department','department_head')
+),
+pair_state AS (
+  SELECT p.unit_code, p.role_code,
+         (SELECT count(*) FROM public.request_processing_units u WHERE u.code = p.unit_code AND u.is_active) AS units,
+         (SELECT count(*) FROM public.request_processing_roles r
+            JOIN public.request_processing_units u ON u.id = r.unit_id AND u.code = p.unit_code AND u.is_active
+           WHERE r.code = p.role_code AND r.is_active) AS roles,
+         (SELECT count(*) FROM public.request_processing_assignments a
+            JOIN public.request_processing_units u ON u.id = a.unit_id AND u.code = p.unit_code AND u.is_active
+            JOIN public.request_processing_roles r ON r.id = a.role_id AND r.unit_id = u.id AND r.code = p.role_code AND r.is_active
+           WHERE a.is_active
+             AND (a.starts_at IS NULL OR a.starts_at <= now())
+             AND (a.ends_at IS NULL OR a.ends_at > now())
+             AND public.is_valid_b1_direct_assignment(a.id, NULL, false)) AS direct_assignees
+  FROM pairs p
+),
+heads AS (
+  SELECT a.department_id, count(*) AS n
+  FROM public.request_processing_assignments a
+  JOIN public.request_processing_units u ON u.id = a.unit_id AND u.code = 'department' AND u.is_active
+  JOIN public.request_processing_roles r ON r.id = a.role_id AND r.unit_id = u.id AND r.code = 'department_head' AND r.is_active
+  WHERE a.is_active
+    AND (a.starts_at IS NULL OR a.starts_at <= now())
+    AND (a.ends_at IS NULL OR a.ends_at > now())
+    AND a.department_id IS NOT NULL
+    AND a.assignment_type = 'position_assignment'
+    AND a.position_assignment_id IS NOT NULL
+    AND a.user_id IS NULL AND a.staff_profile_id IS NULL AND a.faculty_profile_id IS NULL
+    AND public.is_valid_b1_direct_assignment(a.id, a.department_id, false)
+  GROUP BY a.department_id
+),
+wf AS (
+  SELECT w.* FROM public.request_type_workflows w JOIN rt ON rt.id = w.request_type_id
+),
+checks AS (
+  SELECT
+    (SELECT bool_and(to_regclass(x) IS NOT NULL) FROM unnest(ARRAY[
+      'public.request_types','public.request_type_workflows','public.request_type_workflow_steps',
+      'public.request_type_workflow_transitions','public.request_type_workflow_change_log',
+      'public.request_workflow_publish_validations','public.request_workflow_action_catalog',
+      'public.request_processing_units','public.request_processing_roles','public.request_processing_assignments',
+      'public.b1_workflow_runtime_contract_snapshot','public.student_profiles','public.student_requests',
+      'public.student_request_workflow_steps','public.student_request_workflow_events',
+      'public.absence_excuse_details','public.request_workflow_transition_condition_catalog',
+      'public.notifications']) x) AS relations_ok,
+    (SELECT bool_and(to_regprocedure(x) IS NOT NULL) FROM unnest(ARRAY[
+      'public.initialize_b1_request_workflow_strict(uuid,text)',
+      'public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)',
+      'public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)',
+      'public.record_external_university_payment_confirmation(uuid,text)',
+      'public.apply_b1_excused_absence_effect(uuid)',
+      'public.apply_b1_academic_effect_for_request(uuid)',
+      'public.can_current_user_act_on_step(uuid,text)',
+      'public.user_matches_workflow_runtime_step(uuid)',
+      'public.is_valid_b1_direct_assignment(uuid,uuid,boolean)',
+      'public.b1_runtime_step_contract_ok(text,uuid,text,text,text,text)',
+      'public.validate_request_workflow_publish(uuid)',
+      'public.resolve_b1_workflow_transition(uuid,uuid,text,uuid)',
+      'public.evaluate_workflow_transition_condition(uuid,jsonb)',
+      'public.create_notification(uuid,text,text,text,text,uuid)',
+      'public.trg_notify_student_request()']) x) AS functions_ok,
+    (SELECT count(*) = 16 FROM information_schema.columns ic
+      WHERE ic.table_schema = 'public' AND (ic.table_name, ic.column_name) IN (
+        ('request_type_workflows','published_at'), ('request_type_workflows','superseded_at'),
+        ('request_type_workflows','change_note'), ('request_type_workflow_steps','action_code'),
+        ('request_type_workflow_steps','config'), ('request_type_workflow_transitions','priority'),
+        ('request_type_workflow_transitions','condition_schema'),
+        ('request_processing_assignments','department_id'),
+        ('request_processing_assignments','position_assignment_id'),
+        ('student_profiles','department_id'), ('student_requests','student_profile_id'),
+        ('student_requests','rejection_reason'), ('student_requests','request_number'),
+        ('request_type_workflow_steps','can_reject'), ('request_type_workflow_steps','can_return_to_student'),
+        ('student_request_workflow_steps','workflow_id'))) AS columns_ok,
+    (SELECT count(*) = 1 AND bool_and(code = 'excused_absence') FROM rt) AS request_type_ok,
+    (SELECT count(*) = 5 FROM public.request_workflow_action_catalog c
+      WHERE c.is_active AND (c.code, c.action_type, c.kind) IN (
+        ('REVIEW','review','neutral'), ('APPROVE','approve','neutral'),
+        ('PAYMENT_CONFIRMATION','confirm_payment','neutral'), ('ARCHIVE','archive','neutral'),
+        ('REGISTER_EXCUSED_ABSENCE','apply_decision','effect'))
+        AND c.effect_function IS NOT DISTINCT FROM
+            CASE c.code WHEN 'REGISTER_EXCUSED_ABSENCE' THEN 'apply_b1_excused_absence_effect' END
+        AND c.restricted_request_type_code IS NOT DISTINCT FROM
+            CASE c.code WHEN 'REGISTER_EXCUSED_ABSENCE' THEN 'excused_absence' END) AS catalog_actions_ok,
+    (SELECT position('record_apply' in p.prosrc) > 0 FROM pg_proc p
+      WHERE p.oid = to_regprocedure('public.apply_b1_excused_absence_effect(uuid)')) AS effect_step_key_binding_ok,
+    (SELECT bool_and(units = 1 AND roles = 1) FROM pair_state) AS units_and_roles_ok,
+    (SELECT bool_and(direct_assignees = 1) FROM pair_state WHERE role_code <> 'department_head') AS single_direct_assignee_per_role_ok,
+    (SELECT count(*) >= 1 FROM heads) AS department_head_assignment_exists,
+    NOT EXISTS (
+      SELECT 1 FROM public.request_processing_assignments a
+      JOIN public.request_processing_units u ON u.id = a.unit_id AND u.code = 'department' AND u.is_active
+      JOIN public.request_processing_roles r ON r.id = a.role_id AND r.unit_id = u.id AND r.code = 'department_head' AND r.is_active
+      WHERE a.is_active
+        AND (a.starts_at IS NULL OR a.starts_at <= now())
+        AND (a.ends_at IS NULL OR a.ends_at > now())
+        AND a.department_id IS NOT NULL
+        AND public.is_valid_b1_direct_assignment(a.id, a.department_id, false)
+      GROUP BY a.department_id HAVING count(*) > 1) AS no_ambiguous_department_head,
+    (SELECT count(*) = 1 FROM wf WHERE status = 'active' AND is_active) AS single_active_workflow,
+    (SELECT count(*) = 1 FROM wf WHERE status = 'active' AND is_active
+        AND code IN ('excused_absence_free_workflow','excused_absence_external_payment_workflow')) AS active_workflow_code_expected,
+    (SELECT count(*) <= 1 FROM wf WHERE code = 'excused_absence_external_payment_workflow') AS no_duplicate_target_workflow,
+    NOT EXISTS (SELECT 1 FROM public.request_workflow_transition_condition_catalog c
+                WHERE c.code = 'EXCUSED_ABSENCE_FEE_NOT_REQUIRED' AND NOT c.is_active) AS fee_condition_code_free_or_active,
+    (SELECT bool_and(fn_exists AND (already_patched OR hits = 1)) FROM anchor_state) AS all_eleven_patch_anchors_ok
+)
+SELECT
+  c.*,
+  (c.relations_ok AND c.functions_ok AND c.columns_ok AND c.request_type_ok AND c.catalog_actions_ok
+   AND c.effect_step_key_binding_ok AND c.units_and_roles_ok AND c.single_direct_assignee_per_role_ok
+   AND c.department_head_assignment_exists AND c.no_ambiguous_department_head AND c.single_active_workflow
+   AND c.active_workflow_code_expected AND c.no_duplicate_target_workflow
+   AND c.fee_condition_code_free_or_active AND c.all_eleven_patch_anchors_ok) IS TRUE AS ready_to_apply,
+  -- ---- informational (do not block the apply) ------------------------------
+  (SELECT count(*) = 11 AND bool_and(already_patched) FROM anchor_state) AS draft_already_applied,
+  (SELECT array_agg(marker || ':' || hits ORDER BY marker) FROM anchor_state
+    WHERE NOT (fn_exists AND (already_patched OR hits = 1))) AS failing_anchors,
+  (SELECT array_agg(unit_code || '/' || role_code || ':' || direct_assignees ORDER BY unit_code)
+     FROM pair_state WHERE role_code <> 'department_head' AND direct_assignees <> 1) AS roles_without_single_assignee,
+  (SELECT code || ' v' || version FROM wf WHERE status = 'active' AND is_active) AS active_workflow,
+  (SELECT student_visible FROM rt) AS request_type_student_visible,
+  (SELECT count(DISTINCT sp.department_id) FROM public.student_profiles sp
+    WHERE sp.department_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM heads h WHERE h.department_id = sp.department_id)) AS student_departments_without_head,
+  (SELECT count(*) FROM public.student_profiles sp WHERE sp.department_id IS NULL) AS students_without_department,
+  (SELECT count(*) FROM public.student_requests r
+    WHERE r.request_type::text IN ('excused_absence','absence_excuse')
+      AND r.status::text NOT IN ('completed','rejected','cancelled','draft')) AS open_requests_of_this_service,
+  (SELECT count(*) FROM public.request_processing_assignments) AS processing_assignment_count
+FROM checks c;
+```
+
+### التحقق اللاحق (قراءة فقط)
+
+```sql
+-- EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — production POST-APPLY verification.
+-- READ-ONLY: one SELECT, no writes. Run it right after the migration, from any
+-- SQL console (as the migration owner, so privilege checks are meaningful).
+-- Returns ONE row; the apply is good only when `applied_correctly` is true.
+WITH rt AS (
+  SELECT rt.* FROM public.request_types rt WHERE rt.code = 'excused_absence'
+),
+wf AS (
+  SELECT w.* FROM public.request_type_workflows w JOIN rt ON rt.id = w.request_type_id
+),
+new_wf AS (
+  SELECT * FROM wf WHERE code = 'excused_absence_external_payment_workflow'
+),
+steps AS (
+  SELECT s.*, u.code AS unit_code, r.code AS role_code
+  FROM public.request_type_workflow_steps s
+  JOIN new_wf ON new_wf.id = s.workflow_id
+  JOIN public.request_processing_units u ON u.id = s.processing_unit_id
+  JOIN public.request_processing_roles r ON r.id = s.processing_role_id AND r.unit_id = u.id
+),
+tr AS (
+  SELECT t.*, fs.step_key AS from_key, ts.step_key AS to_key
+  FROM public.request_type_workflow_transitions t
+  JOIN new_wf ON new_wf.id = t.workflow_id
+  LEFT JOIN public.request_type_workflow_steps fs ON fs.id = t.from_step_id
+  LEFT JOIN public.request_type_workflow_steps ts ON ts.id = t.to_step_id
+),
+markers(fn, marker) AS (
+  VALUES
+    ('public.initialize_b1_request_workflow_strict(uuid,text)', 'EAWF01:init-student-department-scope'),
+    ('public.initialize_b1_request_workflow_strict(uuid,text)', 'EAWF01:resubmit-student-department-scope'),
+    ('public.initialize_b1_request_workflow_strict(uuid,text)', 'EAWF01:resubmit-restart-at-first-step'),
+    ('public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)', 'EAWF01:activation-student-department-scope'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:effect-before-archive'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:step-decision-gate'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:before-step-action-hook'),
+    ('public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)', 'EAWF01:decision-reason-on-request'),
+    ('public.record_external_university_payment_confirmation(uuid,text)', 'EAWF01:external-payment-service'),
+    ('public.evaluate_workflow_transition_condition(uuid,jsonb)', 'EAWF01:fee-not-required-condition'),
+    ('public.trg_notify_student_request()', 'EAWF01:notification-service-label')
+),
+new_functions(sig, exposed) AS (
+  VALUES
+    ('public.b1_excused_absence_student_department(uuid)', false),
+    ('public.b1_excused_absence_paid_cycle_step(uuid)', false),
+    ('public.b1_excused_absence_step_decision_allowed(uuid,text)', false),
+    ('public.guard_excused_absence_fee_decision_write()', false),
+    ('public.b1_excused_absence_before_step_action(uuid,text,text)', false),
+    ('public.record_excused_absence_fee_decision(uuid,text,text,text)', true),
+    ('public.get_excused_absence_fee_decision(uuid)', true)
+),
+checks AS (
+  SELECT
+    (SELECT count(*) = 1 FROM wf WHERE status = 'active' AND is_active) AS single_active_workflow,
+    (SELECT count(*) = 1 AND bool_and(status = 'active' AND is_active AND published_at IS NOT NULL)
+       FROM new_wf) AS new_workflow_active,
+    (SELECT count(*) >= 1 AND bool_and(status = 'retired' AND NOT is_active)
+       FROM wf WHERE code = 'excused_absence_free_workflow') AS free_workflow_retired,
+    (SELECT (SELECT version FROM new_wf) = max(version) + 1 FROM wf WHERE code = 'excused_absence_free_workflow')
+       AS new_version_follows_the_free_cycle,
+    (SELECT array_agg(step_key || ':' || unit_code || '/' || role_code || ':' || action_type || ':' || action_code
+                      ORDER BY step_order) FROM steps) = ARRAY[
+       'dean_review:dean/dean:review:REVIEW',
+       'registrar_fee_referral:registrar/registrar_general:review:REVIEW',
+       'payment_confirmation:finance/revenue_finance_officer:confirm_payment:PAYMENT_CONFIRMATION',
+       'department_head_signature:department/department_head:approve:APPROVE',
+       'dean_signature:dean/dean:approve:APPROVE',
+       'student_affairs_manager_signature:student_affairs/student_affairs_manager:approve:APPROVE',
+       'record_apply:registrar/registrar_general:apply_decision:REGISTER_EXCUSED_ABSENCE',
+       'archive:archive/archive_officer:archive:ARCHIVE'] AS eight_steps_exact,
+    (SELECT bool_and(assignment_strategy = 'specific_user'
+                     AND config ->> 'authorization' = 'exactly_one_direct_assignee') FROM steps)
+       AS every_step_single_direct_assignee,
+    (SELECT array_agg(step_key ORDER BY step_order) FILTER (WHERE can_skip) FROM steps)
+       = ARRAY['payment_confirmation'] AS only_payment_step_skippable,
+    (SELECT array_agg(step_key ORDER BY step_order) FILTER (WHERE can_reject) FROM steps)
+       = ARRAY['dean_review','registrar_fee_referral','department_head_signature','dean_signature',
+               'student_affairs_manager_signature'] AS reject_steps_exact,
+    (SELECT array_agg(step_key ORDER BY step_order) FILTER (WHERE can_return_to_student) FROM steps)
+       = ARRAY['dean_review','registrar_fee_referral'] AS return_steps_exact,
+    (SELECT count(*) = 17
+        AND count(*) FILTER (WHERE action_result = 'reject' AND to_key IS NULL) = 5
+        AND count(*) FILTER (WHERE action_result = 'return' AND to_key IS NULL) = 2
+        AND count(*) FILTER (WHERE action_result = 'skip') = 0
+        AND count(*) FILTER (WHERE COALESCE(condition_schema, '{}'::jsonb) <> '{}'::jsonb) = 1
+        AND count(*) FILTER (WHERE from_key = 'registrar_fee_referral' AND to_key = 'department_head_signature'
+                               AND condition_schema ->> 'code' = 'EXCUSED_ABSENCE_FEE_NOT_REQUIRED'
+                               AND NOT is_default) = 1
+        AND count(*) FILTER (WHERE from_key = 'registrar_fee_referral' AND to_key = 'payment_confirmation'
+                               AND is_default) = 1
+       FROM tr) AS seventeen_transitions_exact,
+    (SELECT count(*) = 8 FROM public.b1_workflow_runtime_contract_snapshot c JOIN new_wf ON new_wf.id = c.workflow_id)
+       AS runtime_contract_pinned,
+    (SELECT count(*) >= 1 FROM public.request_workflow_publish_validations v JOIN new_wf ON new_wf.id = v.workflow_id
+      WHERE v.is_valid) AS publish_validation_recorded,
+    (SELECT count(*) >= 1 FROM public.request_type_workflow_change_log l JOIN new_wf ON new_wf.id = l.workflow_id
+      WHERE l.change_kind = 'workflow_published') AS change_log_recorded,
+    (SELECT count(*) = 1 FROM public.request_workflow_transition_condition_catalog c
+      WHERE c.code = 'EXCUSED_ABSENCE_FEE_NOT_REQUIRED' AND c.is_active) AS fee_condition_in_catalog,
+    (SELECT bool_and(to_regprocedure(sig) IS NOT NULL) FROM new_functions) AS seven_new_functions_exist,
+    (SELECT bool_and(has_function_privilege('authenticated', to_regprocedure(sig), 'EXECUTE') = exposed
+                     AND NOT has_function_privilege('anon', to_regprocedure(sig), 'EXECUTE'))
+       FROM new_functions WHERE to_regprocedure(sig) IS NOT NULL) AS function_exposure_exact,
+    (SELECT c.relrowsecurity FROM pg_class c WHERE c.oid = to_regclass('public.excused_absence_fee_decisions'))
+       AS fee_decision_table_rls_enabled,
+    (SELECT NOT has_table_privilege('authenticated', to_regclass('public.excused_absence_fee_decisions'), 'SELECT,INSERT,UPDATE,DELETE')
+        AND NOT has_table_privilege('anon', to_regclass('public.excused_absence_fee_decisions'), 'SELECT,INSERT,UPDATE,DELETE'))
+       AS fee_decision_table_not_exposed,
+    EXISTS (SELECT 1 FROM pg_trigger t
+            WHERE t.tgrelid = to_regclass('public.excused_absence_fee_decisions')
+              AND t.tgname = 'trg_guard_excused_absence_fee_decision_write' AND NOT t.tgisinternal)
+       AS fee_decision_guard_trigger_exists,
+    (SELECT count(*) = 11 AND bool_and(position(m.marker in pg_get_functiondef(to_regprocedure(m.fn))) > 0)
+       FROM markers m) AS eleven_patch_markers_present,
+    NOT EXISTS (SELECT 1 FROM public.student_request_workflow_steps s
+                JOIN new_wf ON new_wf.id = s.workflow_id
+                JOIN public.student_requests r ON r.id = s.student_request_id
+                WHERE r.submitted_at < new_wf.published_at
+                  AND r.status::text NOT IN ('returned','returned_for_completion'))
+       AS no_existing_request_moved_to_new_cycle
+)
+SELECT
+  c.*,
+  (c.single_active_workflow AND c.new_workflow_active AND c.free_workflow_retired
+   AND c.new_version_follows_the_free_cycle AND c.eight_steps_exact AND c.every_step_single_direct_assignee
+   AND c.only_payment_step_skippable AND c.reject_steps_exact AND c.return_steps_exact
+   AND c.seventeen_transitions_exact AND c.runtime_contract_pinned AND c.publish_validation_recorded
+   AND c.change_log_recorded AND c.fee_condition_in_catalog AND c.seven_new_functions_exist
+   AND c.function_exposure_exact AND c.fee_decision_table_rls_enabled AND c.fee_decision_table_not_exposed
+   AND c.fee_decision_guard_trigger_exists AND c.eleven_patch_markers_present
+   AND c.no_existing_request_moved_to_new_cycle) IS TRUE AS applied_correctly,
+  -- ---- informational --------------------------------------------------------
+  (SELECT code || ' v' || version FROM wf WHERE status = 'active' AND is_active) AS active_workflow,
+  (SELECT student_visible FROM rt) AS request_type_student_visible,
+  (SELECT count(*) FROM public.excused_absence_fee_decisions) AS fee_decisions_recorded,
+  (SELECT count(*) FROM public.student_requests r
+    WHERE r.request_type::text IN ('excused_absence','absence_excuse')
+      AND r.status::text NOT IN ('completed','rejected','cancelled','draft')) AS open_requests_of_this_service,
+  (SELECT count(DISTINCT s.student_request_id) FROM public.student_request_workflow_steps s
+     JOIN new_wf ON new_wf.id = s.workflow_id) AS requests_on_the_new_cycle,
+  (SELECT count(*) FROM public.request_processing_assignments) AS processing_assignment_count
+FROM checks c;
+```
 
 ## 14. إجراء التراجع
 
-لا حذف ولا reset. التراجع **إلى الأمام** فقط، وبترحيل مفوَّض:
+لا حذف ولا reset. التراجع **إلى الأمام** فقط، بملف واحد مُبرهن في البروفة:
+`docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.rollback-by-forward.sql` (مسودة؛ تُرقّى وتُطبَّق بتفويض مستقل).
 
-- **قبل وجود أي طلب على الدورة الجديدة:** تقاعد `excused_absence_external_payment_workflow` وإعادة تفعيل `excused_absence_free_workflow` v2 بالأعمدة نفسها (`status`/`is_active`/`updated_at`، التقاعد أولاً ثم التفعيل)، مع صف في `request_type_workflow_change_log` بـ`change_kind = 'workflow_rolled_back'`. صفوف تثبيت العقد تبقى (الجدول إدراج فقط).
-- **بعد وجود طلبات على الدورة الجديدة:** لا يُعاد تفعيل القديم إلا للطلبات الجديدة؛ الطلبات التي بدأت على الدورة الجديدة تكمل عليها (لقطتها تبقى صالحة لأن التفويض يقرأ من لقطة الطلب). لا تُنقل طلبات بين الدورتين.
-- **رقع الدوال والدوال الجديدة وجدول القرارات تُترك:** كلها خاملة خارج الدورة الجديدة (البوابة والخطّاف مشروطان برمز سير العمل الجديد؛ الشرط لا يُقيَّم دون انتقاله؛ الجدول لا يُكتب إلا من RPC المسجل). لا يُحذف جدول القرارات (سجل تدقيق). إزالة الرقع — إن طُلبت — رقعة عكسية بنقاط الارتكاز نفسها.
+- **ماذا يفعل:** يقاعد `excused_absence_external_payment_workflow` ويعيد تفعيل أعلى إصدار من `excused_absence_free_workflow` بالأعمدة نفسها التي يستعملها مسار النشر، ويكتب صفاً في `request_type_workflow_change_log` بـ`change_kind = 'workflow_rolled_back'`.
+- **ماذا يترك:** تعريف الدورة الجديدة وصفوف تثبيت عقدها، جدول القرارات، الدوال السبع، والرقع الإحدى عشرة. كلها خاملة خارج الدورة الجديدة (كل فرع جديد مشروط برمز سير العمل الجديد). إزالة الرقع — إن طُلبت — رقعة عكسية بنقاط الارتكاز نفسها.
+- **متى يرفض (فشل مغلق):** إذا وُجد أي طلب له خطوات على الدورة الجديدة ← `EXCUSED_ABSENCE_WF01_ROLLBACK_BLOCKED_REQUESTS_EXIST_ON_NEW_CYCLE:<n>`. تلك الطلبات يجب أن تكمل على دورتها (إعادة التقديم بعد الإرجاع تشترط أن يكون إصدارها هو النشط)؛ في هذه الحالة لا تراجع عن سير العمل، بل إصلاح إلى الأمام.
+- **المُثبت:** بعد التراجع يُهيَّأ طلب جديد على الدورة المجانية ذات الخطوات الثلاث؛ تشغيل ثانٍ لا يغيّر شيئاً؛ إعادة تطبيق المسودة بعد التراجع تنجح (`applied_correctly = true`)؛ والرفض عند وجود طلبات لا يترك أي أثر.
 - **الواجهة:** إعادة نشر الإصدار السابق من المصدر.
 
 ## 15. التحقق المنفَّذ وما لم يُتحقق منه
@@ -188,7 +539,8 @@
 **نُفِّذ محلياً (بلا شبكة):**
 - `bun build --no-bundle` لكل ملف TypeScript معدَّل أو جديد.
 - `bun test tests` قبل وبعد: لا إخفاقات جديدة؛ الإخفاقات السابقة كلها لغياب Docker/الحزم.
-- البروفة الكاملة على PostgreSQL 16 مؤقت: 12 مجسّاً، مجسّ الضرورة، تطبيق مرتين ببصمة متطابقة، كل السيناريوهات.
+- البروفة الكاملة على PostgreSQL 16 مؤقت: 12 مجسّاً، مجسّ الضرورة، تطبيق مرتين ببصمة متطابقة، كل السيناريوهات، استعلاما الفحص المسبق والتحقق اللاحق، وبروفة التراجع.
+- بروفة الخدمتين المدفوعتين `scripts/b1-paid-services-zero-fee-check-01-pg17/run.sh` بدون هذه المسودة ومعها: سجل متطابق.
 - محاكاة ساق CI (الملفات نفسها بالترتيب نفسه في قاعدة واحدة).
 
 **لم يُتحقق منه:**
@@ -200,5 +552,5 @@
 ## 16. تقرير الوكيل
 
 - **أثر الإنتاج:** لا شيء. لا ترحيل مطبّق عُدِّل، ولا `enrollment_certificate`، ولا `request_types.student_visible`، ولا `AGENTS.md`.
-- **العوائق:** غياب `node_modules` وPostgreSQL 17 محلياً؛ بند المبلغ ينتظر المالك.
+- **العوائق:** غياب `node_modules` وPostgreSQL 17 محلياً؛ بند المبلغ ينتظر إضافة الاستثناء إلى `AGENTS.md` من المالك أو الجلسة الرئيسية.
 - **القرار:** المصدر **PASS**؛ بند المبلغ والتطبيق على الإنتاج **HOLD**.

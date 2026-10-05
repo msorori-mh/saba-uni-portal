@@ -173,6 +173,35 @@ PGDATABASE=eawf01_unpatched psql -v ON_ERROR_STOP=1 -q -f "$HARNESS/02-necessity
   | sed -n 's/^.*NOTICE:  //p'
 psql -v ON_ERROR_STOP=1 -q -c "drop database eawf01_unpatched"
 
+# ---- production pre-flight query (read-only, single statement) ----------------
+PREFLIGHT="$DRAFTS/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.preflight.sql"
+VERIFY="$DRAFTS/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.verify.sql"
+ROLLBACK="$DRAFTS/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.rollback-by-forward.sql"
+field() { # database, file, column -> value of that column in the single result row
+  PGDATABASE="$1" psql -v ON_ERROR_STOP=1 -q -Atx -f "$2" | sed -n "s/^$3|//p"
+}
+expect_field() { # label, database, file, column, expected
+  local got; got="$(field "$2" "$3" "$4")"
+  [ "$got" = "$5" ] || { echo "QUERY_CHECK_FAIL($1): $4 = '$got', expected '$5'"; exit 1; }
+  echo "ok: $1 -> $4 = $5"
+}
+echo "--- production pre-flight / post-apply queries"
+before="$(psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()")"
+expect_field "pre-flight before the apply" postgres "$PREFLIGHT" ready_to_apply t
+expect_field "pre-flight before the apply" postgres "$PREFLIGHT" draft_already_applied f
+psql -v ON_ERROR_STOP=1 -q -c "$(rewrite_fn "$ACT_ON" "v_canonical='file_withdrawal'" "v_canonical = 'file_withdrawal'")"
+expect_field "pre-flight sees a drifted anchor" postgres "$PREFLIGHT" ready_to_apply f
+expect_field "pre-flight names the drifted anchor" postgres "$PREFLIGHT" failing_anchors "{EAWF01:effect-before-archive:0}"
+psql -v ON_ERROR_STOP=1 -q -c "$(rewrite_fn "$ACT_ON" "v_canonical = 'file_withdrawal'" "v_canonical='file_withdrawal'")"
+psql -v ON_ERROR_STOP=1 -q -c "UPDATE public.request_processing_assignments SET is_active=false WHERE staff_profile_id='33333333-3333-3333-3333-000000000011'"
+expect_field "pre-flight sees a role without its single assignee" postgres "$PREFLIGHT" ready_to_apply f
+expect_field "pre-flight names that role" postgres "$PREFLIGHT" roles_without_single_assignee "{dean/dean:0}"
+psql -v ON_ERROR_STOP=1 -q -c "UPDATE public.request_processing_assignments SET is_active=true WHERE staff_profile_id='33333333-3333-3333-3333-000000000011'"
+expect_field "pre-flight is green again" postgres "$PREFLIGHT" ready_to_apply t
+after="$(psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()")"
+[ "$before" = "$after" ] || { echo "PREFLIGHT_QUERY_IS_NOT_READ_ONLY"; exit 1; }
+echo "ok: the pre-flight query wrote nothing"
+
 run "applying EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01" "$DRAFT"
 psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()" > "$PGDIR/fingerprint-1.txt"
 run "re-applying EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 (idempotency)" "$DRAFT"
@@ -181,7 +210,48 @@ cmp "$PGDIR/fingerprint-1.txt" "$PGDIR/fingerprint-2.txt" \
   || { echo "IDEMPOTENCY_FINGERPRINT_MISMATCH"; exit 1; }
 echo "ok: second apply changed nothing (fingerprint identical)"
 
+before="$(psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()")"
+expect_field "post-apply verification" postgres "$VERIFY" applied_correctly t
+expect_field "post-apply verification" postgres "$VERIFY" requests_on_the_new_cycle 0
+expect_field "pre-flight after the apply" postgres "$PREFLIGHT" ready_to_apply t
+expect_field "pre-flight after the apply" postgres "$PREFLIGHT" draft_already_applied t
+after="$(psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()")"
+[ "$before" = "$after" ] || { echo "VERIFY_QUERY_IS_NOT_READ_ONLY"; exit 1; }
+echo "ok: the verification query wrote nothing"
+
+# ---- rollback by forward, rehearsed on a copy -----------------------------------
+echo "--- rollback-by-forward rehearsal (on a copy)"
+psql -v ON_ERROR_STOP=1 -q -c "create database eawf01_rollback template postgres"
+PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -f "$ROLLBACK" >/dev/null 2>&1
+expect_field "after the rollback" eawf01_rollback "$PREFLIGHT" active_workflow "excused_absence_free_workflow v2"
+PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()" > "$PGDIR/rb-1.txt"
+PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -f "$ROLLBACK" >/dev/null 2>&1
+PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()" > "$PGDIR/rb-2.txt"
+cmp "$PGDIR/rb-1.txt" "$PGDIR/rb-2.txt" || { echo "ROLLBACK_IS_NOT_IDEMPOTENT"; exit 1; }
+echo "ok: a second rollback changed nothing"
+PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -Atc \
+  "select public.initialize_b1_request_workflow_strict(public.h_seed_absence_after_rollback(), 'excused_absence') ->> 'initialized'" \
+  | grep -qx true || { echo "ROLLBACK_NEW_REQUEST_NOT_ON_FREE_CYCLE"; exit 1; }
+[ "$(PGDATABASE=eawf01_rollback psql -q -Atc "select string_agg(step_key, '>' order by step_order) from public.student_request_workflow_steps where student_request_id='88888888-8888-8888-8888-0000000000bb'")" \
+  = "student_affairs_intake>manager_review>record_apply" ] || { echo "ROLLBACK_NEW_REQUEST_WRONG_STEPS"; exit 1; }
+echo "ok: after the rollback a new request runs on the old three-step free cycle"
+PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -f "$DRAFT" >/dev/null 2>&1
+expect_field "draft re-applied after a rollback" eawf01_rollback "$VERIFY" applied_correctly t
+psql -v ON_ERROR_STOP=1 -q -c "drop database eawf01_rollback"
+
 echo "--- direct-RPC authorization matrix + lifecycle"
 psql -v ON_ERROR_STOP=1 -f "$HARNESS/03-cases.sql"
+
+# Once requests run on the new cycle the rollback must refuse (fail closed).
+before="$(psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()")"
+if psql -v ON_ERROR_STOP=1 -q -f "$ROLLBACK" >"$PGDIR/rollback.out" 2>&1; then
+  echo "ROLLBACK_RAN_ALTHOUGH_REQUESTS_EXIST_ON_THE_NEW_CYCLE"; exit 1
+fi
+grep -q "EXCUSED_ABSENCE_WF01_ROLLBACK_BLOCKED_REQUESTS_EXIST_ON_NEW_CYCLE" "$PGDIR/rollback.out" \
+  || { echo "ROLLBACK_WRONG_REFUSAL"; cat "$PGDIR/rollback.out"; exit 1; }
+after="$(psql -v ON_ERROR_STOP=1 -q -Atc "select public.h_eawf01_fingerprint()")"
+[ "$before" = "$after" ] || { echo "REFUSED_ROLLBACK_LEFT_CHANGES"; exit 1; }
+echo "ok: rollback refuses while requests run on the new cycle; nothing changed"
+expect_field "post-apply verification after real traffic" postgres "$VERIFY" applied_correctly t
 
 echo "EXCUSED_ABSENCE_PAID_SIGNATURE_WORKFLOW_01_REHEARSAL_PASS"

@@ -201,3 +201,17 @@ VALUES ('88888888-8888-8888-8888-00000000000a','66666666-6666-6666-6666-00000000
         DATE '2026-09-02','official','طلب قائم ثانٍ قبل التحويل');
 
 SELECT public.initialize_b1_request_workflow_strict('88888888-8888-8888-8888-00000000000a','excused_absence') ->> 'initialized';
+
+-- Used only by the rollback rehearsal in run.sh: seeds one submitted request
+-- and returns its id so the initializer can be called on it.
+CREATE OR REPLACE FUNCTION public.h_seed_absence_after_rollback() RETURNS uuid
+LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO public.student_requests (id, student_profile_id, request_type, request_number, title, status, form_data, submitted_at)
+  VALUES ('88888888-8888-8888-8888-0000000000bb','77777777-7777-7777-7777-000000000002','excused_absence',
+    'SR-TESTONLY-EAWF01-AFTER-ROLLBACK','غياب بعذر','submitted','{}'::jsonb, now());
+  INSERT INTO public.absence_excuse_details (request_id, course_section_id, absence_date, reason_type, absence_reason_detail)
+  VALUES ('88888888-8888-8888-8888-0000000000bb','66666666-6666-6666-6666-000000000007',
+          DATE '2026-09-03','medical','طلب بعد التراجع');
+  RETURN '88888888-8888-8888-8888-0000000000bb'::uuid;
+END $$;
