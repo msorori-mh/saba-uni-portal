@@ -597,7 +597,7 @@ describe("UI source — registrar fee card, exit panels, student summary", () =>
 
   it("routes the registrar step to the fee card and offers exits only from the contract", () => {
     expect(section).toContain("B1FeeDecisionCard");
-    expect(section).toContain("EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY");
+    expect(section).toContain("isB1FeeDecisionStep(requestTypeCode, stepKey)");
     expect(section).toContain("getB1StepExitActions(");
     expect(section).toContain('data-testid="b1-staff-exit-actions"');
   });

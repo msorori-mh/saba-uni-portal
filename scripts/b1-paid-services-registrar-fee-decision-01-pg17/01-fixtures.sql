@@ -1,4 +1,4 @@
--- B1-PAID-SERVICES-ZERO-FEE-CHECK-01 rehearsal fixtures
+-- B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01 rehearsal fixtures
 -- (isolated throwaway cluster ONLY).
 --
 -- Version 1 of both paid workflows, shaped exactly as the applied migration
@@ -111,16 +111,16 @@ WHERE u.code = 'dean'
   AND NOT EXISTS (SELECT 1 FROM public.request_processing_assignments a
                   WHERE a.unit_id = u.id AND a.role_id = r.id AND a.is_active);
 
--- Four students in computer science, one request each.
+-- Eight students in computer science, one request each.
 INSERT INTO auth.users (id)
-SELECT ('11111111-1111-1111-1111-0000000000' || n)::uuid FROM unnest(ARRAY['c1','c2','c3','c4','c5','c6']) n
+SELECT ('11111111-1111-1111-1111-0000000000' || n)::uuid FROM unnest(ARRAY['c1','c2','c3','c4','c5','c6','c7','c8']) n
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.student_profiles (id, user_id, academic_number, full_name_ar, department_id, program_id, status)
 SELECT ('77777777-7777-7777-7777-0000000000' || n)::uuid, ('11111111-1111-1111-1111-0000000000' || n)::uuid,
        'TESTONLY-PAID-' || upper(n), 'طالب اختبار ' || n,
        '22222222-2222-2222-2222-000000000001', '66666666-6666-6666-6666-000000000004', 'active'
-FROM unnest(ARRAY['c1','c2','c3','c4','c5','c6']) n
+FROM unnest(ARRAY['c1','c2','c3','c4','c5','c6','c7','c8']) n
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.student_academic_status (student_profile_id, academic_year_id, semester_id, level_id, enrollment_status)

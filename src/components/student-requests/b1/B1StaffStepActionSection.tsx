@@ -1,3 +1,8 @@
+import {
+  getB1FeeDecisionService,
+  isB1FeeDecisionStep,
+  type B1FeeDecisionService,
+} from "@/lib/student-requests/b1-fee-decision-contract";
 import { useMemo, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,7 +23,6 @@ import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
 import { B1FeeDecisionCard } from "./B1FeeDecisionCard";
 import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
 import {
-  EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY,
   getB1StepExitActions,
   type B1StepExitAction,
 } from "@/lib/student-requests/excused-absence-fee-decision-contract";
@@ -59,6 +63,8 @@ export function createB1FeeDecisionHandler(params: {
   inFlightRef: { current: boolean };
   onActingChange?: (acting: boolean) => void;
   onSettled?: () => Promise<void> | void;
+  /** The request's service; selects the service's fee-decision RPC. */
+  serviceCode?: B1FeeDecisionService | null;
 }) {
   return async (
     stepId: string,
@@ -73,7 +79,11 @@ export function createB1FeeDecisionHandler(params: {
     params.inFlightRef.current = true;
     params.onActingChange?.(true);
     try {
-      await decideFn.call(params.adapter, params.stepId, submission);
+      await decideFn.call(
+        params.adapter,
+        params.stepId,
+        params.serviceCode ? { ...submission, serviceCode: params.serviceCode } : submission,
+      );
       await params.onSettled?.();
     } finally {
       params.inFlightRef.current = false;
@@ -303,12 +313,11 @@ export function B1StaffStepActionSection({
     }
   };
 
-  // غياب بعذر only: the registrar step is completed by a recorded fee decision,
-  // never by a plain review. Every other service/step keeps the generic panel.
-  const isFeeDecisionStep =
-    toB1CanonicalCode(requestTypeCode) === "excused_absence" &&
-    (stepKey ?? "").trim() === EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY &&
-    contract.action === "review";
+  // غياب بعذر، التحويل بين الأقسام، الفرصة الأخيرة: the registrar fee step is
+  // completed by a recorded fee decision, never by a plain review. Every other
+  // service/step keeps the generic panel.
+  const feeDecisionService = getB1FeeDecisionService(requestTypeCode);
+  const isFeeDecisionStep = isB1FeeDecisionStep(requestTypeCode, stepKey) && contract.action === "review";
 
   const handleFeeDecision = createB1FeeDecisionHandler({
     adapter,
@@ -316,6 +325,7 @@ export function B1StaffStepActionSection({
     inFlightRef,
     onActingChange: setActing,
     onSettled: invalidate,
+    serviceCode: feeDecisionService,
   });
 
   // Return / reject are offered only where the service contract allows them

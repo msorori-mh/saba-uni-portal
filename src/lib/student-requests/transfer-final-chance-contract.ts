@@ -8,7 +8,12 @@ import {
   type StepActor,
 } from "./request-service-adapter";
 
-export const B1_02_POLICY = "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION" as const;
+/**
+ * B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01: the college registrar decides the
+ * fee per request; when a fee is due the student pays in the university's main
+ * system and the revenue officer confirms it (payment_confirmation).
+ */
+export const B1_02_POLICY = "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT" as const;
 
 export type TransferDepartmentAssignments = {
   sourceDepartmentId: string | null;

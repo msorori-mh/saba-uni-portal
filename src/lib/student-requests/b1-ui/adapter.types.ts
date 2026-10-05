@@ -2,7 +2,8 @@
  * B1 Five-Services UI Adapter — contract types (frozen).
  *
  * This file is the single integration seam between the B1 student/staff UI
- * and the backend. React components must never import Supabase directly;
+ * and the backend. React components must never import type { B1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
+import Supabase directly;
  * every read/write goes through `B1UiAdapter`. Cursor's backend contracts
  * will replace the mock/live implementations without touching the forms.
  *
@@ -52,6 +53,11 @@ export type B1ExcusedAbsenceFeeDecisionSubmission = {
   /** Display-only amount due as decimal text; FEE_REQUIRED only. */
   amountDue?: string | null;
   note?: string | null;
+  /**
+   * Which of the three fee-decision services the step belongs to. Selects the
+   * service's RPC only; omitted means غياب بعذر (backwards compatible).
+   */
+  serviceCode?: B1FeeDecisionService;
 };
 
 // ---------------------------------------------------------------------------
@@ -322,13 +328,17 @@ export type B1UiAdapter = {
   /** Simplified revenue receipt: no amount/currency/invoice — server stamps actor/time. */
   confirmB1RevenueReceipt(stepId: string, optionalNote?: string): Promise<B1StepActionResult>;
   /**
-   * غياب بعذر: the college registrar's fee decision (FEE_REQUIRED / FEE_NOT_REQUIRED
-   * + reason). Completes the registrar step and routes the request server-side.
+   * The college registrar's per-request fee decision (FEE_REQUIRED + display-only
+   * value due / FEE_NOT_REQUIRED + reason) for غياب بعذر، التحويل بين الأقسام and
+   * الفرصة الأخيرة. Completes the registrar step and routes the request server-side.
    */
   recordB1ExcusedAbsenceFeeDecision(
     stepId: string,
     submission: B1ExcusedAbsenceFeeDecisionSubmission,
   ): Promise<B1StepActionResult>;
   /** Null until the registrar decides, or when the caller may not see it. */
-  getB1ExcusedAbsenceFeeDecision(requestId: string): Promise<ExcusedAbsenceFeeDecisionRecord | null>;
+  getB1ExcusedAbsenceFeeDecision(
+    requestId: string,
+    serviceCode?: B1FeeDecisionService,
+  ): Promise<ExcusedAbsenceFeeDecisionRecord | null>;
 };

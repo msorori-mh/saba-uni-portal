@@ -31,6 +31,7 @@ export const B1_STEP_LABELS_AR: Readonly<Record<string, string>> = {
   record_apply: "تطبيق القرار",
   dean_review: "مراجعة العميد وإحالة الطلب",
   registrar_fee_referral: "قرار مسجل الكلية بشأن الرسوم",
+  registrar_fee_decision: "قرار مسجل الكلية بشأن الرسوم",
   department_head_signature: "توقيع رئيس القسم",
   dean_signature: "توقيع العميد",
   student_affairs_manager_signature: "توقيع مدير شؤون الطلاب",

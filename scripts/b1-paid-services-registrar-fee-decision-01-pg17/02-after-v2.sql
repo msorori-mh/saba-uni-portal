@@ -1,4 +1,4 @@
--- B1-PAID-SERVICES-ZERO-FEE-CHECK-01 — state that production gained AFTER the
+-- B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01 — state that production gained AFTER the
 -- v2 cut-over (isolated throwaway cluster ONLY).
 
 -- Runtime contract pins exactly as migration 20260811204643 seeded them.
@@ -26,6 +26,8 @@ LANGUAGE sql STABLE AS $$
   WHERE student_request_id = p_request AND step_key = p_key $$;
 
 -- Calls one real RPC as p_uid; returns 'OK' or the raised error text.
+--   act -> generic atomic executor      pay -> external payment confirmation
+--   fee -> record_b1_fee_decision; p_action = 'DECISION:REASON:AMOUNT'
 CREATE OR REPLACE FUNCTION public.hp_try(p_uid uuid, p_kind text, p_step uuid, p_action text)
 RETURNS text LANGUAGE plpgsql AS $$
 BEGIN
@@ -33,6 +35,10 @@ BEGIN
   BEGIN
     IF p_kind = 'pay' THEN
       PERFORM public.record_external_university_payment_confirmation(p_step, NULL);
+    ELSIF p_kind = 'fee' THEN
+      EXECUTE 'SELECT public.record_b1_fee_decision($1, $2, $3, NULL, $4)'
+        USING p_step, split_part(p_action, ':', 1), NULLIF(split_part(p_action, ':', 2), ''),
+              NULLIF(split_part(p_action, ':', 3), '')::numeric;
     ELSE
       PERFORM public.act_on_b1_student_request_step_atomic(p_step, p_action, 'ملاحظة اختبار كافية', '{}'::jsonb);
     END IF;
@@ -49,9 +55,21 @@ BEGIN
   RETURN public.can_current_user_act_on_step(p_step, p_action);
 END $$;
 
+CREATE OR REPLACE FUNCTION public.hp_fee_rows(p_request uuid) RETURNS text
+LANGUAGE plpgsql STABLE AS $$
+DECLARE v text;
+BEGIN
+  IF to_regclass('public.b1_request_fee_decisions') IS NULL THEN RETURN 'none'; END IF;
+  EXECUTE 'SELECT COALESCE(jsonb_agg(to_jsonb(d))::text, ''none'') FROM public.b1_request_fee_decisions d WHERE d.request_id = $1'
+    INTO v USING p_request;
+  RETURN v;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.hp_state(p_request uuid) RETURNS text
 LANGUAGE sql STABLE AS $$
   SELECT md5(concat_ws('|',
+    public.hp_fee_rows(p_request),
+    (SELECT count(*)::text FROM public.notifications n WHERE n.reference_id = p_request),
     (SELECT to_jsonb(r)::text FROM public.student_requests r WHERE r.id = p_request),
     (SELECT jsonb_agg(to_jsonb(s) ORDER BY s.step_order)::text
        FROM public.student_request_workflow_steps s WHERE s.student_request_id = p_request),
@@ -115,13 +133,15 @@ BEGIN
     '11111111-1111-1111-1111-000000000009'::uuid]   -- faculty member
   LOOP
     IF public.hp_try(v_uid, 'act', v_step, p_action) = 'OK'
+       OR public.hp_try(v_uid, 'fee', v_step, 'FEE_REQUIRED::5000') = 'OK'
+       OR public.hp_try(v_uid, 'fee', v_step, 'FEE_NOT_REQUIRED:EXEMPTION') = 'OK'
        OR public.hp_try(v_uid, 'pay', v_step, '') = 'OK'
        OR public.hp_try(v_uid, 'act', v_step, 'approve') = 'OK'
        OR public.hp_try(v_uid, 'act', v_step, 'apply_decision') = 'OK'
        OR public.hp_gate(v_uid, v_step, p_action) THEN
       RAISE EXCEPTION 'CASE_FAIL: % was allowed on %', COALESCE(v_uid::text, 'anonymous'), p_step_key;
     END IF;
-    v_n := v_n + 5;
+    v_n := v_n + 7;
   END LOOP;
   IF public.hp_state(p_request) IS DISTINCT FROM v_before THEN
     RAISE EXCEPTION 'CASE_FAIL: denied calls mutated the request at %', p_step_key;

@@ -1,10 +1,10 @@
--- B1-PAID-SERVICES-ZERO-FEE-CHECK-01 rehearsal preimages
+-- B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01 rehearsal preimages
 -- (isolated throwaway cluster ONLY — never a real database).
 --
 -- Adds the production relations and catalog rows that «التحويل بين الأقسام»
 -- (department_transfer) and «الفرصة الأخيرة» (final_chance) need on top of the
--- shared strict-runtime harness. The two academic-effect functions are NOT
--- copied here: run.sh extracts them verbatim from the applied migration
+-- shared strict-runtime harness. The two academic-effect functions live in
+-- 00a-applied-effects.sql, a verbatim extract of the applied migration
 -- supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql.
 
 ALTER TABLE public.transfer_request_details

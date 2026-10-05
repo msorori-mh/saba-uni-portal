@@ -1,4 +1,9 @@
 -- DRAFT ONLY — DO NOT APPLY FROM THIS PATH.
+-- SUPERSEDED — NEVER APPLIED, MUST NOT BE APPLIED.
+-- The owner chose a per-request registrar fee decision instead of mandatory
+-- payment: docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql.
+-- This file is kept for history only and aborts immediately if executed.
+DO $superseded$ BEGIN RAISE EXCEPTION 'B1_PAID_FIX01_SUPERSEDED_DO_NOT_APPLY'; END $superseded$;
 -- =====================================================================
 -- B1-PAID-SERVICES-ZERO-FEE-SKIP-FIX-01
 -- التحويل بين الأقسام + الفرصة الأخيرة: إصلاح فرع «لا رسوم» الذي يوقف الطلب.

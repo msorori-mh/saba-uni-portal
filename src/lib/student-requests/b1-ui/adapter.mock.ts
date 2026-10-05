@@ -7,6 +7,7 @@
  * `getB1UiAdapter()` only; the live backend replaces it untouched.
  */
 
+import { isB1FeeDecisionStep, type B1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
 import {
   B1AdapterError,
   type B1AssignedRequest,
@@ -37,7 +38,6 @@ import { validateB1FormValues } from "./validation";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import { buildB1StudentFormSummaryItems } from "./form-summary";
 import {
-  EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY,
   EXCUSED_ABSENCE_PAYMENT_STEP_KEY,
   excusedAbsenceFeeDecisionStudentMessageAr,
   getB1StepExitActions,
@@ -343,15 +343,24 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     const transferId = "b1mock-seed-transfer";
     const transferNumber = `B1-MOCK-${String(++requestCounter).padStart(4, "0")}`;
     const transferSteps = buildSteps("department_transfer");
-    for (let index = 0; index < 4; index += 1) {
+    // The registrar already decided that a fee is due (display-only value).
+    const transferPaymentIndex = transferSteps.findIndex((step) => step.key === "payment_confirmation");
+    for (let index = 0; index < transferPaymentIndex; index += 1) {
       transferSteps[index]!.status = "completed";
       transferSteps[index]!.actedAt = nowIso();
     }
-    transferSteps[4]!.status = "active"; // payment_confirmation
+    transferSteps[transferPaymentIndex]!.status = "active";
     requests.set(transferId, {
       requestId: transferId,
       requestNumber: transferNumber,
       serviceCode: "department_transfer",
+      feeDecision: {
+        requestId: transferId,
+        decision: "FEE_REQUIRED",
+        exemptionReason: null,
+        amountDue: "5000",
+        decidedAt: nowIso(),
+      },
       studentNameAr: MOCK_STUDENT_NAME_AR,
       studentNumber: MOCK_STUDENT_NUMBER,
       formData: {
@@ -726,15 +735,12 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
           `Action ${action} is not allowed on step ${step.key} of this service.`,
         );
       }
-      if (
-        request.serviceCode === "excused_absence" &&
-        step.key === EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY &&
-        action !== "return" &&
-        action !== "reject"
-      ) {
+      if (isB1FeeDecisionStep(request.serviceCode, step.key) && action !== "return" && action !== "reject") {
         throw new B1AdapterError(
           "BUSINESS_RULE_BLOCKED",
-          "B1_EXCUSED_ABSENCE_FEE_DECISION_REQUIRED",
+          request.serviceCode === "excused_absence"
+            ? "B1_EXCUSED_ABSENCE_FEE_DECISION_REQUIRED"
+            : "B1_FEE_DECISION_REQUIRED",
         );
       }
       if (!allowedActionsForStep(step).includes(action)) {
@@ -769,13 +775,13 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       await sleep();
       const { request, step, index } = findStep(stepId);
       if (
-        request.serviceCode !== "excused_absence" ||
-        step.key !== EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY ||
-        step.status !== "active"
+        !isB1FeeDecisionStep(request.serviceCode, step.key) ||
+        step.status !== "active" ||
+        (submission.serviceCode !== undefined && submission.serviceCode !== request.serviceCode)
       ) {
         throw new B1AdapterError(
           "PERMISSION_DENIED",
-          "Fee decision can only be recorded on the active registrar step of an excused-absence request.",
+          "Fee decision can only be recorded on the active registrar fee-decision step of the request's own service.",
         );
       }
       const validated = validateExcusedAbsenceFeeDecisionInput({ stepId, ...submission });
@@ -806,6 +812,7 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
 
     async getB1ExcusedAbsenceFeeDecision(
       requestId: string,
+      _serviceCode?: B1FeeDecisionService,
     ): Promise<ExcusedAbsenceFeeDecisionRecord | null> {
       await sleep();
       return requireRequest(requestId).feeDecision ?? null;

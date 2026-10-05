@@ -1,3 +1,4 @@
+import { getB1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
@@ -59,9 +60,12 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
             setFormOptions(null);
           }
         }
-        if (loaded.serviceCode === "excused_absence") {
+        const feeDecisionService = getB1FeeDecisionService(loaded.serviceCode);
+        if (feeDecisionService) {
           try {
-            setFeeDecision(await adapter.getB1ExcusedAbsenceFeeDecision(loaded.requestId));
+            setFeeDecision(
+              await adapter.getB1ExcusedAbsenceFeeDecision(loaded.requestId, feeDecisionService),
+            );
           } catch {
             // The decision is supplementary; the timeline stays authoritative.
             setFeeDecision(null);
@@ -82,7 +86,7 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
   const awaitingExternalPayment =
     activeStep?.key === B1_EXTERNAL_PAYMENT_STEP_KEY ||
     details.status === "waiting_payment_confirmation";
-  // غياب بعذر: when the registrar decided that no fee is due, the payment
+  // Fee-decision services: when the registrar decided that no fee is due, the payment
   // confirmation step does not apply to this request and is not listed.
   const timelineSteps =
     feeDecision?.decision === "FEE_NOT_REQUIRED"

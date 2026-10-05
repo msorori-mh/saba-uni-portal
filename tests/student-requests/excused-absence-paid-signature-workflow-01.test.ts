@@ -143,9 +143,10 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — TypeScript contract", (
     expect(config.feePolicyLabelAr).toBe(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT);
     expect(config.feePolicyLabelAr).toContain("النظام الجامعي الرئيسي");
     expect(config.feePolicyLabelAr).toContain("مسجل الكلية");
-    // the other paid services keep their policy; the free ones stay free
-    expect(B1_FEE_POLICIES.department_transfer).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
-    expect(B1_FEE_POLICIES.final_chance).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    // the two other paid services later got the same registrar decision
+    // (B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01); the free ones stay free
+    expect(B1_FEE_POLICIES.department_transfer).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    expect(B1_FEE_POLICIES.final_chance).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     expect(B1_FEE_POLICIES.enrollment_suspension).toBe("FREE_NO_PAYMENT");
     expect(B1_FEE_POLICIES.file_withdrawal).toBe("FREE_NO_PAYMENT");
     expect(getB1ServiceConfig("absence_excuse")).toBe(config);
@@ -202,7 +203,7 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — TypeScript contract", (
     expect(detail).toContain("{B1_EXTERNAL_PAYMENT_STUDENT_GUIDANCE_AR}");
     expect(detail).not.toMatch(/confirmB1RevenueReceipt|record_external_university_payment_confirmation/);
     expect(detail).not.toMatch(/recordB1ExcusedAbsenceFeeDecision/); // students only READ the decision
-    expect(detail).toContain("adapter.getB1ExcusedAbsenceFeeDecision(loaded.requestId)");
+    expect(detail).toContain("adapter.getB1ExcusedAbsenceFeeDecision(loaded.requestId, feeDecisionService)");
     expect(detail).toContain("excusedAbsenceFeeDecisionStudentMessageAr(feeDecision)");
     expect(detail).not.toMatch(/<button|<input|<form/);
   });
@@ -799,7 +800,8 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — executable rehearsal an
   it("runs the same chain as a PG 17 verifier leg in CI", () => {
     const ci = read(".github", "workflows", "ci.yml");
     expect(ci).toContain("- name: excused-absence-paid-signature-workflow");
-    expect(occurrences(ci, "docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql")).toBe(2);
+    // twice in its own leg (idempotency) + once as the applied base of the paid-services leg
+    expect(occurrences(ci, "docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql")).toBe(3);
     expect(ci).toContain("scripts/excused-absence-paid-signature-01-pg17/03-cases.sql");
   });
 

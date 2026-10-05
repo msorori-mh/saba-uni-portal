@@ -1,5 +1,7 @@
 # B1-PAID-SERVICES-ZERO-FEE-CHECK-01 — فحص «التحويل بين الأقسام» و«الفرصة الأخيرة»
 
+> **تحديث:** الإصلاح المقترح في القسم 4 (السداد الإلزامي، `B1-PAID-SERVICES-ZERO-FEE-SKIP-FIX-01`) **أُلغي ولم يُطبَّق**. اختار المالك الخيار (ب): قرار رسوم لكل طلب لدى مسجل الكلية — انظر `docs/reviews/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.md`. ملف المسودة القديم صار `B1-PAID-SERVICES-ZERO-FEE-SKIP-FIX-01.SUPERSEDED.NOT_APPLIED.sql` (يتوقف فوراً إن شُغِّل)، والبروفة انتقلت إلى `scripts/b1-paid-services-registrar-fee-decision-01-pg17/`. تشخيص العيب في الأقسام 1–3 و6 ما زال صحيحاً.
+
 - **النطاق:** SOURCE-ONLY. بروفة على عنقود PostgreSQL محلي مؤقت فقط؛ لا شيء طُبِّق على أي قاعدة حقيقية.
 - **البروفة:** `scripts/b1-paid-services-zero-fee-check-01-pg17/run.sh`
 - **مسودة الإصلاح (مستقلة عن مسودة غياب بعذر):** `docs/migration-drafts/B1-PAID-SERVICES-ZERO-FEE-SKIP-FIX-01.sql`

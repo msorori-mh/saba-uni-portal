@@ -1,6 +1,10 @@
 -- B1-PAID-SERVICES-ZERO-FEE-CHECK-01 — after
 -- docs/migration-drafts/B1-PAID-SERVICES-ZERO-FEE-SKIP-FIX-01.sql.
 -- Direct RPC only, throwaway cluster.
+-- SUPERSEDED together with B1-PAID-SERVICES-ZERO-FEE-SKIP-FIX-01 (mandatory
+-- payment). The owner chose a per-request registrar fee decision instead:
+-- see 05-cases-fee-decision.sql. Kept for history only; it aborts if run.
+DO $$ BEGIN RAISE EXCEPTION 'SUPERSEDED_DO_NOT_RUN'; END $$;
 \set QUIET on
 SET client_min_messages = notice;
 
