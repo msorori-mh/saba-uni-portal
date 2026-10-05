@@ -18,6 +18,7 @@ import {
   EnrollmentCertificate, StatusCertificate, OfficialTranscript, FinancialReceipt,
   type DocumentBase, type StudentInfo, type SiteInfo, type TranscriptCourse, type ReceiptInfo,
 } from "@/components/documents/DocumentTemplates";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/documents/$id")({
   ssr: false,
@@ -56,7 +57,9 @@ function MobileDocumentView() {
             .select("id, academic_number, full_name_ar, full_name_en, national_id, user_id, department:departments(name_ar), program:programs(name_ar)")
             .eq("user_id", identity.userId).maybeSingle(),
           sb.from("official_documents")
-            .select("*").eq("id", id).eq("student_profile_id", spId).maybeSingle(),
+            // Exactly the DocumentBase fields the templates render (no storage path, notes or issuer).
+            .select("id, document_type, document_number, verification_code, issued_at, status, metadata")
+            .eq("id", id).eq("student_profile_id", spId).maybeSingle(),
           sb.from("student_academic_status")
             .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name)")
             .eq("student_profile_id", spId)
@@ -114,6 +117,7 @@ function MobileDocumentView() {
 
       return { doc: doc as DocumentBase, student, site, courses, receipt };
     },
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   useEffect(() => {

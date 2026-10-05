@@ -14,6 +14,7 @@ import {
   shouldShowStudentGpNav,
   type AcademicStatusTimestampRow,
 } from "@/lib/graduation-projects/eligibility";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export type MobileStudentProfile = {
   id: string;
@@ -116,7 +117,7 @@ export function useMobileStudentContext() {
     queryKey: ["mobile-student", "context"],
     queryFn: fetchMobileStudentContext,
     staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 }

@@ -10,6 +10,7 @@ import {
 import { useMobileStudentContext } from "@/lib/mobile/student-context";
 import { getMyProgress } from "@/lib/academic-status.functions";
 import { AcademicTranscript } from "@/components/academic/AcademicTranscript";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/academic-record")({
   head: () => ({
@@ -38,7 +39,7 @@ function MobileStudentAcademicRecordPage() {
     enabled: Boolean(studentProfileId),
     queryFn: () => fetchMine(),
     staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   return (

@@ -5,6 +5,7 @@ import { Bell, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getNotificationLink } from "@/lib/notifications/notification-link";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/notifications")({
   head: () => ({ meta: [{ title: "الإشعارات" }] }),
@@ -45,6 +46,7 @@ function MobileStudentNotifications() {
       if (error) throw error;
       return (data ?? []) as NotificationRow[];
     },
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const { data: unreadTotal = 0 } = useQuery({
@@ -57,6 +59,7 @@ function MobileStudentNotifications() {
       if (error) throw error;
       return count ?? 0;
     },
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const markAll = async () => {

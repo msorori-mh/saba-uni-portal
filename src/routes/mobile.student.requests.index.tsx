@@ -14,6 +14,7 @@ import {
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/requests/")({
   head: () => ({ meta: [{ title: "الخدمات الطلابية" }] }),
@@ -93,11 +94,13 @@ function MobileStudentRequests() {
     queryKey: ["mobile-student", "request-types"],
     queryFn: () => typesFn({ data: {} }),
     staleTime: 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
   const requestsQuery = useQuery({
     queryKey: ["mobile-student", "requests"],
     queryFn: () => listFn({ data: {} }),
     staleTime: 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const refetch = () => {
