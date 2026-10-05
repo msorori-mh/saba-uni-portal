@@ -11,6 +11,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { openExternalUrl } from "@/lib/native/external-links";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/documents/")({
   head: () => ({ meta: [{ title: "الوثائق الرسمية" }] }),
@@ -60,7 +61,7 @@ function MobileStudentDocuments() {
     queryKey: ["mobile-student", "documents"],
     queryFn: fetchDocs,
     staleTime: 2 * 60_000,
-    gcTime: 10 * 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 

@@ -9,6 +9,7 @@ import {
 import { triggerSignedFileDownload } from "@/lib/materials/signed-download";
 import { formatWeekLectureLabel } from "@/lib/course-materials.shared";
 import { CourseDeliveryPlanGrid } from "@/components/portal/CourseDeliveryPlanGrid";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/materials/$sectionId")({
   head: () => ({ meta: [{ title: "مواد المقرر" }] }),
@@ -22,6 +23,7 @@ function MobileStudentMaterialsCourse() {
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["mobile-student", "materials", "course", sectionId],
     queryFn: () => listStudentMaterialsForCourse({ data: { sectionId } }),
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const lectureMaterials = (data as any[]).filter((m) => m.material_scope === "lecture");

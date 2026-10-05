@@ -11,6 +11,7 @@ import {
 } from "@/lib/current-term";
 import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
 import { gradeArabicLabel, normalizeOfficialResult } from "@/lib/academic/grading-scale";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/grades")({
   head: () => ({
@@ -178,7 +179,7 @@ function MobileStudentGradesPage() {
     queryKey: ["mobile-student", "grades"],
     queryFn: fetchMobileGrades,
     staleTime: 3 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 

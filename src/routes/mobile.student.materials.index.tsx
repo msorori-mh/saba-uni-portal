@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BookOpen, ChevronLeft, Loader2 } from "lucide-react";
 import { listStudentCourseMaterials } from "@/lib/student-materials.functions";
 import { portalFeatures } from "@/lib/portal-features";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/materials/")({
   head: () => ({ meta: [{ title: "المواد التعليمية" }] }),
@@ -16,6 +17,7 @@ function MobileStudentMaterials() {
     queryFn: () => listStudentCourseMaterials(),
     enabled,
     staleTime: 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   return (

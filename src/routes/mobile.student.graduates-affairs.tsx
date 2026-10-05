@@ -8,6 +8,7 @@ import {
   resolveGraduateSelfSurfaceFn,
 } from "@/lib/graduates-affairs/graduates-affairs.functions";
 import { portalFeatures, STUDENT_GRADUATES_AFFAIRS_FROZEN_MSG } from "@/lib/portal-features";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/graduates-affairs")({
   head: () => ({ meta: [{ title: "شؤون الخريجين" }] }),
@@ -40,6 +41,7 @@ function MobileGraduatesAffairs() {
     queryFn: () => resolveSelf({ data: { capability: "profile_self_service" as const } }),
     enabled: portalFeatures.studentGraduatesAffairs,
     retry: 1,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const recordId = selfQuery.data?.allowed ? selfQuery.data.graduateRecordId : null;
@@ -76,10 +78,12 @@ function GraduateSelfLists({ graduateRecordId }: { graduateRecordId: string }) {
   const opportunities = useQuery({
     queryKey: ["mobile-student", "graduates-affairs", "opportunities", graduateRecordId],
     queryFn: () => listOpportunities({ data: { graduateRecordId } }),
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
   const events = useQuery({
     queryKey: ["mobile-student", "graduates-affairs", "events", graduateRecordId],
     queryFn: () => listEvents({ data: { graduateRecordId } }),
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const opportunityRows = (opportunities.data ?? []) as Opportunity[];

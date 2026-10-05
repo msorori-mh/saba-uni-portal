@@ -8,6 +8,7 @@ import {
   fetchMyStudyPlan,
   groupStudyPlanByLevel,
 } from "@/lib/student-study-plan";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/study-plan")({
   head: () => ({ meta: [{ title: "الخطة الدراسية" }] }),
@@ -19,6 +20,7 @@ function MobileStudyPlan() {
     queryKey: ["mobile-student", "program-id"],
     queryFn: fetchMyProgramId,
     staleTime: 5 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const { data: rows = [], isLoading } = useQuery({
@@ -26,6 +28,7 @@ function MobileStudyPlan() {
     queryFn: () => fetchMyStudyPlan(programId!),
     enabled: !!programId,
     staleTime: 5 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const groups = useMemo(() => groupStudyPlanByLevel(rows), [rows]);

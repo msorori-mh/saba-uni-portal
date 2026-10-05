@@ -14,6 +14,7 @@ import {
   getMobileSessionUserId,
   getMobileStudentIdentity,
 } from "@/lib/mobile/student-identity";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
@@ -121,7 +122,7 @@ function MobileStudentLayout() {
     queryFn: () => fetchShortProfile(authUserId!),
     enabled: Boolean(authUserId),
     staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 
@@ -137,8 +138,11 @@ function MobileStudentLayout() {
     },
     enabled: Boolean(authUserId),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    // Badge only: a 2-minute poll halves background traffic; returning to the
+    // app still refreshes it immediately through the focus refetch below.
+    refetchInterval: 120_000,
     refetchOnWindowFocus: true,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const handleLogout = async () => {

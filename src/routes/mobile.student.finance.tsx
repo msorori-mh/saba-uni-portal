@@ -8,6 +8,7 @@ import {
   STUDENT_FINANCE_FROZEN_MSG,
   portalFeatures,
 } from "@/lib/portal-features";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/finance")({
   head: () => ({ meta: [{ title: "الرسوم والمدفوعات" }] }),
@@ -124,7 +125,7 @@ function MobileStudentFinance() {
     queryFn: fetchFinance,
     enabled: financeEnabled,
     staleTime: 90_000,
-    gcTime: 10 * 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 

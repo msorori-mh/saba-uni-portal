@@ -215,88 +215,120 @@ function enrollmentPercentages(
 
 /* ----------------------- core: compute one student ----------------------- */
 
+/** Columns `computeStudentProgress` needs from `student_profiles`. */
+const PROGRESS_PROFILE_SELECT =
+  "id, academic_number, full_name_ar, status, study_system, program_id, study_plan_id, department_id, program:programs(id, name_ar), department:departments(name_ar)";
+
+/** Re-throws the first failed read in declaration order (same precedence as serial reads). */
+function settledValue<T>(result: PromiseSettledResult<T>): T {
+  if (result.status === "rejected") throw result.reason;
+  return result.value;
+}
+
 async function computeStudentProgress(
   supabase: SupabaseClient<Database>,
   studentProfileId: string,
+  // Profile row already read by the caller with PROGRESS_PROFILE_SELECT (same
+  // client, same row). Saves a second round-trip for the student's own view.
+  preloadedProfile?: unknown,
 ): Promise<StudentProgressDTO> {
-  const { data: spRaw } = await supabase
-    .from("student_profiles")
-    .select("id, academic_number, full_name_ar, status, study_system, program_id, study_plan_id, department_id, program:programs(id, name_ar), department:departments(name_ar)")
-    .eq("id", studentProfileId).maybeSingle();
+  // Profile, current academic status and enrollments only depend on the
+  // student id, so they go out together.
+  const [spRaw, { data: sasRaw }, { data: enrRaw, error: enrError }] = await Promise.all([
+    preloadedProfile
+      ? Promise.resolve(preloadedProfile)
+      : supabase
+          .from("student_profiles")
+          .select(PROGRESS_PROFILE_SELECT)
+          .eq("id", studentProfileId).maybeSingle()
+          .then((r) => r.data as unknown),
+    // Current academic status (level, year, semester, enrollment_status)
+    supabase
+      .from("student_academic_status")
+      .select("level_id, academic_year_id, semester_id, enrollment_status, level:academic_levels(name)")
+      .eq("student_profile_id", studentProfileId)
+      .order("updated_at", { ascending: false })
+      .limit(1).maybeSingle(),
+    // All enrollments (with their offering + section)
+    supabase
+      .from("student_enrollments")
+      .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, semester:semesters(name, code, start_date, academic_year:academic_years(name, start_date))))")
+      .eq("student_profile_id", studentProfileId),
+  ]);
   const sp: any = spRaw;
   if (!sp) throw new Error("Student not found");
-
-  // Current academic status (level, year, semester, enrollment_status)
-  const { data: sasRaw } = await supabase
-    .from("student_academic_status")
-    .select("level_id, academic_year_id, semester_id, enrollment_status, level:academic_levels(name)")
-    .eq("student_profile_id", studentProfileId)
-    .order("updated_at", { ascending: false })
-    .limit(1).maybeSingle();
   const sas: any = sasRaw;
-
-  // All enrollments (with their offering + section)
-  const { data: enrRaw, error: enrError } = await supabase
-    .from("student_enrollments")
-    .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, semester:semesters(name, code, start_date, academic_year:academic_years(name, start_date))))")
-    .eq("student_profile_id", studentProfileId);
   if (enrError) throw new Error(`تعذّر تحميل السجل: ${enrError.message}`);
   const enrollments = ((enrRaw ?? []) as unknown as EnrollmentRow[])
     .filter((e) => e.enrollment_status !== "dropped" && e.section?.offering);
 
   const enrollmentIds = enrollments.map((e) => e.id);
   const sectionIds = Array.from(new Set(enrollments.map((e) => e.section!.id)));
+  const courseIds = Array.from(new Set(enrollments.map((e) => e.section!.offering!.course_id)));
 
-  // All approved grades for these enrollments
-  const grades: GradeRow[] = [];
-  if (enrollmentIds.length) {
-    const { data: gRaw, error: gError } = await supabase
-      .from("student_grades")
-      // No embed: `student_grades` has no PostgREST relationship to
-      // `grade_components`, so embedding silently fails the whole query and the
-      // student appears to have zero completed courses. Section totals come
-      // from `componentsBySection` below.
-      .select("student_enrollment_id, score")
-      .in("student_enrollment_id", enrollmentIds)
-      .eq("status", "approved");
-    if (gError) throw new Error(`تعذّر تحميل السجل: ${gError.message}`);
-    for (const g of (gRaw ?? []) as unknown as GradeRow[]) grades.push(g);
-  }
+  // Grades, section components, courses and the study plan are independent of
+  // each other (they only need the ids above / the profile), so they go out
+  // together. Failures are re-thrown in the original serial order below.
+  const [gradesResult, componentsResult, coursesResult, planResult] = await Promise.allSettled([
+    // All approved grades for these enrollments
+    (async (): Promise<GradeRow[]> => {
+      if (!enrollmentIds.length) return [];
+      const { data: gRaw, error: gError } = await supabase
+        .from("student_grades")
+        // No embed: `student_grades` has no PostgREST relationship to
+        // `grade_components`, so embedding silently fails the whole query and the
+        // student appears to have zero completed courses. Section totals come
+        // from `componentsBySection` below.
+        .select("student_enrollment_id, score")
+        .in("student_enrollment_id", enrollmentIds)
+        .eq("status", "approved");
+      if (gError) throw new Error(`تعذّر تحميل السجل: ${gError.message}`);
+      return (gRaw ?? []) as unknown as GradeRow[];
+    })(),
+    // All grade components for involved sections (to know section totals)
+    (async (): Promise<any[]> => {
+      if (!sectionIds.length) return [];
+      const { data: cRaw, error: compError } = await supabase
+        .from("grade_components").select("course_section_id, max_score").in("course_section_id", sectionIds);
+      if (compError) throw new Error(`تعذّر تحميل السجل: ${compError.message}`);
+      return (cRaw ?? []) as any[];
+    })(),
+    // Pull courses needed (for code/name/hours)
+    (async (): Promise<any[]> => {
+      if (!courseIds.length) return [];
+      const { data: cRaw } = await supabase
+        .from("courses").select("id, code, name_ar, credit_hours").in("id", courseIds);
+      return (cRaw ?? []) as any[];
+    })(),
+    // Study plan: shared resolver (assigned cohort plan, else active program plan)
+    (async (): Promise<any> => {
+      const planId = await resolveStudentPlanId(supabase, sp);
+      if (!planId) return null;
+      const { data: planRaw } = await supabase
+        .from("study_plans")
+        .select("id, total_credit_hours, courses:study_plan_courses(course_id, level_id, is_required, level:academic_levels(name))")
+        .eq("id", planId)
+        .maybeSingle();
+      return planRaw;
+    })(),
+  ]);
 
-  // All grade components for involved sections (to know section totals)
+  const grades: GradeRow[] = settledValue(gradesResult);
   const componentsBySection = new Map<string, number>();
-  if (sectionIds.length) {
-    const { data: cRaw, error: compError } = await supabase
-      .from("grade_components").select("course_section_id, max_score").in("course_section_id", sectionIds);
-    if (compError) throw new Error(`تعذّر تحميل السجل: ${compError.message}`);
-    for (const c of (cRaw ?? []) as any[]) {
-      componentsBySection.set(c.course_section_id, (componentsBySection.get(c.course_section_id) ?? 0) + Number(c.max_score));
-    }
+  for (const c of settledValue(componentsResult)) {
+    componentsBySection.set(c.course_section_id, (componentsBySection.get(c.course_section_id) ?? 0) + Number(c.max_score));
   }
 
   const pctMap = enrollmentPercentages(enrollments, grades, componentsBySection);
 
-  // Pull courses needed (for code/name/hours)
-  const courseIds = Array.from(new Set(enrollments.map((e) => e.section!.offering!.course_id)));
   const coursesById: CoursesById = new Map();
-  if (courseIds.length) {
-    const { data: cRaw } = await supabase
-      .from("courses").select("id, code, name_ar, credit_hours").in("id", courseIds);
-    for (const c of (cRaw ?? []) as any[]) coursesById.set(c.id, c);
-  }
+  for (const c of settledValue(coursesResult)) coursesById.set(c.id, c);
 
-  // Study plan: shared resolver (assigned cohort plan, else active program plan)
-  const resolvedPlanId = await resolveStudentPlanId(supabase, sp);
   let planCourses: Array<{ course_id: string; level_id: string; is_required: boolean; level_name: string | null }> = [];
   let totalPlanHours = 0;
   let planCourseIds: string[] = [];
-  if (resolvedPlanId) {
-    const { data: planRaw } = await supabase
-      .from("study_plans")
-      .select("id, total_credit_hours, courses:study_plan_courses(course_id, level_id, is_required, level:academic_levels(name))")
-      .eq("id", resolvedPlanId)
-      .maybeSingle();
-    const plan: any = planRaw;
+  {
+    const plan: any = settledValue(planResult);
     if (plan) {
       totalPlanHours = Number(plan.total_credit_hours ?? 0);
       planCourses = (plan.courses ?? []).map((pc: any) => ({
@@ -581,10 +613,13 @@ export const getMyProgress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, supabase } = context;
+    // One profile read: the row is handed to computeStudentProgress instead of
+    // being fetched again by id.
     const { data: sp } = await supabase
-      .from("student_profiles").select("id").eq("user_id", userId).maybeSingle();
-    if (!sp?.id) throw new Error("Student profile not found");
-    const dto = await computeStudentProgress(supabase, (sp as any).id);
+      .from("student_profiles").select(PROGRESS_PROFILE_SELECT).eq("user_id", userId).maybeSingle();
+    const profileId = (sp as { id?: string } | null)?.id;
+    if (!profileId) throw new Error("Student profile not found");
+    const dto = await computeStudentProgress(supabase, profileId, sp);
     await audit("student_progress_viewed", dto.student.academic_number, dto.student.id, userId);
     return dto;
   });

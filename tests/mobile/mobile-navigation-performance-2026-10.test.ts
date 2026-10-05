@@ -62,9 +62,10 @@ describe("mobile student app — navigation cost", () => {
   });
 
   it("the document read stays owner-scoped", () => {
-    expect(read("src/routes/mobile.student.documents.$id.tsx")).toContain(
-      '.select("*").eq("id", id).eq("student_profile_id", spId)',
-    );
+    const detail = read("src/routes/mobile.student.documents.$id.tsx");
+    expect(detail).toContain('.eq("id", id).eq("student_profile_id", spId)');
+    // Explicit columns since 2026-10 (see mobile-server-performance-2026-10).
+    expect(detail.match(/\.from\("official_documents"\)/g)?.length).toBe(1);
   });
 });
 
