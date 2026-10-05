@@ -16,6 +16,7 @@ import {
   type StudentWorkflowTimelineStep,
 } from "@/lib/student-requests/student-tracking.functions";
 import { getEnrollmentCertificateDocumentSignedUrl } from "@/lib/student-requests/enrollment-certificate-pdf-storage-saga.functions";
+import { openSignedPdf } from "@/lib/documents/official-document-actions";
 
 
 const STEP_STATUS_META: Record<
@@ -210,7 +211,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
     setDownloadingDocId(documentId);
     try {
       const res = await documentUrlFn({ data: { officialDocumentId: documentId } });
-      window.open(res.signedUrl, "_blank", "noopener,noreferrer");
+      await openSignedPdf(res.signedUrl);
     } catch (e) {
       toast.error("تعذر تنزيل الوثيقة", { description: (e as Error).message });
     } finally {
@@ -220,7 +221,9 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
 
   const openAttachment = async (path: string) => {
     const res = await signedUrlFn({ data: { path } });
-    window.open(res.signedUrl, "_blank", "noopener,noreferrer");
+    // Shared signed-file opener: identical window.open on the web, system
+    // browser hand-off inside the Android shell.
+    await openSignedPdf(res.signedUrl);
   };
 
   const resubmit = async () => {
