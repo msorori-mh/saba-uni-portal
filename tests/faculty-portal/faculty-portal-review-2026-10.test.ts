@@ -159,3 +159,12 @@ describe("faculty-portal review 2026-10 — migration drafts are drafts", () => 
     expect(sql).not.toContain("ORDER BY r.created_at");
   });
 });
+
+describe("faculty dashboard — render safety", () => {
+  it("does not reference an undefined session variable in the profile header", () => {
+    const src = readFileSync(join(import.meta.dir, "../..", "src/routes/faculty-portal.index.tsx"), "utf8");
+    // A stray `{(s.programName || s.levelName) && …}` block outside any loop
+    // threw ReferenceError and took the whole dashboard down (2026-10-05).
+    expect(src).not.toMatch(/\bs\.(programName|levelName)\b/);
+  });
+});
