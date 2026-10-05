@@ -87,3 +87,12 @@ describe("android shell hardening (takes effect in the next APK/AAB build)", () 
     expect(nsc).not.toContain('src="user"');
   });
 });
+
+describe("mobile student app — naming", () => {
+  it("the requests tab is named «الخدمات الطلابية» everywhere in the app shell", () => {
+    const layout = read("src/routes/mobile.student.tsx");
+    expect(layout).toContain('{ label: "الخدمات الطلابية", icon: ClipboardList, to: "/mobile/student/requests" }');
+    expect(layout).not.toContain('label: "الطلبات"');
+    expect(read("src/routes/mobile.student.requests.b1.$service.tsx")).toContain("العودة إلى الخدمات الطلابية");
+  });
+});

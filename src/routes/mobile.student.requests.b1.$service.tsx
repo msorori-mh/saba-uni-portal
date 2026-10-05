@@ -16,7 +16,7 @@ function MobileB1StudentServiceRoute() {
         to="/mobile/student/requests"
         className="inline-flex items-center gap-1 text-xs font-bold text-primary"
       >
-        <ArrowRight className="h-3.5 w-3.5" /> العودة إلى الطلبات
+        <ArrowRight className="h-3.5 w-3.5" /> العودة إلى الخدمات الطلابية
       </Link>
       {isB1ServiceCode(service) ? (
         <B1StudentRequestForm serviceCode={service} />
