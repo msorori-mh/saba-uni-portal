@@ -15,6 +15,13 @@ import {
 import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
 import { B1DetailsPreflightNotice } from "./B1DetailsPreflightNotice";
 import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
+import { B1FeeDecisionCard } from "./B1FeeDecisionCard";
+import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
+import {
+  EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY,
+  getB1StepExitActions,
+  type B1StepExitAction,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
 
 type Props = {
   requestId: string;
@@ -36,7 +43,44 @@ type Props = {
 
 /** Minimal executor surface this section needs from the B1 adapter. */
 export type B1StaffStepActionExecutor = Pick<B1UiAdapter, "actOnB1RequestStep"> &
-  Partial<Pick<B1UiAdapter, "confirmB1RevenueReceipt">>;
+  Partial<Pick<B1UiAdapter, "confirmB1RevenueReceipt" | "recordB1ExcusedAbsenceFeeDecision">>;
+
+export const B1_FEE_DECISION_EXECUTOR_MISSING_ERROR =
+  "B1_FEE_DECISION_EXECUTOR_MISSING: مسار قرار الرسوم غير متاح.";
+
+/**
+ * Guarded handler for the registrar fee-decision step of «غياب بعذر». It NEVER
+ * routes through `actOnB1RequestStep`: the step cannot be completed by a plain
+ * review, only by a recorded decision.
+ */
+export function createB1FeeDecisionHandler(params: {
+  adapter: B1StaffStepActionExecutor;
+  stepId: string;
+  inFlightRef: { current: boolean };
+  onActingChange?: (acting: boolean) => void;
+  onSettled?: () => Promise<void> | void;
+}) {
+  return async (
+    stepId: string,
+    submission: B1ExcusedAbsenceFeeDecisionSubmission,
+  ): Promise<void> => {
+    if (params.inFlightRef.current) return;
+    if (stepId !== params.stepId) throw new Error("B1_STEP_ID_MISMATCH");
+    const decideFn = params.adapter.recordB1ExcusedAbsenceFeeDecision;
+    if (typeof decideFn !== "function") {
+      throw new Error(B1_FEE_DECISION_EXECUTOR_MISSING_ERROR);
+    }
+    params.inFlightRef.current = true;
+    params.onActingChange?.(true);
+    try {
+      await decideFn.call(params.adapter, params.stepId, submission);
+      await params.onSettled?.();
+    } finally {
+      params.inFlightRef.current = false;
+      params.onActingChange?.(false);
+    }
+  };
+}
 
 /** Literal configured action_type that MUST be executed by the revenue card. */
 export const B1_CONFIRM_PAYMENT_ACTION_TYPE = "confirm_payment";
@@ -259,7 +303,33 @@ export function B1StaffStepActionSection({
     }
   };
 
-  const panel = (
+  // غياب بعذر only: the registrar step is completed by a recorded fee decision,
+  // never by a plain review. Every other service/step keeps the generic panel.
+  const isFeeDecisionStep =
+    toB1CanonicalCode(requestTypeCode) === "excused_absence" &&
+    (stepKey ?? "").trim() === EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY &&
+    contract.action === "review";
+
+  const handleFeeDecision = createB1FeeDecisionHandler({
+    adapter,
+    stepId: contract.stepId,
+    inFlightRef,
+    onActingChange: setActing,
+    onSettled: invalidate,
+  });
+
+  // Return / reject are offered only where the service contract allows them
+  // (empty for the other four services). The backend authorizes every call.
+  const exitActions: readonly B1StepExitAction[] = getB1StepExitActions(requestTypeCode, stepKey);
+
+  const panel = isFeeDecisionStep ? (
+    <B1FeeDecisionCard
+      stepId={contract.stepId}
+      stepLabelAr={stepLabelAr}
+      acting={acting}
+      onDecide={handleFeeDecision}
+    />
+  ) : (
     <B1EmployeeActionPanel
       allowedAction={contract.action}
       stepLabelAr={stepLabelAr}
@@ -268,6 +338,23 @@ export function B1StaffStepActionSection({
       onAct={handleAct}
     />
   );
+
+  const exitPanels =
+    exitActions.length > 0 ? (
+      <div data-testid="b1-staff-exit-actions" className="mt-3 space-y-3">
+        {exitActions.map((exitAction) => (
+          <B1EmployeeActionPanel
+            key={exitAction}
+            panelId={exitAction}
+            allowedAction={exitAction}
+            stepLabelAr={stepLabelAr}
+            stepKey={stepKey ?? undefined}
+            acting={acting}
+            onAct={handleExitAct}
+          />
+        ))}
+      </div>
+    ) : null;
 
   return (
     <div data-testid="b1-staff-action-section" data-b1-action={contract.action}>
@@ -283,6 +370,7 @@ export function B1StaffStepActionSection({
       ) : (
         panel
       )}
+      {exitPanels}
     </div>
   );
 }

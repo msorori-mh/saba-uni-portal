@@ -32,7 +32,27 @@ import type {
   B1WorkflowStep,
 } from "@/lib/student-requests/request-service-adapter";
 
+import type {
+  ExcusedAbsenceFeeDecision,
+  ExcusedAbsenceFeeDecisionRecord,
+  ExcusedAbsenceFeeExemptionReason,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
+
 export type { B1CanonicalCode, B1FeePolicy, B1WorkflowStep };
+export type {
+  ExcusedAbsenceFeeDecision,
+  ExcusedAbsenceFeeDecisionRecord,
+  ExcusedAbsenceFeeExemptionReason,
+};
+
+/** What the registrar submits on the fee-decision step. The amount is display-only text; no currency. */
+export type B1ExcusedAbsenceFeeDecisionSubmission = {
+  decision: ExcusedAbsenceFeeDecision;
+  exemptionReason?: ExcusedAbsenceFeeExemptionReason | null;
+  /** Display-only amount due as decimal text; FEE_REQUIRED only. */
+  amountDue?: string | null;
+  note?: string | null;
+};
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -301,4 +321,14 @@ export type B1UiAdapter = {
   ): Promise<B1StepActionResult>;
   /** Simplified revenue receipt: no amount/currency/invoice — server stamps actor/time. */
   confirmB1RevenueReceipt(stepId: string, optionalNote?: string): Promise<B1StepActionResult>;
+  /**
+   * غياب بعذر: the college registrar's fee decision (FEE_REQUIRED / FEE_NOT_REQUIRED
+   * + reason). Completes the registrar step and routes the request server-side.
+   */
+  recordB1ExcusedAbsenceFeeDecision(
+    stepId: string,
+    submission: B1ExcusedAbsenceFeeDecisionSubmission,
+  ): Promise<B1StepActionResult>;
+  /** Null until the registrar decides, or when the caller may not see it. */
+  getB1ExcusedAbsenceFeeDecision(requestId: string): Promise<ExcusedAbsenceFeeDecisionRecord | null>;
 };

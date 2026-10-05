@@ -367,6 +367,34 @@ jobs:
               tests/materials/postgres-minimal-schema.sql
               docs/drafts/20260721000000_materials_secure_activation.draft.sql
               tests/materials/postgres-secure-activation-verifier.sql
+          # Chain: production-shaped P1-08 strict-runtime rehearsal base (which
+          # leaves one in-flight excused_absence request on the free cycle) ->
+          # excused-absence preimages + fixtures ->
+          # EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 applied TWICE
+          # (idempotency) -> direct-RPC allow/deny matrix for all 8 steps.
+          # scripts/excused-absence-paid-signature-01-pg17/run.sh runs the same
+          # chain locally plus the fail-closed and necessity probes.
+          - name: excused-absence-paid-signature-workflow
+            files: >-
+              scripts/p1-source-closure-02-pg17/00-harness.sql
+              docs/migration-drafts/p1/P1-01-DETAIL-MODELS.sql
+              docs/migration-drafts/p1/P1-02-BACKEND-VALIDATION.sql
+              docs/migration-drafts/p1/P1-03-WORKFLOW-SEEDS.sql
+              docs/migration-drafts/p1/P1-04-GRADE-APPEAL-TRIGGER-REPLACE.sql
+              scripts/p1-source-closure-02-pg17/02-p1-05-prereqs.sql
+              docs/migration-drafts/p1/P1-05-PASS-THRESHOLD-48.sql
+              scripts/p1-atomic-submit-07a-pg17/00-harness-ext.sql
+              docs/migration-drafts/p1/P1-06-ATOMIC-SUBMIT-PATH.sql
+              scripts/p1-strict-assignment-08a-pg17/00-strict-preimages.sql
+              docs/migration-drafts/p1/P1-07-WORKFLOW-TRANSITIONS-AND-SPECIALIZED-ACTIONS.sql
+              scripts/p1-strict-assignment-08a-pg17/01-fixtures.sql
+              docs/migration-drafts/p1/P1-08-STRICT-RUNTIME-ASSIGNMENT-REUSE.sql
+              scripts/p1-strict-assignment-08a-pg17/02-cases.sql
+              scripts/excused-absence-paid-signature-01-pg17/00-preimages.sql
+              scripts/excused-absence-paid-signature-01-pg17/01-fixtures.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              scripts/excused-absence-paid-signature-01-pg17/03-cases.sql
     services:
       postgres:
         image: postgres:17

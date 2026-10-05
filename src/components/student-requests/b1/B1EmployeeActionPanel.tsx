@@ -18,6 +18,8 @@ type Props = {
   onAct: (action: B1StaffAction, comment?: string) => Promise<void> | void;
   /** Defaults to the contract list (return/reject require a comment). */
   requireComment?: boolean;
+  /** Distinguishes the comment field when several panels share one page. */
+  panelId?: string;
 };
 
 type ExecutableAction = Exclude<B1StaffAction, "confirm_payment">;
@@ -75,7 +77,11 @@ export function B1EmployeeActionPanel({
   acting = false,
   onAct,
   requireComment,
+  panelId,
 }: Props) {
+  const commentFieldId = panelId
+    ? `b1-employee-action-comment-${panelId}`
+    : "b1-employee-action-comment";
   const [comment, setComment] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -146,13 +152,13 @@ export function B1EmployeeActionPanel({
 
       <div className="space-y-1.5">
         <label
-          htmlFor="b1-employee-action-comment"
+          htmlFor={commentFieldId}
           className="block text-xs font-bold text-muted-foreground"
         >
           التعليق {commentRequired ? "(إلزامي)" : "(اختياري)"}
         </label>
         <textarea
-          id="b1-employee-action-comment"
+          id={commentFieldId}
           value={comment}
           onChange={(event) => {
             setComment(event.target.value);

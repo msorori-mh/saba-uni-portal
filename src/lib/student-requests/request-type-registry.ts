@@ -86,9 +86,9 @@ export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinit
     ineligibleDisplayMode: "hidden",
     requiresAttachment: true,
     requiresServiceWindow: true,
-    requiresFee: false,
+    requiresFee: true,
     producesDocument: false,
-    requiresArchive: false,
+    requiresArchive: true,
     legacyAliases: ["absence_excuse"],
   },
   {
