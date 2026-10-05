@@ -282,12 +282,19 @@ export const confirmB1UiRevenueReceiptFn = createServerFn({ method: "POST" })
   });
 
 // Fee decision of the college registrar for an excused-absence request.
-// Strict schema: decision + reason + optional note only — no amount, no currency.
+// Strict schema: decision + reason + optional note + the display-only amount due
+// (decimal text, validated again by the contract and by the RPC). No currency.
 const feeDecisionSchema = z
   .object({
     stepId: z.string().uuid(),
     decision: z.enum(["FEE_REQUIRED", "FEE_NOT_REQUIRED"]),
     exemptionReason: z.enum(["FREE_SERVICE", "EXEMPTION"]).optional().nullable(),
+    amountDue: z
+      .string()
+      .trim()
+      .regex(/^\d{1,7}(\.\d{1,2})?$/)
+      .optional()
+      .nullable(),
     note: z.string().trim().max(EXCUSED_ABSENCE_FEE_DECISION_NOTE_MAX).optional().nullable(),
   })
   .strict();
@@ -301,6 +308,7 @@ export const recordB1UiExcusedAbsenceFeeDecisionFn = createServerFn({ method: "P
         stepId: data.stepId,
         decision: data.decision,
         exemptionReason: data.exemptionReason ?? null,
+        amountDue: data.amountDue ?? null,
         note: data.note ?? null,
       });
       if (result.success !== true) throw new Error("B1_ACTION_FAILED");

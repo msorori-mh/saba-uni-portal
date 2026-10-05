@@ -208,12 +208,16 @@ export async function rpcRecordExternalUniversityPaymentConfirmation(
   return (data ?? {}) as Record<string, unknown>;
 }
 
-/** Exact RPC arg keys — decision + reason + optional note. Never an amount or currency. */
+/**
+ * Exact RPC arg keys — decision + reason + optional note + the display-only
+ * amount due (decimal text). Never a currency, receipt or computed value.
+ */
 export const RECORD_EXCUSED_ABSENCE_FEE_DECISION_ARG_KEYS = [
   "p_step_id",
   "p_decision",
   "p_exemption_reason",
   "p_note",
+  "p_amount_due",
 ] as const;
 
 export const RECORD_EXCUSED_ABSENCE_FEE_DECISION_FORBIDDEN_CLIENT_KEYS = [
@@ -235,6 +239,7 @@ export function buildRecordExcusedAbsenceFeeDecisionRpcArgs(input: ExcusedAbsenc
   p_decision: string;
   p_exemption_reason: string | null;
   p_note: string | null;
+  p_amount_due: string | null;
 } {
   const validated = validateExcusedAbsenceFeeDecisionInput(input);
   if (!validated.valid) {
@@ -245,6 +250,7 @@ export function buildRecordExcusedAbsenceFeeDecisionRpcArgs(input: ExcusedAbsenc
     p_decision: validated.normalized.decision,
     p_exemption_reason: validated.normalized.exemptionReason,
     p_note: validated.normalized.note,
+    p_amount_due: validated.normalized.amountDue,
   };
 }
 

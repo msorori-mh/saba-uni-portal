@@ -360,6 +360,7 @@ function defaultDeps(): LiveB1UiAdapterDeps {
           stepId,
           decision: submission.decision,
           exemptionReason: submission.exemptionReason ?? null,
+          amountDue: submission.amountDue ?? null,
           note: submission.note ?? null,
         },
       });

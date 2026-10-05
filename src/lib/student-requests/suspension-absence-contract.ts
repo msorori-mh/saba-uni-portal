@@ -88,6 +88,8 @@ export const ENROLLMENT_SUSPENSION_FEE_POLICY = {
  */
 export const EXCUSED_ABSENCE_FEE_POLICY = {
   feeDecidedByRegistrarPerRequest: true,
+  /** Owner-approved exception (AGENTS.md, 2026-10-06): shown to the student, never computed. */
+  displayOnlyAmountDueEnteredByRegistrar: true,
   externalUniversityPaymentConfirmationWhenFeeRequired: true,
   portalPaymentAllowed: false,
   amountOrCurrencyAllowed: false,

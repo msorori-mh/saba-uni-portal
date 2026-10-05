@@ -46,7 +46,7 @@ new_functions(sig, exposed) AS (
     ('public.b1_excused_absence_step_decision_allowed(uuid,text)', false),
     ('public.guard_excused_absence_fee_decision_write()', false),
     ('public.b1_excused_absence_before_step_action(uuid,text,text)', false),
-    ('public.record_excused_absence_fee_decision(uuid,text,text,text)', true),
+    ('public.record_excused_absence_fee_decision(uuid,text,text,text,numeric)', true),
     ('public.get_excused_absence_fee_decision(uuid)', true)
 ),
 checks AS (
@@ -106,6 +106,16 @@ checks AS (
     (SELECT NOT has_table_privilege('authenticated', to_regclass('public.excused_absence_fee_decisions'), 'SELECT,INSERT,UPDATE,DELETE')
         AND NOT has_table_privilege('anon', to_regclass('public.excused_absence_fee_decisions'), 'SELECT,INSERT,UPDATE,DELETE'))
        AS fee_decision_table_not_exposed,
+    (SELECT count(*) = 1 AND bool_and(ic.column_name = 'amount_due' AND ic.data_type = 'numeric'
+                                      AND ic.numeric_precision = 12 AND ic.numeric_scale = 2)
+       FROM information_schema.columns ic
+      WHERE ic.table_schema = 'public' AND ic.table_name = 'excused_absence_fee_decisions'
+        AND ic.column_name ~* 'amount|currency|price|balance|invoice|receipt')
+       AS display_only_amount_column_exact,
+    EXISTS (SELECT 1 FROM pg_constraint k
+            WHERE k.conrelid = to_regclass('public.excused_absence_fee_decisions')
+              AND k.conname = 'excused_absence_fee_decisions_amount_due_chk' AND k.contype = 'c')
+       AS amount_due_check_exists,
     EXISTS (SELECT 1 FROM pg_trigger t
             WHERE t.tgrelid = to_regclass('public.excused_absence_fee_decisions')
               AND t.tgname = 'trg_guard_excused_absence_fee_decision_write' AND NOT t.tgisinternal)
@@ -127,6 +137,7 @@ SELECT
    AND c.seventeen_transitions_exact AND c.runtime_contract_pinned AND c.publish_validation_recorded
    AND c.change_log_recorded AND c.fee_condition_in_catalog AND c.seven_new_functions_exist
    AND c.function_exposure_exact AND c.fee_decision_table_rls_enabled AND c.fee_decision_table_not_exposed
+   AND c.display_only_amount_column_exact AND c.amount_due_check_exists
    AND c.fee_decision_guard_trigger_exists AND c.eleven_patch_markers_present
    AND c.no_existing_request_moved_to_new_cycle) IS TRUE AS applied_correctly,
   -- ---- informational --------------------------------------------------------

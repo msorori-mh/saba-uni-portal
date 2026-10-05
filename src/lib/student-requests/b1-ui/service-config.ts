@@ -55,7 +55,7 @@ export const B1_FEE_POLICY_LABELS_AR: Readonly<Record<B1FeePolicy, string>> = {
   EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION:
     "السداد يتم في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا تسجّل البوابة مبلغًا أو عملة",
   REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT:
-    "يحدد مسجل الكلية لكل طلب إن كانت الرسوم مستحقة؛ وعند استحقاقها يتم السداد في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا تسجّل البوابة مبلغًا أو عملة",
+    "يحدد مسجل الكلية لكل طلب إن كانت الرسوم مستحقة؛ وعند استحقاقها تظهر لك قيمة الرسوم ويتم السداد في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا يتم أي سداد داخل البوابة",
 };
 
 /** Step that waits for the manual external-payment confirmation by the revenue officer. */

@@ -112,9 +112,10 @@ describe("suspension and excused absence source contract", () => {
     expect(B1_SERVICE_ADAPTERS.enrollment_suspension.feePolicy).toBe("FREE_NO_PAYMENT");
   });
 
-  it("charges excused absence outside the portal only: no gateway, amount, currency, or document", () => {
+  it("charges excused absence outside the portal only: no gateway, currency or document; the amount is display-only", () => {
     expect(EXCUSED_ABSENCE_FEE_POLICY).toEqual({
       feeDecidedByRegistrarPerRequest: true,
+      displayOnlyAmountDueEnteredByRegistrar: true,
       externalUniversityPaymentConfirmationWhenFeeRequired: true,
       portalPaymentAllowed: false,
       amountOrCurrencyAllowed: false,

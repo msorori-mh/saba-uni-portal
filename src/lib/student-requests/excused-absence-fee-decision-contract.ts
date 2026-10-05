@@ -7,7 +7,11 @@
  *   FEE_REQUIRED (the student pays in the university's main system, then the
  *   revenue officer confirms) or FEE_NOT_REQUIRED (free service / exemption,
  *   mandatory reason) which bypasses `payment_confirmation`.
- * - The portal processes NO payment and stores NO amount or currency.
+ * - For FEE_REQUIRED the registrar enters the amount due as a DISPLAY-ONLY
+ *   value (owner-approved exception in AGENTS.md, 2026-10-06). It is shown to
+ *   the student with the instruction to pay in the university's main system.
+ * - The portal processes NO payment: no gateway, balance, receipt, currency
+ *   column or arithmetic. The amount travels as decimal TEXT end to end.
  * - Reject / return exist for THIS service only, on the steps listed below,
  *   with the same authorization as acting on the step and a mandatory reason.
  */
@@ -48,6 +52,28 @@ export const EXCUSED_ABSENCE_FEE_EXEMPTION_REASON_LABELS_AR: Readonly<
 
 export const EXCUSED_ABSENCE_FEE_DECISION_NOTE_MAX = 500;
 
+/** Display-only amount: up to 7 integer digits and at most 2 decimals, > 0. */
+export const EXCUSED_ABSENCE_AMOUNT_DUE_MAX_TEXT = "9999999.99" as const;
+/** Fixed wording of the unit — plain text, not a currency model. */
+export const EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR = "ريال" as const;
+const AMOUNT_DUE_PATTERN = /^\d{1,7}(\.\d{1,2})?$/;
+
+/**
+ * Normalizes what the registrar typed into canonical decimal text, or returns
+ * null when it is not an acceptable amount. No number is ever computed: the
+ * text is only checked and tidied ("05000.50" -> "5000.50", "5000.00" -> "5000").
+ */
+export function normalizeExcusedAbsenceAmountDue(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  if (!AMOUNT_DUE_PATTERN.test(text)) return null;
+  const [rawInteger, rawFraction = ""] = text.split(".");
+  const integer = rawInteger!.replace(/^0+(?=\d)/, "");
+  const fraction = rawFraction.padEnd(2, "0");
+  if (/^0+$/.test(integer) && /^0+$/.test(fraction)) return null; // zero is not a fee
+  return fraction === "00" ? integer : `${integer}.${fraction}`;
+}
+
 /** Transition-condition catalog code that bypasses the payment step. */
 export const EXCUSED_ABSENCE_FEE_NOT_REQUIRED_CONDITION = "EXCUSED_ABSENCE_FEE_NOT_REQUIRED" as const;
 
@@ -56,6 +82,8 @@ export type ExcusedAbsenceFeeDecisionInput = {
   decision: string;
   exemptionReason?: string | null;
   note?: string | null;
+  /** Display-only amount as decimal text; required for FEE_REQUIRED only. */
+  amountDue?: string | number | null;
 };
 
 export type ExcusedAbsenceFeeDecisionInputError =
@@ -63,13 +91,17 @@ export type ExcusedAbsenceFeeDecisionInputError =
   | "decision_invalid"
   | "exemption_reason_required"
   | "exemption_reason_forbidden"
-  | "note_too_long";
+  | "note_too_long"
+  | "amount_due_required"
+  | "amount_due_invalid"
+  | "amount_due_forbidden";
 
 export type NormalizedExcusedAbsenceFeeDecisionInput = {
   stepId: string;
   decision: ExcusedAbsenceFeeDecision;
   exemptionReason: ExcusedAbsenceFeeExemptionReason | null;
   note: string | null;
+  amountDue: string | null;
 };
 
 export function isExcusedAbsenceFeeDecision(value: unknown): value is ExcusedAbsenceFeeDecision {
@@ -103,16 +135,26 @@ export function validateExcusedAbsenceFeeDecisionInput(
     return { valid: false, error: "note_too_long" };
   }
 
+  const rawAmount = input.amountDue ?? null;
+  const amountMissing = rawAmount === null || (typeof rawAmount === "string" && rawAmount.trim() === "");
+
   if (input.decision === "FEE_REQUIRED") {
     if (rawReason !== null && rawReason !== "") return { valid: false, error: "exemption_reason_forbidden" };
-    return { valid: true, normalized: { stepId, decision: "FEE_REQUIRED", exemptionReason: null, note } };
+    if (amountMissing) return { valid: false, error: "amount_due_required" };
+    const amountDue = normalizeExcusedAbsenceAmountDue(rawAmount);
+    if (amountDue === null) return { valid: false, error: "amount_due_invalid" };
+    return {
+      valid: true,
+      normalized: { stepId, decision: "FEE_REQUIRED", exemptionReason: null, note, amountDue },
+    };
   }
   if (!isExcusedAbsenceFeeExemptionReason(rawReason)) {
     return { valid: false, error: "exemption_reason_required" };
   }
+  if (!amountMissing) return { valid: false, error: "amount_due_forbidden" };
   return {
     valid: true,
-    normalized: { stepId, decision: "FEE_NOT_REQUIRED", exemptionReason: rawReason, note },
+    normalized: { stepId, decision: "FEE_NOT_REQUIRED", exemptionReason: rawReason, note, amountDue: null },
   };
 }
 
@@ -124,6 +166,10 @@ export const EXCUSED_ABSENCE_FEE_DECISION_INPUT_MESSAGES_AR: Readonly<
   exemption_reason_required: "اختر سبب عدم استحقاق الرسوم: خدمة مجانية أو إعفاء.",
   exemption_reason_forbidden: "لا يُحدَّد سبب الإعفاء عندما تكون الرسوم مستحقة.",
   note_too_long: "الملاحظة أطول من الحد المسموح.",
+  amount_due_required: "أدخل المبلغ المستحق الذي سيظهر للطالب.",
+  amount_due_invalid:
+    "المبلغ المستحق غير صالح: رقم أكبر من صفر، بحد أقصى 9999999.99 وبخانتين عشريتين على الأكثر.",
+  amount_due_forbidden: "لا يُدخل مبلغ عندما لا تكون الرسوم مستحقة.",
 };
 
 /** The step that becomes active once the registrar's decision is recorded. */
@@ -174,6 +220,8 @@ export type ExcusedAbsenceFeeDecisionRecord = {
   requestId: string;
   decision: ExcusedAbsenceFeeDecision;
   exemptionReason: ExcusedAbsenceFeeExemptionReason | null;
+  /** Display-only decimal text; null when no fee is due. */
+  amountDue: string | null;
   decidedAt: string | null;
 };
 
@@ -187,26 +235,37 @@ export function parseExcusedAbsenceFeeDecisionRecord(
   if (!isExcusedAbsenceFeeDecision(decision)) return null;
   const reason: unknown = row.exemptionReason ?? null;
   let exemptionReason: ExcusedAbsenceFeeExemptionReason | null = null;
+  let amountDue: string | null = null;
+  const rawAmount: unknown = row.amountDue ?? null;
   if (decision === "FEE_REQUIRED") {
     if (reason !== null) return null;
+    amountDue = normalizeExcusedAbsenceAmountDue(rawAmount);
+    if (amountDue === null) return null;
   } else {
     if (!isExcusedAbsenceFeeExemptionReason(reason)) return null;
+    if (rawAmount !== null) return null;
     exemptionReason = reason;
   }
   return {
     requestId: typeof row.requestId === "string" ? row.requestId : "",
     decision,
     exemptionReason,
+    amountDue,
     decidedAt: typeof row.decidedAt === "string" ? row.decidedAt : null,
   };
 }
 
 /** What the student reads in the request detail view. */
 export function excusedAbsenceFeeDecisionStudentMessageAr(
-  record: Pick<ExcusedAbsenceFeeDecisionRecord, "decision" | "exemptionReason">,
+  record: Pick<ExcusedAbsenceFeeDecisionRecord, "decision" | "exemptionReason"> & {
+    amountDue?: string | null;
+  },
 ): string {
   if (record.decision === "FEE_REQUIRED") {
-    return "قرّر مسجل الكلية أن طلبك يستلزم سداد رسوم الخدمة. سدّد الرسوم في النظام الجامعي الرئيسي، وبعد أن يؤكد موظف الإيرادات الاستلام يُستكمل الطلب. لا يتم أي سداد داخل هذه البوابة.";
+    const amount = record.amountDue
+      ? ` المبلغ المستحق: ${record.amountDue} ${EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR}.`
+      : "";
+    return `قرّر مسجل الكلية أن طلبك يستلزم سداد رسوم الخدمة.${amount} سدّد الرسوم في النظام الجامعي الرئيسي، وبعد أن يؤكد موظف الإيرادات الاستلام يُستكمل الطلب. لا يتم أي سداد داخل هذه البوابة.`;
   }
   const reasonAr = record.exemptionReason
     ? EXCUSED_ABSENCE_FEE_EXEMPTION_REASON_LABELS_AR[record.exemptionReason]

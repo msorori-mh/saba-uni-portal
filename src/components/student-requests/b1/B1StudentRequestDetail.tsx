@@ -123,6 +123,7 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
         <section
           data-testid="b1-fee-decision-summary"
           data-fee-decision={feeDecision.decision}
+          data-fee-due={feeDecision.amountDue ?? undefined}
           className="rounded-lg border border-border bg-card p-3 text-sm"
         >
           <h2 className="font-bold text-primary">قرار الرسوم</h2>

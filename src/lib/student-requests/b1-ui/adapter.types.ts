@@ -45,10 +45,12 @@ export type {
   ExcusedAbsenceFeeExemptionReason,
 };
 
-/** What the registrar submits on the fee-decision step. No amount, no currency. */
+/** What the registrar submits on the fee-decision step. The amount is display-only text; no currency. */
 export type B1ExcusedAbsenceFeeDecisionSubmission = {
   decision: ExcusedAbsenceFeeDecision;
   exemptionReason?: ExcusedAbsenceFeeExemptionReason | null;
+  /** Display-only amount due as decimal text; FEE_REQUIRED only. */
+  amountDue?: string | null;
   note?: string | null;
 };
 

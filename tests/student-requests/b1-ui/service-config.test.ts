@@ -40,8 +40,10 @@ describe("B1 UI service config", () => {
       "النظام الجامعي الرئيسي",
     );
     expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain("مسجل الكلية");
+    // owner-approved exception: the amount due is shown, nothing is paid in the portal
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain("قيمة الرسوم");
     expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain(
-      "لا تسجّل البوابة مبلغًا أو عملة",
+      "لا يتم أي سداد داخل البوابة",
     );
     expect(B1_FEE_POLICY_LABELS_AR.EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION).toContain(
       "النظام الجامعي الرئيسي",

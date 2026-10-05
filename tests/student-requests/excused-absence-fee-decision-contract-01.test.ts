@@ -11,6 +11,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   B1_STEP_EXIT_REASON_MAX_LENGTH,
+  EXCUSED_ABSENCE_AMOUNT_DUE_MAX_TEXT,
+  EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR,
   EXCUSED_ABSENCE_DEPARTMENT_REQUIRED_CODE,
   EXCUSED_ABSENCE_FEE_DECISIONS,
   EXCUSED_ABSENCE_FEE_EXEMPTION_REASONS,
@@ -26,6 +28,7 @@ import {
   excusedAbsenceStepsForFeeDecision,
   getB1StepExitActions,
   isValidB1StepExitReason,
+  normalizeExcusedAbsenceAmountDue,
   parseExcusedAbsenceFeeDecisionRecord,
   resolveRequestStatusAfterB1StepExit,
   resolveStepAfterExcusedAbsenceFeeDecision,
@@ -78,10 +81,12 @@ describe("fee decision — input contract", () => {
     expect(EXCUSED_ABSENCE_FEE_NOT_REQUIRED_CONDITION).toBe("EXCUSED_ABSENCE_FEE_NOT_REQUIRED");
   });
 
-  it("accepts FEE_REQUIRED without a reason and FEE_NOT_REQUIRED only with one", () => {
-    expect(validateExcusedAbsenceFeeDecisionInput({ stepId: "s", decision: "FEE_REQUIRED" })).toEqual({
+  it("accepts FEE_REQUIRED with an amount and no reason, FEE_NOT_REQUIRED with a reason and no amount", () => {
+    expect(
+      validateExcusedAbsenceFeeDecisionInput({ stepId: "s", decision: "FEE_REQUIRED", amountDue: " 5000 " }),
+    ).toEqual({
       valid: true,
-      normalized: { stepId: "s", decision: "FEE_REQUIRED", exemptionReason: null, note: null },
+      normalized: { stepId: "s", decision: "FEE_REQUIRED", exemptionReason: null, note: null, amountDue: "5000" },
     });
     for (const reason of EXCUSED_ABSENCE_FEE_EXEMPTION_REASONS) {
       expect(
@@ -93,7 +98,13 @@ describe("fee decision — input contract", () => {
         }),
       ).toEqual({
         valid: true,
-        normalized: { stepId: "s", decision: "FEE_NOT_REQUIRED", exemptionReason: reason, note: "ملاحظة" },
+        normalized: {
+          stepId: "s",
+          decision: "FEE_NOT_REQUIRED",
+          exemptionReason: reason,
+          note: "ملاحظة",
+          amountDue: null,
+        },
       });
     }
   });
@@ -120,13 +131,60 @@ describe("fee decision — input contract", () => {
     expect(error({ stepId: "s", decision: "FEE_REQUIRED", note: "x".repeat(501) })).toBe("note_too_long");
   });
 
-  it("sends the RPC a decision and a reason only — never an amount, currency or identity", () => {
+  it("requires a positive, bounded, two-decimal display amount for FEE_REQUIRED and forbids it otherwise", () => {
+    const error = (input: Parameters<typeof validateExcusedAbsenceFeeDecisionInput>[0]) => {
+      const result = validateExcusedAbsenceFeeDecisionInput(input);
+      return result.valid ? null : result.error;
+    };
+    for (const missing of [undefined, null, "", "   "]) {
+      expect(error({ stepId: "s", decision: "FEE_REQUIRED", amountDue: missing }), String(missing)).toBe(
+        "amount_due_required",
+      );
+    }
+    for (const bad of [
+      "0", "0.00", "000", "-1", "-5000", "+5", "10000000", "99999999.99", "12.345", "1e3", "NaN",
+      "Infinity", "5,000", "٥٠٠٠", "5000 ريال", "abc", ".5", "5.", -1, 0, Number.NaN, 12.345,
+    ]) {
+      expect(error({ stepId: "s", decision: "FEE_REQUIRED", amountDue: bad }), String(bad)).toBe(
+        "amount_due_invalid",
+      );
+    }
+    for (const amount of ["5000", "0.01", 1]) {
+      expect(
+        error({ stepId: "s", decision: "FEE_NOT_REQUIRED", exemptionReason: "EXEMPTION", amountDue: amount }),
+        String(amount),
+      ).toBe("amount_due_forbidden");
+    }
+    // canonical display text; nothing is computed
+    expect(normalizeExcusedAbsenceAmountDue("05000.50")).toBe("5000.50");
+    expect(normalizeExcusedAbsenceAmountDue("5000.00")).toBe("5000");
+    expect(normalizeExcusedAbsenceAmountDue("5000.5")).toBe("5000.50");
+    expect(normalizeExcusedAbsenceAmountDue("0.01")).toBe("0.01");
+    expect(normalizeExcusedAbsenceAmountDue(EXCUSED_ABSENCE_AMOUNT_DUE_MAX_TEXT)).toBe("9999999.99");
+    expect(normalizeExcusedAbsenceAmountDue(12500)).toBe("12500");
+    expect(EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR).toBe("ريال");
+  });
+
+  it("sends the RPC a decision, a reason and the display-only amount — never a currency or identity", () => {
     expect([...RECORD_EXCUSED_ABSENCE_FEE_DECISION_ARG_KEYS]).toEqual([
       "p_step_id",
       "p_decision",
       "p_exemption_reason",
       "p_note",
+      "p_amount_due",
     ]);
+    expect(
+      buildRecordExcusedAbsenceFeeDecisionRpcArgs({ stepId: "step-1", decision: "FEE_REQUIRED", amountDue: "12500.5" }),
+    ).toEqual({
+      p_step_id: "step-1",
+      p_decision: "FEE_REQUIRED",
+      p_exemption_reason: null,
+      p_note: null,
+      p_amount_due: "12500.50",
+    });
+    expect(() =>
+      buildRecordExcusedAbsenceFeeDecisionRpcArgs({ stepId: "step-1", decision: "FEE_REQUIRED" }),
+    ).toThrow("B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID:amount_due_required");
     const args = buildRecordExcusedAbsenceFeeDecisionRpcArgs({
       stepId: "step-1",
       decision: "FEE_NOT_REQUIRED",
@@ -196,13 +254,26 @@ describe("fee decision — routing and authorization", () => {
     }
   });
 
-  it("parses the read payload fail-closed and words it for the student without any amount", () => {
+  it("parses the read payload fail-closed and words it for the student with the amount exactly once", () => {
     expect(parseExcusedAbsenceFeeDecisionRecord(null)).toBeNull();
     expect(parseExcusedAbsenceFeeDecisionRecord({ decision: "PAID" })).toBeNull();
     expect(parseExcusedAbsenceFeeDecisionRecord({ decision: "FEE_NOT_REQUIRED" })).toBeNull();
     expect(
       parseExcusedAbsenceFeeDecisionRecord({ decision: "FEE_REQUIRED", exemptionReason: "EXEMPTION" }),
     ).toBeNull();
+    // a fee without a valid amount, or an amount without a fee, is not a readable decision
+    expect(parseExcusedAbsenceFeeDecisionRecord({ decision: "FEE_REQUIRED" })).toBeNull();
+    expect(parseExcusedAbsenceFeeDecisionRecord({ decision: "FEE_REQUIRED", amountDue: "0" })).toBeNull();
+    expect(
+      parseExcusedAbsenceFeeDecisionRecord({
+        decision: "FEE_NOT_REQUIRED",
+        exemptionReason: "EXEMPTION",
+        amountDue: "5000",
+      }),
+    ).toBeNull();
+    expect(
+      parseExcusedAbsenceFeeDecisionRecord({ requestId: "r", decision: "FEE_REQUIRED", amountDue: "12500.50" }),
+    ).toEqual({ requestId: "r", decision: "FEE_REQUIRED", exemptionReason: null, amountDue: "12500.50", decidedAt: null });
     expect(
       parseExcusedAbsenceFeeDecisionRecord({
         requestId: "r",
@@ -215,10 +286,18 @@ describe("fee decision — routing and authorization", () => {
       requestId: "r",
       decision: "FEE_NOT_REQUIRED",
       exemptionReason: "FREE_SERVICE",
+      amountDue: null,
       decidedAt: "2026-10-06T00:00:00Z",
     });
 
-    const required = excusedAbsenceFeeDecisionStudentMessageAr({ decision: "FEE_REQUIRED", exemptionReason: null });
+    const required = excusedAbsenceFeeDecisionStudentMessageAr({
+      decision: "FEE_REQUIRED",
+      exemptionReason: null,
+      amountDue: "12500.50",
+    });
+    expect(required).toContain("المبلغ المستحق: 12500.50 ريال.");
+    expect(required.split("12500.50").length - 1).toBe(1);
+    expect(required.split("ريال").length - 1).toBe(1);
     expect(required).toContain("النظام الجامعي الرئيسي");
     expect(required).toContain("لا يتم أي سداد داخل هذه البوابة");
     const exempt = excusedAbsenceFeeDecisionStudentMessageAr({
@@ -227,7 +306,8 @@ describe("fee decision — routing and authorization", () => {
     });
     expect(exempt).toContain("لا يستلزم سداد رسوم");
     expect(exempt).toContain("إعفاء");
-    for (const text of [required, exempt]) expect(text).not.toMatch(/\d|ريال|دولار|YER|USD/);
+    expect(exempt).not.toMatch(/\d|ريال|المبلغ/);
+    for (const text of [required, exempt]) expect(text).not.toMatch(/دولار|YER|USD|\$/);
   });
 });
 
@@ -424,11 +504,23 @@ describe("mock adapter — fee decision, return and reject journeys", () => {
     );
     expect(await adapter.getB1ExcusedAbsenceFeeDecision(requestId)).toBeNull();
 
-    await adapter.recordB1ExcusedAbsenceFeeDecision(item!.stepId, { decision: "FEE_REQUIRED" });
+    await denied(
+      adapter.recordB1ExcusedAbsenceFeeDecision(item!.stepId, { decision: "FEE_REQUIRED" }),
+      "VALIDATION_ERROR",
+    );
+    await denied(
+      adapter.recordB1ExcusedAbsenceFeeDecision(item!.stepId, { decision: "FEE_REQUIRED", amountDue: "0" }),
+      "VALIDATION_ERROR",
+    );
+    expect(await adapter.getB1ExcusedAbsenceFeeDecision(requestId)).toBeNull();
+    await adapter.recordB1ExcusedAbsenceFeeDecision(item!.stepId, { decision: "FEE_REQUIRED", amountDue: "5000" });
     const registrarStepId = item!.stepId;
     ({ item } = await active());
     expect(item!.stepKey).toBe("payment_confirmation");
-    expect((await adapter.getB1ExcusedAbsenceFeeDecision(requestId))!.decision).toBe("FEE_REQUIRED");
+    expect(await adapter.getB1ExcusedAbsenceFeeDecision(requestId)).toMatchObject({
+      decision: "FEE_REQUIRED",
+      amountDue: "5000",
+    });
     // the decision cannot be recorded again once the step is complete
     await denied(
       adapter.recordB1ExcusedAbsenceFeeDecision(registrarStepId, {
@@ -455,6 +547,7 @@ describe("mock adapter — fee decision, return and reject journeys", () => {
     expect(await adapter.getB1ExcusedAbsenceFeeDecision(requestId)).toMatchObject({
       decision: "FEE_NOT_REQUIRED",
       exemptionReason: "FREE_SERVICE",
+      amountDue: null,
     });
     // a signature step may reject but never return
     await denied(adapter.actOnB1RequestStep(after.item!.stepId, "return", "سبب واضح"), "PERMISSION_DENIED");
@@ -489,12 +582,17 @@ describe("UI source — registrar fee card, exit panels, student summary", () =>
   const detail = read("src", "components", "student-requests", "b1", "B1StudentRequestDetail.tsx");
   const form = read("src", "components", "student-requests", "b1", "B1StudentRequestForm.tsx");
 
-  it("the registrar card collects a decision and a reason — no amount or currency field", () => {
+  it("the registrar card collects a decision, a reason or the display-only amount — no currency field", () => {
     expect(card).toContain('data-testid="b1-fee-decision-card"');
     expect(card).toContain('data-testid="b1-fee-decision-reason"');
     expect(card).toContain("EXCUSED_ABSENCE_FEE_DECISIONS");
     expect(card).toContain("EXCUSED_ABSENCE_FEE_EXEMPTION_REASONS");
-    expect(card).not.toMatch(/type="number"|inputMode="(numeric|decimal)"|amount|currency/i);
+    expect(card).toContain('data-testid="b1-fee-decision-due"');
+    expect(card).toContain('inputMode="decimal"');
+    expect(card).toContain("EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR");
+    expect(card).toContain('amountDue: decision === "FEE_REQUIRED" ? amountDue : null');
+    // text in, text out: no numeric parsing or arithmetic in the UI, no currency picker
+    expect(card).not.toMatch(/type="number"|parseFloat|Number\(|toFixed|currency|<select[^>]*amount/i);
   });
 
   it("routes the registrar step to the fee card and offers exits only from the contract", () => {

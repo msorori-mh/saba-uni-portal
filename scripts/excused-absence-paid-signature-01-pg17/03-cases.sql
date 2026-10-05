@@ -20,7 +20,8 @@ END $$;
 -- Calls one real RPC as p_uid. Returns 'OK' or the raised error text.
 --   act  -> act_on_b1_student_request_step_atomic(step, p_action, p_comment)
 --   pay  -> record_external_university_payment_confirmation(step)
---   fee  -> record_excused_absence_fee_decision(step, decision[, reason])
+--   fee  -> record_excused_absence_fee_decision(step, decision[, reason][, amount])
+--           p_action = 'DECISION:REASON:AMOUNT' (empty parts are NULL)
 --           p_action = 'FEE_REQUIRED' | 'FEE_NOT_REQUIRED:FREE_SERVICE' | …
 CREATE OR REPLACE FUNCTION public.h_try(
   p_uid uuid, p_kind text, p_step uuid, p_action text, p_comment text DEFAULT 'ملاحظة اختبار كافية')
@@ -32,7 +33,8 @@ BEGIN
       PERFORM public.record_external_university_payment_confirmation(p_step, NULL);
     ELSIF p_kind = 'fee' THEN
       PERFORM public.record_excused_absence_fee_decision(
-        p_step, split_part(p_action, ':', 1), NULLIF(split_part(p_action, ':', 2), ''), NULL);
+        p_step, split_part(p_action, ':', 1), NULLIF(split_part(p_action, ':', 2), ''), NULL,
+        NULLIF(split_part(p_action, ':', 3), '')::numeric);
     ELSE
       PERFORM public.act_on_b1_student_request_step_atomic(p_step, p_action, p_comment, '{}'::jsonb);
     END IF;
@@ -112,7 +114,7 @@ DECLARE
   v_fee_arg text := NULLIF(substr(p_success, 5), '');
   v_actions constant text[] := ARRAY['review','approve','clear','apply_decision','archive',
     'reject','return','sign','skip','confirm_payment','issue_document','complete','comment'];
-  v_fee_args constant text[] := ARRAY['FEE_REQUIRED','FEE_NOT_REQUIRED:FREE_SERVICE','FEE_NOT_REQUIRED:EXEMPTION'];
+  v_fee_args constant text[] := ARRAY['FEE_REQUIRED::5000','FEE_NOT_REQUIRED:FREE_SERVICE','FEE_NOT_REQUIRED:EXEMPTION'];
   v_actors constant uuid[] := ARRAY[
     NULL,
     '11111111-1111-1111-1111-000000000001','11111111-1111-1111-1111-000000000002',
@@ -192,8 +194,15 @@ BEGIN
     v_res := public.h_try(p_expected, 'act', v_step, p_action);
     PERFORM public.h_check(v_res LIKE '%B1_EXCUSED_ABSENCE_FEE_DECISION_REQUIRED%',
       p_step_key || ': plain completion without a fee decision is blocked (' || v_res || ')');
-    FOREACH v_try IN ARRAY ARRAY['', 'PAID', 'fee_required', 'FEE_REQUIRED:EXEMPTION', 'FEE_REQUIRED:FREE_SERVICE',
-                                 'FEE_NOT_REQUIRED', 'FEE_NOT_REQUIRED:OTHER', 'FEE_NOT_REQUIRED:exemption'] LOOP
+    FOREACH v_try IN ARRAY ARRAY['', 'PAID', 'fee_required', 'FEE_REQUIRED:EXEMPTION:5000', 'FEE_REQUIRED:FREE_SERVICE:5000',
+                                 'FEE_NOT_REQUIRED', 'FEE_NOT_REQUIRED:OTHER', 'FEE_NOT_REQUIRED:exemption',
+                                 -- display-only amount: missing / zero / negative / over the bound /
+                                 -- more than two decimals / not a number / supplied although no fee is due
+                                 'FEE_REQUIRED', 'FEE_REQUIRED::0', 'FEE_REQUIRED::0.00', 'FEE_REQUIRED::-1',
+                                 'FEE_REQUIRED::-5000', 'FEE_REQUIRED::10000000', 'FEE_REQUIRED::9999999.991',
+                                 'FEE_REQUIRED::12.345', 'FEE_REQUIRED::NaN', 'FEE_REQUIRED::Infinity',
+                                 'FEE_NOT_REQUIRED:EXEMPTION:5000', 'FEE_NOT_REQUIRED:FREE_SERVICE:0',
+                                 'FEE_NOT_REQUIRED:FREE_SERVICE:0.01'] LOOP
       v_res := public.h_try(p_expected, 'fee', v_step, v_try);
       PERFORM public.h_check(v_res LIKE '%B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID%',
         format('%s: invalid fee decision input "%s" refused (%s)', p_step_key, v_try, v_res));
@@ -201,10 +210,18 @@ BEGIN
     END LOOP;
     PERFORM set_config('harness.uid', p_expected::text, false);
     BEGIN
-      PERFORM public.record_excused_absence_fee_decision(v_step, 'FEE_REQUIRED', NULL, repeat('ن', 501));
+      PERFORM public.record_excused_absence_fee_decision(v_step, 'FEE_REQUIRED', NULL, repeat('ن', 501), 5000);
       v_res := 'OK';
     EXCEPTION WHEN OTHERS THEN v_res := SQLERRM; END;
     PERFORM public.h_check(v_res LIKE '%INPUT_INVALID:note%', p_step_key || ': over-long note refused');
+    FOREACH v_try IN ARRAY ARRAY['FEE_REQUIRED', 'FEE_REQUIRED::0', 'FEE_REQUIRED::-1', 'FEE_REQUIRED::10000000',
+                                 'FEE_REQUIRED::12.345', 'FEE_REQUIRED::NaN', 'FEE_NOT_REQUIRED:EXEMPTION:5000'] LOOP
+      PERFORM public.h_check(public.h_try(p_expected, 'fee', v_step, v_try) LIKE '%INPUT_INVALID:amount_due%',
+        format('%s: amount input "%s" is refused as amount_due', p_step_key, v_try));
+    END LOOP;
+    PERFORM public.h_check((SELECT count(*) = 0 FROM public.excused_absence_fee_decisions d
+        WHERE d.runtime_step_id = v_step),
+      p_step_key || ': no decision row survived an invalid input');
     v_denials := v_denials + 2;
   ELSE
     -- The fee decision RPC is refused on every step but the registrar's.
@@ -369,9 +386,9 @@ BEGIN
     AND NOT has_function_privilege('authenticated', 'public.b1_excused_absence_paid_cycle_step(uuid)', 'EXECUTE')
     AND NOT has_function_privilege('authenticated', 'public.b1_excused_absence_step_decision_allowed(uuid,text)', 'EXECUTE')
     AND NOT has_function_privilege('authenticated', 'public.b1_excused_absence_before_step_action(uuid,text,text)', 'EXECUTE')
-    AND NOT has_function_privilege('anon', 'public.record_excused_absence_fee_decision(uuid,text,text,text)', 'EXECUTE')
+    AND NOT has_function_privilege('anon', 'public.record_excused_absence_fee_decision(uuid,text,text,text,numeric)', 'EXECUTE')
     AND NOT has_function_privilege('anon', 'public.get_excused_absence_fee_decision(uuid)', 'EXECUTE')
-    AND has_function_privilege('authenticated', 'public.record_excused_absence_fee_decision(uuid,text,text,text)', 'EXECUTE')
+    AND has_function_privilege('authenticated', 'public.record_excused_absence_fee_decision(uuid,text,text,text,numeric)', 'EXECUTE')
     AND has_function_privilege('authenticated', 'public.get_excused_absence_fee_decision(uuid)', 'EXECUTE'),
     'internal helpers are not executable by anon/authenticated; only the two RPCs are exposed');
   PERFORM public.h_assert(
@@ -385,8 +402,15 @@ BEGIN
   PERFORM public.h_assert(NOT EXISTS (
       SELECT 1 FROM information_schema.columns c
       WHERE c.table_schema = 'public' AND c.table_name = 'excused_absence_fee_decisions'
-        AND c.column_name ~* 'amount|currency|price|balance|invoice|receipt|paid'),
-    'fee-decision table stores no amount / currency / receipt column');
+        AND c.column_name ~* 'currency|price|balance|invoice|receipt|paid|total|tax|discount'),
+    'fee-decision table stores no currency / balance / receipt column');
+  PERFORM public.h_assert((
+      SELECT count(*) = 1 AND bool_and(c.data_type = 'numeric' AND c.numeric_precision = 12
+                                         AND c.numeric_scale = 2 AND c.is_nullable = 'YES')
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public' AND c.table_name = 'excused_absence_fee_decisions'
+        AND c.column_name ~* 'amount'),
+    'the only amount column is amount_due numeric(12,2) (display-only)');
 
   PERFORM public.h_assert(NOT EXISTS (
       SELECT 1 FROM public.h_eawf01_pre_apply_function_attrs b
@@ -435,7 +459,7 @@ BEGIN
 
   v_total := v_total + public.h_matrix_step(v_req, 'dean_review', v_dean, 'review', 'act', ARRAY['reject','return']);
   v_total := v_total + public.h_matrix_step(v_req, 'registrar_fee_referral', v_registrar, 'review',
-    'fee:FEE_REQUIRED', ARRAY['reject','return']);
+    'fee:FEE_REQUIRED::12500.50', ARRAY['reject','return']);
 
   PERFORM public.h_assert((SELECT status = 'active' FROM public.student_request_workflow_steps
       WHERE student_request_id = v_req AND step_key = 'payment_confirmation')
@@ -443,6 +467,7 @@ BEGIN
       WHERE student_request_id = v_req AND status = 'pending'),
     'FEE_REQUIRED: the request waits on payment confirmation; no signature step is reachable');
   PERFORM public.h_assert((SELECT d.decision = 'FEE_REQUIRED' AND d.exemption_reason IS NULL
+        AND d.amount_due = 12500.50
         AND d.decided_by = v_registrar AND d.runtime_step_id = public.h_step(v_req, 'registrar_fee_referral')
       FROM public.excused_absence_fee_decisions d WHERE d.request_id = v_req),
     'fee decision stored once, attributed to the registrar');
@@ -456,11 +481,22 @@ BEGIN
     AND v_n.message LIKE '%لا يتم أي سداد داخل البوابة%'
     AND v_n.message NOT LIKE '%طالب اختبار%' AND v_n.message NOT LIKE '%TESTONLY-P1-APPEAL%',
     'FEE_REQUIRED notification: addressed to the student only, says where to pay, carries no personal data');
+  PERFORM public.h_assert(
+    (length(v_n.message) - length(replace(v_n.message, '12500.50', ''))) / length('12500.50') = 1
+    AND (length(v_n.message) - length(replace(v_n.message, 'ريال', ''))) / length('ريال') = 1
+    AND v_n.message LIKE '%المبلغ المستحق: 12500.50 ريال.%'
+    AND v_n.title NOT LIKE '%12500%',
+    'FEE_REQUIRED notification states the amount exactly once, with the fixed word «ريال»');
+  PERFORM set_config('harness.uid', v_owner::text, false);
+  PERFORM public.h_assert(public.get_excused_absence_fee_decision(v_req) ->> 'amountDue' = '12500.50'
+    AND jsonb_typeof(public.get_excused_absence_fee_decision(v_req) -> 'amountDue') = 'string',
+    'the owning student reads the amount as display text');
   PERFORM public.h_assert((SELECT count(*) = 0 FROM public.notifications n
       WHERE n.reference_id = v_req AND n.user_id <> v_owner), 'no staff member or other student was notified');
   PERFORM public.h_assert((SELECT count(*) = 1 FROM public.student_request_workflow_events e
       WHERE e.student_request_id = v_req AND e.event_type = 'fee_decision_recorded' AND e.visible_to_student
-        AND e.actor_user_id = v_registrar AND e.payload ->> 'decision' = 'FEE_REQUIRED'),
+        AND e.actor_user_id = v_registrar AND e.payload ->> 'decision' = 'FEE_REQUIRED'
+        AND e.payload ->> 'amount_due' = '12500.50'),
     'fee decision is in the audit trail, visible to the student');
 
   -- the decision is immutable
@@ -471,6 +507,13 @@ BEGIN
     v_err := 'NO_ERROR';
   EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
   PERFORM public.h_assert(v_err LIKE '%B1_EXCUSED_ABSENCE_FEE_DECISION_IS_IMMUTABLE%', 'decision cannot be updated: ' || v_err);
+  BEGIN
+    UPDATE public.excused_absence_fee_decisions SET amount_due = 1 WHERE request_id = v_req;
+    v_err := 'NO_ERROR';
+  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
+  PERFORM public.h_assert(v_err LIKE '%B1_EXCUSED_ABSENCE_FEE_DECISION_IS_IMMUTABLE%'
+    AND (SELECT amount_due = 12500.50 FROM public.excused_absence_fee_decisions WHERE request_id = v_req),
+    'the amount cannot be updated: ' || v_err);
   BEGIN
     DELETE FROM public.excused_absence_fee_decisions WHERE request_id = v_req;
     v_err := 'NO_ERROR';
@@ -485,8 +528,10 @@ BEGIN
     'a decision cannot be inserted outside the RPC: ' || v_err);
   PERFORM public.h_assert(public.h_try(v_registrar, 'fee', public.h_step(v_req, 'registrar_fee_referral'),
       'FEE_NOT_REQUIRED:EXEMPTION') <> 'OK'
-    AND (SELECT decision = 'FEE_REQUIRED' FROM public.excused_absence_fee_decisions WHERE request_id = v_req),
-    'the registrar cannot change the decision after the step completed');
+    AND public.h_try(v_registrar, 'fee', public.h_step(v_req, 'registrar_fee_referral'), 'FEE_REQUIRED::1') <> 'OK'
+    AND (SELECT decision = 'FEE_REQUIRED' AND amount_due = 12500.50
+         FROM public.excused_absence_fee_decisions WHERE request_id = v_req),
+    'the registrar cannot change the decision or the amount after the step completed');
 
   v_total := v_total + public.h_matrix_step(v_req, 'payment_confirmation', v_finance, 'confirm_payment', 'pay');
   v_total := v_total + public.h_matrix_step(v_req, 'department_head_signature', v_head_cs, 'approve', 'act', ARRAY['reject']);
@@ -553,8 +598,9 @@ BEGIN
       WHERE student_request_id = v_req AND step_key = 'department_head_signature'),
     'FEE_NOT_REQUIRED: payment_confirmation is skipped and the request is at the department-head signature');
   PERFORM public.h_assert((SELECT d.decision = 'FEE_NOT_REQUIRED' AND d.exemption_reason = 'EXEMPTION'
+        AND d.amount_due IS NULL
       FROM public.excused_absence_fee_decisions d WHERE d.request_id = v_req),
-    'no-fee decision stored with its mandatory reason');
+    'no-fee decision stored with its mandatory reason and NO amount');
 
   -- finance cannot confirm a payment that was not required — by any route
   v_before := public.h_request_state(v_req);
@@ -571,13 +617,15 @@ BEGIN
     'FEE_NOT_REQUIRED: exactly one notification for the request');
   SELECT * INTO v_n FROM public.h_notifications(v_req) LIMIT 1;
   PERFORM public.h_assert(v_n.user_id = v_owner AND v_n.message LIKE '%لا يستلزم سداد رسوم%'
-    AND v_n.message LIKE '%إعفاء%' AND v_n.message NOT LIKE '%النظام الجامعي الرئيسي%',
-    'no-fee notification: addressed to the student only, states that no payment is needed and why');
+    AND v_n.message LIKE '%إعفاء%' AND v_n.message NOT LIKE '%النظام الجامعي الرئيسي%'
+    AND v_n.message NOT LIKE '%ريال%' AND v_n.message NOT LIKE '%المبلغ%',
+    'no-fee notification: addressed to the student only, states that no payment is needed and why, carries no amount');
 
   -- read side
   PERFORM set_config('harness.uid', v_owner::text, false);
   PERFORM public.h_assert(public.get_excused_absence_fee_decision(v_req) ->> 'decision' = 'FEE_NOT_REQUIRED'
     AND public.get_excused_absence_fee_decision(v_req) ->> 'exemptionReason' = 'EXEMPTION'
+    AND public.get_excused_absence_fee_decision(v_req) -> 'amountDue' = 'null'::jsonb
     AND NOT (public.get_excused_absence_fee_decision(v_req) ? 'decidedBy'),
     'the owning student reads the decision (no staff identity exposed)');
   PERFORM set_config('harness.uid', '11111111-1111-1111-1111-000000000010', false);
@@ -690,7 +738,7 @@ BEGIN
     PERFORM public.h_check(public.h_try(v_actor, 'act', v_step, 'review') <> 'OK'
       AND public.h_try(v_actor, 'act', v_step, 'return') <> 'OK'
       AND public.h_try(v_actor, 'act', v_step, 'reject') <> 'OK'
-      AND public.h_try(v_actor, 'fee', public.h_step(v_req, 'registrar_fee_referral'), 'FEE_REQUIRED') <> 'OK',
+      AND public.h_try(v_actor, 'fee', public.h_step(v_req, 'registrar_fee_referral'), 'FEE_REQUIRED::5000') <> 'OK',
       'returned request is frozen for ' || v_actor);
   END LOOP;
   PERFORM public.h_assert(public.h_request_state(v_req) = v_before, 'a returned request is frozen for staff (zero mutation)');
@@ -821,7 +869,7 @@ BEGIN
       AND public.h_try(v_row.uid, 'act', v_row.id, 'reject') <> 'OK'
       AND public.h_try(v_row.uid, 'act', v_row.id, 'return') <> 'OK'
       AND public.h_try(v_row.uid, 'pay', v_row.id, NULL) <> 'OK'
-      AND public.h_try(v_row.uid, 'fee', v_row.id, 'FEE_REQUIRED') <> 'OK',
+      AND public.h_try(v_row.uid, 'fee', v_row.id, 'FEE_REQUIRED::5000') <> 'OK',
       'rejected request is immutable');
   END LOOP;
   BEGIN
@@ -848,7 +896,10 @@ BEGIN
   PERFORM public.h_check(public.h_try('11111111-1111-1111-1111-000000000011','act',
     public.h_step(v_req,'dean_review'),'review') = 'OK', 'moved: dean review');
   PERFORM public.h_check(public.h_try('11111111-1111-1111-1111-000000000004','fee',
-    public.h_step(v_req,'registrar_fee_referral'),'FEE_REQUIRED') = 'OK', 'moved: registrar fee decision');
+    public.h_step(v_req,'registrar_fee_referral'),'FEE_REQUIRED::5000') = 'OK', 'moved: registrar fee decision');
+  PERFORM public.h_assert((SELECT n.message LIKE '%المبلغ المستحق: 5000 ريال.%' AND n.message NOT LIKE '%5000.00%'
+      FROM public.h_notifications(v_req) n ORDER BY n.created_at DESC LIMIT 1),
+    'a whole amount is shown without decimals (5000 ريال)');
   v_pay := public.h_step(v_req, 'payment_confirmation');
 
   UPDATE public.student_profiles SET department_id = '22222222-2222-2222-2222-000000000002' WHERE id = v_student;

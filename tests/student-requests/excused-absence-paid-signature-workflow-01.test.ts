@@ -456,17 +456,33 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — migration draft", () =>
     expect(byName["public.b1_excused_absence_before_step_action"]!).toContain("B1_ATOMIC_ACTION_REQUIRED");
   });
 
-  it("stores a fee DECISION only — no amount, currency or receipt anywhere in the new schema", () => {
+  it("stores a fee DECISION plus one display-only amount — no currency, receipt or arithmetic", () => {
     const table = draftSql.slice(
       draftSql.indexOf("CREATE TABLE IF NOT EXISTS public.excused_absence_fee_decisions"),
       draftSql.indexOf("COMMENT ON TABLE public.excused_absence_fee_decisions"),
     );
-    const columns = [...table.matchAll(/^  ([a-z_]+) (uuid|text|timestamptz)/gm)].map((m) => `${m[1]}:${m[2]}`);
+    const columns = [...table.matchAll(/^  ([a-z_]+) (uuid|text|timestamptz|numeric\(12,2\))/gm)].map((m) => `${m[1]}:${m[2]}`);
     expect(columns).toEqual([
       "id:uuid", "request_id:uuid", "runtime_step_id:uuid", "decision:text", "exemption_reason:text",
-      "note:text", "decided_by:uuid", "decided_at:timestamptz",
+      "amount_due:numeric(12,2)", "note:text", "decided_by:uuid", "decided_at:timestamptz",
     ]);
-    expect(table).not.toMatch(/numeric|money|integer|bigint|decimal/i);
+    // the owner-approved exception is exactly one display-only column, bounded and tied to the decision
+    expect(table).not.toMatch(/money|integer|bigint|decimal|currency|balance|receipt|invoice|paid/i);
+    expect(table).toContain("(decision = 'FEE_REQUIRED' AND amount_due IS NOT NULL");
+    expect(table).toContain("AND amount_due > 0 AND amount_due <= 9999999.99)");
+    expect(table).toContain("OR (decision = 'FEE_NOT_REQUIRED' AND amount_due IS NULL)");
+    const rpc = draftSql.slice(
+      draftSql.indexOf("CREATE OR REPLACE FUNCTION public.record_excused_absence_fee_decision("),
+      draftSql.indexOf("CREATE OR REPLACE FUNCTION public.get_excused_absence_fee_decision("),
+    );
+    expect(rpc).toContain("p_amount_due numeric DEFAULT NULL)");
+    expect(occurrences(rpc, "B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID:amount_due")).toBe(2);
+    expect(rpc).toContain("OR p_amount_due <> round(p_amount_due, 2)");
+    expect(rpc).toContain("IF p_decision = 'FEE_NOT_REQUIRED' AND p_amount_due IS NOT NULL THEN");
+    expect(rpc).toContain("' ريال. سدّد الرسوم في النظام الجامعي الرئيسي");
+    // nothing is ever computed from the amount: no arithmetic operator touches it
+    expect(draftSql).not.toMatch(/amount_due\s*[-+*\/]|[-+*\/]\s*(p_)?amount_due|sum\((d\.)?amount_due/i);
+    expect(read("AGENTS.md")).toContain("استثناء معتمد من المالك — مبلغ للعرض فقط (2026-10-06)");
     expect(table).toContain("CHECK (decision IN ('FEE_REQUIRED', 'FEE_NOT_REQUIRED'))");
     expect(table).toContain("(decision = 'FEE_REQUIRED' AND exemption_reason IS NULL)");
     expect(table).toContain("(decision = 'FEE_NOT_REQUIRED' AND exemption_reason IN ('FREE_SERVICE', 'EXEMPTION'))");
@@ -761,7 +777,11 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — executable rehearsal an
       "B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID",
       "B1_EXCUSED_ABSENCE_FEE_DECISION_IS_IMMUTABLE",
       "B1_EXCUSED_ABSENCE_FEE_DECISION_RPC_REQUIRED",
-      "the registrar cannot change the decision after the step completed",
+      "the registrar cannot change the decision or the amount after the step completed",
+      "FEE_REQUIRED notification states the amount exactly once, with the fixed word «ريال»",
+      "the amount cannot be updated",
+      "is refused as amount_due",
+      "no-fee decision stored with its mandatory reason and NO amount",
       "exactly one notification for the request",
       "no staff member or other student was notified",
       "B1_EXCUSED_ABSENCE_DECISION_REASON_REQUIRED",

@@ -191,7 +191,7 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — production readiness fi
       "'record_apply:registrar/registrar_general:apply_decision:REGISTER_EXCUSED_ABSENCE'",
       "count(*) = 17",
       "ARRAY['payment_confirmation'] AS only_payment_step_skippable",
-      "'public.record_excused_absence_fee_decision(uuid,text,text,text)', true",
+      "'public.record_excused_absence_fee_decision(uuid,text,text,text,numeric)', true",
       "'public.b1_excused_absence_before_step_action(uuid,text,text)', false",
       "has_function_privilege('anon'",
       "fee_decision_table_not_exposed",
@@ -233,9 +233,11 @@ describe("EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — production readiness fi
     }
   });
 
-  it("the draft still stores no amount or currency", () => {
-    // The display-only amount is NOT implemented in this iteration (see the
-    // review doc, section 11); update this test together with that change.
-    expect(executable(draft)).not.toMatch(/amount|numeric\(|currency/i);
+  it("the draft stores one display-only amount and no currency; the verification pins it", () => {
+    const code = executable(draft);
+    expect(code).toContain("amount_due numeric(12,2),");
+    expect(code).not.toMatch(/currency|balance|receipt|invoice/i);
+    expect(verify).toContain("display_only_amount_column_exact");
+    expect(verify).toContain("'excused_absence_fee_decisions_amount_due_chk'");
   });
 });

@@ -313,14 +313,17 @@ describe("B1-EXTENDED-RUNTIME-AUTHORIZATION-MATRIX-01", () => {
     expect(B1_FEE_POLICIES.department_transfer).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
     expect(B1_FEE_POLICIES.final_chance).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
     expect(B1_FEE_POLICIES.excused_absence).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
-    // the fee decision carries no amount / currency either, and only FEE_REQUIRED reaches finance
+    // the fee decision carries ONE display-only amount (owner-approved exception) and nothing
+    // else financial; only FEE_REQUIRED reaches finance
     expect(excusedAbsenceWorkflowSql).toContain("CHECK (decision IN ('FEE_REQUIRED', 'FEE_NOT_REQUIRED'))");
     const feeTable = excusedAbsenceWorkflowSql.slice(
       excusedAbsenceWorkflowSql.indexOf("CREATE TABLE IF NOT EXISTS public.excused_absence_fee_decisions"),
       excusedAbsenceWorkflowSql.indexOf("COMMENT ON TABLE public.excused_absence_fee_decisions"),
     );
     expect(feeTable.length).toBeGreaterThan(200);
-    expect(feeTable).not.toMatch(/amount|currency|price|balance|invoice|receipt|numeric|money/i);
+    expect(feeTable.match(/^  [a-z_]*amount[a-z_]* /gm)).toEqual(["  amount_due "]);
+    expect(feeTable).toContain("  amount_due numeric(12,2),");
+    expect(feeTable).not.toMatch(/currency|price|balance|invoice|receipt|money|paid|total/i);
     expect(paymentSql).toContain("EXACTLY_ONE_DIRECT_PAYMENT_ASSIGNEE_REQUIRED");
     expect(paymentSql).toContain("DIRECT_PAYMENT_ASSIGNEE_REQUIRED");
     expect(paymentSql).toContain("EXACT_FINANCE_PROCESSING_BINDING_REQUIRED");

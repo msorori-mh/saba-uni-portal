@@ -788,6 +788,7 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         requestId: request.requestId,
         decision: validated.normalized.decision,
         exemptionReason: validated.normalized.exemptionReason,
+        amountDue: validated.normalized.amountDue,
         decidedAt: nowIso(),
       };
       request.feeDecision = record;

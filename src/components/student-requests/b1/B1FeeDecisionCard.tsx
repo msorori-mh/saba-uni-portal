@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { b1AdapterErrorMessageAr } from "@/lib/student-requests/b1-ui";
 import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
 import {
+  EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR,
   EXCUSED_ABSENCE_FEE_DECISIONS,
   EXCUSED_ABSENCE_FEE_DECISION_INPUT_MESSAGES_AR,
   EXCUSED_ABSENCE_FEE_DECISION_LABELS_AR,
@@ -18,8 +19,9 @@ import {
  * غياب بعذر — بطاقة قرار الرسوم لمسجل الكلية.
  *
  * Collects exactly one of the two engine outcomes (plus the mandatory reason
- * when no fee is due) and hands it to the dedicated fee-decision executor.
- * Nothing is paid, entered or computed here: the portal processes no payment.
+ * when no fee is due, or the display-only value due when a fee is due) and
+ * hands it to the dedicated fee-decision executor. That value is only shown
+ * to the student (owner-approved exception); nothing is paid or computed here.
  */
 export function B1FeeDecisionCard({
   stepId,
@@ -34,6 +36,7 @@ export function B1FeeDecisionCard({
 }) {
   const [decision, setDecision] = useState<ExcusedAbsenceFeeDecision | "">("");
   const [reason, setReason] = useState<ExcusedAbsenceFeeExemptionReason | "">("");
+  const [amountDue, setAmountDue] = useState("");
   const [note, setNote] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +50,7 @@ export function B1FeeDecisionCard({
       stepId,
       decision,
       exemptionReason: decision === "FEE_NOT_REQUIRED" ? reason || null : null,
+      amountDue: decision === "FEE_REQUIRED" ? amountDue : null,
       note,
     });
     if (!validated.valid) {
@@ -61,9 +65,11 @@ export function B1FeeDecisionCard({
       await onDecide(stepId, {
         decision: validated.normalized.decision,
         exemptionReason: validated.normalized.exemptionReason,
+        amountDue: validated.normalized.amountDue,
         note: validated.normalized.note,
       });
       setNote("");
+      setAmountDue("");
     } catch (caught) {
       setError(b1AdapterErrorMessageAr(caught));
     } finally {
@@ -99,6 +105,7 @@ export function B1FeeDecisionCard({
               onChange={() => {
                 setDecision(option);
                 if (option === "FEE_REQUIRED") setReason("");
+                else setAmountDue("");
                 setValidationError(null);
               }}
             />
@@ -129,6 +136,33 @@ export function B1FeeDecisionCard({
               </option>
             ))}
           </select>
+        </label>
+      ) : null}
+
+      {decision === "FEE_REQUIRED" ? (
+        <label className="block space-y-1">
+          <span className="text-xs font-bold text-muted-foreground">
+            المبلغ المستحق ({EXCUSED_ABSENCE_AMOUNT_DUE_UNIT_AR}) — إلزامي، للعرض على الطالب فقط
+          </span>
+          <input
+            type="text"
+            inputMode="decimal"
+            dir="ltr"
+            autoComplete="off"
+            maxLength={10}
+            data-testid="b1-fee-decision-due"
+            value={amountDue}
+            disabled={disabled}
+            onChange={(event) => {
+              setAmountDue(event.target.value);
+              setValidationError(null);
+            }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          />
+          <span className="block text-xs leading-5 text-muted-foreground">
+            يظهر هذا المبلغ للطالب في الإشعار وتفاصيل الطلب مع توجيهه للسداد في النظام الجامعي
+            الرئيسي. لا يُحصَّل ولا يُحسب أي مبلغ داخل البوابة.
+          </span>
         </label>
       ) : null}
 

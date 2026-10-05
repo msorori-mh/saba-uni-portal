@@ -10,8 +10,10 @@
 -- WHAT THIS DRAFT DOES
 --   1. Creates ONE table: public.excused_absence_fee_decisions — the registrar's
 --      per-request fee decision (FEE_REQUIRED | FEE_NOT_REQUIRED + reason).
---      Insert-only through one RPC, never updatable. It stores NO amount and
---      NO currency; the portal processes no payment.
+--      Insert-only through one RPC, never updatable. For FEE_REQUIRED it
+--      carries `amount_due`, a DISPLAY-ONLY value entered by the registrar
+--      (owner-approved exception in AGENTS.md, 2026-10-06). No currency
+--      column, no arithmetic; the portal processes no payment.
 --   2. Creates SEVEN functions (all new, none replaces an existing one):
 --        b1_excused_absence_student_department      scope: the student's department
 --        b1_excused_absence_paid_cycle_step         "is this step on the new cycle?"
@@ -54,7 +56,8 @@
 --   - no backfill, no cleanup, no delete, no reset;
 --   - no change to request_types (student_visible stays as it is);
 --   - no accounts, profiles, positions or processing assignments;
---   - no amount, currency, invoice, gateway or fee-assessment row;
+--   - no currency, invoice, receipt, balance, gateway or fee-assessment row,
+--     and no computation on the display-only amount;
 --   - no document, PDF or storage artifact (signatures are approvals);
 --   - no change to apply_b1_excused_absence_effect,
 --     can_current_user_act_on_step or get_b1_step_allowed_actions.
@@ -434,7 +437,10 @@ REVOKE ALL ON FUNCTION public.b1_excused_absence_step_decision_allowed(uuid, tex
 REVOKE ALL ON FUNCTION public.b1_excused_absence_step_decision_allowed(uuid, text) FROM authenticated;
 
 -- ---------------------------------------------------------------------
--- 1b. Registrar fee decision (no amount, no currency, no payment record)
+-- 1b. Registrar fee decision. `amount_due` is a DISPLAY-ONLY value (owner-
+--     approved exception in AGENTS.md, 2026-10-06): shown to the student with
+--     the instruction to pay in the university's main system. No currency
+--     column, no arithmetic, no balance, no receipt, no payment record.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.excused_absence_fee_decisions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -444,6 +450,7 @@ CREATE TABLE IF NOT EXISTS public.excused_absence_fee_decisions (
     REFERENCES public.student_request_workflow_steps(id) ON DELETE CASCADE,
   decision text NOT NULL,
   exemption_reason text,
+  amount_due numeric(12,2),
   note text,
   decided_by uuid NOT NULL,
   decided_at timestamptz NOT NULL DEFAULT now(),
@@ -454,12 +461,18 @@ CREATE TABLE IF NOT EXISTS public.excused_absence_fee_decisions (
       (decision = 'FEE_REQUIRED' AND exemption_reason IS NULL)
       OR (decision = 'FEE_NOT_REQUIRED' AND exemption_reason IN ('FREE_SERVICE', 'EXEMPTION'))
     ),
+  CONSTRAINT excused_absence_fee_decisions_amount_due_chk
+    CHECK (
+      (decision = 'FEE_REQUIRED' AND amount_due IS NOT NULL
+         AND amount_due > 0 AND amount_due <= 9999999.99)
+      OR (decision = 'FEE_NOT_REQUIRED' AND amount_due IS NULL)
+    ),
   CONSTRAINT excused_absence_fee_decisions_note_chk
     CHECK (note IS NULL OR char_length(note) <= 500)
 );
 
 COMMENT ON TABLE public.excused_absence_fee_decisions IS
-  'غياب بعذر: قرار مسجل الكلية بشأن الرسوم لكل طلب. إدراج فقط عبر record_excused_absence_fee_decision، غير قابل للتعديل. لا مبلغ ولا عملة.';
+  'غياب بعذر: قرار مسجل الكلية بشأن الرسوم لكل طلب. إدراج فقط عبر record_excused_absence_fee_decision، غير قابل للتعديل. amount_due قيمة للعرض فقط (استثناء معتمد من المالك 2026-10-06)؛ بلا عملة وبلا أي حساب.';
 
 -- Reached only through the SECURITY DEFINER RPCs below.
 ALTER TABLE public.excused_absence_fee_decisions ENABLE ROW LEVEL SECURITY;
@@ -606,7 +619,8 @@ CREATE OR REPLACE FUNCTION public.record_excused_absence_fee_decision(
   p_step_id uuid,
   p_decision text,
   p_exemption_reason text DEFAULT NULL,
-  p_note text DEFAULT NULL)
+  p_note text DEFAULT NULL,
+  p_amount_due numeric DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -624,6 +638,7 @@ DECLARE
   v_reason_ar text;
   v_title text;
   v_message text;
+  v_amount_text text;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'AUTHENTICATION_REQUIRED' USING ERRCODE = '28000';
@@ -644,6 +659,20 @@ BEGIN
   IF v_note IS NOT NULL AND char_length(v_note) > 500 THEN
     RAISE EXCEPTION 'B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID:note' USING ERRCODE = '22023';
   END IF;
+  -- Display-only amount: mandatory, positive, bounded and with at most two
+  -- decimals when a fee is due; forbidden when no fee is due. The value is
+  -- stored and shown as entered — nothing is ever computed from it.
+  IF p_decision = 'FEE_REQUIRED' AND (
+       p_amount_due IS NULL
+       OR p_amount_due IS NOT DISTINCT FROM 'NaN'::numeric
+       OR p_amount_due <= 0
+       OR p_amount_due > 9999999.99
+       OR p_amount_due <> round(p_amount_due, 2)) THEN
+    RAISE EXCEPTION 'B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID:amount_due' USING ERRCODE = '22023';
+  END IF;
+  IF p_decision = 'FEE_NOT_REQUIRED' AND p_amount_due IS NOT NULL THEN
+    RAISE EXCEPTION 'B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID:amount_due' USING ERRCODE = '22023';
+  END IF;
 
   SELECT s.* INTO v_step
   FROM public.student_request_workflow_steps s
@@ -663,9 +692,9 @@ BEGIN
 
   PERFORM set_config('eawf01.fee_decision_write', '1', true);
   INSERT INTO public.excused_absence_fee_decisions (
-    request_id, runtime_step_id, decision, exemption_reason, note, decided_by
+    request_id, runtime_step_id, decision, exemption_reason, amount_due, note, decided_by
   ) VALUES (
-    v_step.student_request_id, p_step_id, p_decision, p_exemption_reason, v_note, v_uid
+    v_step.student_request_id, p_step_id, p_decision, p_exemption_reason, p_amount_due, v_note, v_uid
   );
   PERFORM set_config('eawf01.fee_decision_write', '0', true);
 
@@ -696,9 +725,13 @@ BEGIN
   WHERE r.id = v_step.student_request_id;
 
   IF p_decision = 'FEE_REQUIRED' THEN
+    -- Plain text rendering of the stored value (whole numbers without ".00").
+    v_amount_text := CASE WHEN p_amount_due = trunc(p_amount_due)
+      THEN trunc(p_amount_due)::text ELSE to_char(p_amount_due, 'FM9999999990.00') END;
     v_title := 'رسوم مستحقة على طلب غياب بعذر';
     v_message := 'قرّر مسجل الكلية أن طلبك رقم ' || COALESCE(v_request_number, '') ||
-      ' يستلزم سداد رسوم الخدمة. سدّد الرسوم في النظام الجامعي الرئيسي، وبعد أن يؤكد موظف الإيرادات الاستلام يُستكمل الطلب. لا يتم أي سداد داخل البوابة.';
+      ' يستلزم سداد رسوم الخدمة. المبلغ المستحق: ' || v_amount_text ||
+      ' ريال. سدّد الرسوم في النظام الجامعي الرئيسي، وبعد أن يؤكد موظف الإيرادات الاستلام يُستكمل الطلب. لا يتم أي سداد داخل البوابة.';
   ELSE
     v_reason_ar := CASE p_exemption_reason WHEN 'FREE_SERVICE' THEN 'خدمة مجانية' ELSE 'إعفاء' END;
     v_title := 'لا يلزم سداد رسوم لطلب غياب بعذر';
@@ -712,7 +745,8 @@ BEGIN
   ) VALUES (
     v_step.student_request_id, p_step_id, 'fee_decision_recorded', v_uid,
     v_step.processing_unit_id, v_step.processing_role_id, v_message,
-    jsonb_build_object('decision', p_decision, 'exemption_reason', p_exemption_reason), true
+    jsonb_build_object('decision', p_decision, 'exemption_reason', p_exemption_reason,
+      'amount_due', v_amount_text), true
   );
 
   PERFORM public.create_notification(
@@ -724,14 +758,15 @@ BEGIN
     'request_id', v_step.student_request_id,
     'decision', p_decision,
     'exemption_reason', p_exemption_reason,
+    'amount_due', v_amount_text,
     'next_step_id', v_result -> 'next_step_id'
   );
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.record_excused_absence_fee_decision(uuid, text, text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.record_excused_absence_fee_decision(uuid, text, text, text) FROM anon;
-GRANT EXECUTE ON FUNCTION public.record_excused_absence_fee_decision(uuid, text, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.record_excused_absence_fee_decision(uuid, text, text, text, numeric) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_excused_absence_fee_decision(uuid, text, text, text, numeric) FROM anon;
+GRANT EXECUTE ON FUNCTION public.record_excused_absence_fee_decision(uuid, text, text, text, numeric) TO authenticated;
 
 -- Read side: the owning student, or a staff member who is the direct assignee
 -- of a runtime step of that same request. Anyone else gets NULL.
@@ -746,6 +781,10 @@ AS $function$
     'requestId', d.request_id,
     'decision', d.decision,
     'exemptionReason', d.exemption_reason,
+    -- display-only, rendered as text exactly like the notification
+    'amountDue', CASE WHEN d.amount_due IS NULL THEN NULL
+                      WHEN d.amount_due = trunc(d.amount_due) THEN trunc(d.amount_due)::text
+                      ELSE to_char(d.amount_due, 'FM9999999990.00') END,
     'decidedAt', d.decided_at
   )
   FROM public.excused_absence_fee_decisions d
