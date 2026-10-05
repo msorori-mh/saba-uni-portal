@@ -24,7 +24,9 @@ export const SEMESTER_LABELS: Record<string, string> = {
 };
 
 export async function fetchMyProgramId(): Promise<string | null> {
-  const { data: auth } = await supabase.auth.getUser();
+  // Local session read (no auth round-trip); RLS still verifies the JWT on the queries below.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const auth = { user: sessionData.session?.user ?? null };
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("student_profiles")
@@ -36,7 +38,9 @@ export async function fetchMyProgramId(): Promise<string | null> {
 }
 
 export async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
-  const { data: auth } = await supabase.auth.getUser();
+  // Local session read (no auth round-trip); RLS still verifies the JWT on the queries below.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const auth = { user: sessionData.session?.user ?? null };
   let assigned: string | null = null;
   if (auth.user) {
     const { data: prof, error: profErr } = await supabase

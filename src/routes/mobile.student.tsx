@@ -9,6 +9,11 @@ import { useNativeAppShell } from "@/hooks/use-native-app-shell";
 import { MobileAppLockProvider } from "@/components/mobile/MobileAppLockProvider";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
 import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
+import {
+  clearMobileStudentIdentity,
+  getMobileSessionUserId,
+  getMobileStudentIdentity,
+} from "@/lib/mobile/student-identity";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
@@ -30,20 +35,29 @@ export const Route = createFileRoute("/mobile/student")({
     ],
   }),
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // Runs on EVERY navigation inside the app, so it must stay cheap: a local
+    // session read plus a cached student-profile check (see student-identity).
+    // Data access itself is still enforced server-side by RLS and the RPCs.
+    const userId = await getMobileSessionUserId();
+    if (!userId) {
       throw redirect({ to: "/mobile/student-login" });
     }
-    const { data: profile } = await supabase
-      .from("student_profiles")
-      .select("user_id")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
-    if (!profile) {
+    let identity: Awaited<ReturnType<typeof getMobileStudentIdentity>>;
+    try {
+      identity = await getMobileStudentIdentity();
+    } catch {
+      // Transient read failure: do not sign the student out; the page's own
+      // queries will surface the connection error with a retry.
+      return;
+    }
+    if (!identity) {
+      clearMobileStudentIdentity();
       await supabase.auth.signOut();
       throw redirect({ to: "/mobile/student-login" });
     }
   },
+  pendingComponent: MobileStudentLoading,
+  pendingMs: 300,
   component: MobileStudentLayout,
 });
 
@@ -77,18 +91,18 @@ function MobileStudentLayout() {
     let cancelled = false;
     void disablePwaInNativeShell();
 
-    void supabase.auth.getUser().then(({ data }) => {
+    void getMobileSessionUserId().then((userId) => {
       if (cancelled) return;
-      const userId = data.user?.id ?? null;
       authUserIdRef.current = userId;
       setAuthUserId(userId);
-      if (!data.user) navigate({ to: "/mobile/student-login", replace: true });
+      if (!userId) navigate({ to: "/mobile/student-login", replace: true });
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
       const nextUserId = session?.user.id ?? null;
       if (authUserIdRef.current && authUserIdRef.current !== nextUserId) {
+        clearMobileStudentIdentity();
         queryClient.clear();
         void router.invalidate();
       }
@@ -129,6 +143,7 @@ function MobileStudentLayout() {
 
   const handleLogout = async () => {
     try {
+      clearMobileStudentIdentity();
       await supabase.auth.signOut({ scope: "global" });
     } catch {
       // Never retain the previous student's visible data if remote sign-out fails.

@@ -8,6 +8,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import {
   resolveCanonicalCurrentFourthLevelEligibility,
   shouldShowStudentGpNav,
@@ -61,26 +62,28 @@ export async function fetchMobileStudentContext(): Promise<MobileStudentContext>
     levelNumber: null,
     currentEnrolment: null,
   };
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return empty;
+  const identity = await getMobileStudentIdentity();
+  if (!identity) return empty;
 
-  const { data } = await supabase
-    .from("student_profiles")
-    .select(
-      "id, full_name_ar, academic_number, status, study_system, email, phone, program:programs(name_ar), department:departments(name_ar)",
-    )
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
+  // The profile id is already known, so both reads go out together.
+  const [{ data }, { data: acad }] = await Promise.all([
+    supabase
+      .from("student_profiles")
+      .select(
+        "id, full_name_ar, academic_number, status, study_system, email, phone, program:programs(name_ar), department:departments(name_ar)",
+      )
+      .eq("user_id", identity.userId)
+      .maybeSingle(),
+    supabase
+      .from("student_academic_status")
+      .select(
+        "id, level_id, created_at, updated_at, level:academic_levels(level_number, name), semester:semesters(name), academic_year:academic_years(name)",
+      )
+      .eq("student_profile_id", identity.studentProfileId),
+  ]);
 
   const profile = (data as unknown as MobileStudentProfile) ?? null;
   if (!profile) return empty;
-
-  const { data: acad } = await supabase
-    .from("student_academic_status")
-    .select(
-      "id, level_id, created_at, updated_at, level:academic_levels(level_number, name), semester:semesters(name), academic_year:academic_years(name)",
-    )
-    .eq("student_profile_id", profile.id);
 
   const rows = (acad ?? []) as unknown as AcademicStatusTimestampRow[];
   const canonical = resolveCanonicalCurrentFourthLevelEligibility(rows);
