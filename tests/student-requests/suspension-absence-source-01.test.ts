@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { B1_SERVICE_ADAPTERS, B1_WORKFLOWS } from "../../src/lib/student-requests/request-service-adapter";
 import {
+  ENROLLMENT_SUSPENSION_FEE_POLICY,
+  EXCUSED_ABSENCE_FEE_POLICY,
   SUSPENSION_ABSENCE_FEE_POLICY,
   canActOnSuspensionAbsenceStep,
   canCompleteSuspensionAbsence,
@@ -35,14 +37,44 @@ describe("suspension and excused absence source contract", () => {
   for (const service of ["enrollment_suspension", "excused_absence"] as const) {
     for (const step of B1_WORKFLOWS[service]) {
       it(`${service}/${step.key} allows only its exact direct assignee`, () => {
-        const base = { service, stepKey: step.key, assignedFacultyProfileId: "assigned", actor: { facultyProfileId: "assigned", unit: step.unit, role: step.role }, action: step.action, predecessorComplete: true };
+        const isDepartmentStep = step.role === "department_head";
+        const base = {
+          service, stepKey: step.key, assignedFacultyProfileId: "assigned",
+          actor: { facultyProfileId: "assigned", unit: step.unit, role: step.role, departmentId: isDepartmentStep ? "student-dept" : null },
+          action: step.action, predecessorComplete: true,
+          studentDepartmentId: isDepartmentStep ? "student-dept" : null,
+        };
         expect(canActOnSuspensionAbsenceStep(base)).toBe(true);
         expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, facultyProfileId: "same-role-other" } })).toBe(false);
         for (const role of ["admin", "registrar_general", "dean"]) expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, facultyProfileId: "bypass", role } })).toBe(false);
         expect(canActOnSuspensionAbsenceStep({ ...base, predecessorComplete: false })).toBe(false);
+        expect(canActOnSuspensionAbsenceStep({ ...base, action: "wrong_action" })).toBe(false);
+        expect(canActOnSuspensionAbsenceStep({ ...base, assignedFacultyProfileId: null })).toBe(false);
+        expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, unit: "wrong-unit" } })).toBe(false);
+        // every other step's unit/role of the same cycle is denied on this step
+        for (const other of B1_WORKFLOWS[service]) {
+          if (other.unit === step.unit && other.role === step.role) continue;
+          expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, unit: other.unit, role: other.role } })).toBe(false);
+          expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, facultyProfileId: "other-holder", unit: other.unit, role: other.role } })).toBe(false);
+        }
       });
     }
   }
+
+  it("lets only the head of the student's own department sign the absence form", () => {
+    const base = {
+      service: "excused_absence" as const, stepKey: "department_head_signature", assignedFacultyProfileId: "head-cs",
+      actor: { facultyProfileId: "head-cs", unit: "department", role: "department_head", departmentId: "cs" },
+      action: "approve", predecessorComplete: true, studentDepartmentId: "cs",
+    };
+    expect(canActOnSuspensionAbsenceStep(base)).toBe(true);
+    expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, departmentId: "is" } })).toBe(false);
+    expect(canActOnSuspensionAbsenceStep({ ...base, assignedFacultyProfileId: "head-is", actor: { ...base.actor, facultyProfileId: "head-is", departmentId: "is" } })).toBe(false);
+    expect(canActOnSuspensionAbsenceStep({ ...base, studentDepartmentId: null })).toBe(false);
+    expect(canActOnSuspensionAbsenceStep({ ...base, studentDepartmentId: undefined })).toBe(false);
+    expect(canActOnSuspensionAbsenceStep({ ...base, actor: { ...base.actor, role: "dean", unit: "dean" } })).toBe(false);
+    expect(canActOnSuspensionAbsenceStep({ ...base, stepKey: "manager_review" })).toBe(false);
+  });
 
   it("fails closed on service-specific completion conditions", () => {
     const suspensionSteps = B1_WORKFLOWS.enrollment_suspension.map((step) => step.key);
@@ -54,7 +86,31 @@ describe("suspension and excused absence source contract", () => {
     expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(true);
   });
 
-  it("forbids fees, portal payment, amounts, currencies, and document issuance", () => {
-    expect(SUSPENSION_ABSENCE_FEE_POLICY).toEqual({ feeRequired: false, portalPaymentAllowed: false, amountOrCurrencyAllowed: false, documentIssuanceAllowed: false });
+  it("requires the excuse to be recorded AND the request archived before completion", () => {
+    const allButArchive = B1_WORKFLOWS.excused_absence.map((step) => step.key).filter((key) => key !== "archive");
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: allButArchive, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(false);
+    const allButPayment = B1_WORKFLOWS.excused_absence.map((step) => step.key).filter((key) => key !== "payment_confirmation");
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: allButPayment, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(false);
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: ["student_affairs_intake", "manager_review", "record_apply"], absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(false);
+  });
+
+  it("keeps suspension free: no fees, portal payment, amounts, currencies, or document issuance", () => {
+    expect(ENROLLMENT_SUSPENSION_FEE_POLICY).toEqual({ feeRequired: false, portalPaymentAllowed: false, amountOrCurrencyAllowed: false, documentIssuanceAllowed: false });
+    expect(SUSPENSION_ABSENCE_FEE_POLICY).toBe(ENROLLMENT_SUSPENSION_FEE_POLICY);
+    expect(B1_SERVICE_ADAPTERS.enrollment_suspension.feePolicy).toBe("FREE_NO_PAYMENT");
+  });
+
+  it("charges excused absence outside the portal only: no gateway, amount, currency, or document", () => {
+    expect(EXCUSED_ABSENCE_FEE_POLICY).toEqual({
+      feeRequired: true,
+      externalUniversityPaymentConfirmationRequired: true,
+      portalPaymentAllowed: false,
+      amountOrCurrencyAllowed: false,
+      documentIssuanceAllowed: false,
+    });
+    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    const payment = B1_WORKFLOWS.excused_absence.filter((step) => step.action === "confirm_payment");
+    expect(payment).toEqual([{ key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" }]);
+    expect(B1_WORKFLOWS.excused_absence.some((step) => step.key === "fee_assessment" || (step.action as string) === "assess_fee")).toBe(false);
   });
 });

@@ -188,15 +188,23 @@
 
 ### 6.5 `excused_absence`
 
-| # | الجهة | التالي |
-|---|-------|--------|
-| 1 | الطالب (+ attachments) | dean |
-| 2 | عميد | ✓/✗ → SA fees |
-| 3 | SA | حافظة → finance |
-| 4 | finance | confirm → registrar |
-| 5 | registrar | اعتماد + استمارة | archive |
-| 6 | archive | completed |
-| 7 | completed | download |
+> **تحديث EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 (قرار الكلية):** المسار المعتمد أدناه يحل محل
+> المسار السابق (طالب → عميد → شؤون الطلاب للرسوم → مالية → مسجل → أرشيف). التفاصيل والمصفوفة في
+> `docs/reviews/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.md`.
+
+| # | الجهة | مفتاح الخطوة | التالي |
+|---|-------|--------------|--------|
+| 0 | الطالب (+ attachments إلزامية) | — | dean |
+| 1 | العميد — مراجعة وإحالة | `dean_review` | مسجل الكلية |
+| 2 | مسجل الكلية — إحالة لسداد الرسوم (بلا مبلغ) | `registrar_fee_referral` | السداد في النظام الجامعي الرئيسي |
+| 3 | المالية — تأكيد السداد الخارجي | `payment_confirmation` | رئيس القسم |
+| 4 | رئيس قسم الطالب — توقيع | `department_head_signature` | العميد |
+| 5 | العميد — توقيع | `dean_signature` | مدير شؤون الطلاب |
+| 6 | مدير شؤون الطلاب — توقيع | `student_affairs_manager_signature` | مسجل الكلية |
+| 7 | مسجل الكلية — تسجيل العذر | `record_apply` | archive |
+| 8 | الأرشيف | `archive` | completed |
+
+التوقيعات اعتماد (`approve`) لا ينشئ وثيقة أو PDF، ولا يوجد تنزيل للطالب من هذه الدورة.
 
 ---
 

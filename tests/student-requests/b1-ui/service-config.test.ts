@@ -22,7 +22,9 @@ describe("B1 UI service config", () => {
       expect(service.feePolicy).toBe(B1_FEE_POLICIES[service.code]);
     }
     expect(getB1ServiceConfig("enrollment_suspension")!.feePolicy).toBe("FREE_NO_PAYMENT");
-    expect(getB1ServiceConfig("excused_absence")!.feePolicy).toBe("FREE_NO_PAYMENT");
+    expect(getB1ServiceConfig("excused_absence")!.feePolicy).toBe(
+      "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+    );
     expect(getB1ServiceConfig("file_withdrawal")!.feePolicy).toBe("FREE_NO_PAYMENT");
     expect(getB1ServiceConfig("department_transfer")!.feePolicy).toBe(
       "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",

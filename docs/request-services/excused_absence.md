@@ -24,9 +24,27 @@ Required: `excuse_documents` (at least 1). `requires_attachment=true` already se
 
 ## Classification
 - **Type:** status decision, updates attendance record on approval.
-- **Fee:** none.
+- **Fee:** paid — `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`. The student pays in the university's main system after the registrar's referral; the revenue officer confirms manually in `payment_confirmation`. No amount, currency, invoice or gateway inside the portal.
 
 ## Operational steps
+Target cycle `excused_absence_external_payment_workflow` (EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01 — source/draft only until the migration draft is promoted and applied; see `docs/reviews/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.md`).
+
+| # | step_key | unit | role | action_type |
+|---|---|---|---|---|
+| 1 | `dean_review` | `dean` | `dean` | `review` |
+| 2 | `registrar_fee_referral` | `registrar` | `registrar_general` | `review` |
+| 3 | `payment_confirmation` | `finance` | `revenue_finance_officer` | `confirm_payment` |
+| 4 | `department_head_signature` | `department` | `department_head` (student's own department) | `approve` |
+| 5 | `dean_signature` | `dean` | `dean` | `approve` |
+| 6 | `student_affairs_manager_signature` | `student_affairs` | `student_affairs_manager` | `approve` |
+| 7 | `record_apply` | `registrar` | `registrar_general` | `apply_decision` (`REGISTER_EXCUSED_ABSENCE`) |
+| 8 | `archive` | `archive` | `archive_officer` | `archive` |
+
+Signatures are `approve` steps: the B1 atomic executor has no `sign` action and a signature creates no document, PDF or storage artifact.
+
+### Retired cycle (in-flight requests only)
+`excused_absence_free_workflow` v1/v2 — requests submitted before the cut-over finish on their own snapshot, with no payment and no signatures.
+
 | # | step_key | unit | role | action_type |
 |---|---|---|---|---|
 | 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` |
@@ -34,10 +52,10 @@ Required: `excuse_documents` (at least 1). `requires_attachment=true` already se
 | 3 | `record_apply` | `student_affairs` | `student_affairs_specialist` | `apply_decision` |
 
 ## Transitions
-Approve chain 1→2→3→completed. Return/reject at 1 and 2.
+Single unconditional chain 1→2→3→4→5→6→7→8→completed (`reviewed`, `reviewed`, `payment_confirmed`, `approved`, `approved`, `approved`, `applied`, `archived`). No fee branch. The deployed B1 executor exposes no return/reject action on any step.
 
 ## Completion condition
-`absence_excuse_details.record_applied_at` is set for every included row AND request `status='completed'`.
+`absence_excuse_details.record_applied_at` is set for every included row (written at `record_apply`) AND request `status='completed'` (reached at `archive`).
 
 ## Final notification
 «تم قبول عذر الغياب لتاريخ …»؛ رفض مع السبب.
@@ -46,4 +64,4 @@ Approve chain 1→2→3→completed. Return/reject at 1 and 2.
 No document. Attachments persist in `student_request_attachments` (immutable after submit unless `returned`).
 
 ## Bypass check
-No academic-role override; only assigned student-affairs users can act.
+No admin / registrar / dean override. Each step is acted on only by its single direct assignee holding the step's exact unit and role; the department-head signature belongs to the head of the student's own department only.

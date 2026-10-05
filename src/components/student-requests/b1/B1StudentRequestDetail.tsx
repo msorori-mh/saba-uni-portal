@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import {
+  B1_EXTERNAL_PAYMENT_STEP_KEY,
+  B1_EXTERNAL_PAYMENT_STUDENT_GUIDANCE_AR,
   b1AdapterErrorMessageAr,
   buildB1StudentFormSummaryItems,
   getB1ServiceConfig,
@@ -62,6 +64,9 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
   const activeStep = details.steps.find((step) => step.status === "active");
   const completedSteps = details.steps.filter((step) => step.status === "completed");
   const canResume = details.status === "draft" || details.status === "returned";
+  const awaitingExternalPayment =
+    activeStep?.key === B1_EXTERNAL_PAYMENT_STEP_KEY ||
+    details.status === "waiting_payment_confirmation";
   const serviceCode = details.serviceCode as B1CanonicalCode;
   const config = getB1ServiceConfig(serviceCode);
   const summaryItems = isB1ServiceCode(serviceCode)
@@ -90,6 +95,15 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
         <p className="rounded-lg border border-border bg-card p-3 text-sm">
           <strong>الخطوة الحالية: </strong>
           {activeStep.labelAr}
+        </p>
+      ) : null}
+
+      {awaitingExternalPayment ? (
+        <p
+          data-testid="b1-external-payment-guidance"
+          className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground"
+        >
+          {B1_EXTERNAL_PAYMENT_STUDENT_GUIDANCE_AR}
         </p>
       ) : null}
 

@@ -136,7 +136,40 @@ const suspension: readonly B1WorkflowStep[] = [
   { key: "manager_approval", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
+/**
+ * غياب بعذر — دورة الرسوم والتوقيعات (excused_absence_external_payment_workflow).
+ *
+ * - الطالب يقدّم الطلب مع المرفقات الإلزامية → العميد يراجع ويحيل.
+ * - مسجل الكلية يحيل الطلب لسداد الرسوم (بلا مبلغ أو عملة داخل البوابة).
+ * - المالية تؤكد السداد الخارجي يدوياً (payment_confirmation).
+ * - التوقيعات الثلاثة (رئيس قسم الطالب، العميد، مدير شؤون الطلاب) خطوات
+ *   `approve`: محرّك B1 الذري لا ينفّذ `sign` (B1_SPECIALIZED_ACTION_RPC_REQUIRED)
+ *   والتوقيع لا ينشئ وثيقة أو PDF.
+ * - `record_apply` يبقى مفتاح خطوة تسجيل العذر لأن apply_b1_excused_absence_effect
+ *   مربوطة به؛ ينفّذها الآن مسجل الكلية ثم تُؤرشف المعاملة.
+ */
 const absence: readonly B1WorkflowStep[] = [
+  { key: "dean_review", unit: "dean", role: "dean", action: "review" },
+  { key: "registrar_fee_referral", unit: "registrar", role: "registrar_general", action: "review" },
+  { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
+  { key: "department_head_signature", unit: "department", role: "department_head", action: "approve" },
+  { key: "dean_signature", unit: "dean", role: "dean", action: "approve" },
+  { key: "student_affairs_manager_signature", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
+  { key: "record_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
+  { key: "archive", unit: "archive", role: "archive_officer", action: "archive" },
+];
+
+/** Department-head steps scoped to the requesting student's own department. */
+export const B1_STUDENT_DEPARTMENT_SCOPED_STEPS: Readonly<Partial<Record<B1CanonicalCode, readonly string[]>>> = {
+  excused_absence: ["department_head_signature"],
+};
+
+/**
+ * The retired three-step free cycle (excused_absence_free_workflow v1/v2).
+ * Requests submitted before the cut-over keep running on this snapshot; it is
+ * read-only history and is never used to initialize a new request.
+ */
+export const EXCUSED_ABSENCE_LEGACY_FREE_WORKFLOW: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "manager_review", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "record_apply", unit: "student_affairs", role: "student_affairs_specialist", action: "apply_decision" },
@@ -176,7 +209,7 @@ export const B1_WORKFLOWS: Readonly<Record<B1CanonicalCode, readonly B1WorkflowS
 
 export const B1_FEE_POLICIES: Readonly<Record<B1CanonicalCode, B1FeePolicy>> = {
   enrollment_suspension: "FREE_NO_PAYMENT",
-  excused_absence: "FREE_NO_PAYMENT",
+  excused_absence: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
   file_withdrawal: "FREE_NO_PAYMENT",
   department_transfer: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
   final_chance: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
@@ -361,7 +394,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     },
   ),
   excused_absence: adapter(
-    "excused_absence", ["excused_absence", "absence_excuse"], "FREE_NO_PAYMENT",
+    "excused_absence", ["excused_absence", "absence_excuse"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
     [{ key: "current_student_enrollments", field: "course_section_id", trustedServerValidationRequired: true }],
     noClientWrite("absence_excuse_details", "many", [
       { formField: "course_section_id", detailField: "course_section_id" },

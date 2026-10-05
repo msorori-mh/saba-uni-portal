@@ -9,7 +9,11 @@ import {
   getStudentRequestTypeDefinition,
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
-import { B1_WORKFLOWS, type B1CanonicalCode } from "@/lib/student-requests/request-service-adapter";
+import {
+  B1_FEE_POLICIES,
+  B1_WORKFLOWS,
+  type B1CanonicalCode,
+} from "@/lib/student-requests/request-service-adapter";
 
 export type PreviewWorkflowTimelineStep = {
   id: string;
@@ -206,14 +210,20 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
   excused_absence: {
     requestTypeCode: "excused_absence",
     requestTypeNameAr: "غياب بعذر",
-    specNotesAr: ["مرفقات إلزامية من الطالب"],
+    specNotesAr: [
+      "مرفقات إلزامية من الطالب عند التقديم",
+      "تُسدَّد الرسوم في النظام الجامعي الرئيسي بعد إحالة مسجل الكلية، وتؤكد المالية السداد يدوياً دون مبلغ أو عملة داخل البوابة",
+      "توقيعات رئيس قسم الطالب ثم العميد ثم مدير شؤون الطلاب لا تنشئ وثيقة أو PDF",
+    ],
     steps: [
-      { key: "student", labelAr: "الطالب", roleKey: "student" },
-      { key: "dean", labelAr: "العميد", roleKey: "dean" },
-      { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs", requiresFee: true },
-      { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-      { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general", actionType: "issue_document", issuesDocument: true },
-      { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer", actionType: "archive", isArchiveStep: true },
+      { key: "dean_review", labelAr: "مراجعة العميد وإحالة الطلب", roleKey: "dean", processingUnitCode: "dean", actionType: "review" },
+      { key: "registrar_fee_referral", labelAr: "إحالة الطلب لسداد الرسوم", roleKey: "registrar_general", processingUnitCode: "registrar", actionType: "review" },
+      { key: "payment_confirmation", labelAr: "تأكيد السداد الخارجي", roleKey: "revenue_finance_officer", processingUnitCode: "finance", actionType: "confirm_payment", requiresFee: true },
+      { key: "department_head_signature", labelAr: "توقيع رئيس القسم", roleKey: "department_head", processingUnitCode: "department", actionType: "approve" },
+      { key: "dean_signature", labelAr: "توقيع العميد", roleKey: "dean", processingUnitCode: "dean", actionType: "approve" },
+      { key: "student_affairs_manager_signature", labelAr: "توقيع مدير شؤون الطلاب", roleKey: "student_affairs_manager", processingUnitCode: "student_affairs", actionType: "approve" },
+      { key: "record_apply", labelAr: "تسجيل العذر في السجل", roleKey: "registrar_general", processingUnitCode: "registrar", actionType: "apply_decision" },
+      { key: "archive", labelAr: "الأرشفة", roleKey: "archive_officer", processingUnitCode: "archive", actionType: "archive", isArchiveStep: true },
     ],
   },
   grade_appeal: {
@@ -268,7 +278,12 @@ const B1_LABELS_AR: Readonly<Record<string, string>> = {
   registrar_apply: "تطبيق قرار المسجل",
   student_affairs_intake: "استقبال شؤون الطلاب",
   manager_review: "مراجعة مدير شؤون الطلاب",
-  record_apply: "تطبيق العذر في السجل",
+  record_apply: "تسجيل العذر في السجل",
+  dean_review: "مراجعة العميد وإحالة الطلب",
+  registrar_fee_referral: "إحالة الطلب لسداد الرسوم",
+  department_head_signature: "توقيع رئيس القسم",
+  dean_signature: "توقيع العميد",
+  student_affairs_manager_signature: "توقيع مدير شؤون الطلاب",
   library_clearance: "مخالصة المكتبة",
   labs_clearance: "مخالصة المعامل",
   activities_clearance: "مخالصة الأنشطة",
@@ -279,6 +294,16 @@ const B1_LABELS_AR: Readonly<Record<string, string>> = {
   dean_approval: "اعتماد العميد",
   dean_decision: "قرار العميد",
   payment_confirmation: "تأكيد السداد الخارجي",
+};
+
+/** Service-specific notes appended to the fee-policy note of a B1 preview. */
+const B1_SPEC_NOTES_EXTRA_AR: Readonly<Record<string, readonly string[]>> = {
+  excused_absence: [
+    "مرفقات العذر إلزامية من الطالب عند التقديم.",
+    "يحيل مسجل الكلية الطلب لسداد الرسوم بعد مراجعة العميد، ولا يتقدّم الطلب قبل تأكيد السداد.",
+    "توقيعات رئيس قسم الطالب ثم العميد ثم مدير شؤون الطلاب تُسجَّل كاعتماد ولا تنشئ وثيقة أو PDF.",
+    "يُسجَّل العذر في سجل الغياب عند مسجل الكلية ثم تُؤرشف المعاملة.",
+  ],
 };
 
 function getB1WorkflowPreview(code: string): CanonicalWorkflowPreview | undefined {
@@ -296,10 +321,12 @@ function getB1WorkflowPreview(code: string): CanonicalWorkflowPreview | undefine
       requiresFee: step.key === "payment_confirmation",
       isArchiveStep: step.action === "archive",
     })),
-    specNotesAr: B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.department_transfer
-      || B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.final_chance
-      ? ["تُدفع الرسوم في النظام الجامعي الأساسي، وتؤكد المالية المعيّنة الاستلام يدوياً دون مبلغ أو عملة أو فاتورة داخل البوابة."]
-      : ["لا رسوم ولا مستندات لهذه الخدمة"],
+    specNotesAr: [
+      ...(B1_FEE_POLICIES[code as B1CanonicalCode] === "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION"
+        ? ["تُدفع الرسوم في النظام الجامعي الأساسي، وتؤكد المالية المعيّنة الاستلام يدوياً دون مبلغ أو عملة أو فاتورة داخل البوابة."]
+        : ["لا رسوم ولا مستندات لهذه الخدمة"]),
+      ...(B1_SPEC_NOTES_EXTRA_AR[code] ?? []),
+    ],
   };
 }
 

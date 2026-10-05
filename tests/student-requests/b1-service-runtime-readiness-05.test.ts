@@ -65,8 +65,11 @@ describe("B1 service runtime drafts 05 readiness", () => {
 
   it("contains no portal financial ledger contract", () => {
     expect(JSON.stringify(B1_SERVICE_ADAPTERS)).not.toMatch(/fee_type|amount|currency|invoice|gateway|balance/i);
-    for (const service of ["enrollment_suspension", "excused_absence", "file_withdrawal"] as const) {
+    for (const service of ["enrollment_suspension", "file_withdrawal"] as const) {
       expect(B1_SERVICE_ADAPTERS[service].feePolicy).toBe("FREE_NO_PAYMENT");
     }
+    // غياب بعذر became a paid service: the fee is settled in the university's
+    // main system and only confirmed here — still no ledger contract in the portal.
+    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
   });
 });
