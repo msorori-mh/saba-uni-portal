@@ -28,14 +28,14 @@ export type FeeAuthDecision = {
   reasonAr: string;
 };
 
-const ASSESS_APP_ROLES = new Set(["admin", "system_admin", "student_affairs_manager"]);
+const ASSESS_APP_ROLES = new Set(["admin", "system_admin", "student_affairs_manager", "registrar"]);
 const CONFIRM_APP_ROLES = new Set([
   "admin",
   "system_admin",
   "revenue_finance_officer",
   "finance_officer",
 ]);
-const ASSESS_PROCESSING_ROLES = new Set(["student_affairs_manager"]);
+const ASSESS_PROCESSING_ROLES = new Set(["student_affairs_manager", "registrar_general"]);
 const CONFIRM_PROCESSING_ROLES = new Set(["revenue_finance_officer", "finance_officer"]);
 
 /**

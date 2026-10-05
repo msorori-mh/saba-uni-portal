@@ -144,9 +144,9 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
       },
       {
         key: "fee_assessment",
-        labelAr: "تقييم الرسوم",
-        roleKey: "student_affairs_manager",
-        processingUnitCode: "student_affairs",
+        labelAr: "تقييم الرسوم — مسجل الكلية",
+        roleKey: "registrar_general",
+        processingUnitCode: "registrar",
         actionType: "assess_fee",
         requiresFee: true,
       },

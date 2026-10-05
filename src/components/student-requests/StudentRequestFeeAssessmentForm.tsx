@@ -114,6 +114,9 @@ export function StudentRequestFeeAssessmentForm({
             onChange={(e) => setAmount(e.target.value)}
             disabled={disabled || loading}
           />
+          <p className="mt-1 text-[11px] text-muted-foreground" data-testid="fee-zero-hint">
+            أدخل 0 إذا كانت الخدمة بلا رسوم؛ لن يمر الطلب على المالية
+          </p>
         </div>
         <div>
           <Label className="text-xs">ملاحظات (اختياري)</Label>
