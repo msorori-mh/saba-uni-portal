@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Download, Loader2, Printer, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { logDocumentAction } from "@/lib/document-audit.functions";
 import { getOfficialDocumentSignedUrl } from "@/lib/documents/official-document-download.functions";
 import {
@@ -43,27 +44,30 @@ function MobileDocumentView() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["mobile-official-document", id],
     queryFn: async () => {
-      const { data: auth } = await sb.auth.getUser();
-      if (!auth?.user) throw new Error("غير مسجل الدخول");
-      const { data: profile } = await sb.from("student_profiles")
-        .select("id, academic_number, full_name_ar, full_name_en, national_id, user_id, department:departments(name_ar), program:programs(name_ar)")
-        .eq("user_id", auth.user.id).maybeSingle();
-      if (!profile?.id) throw new Error("ليس لديك صلاحية الوصول إلى هذه الوثيقة");
+      const identity = await getMobileStudentIdentity();
+      if (!identity) throw new Error("ليس لديك صلاحية الوصول إلى هذه الوثيقة");
+      const spId = identity.studentProfileId;
 
-      // Owner-only: scope the read by the caller's own student profile.
-      const { data: doc, error: e1 } = await sb.from("official_documents")
-        .select("*").eq("id", id).eq("student_profile_id", profile.id).maybeSingle();
+      // The profile id is already known, so the four reads go out together.
+      // Owner-only: the document read stays scoped by the caller's own profile.
+      const [{ data: profile }, { data: doc, error: e1 }, { data: status }, { data: settings }] =
+        await Promise.all([
+          sb.from("student_profiles")
+            .select("id, academic_number, full_name_ar, full_name_en, national_id, user_id, department:departments(name_ar), program:programs(name_ar)")
+            .eq("user_id", identity.userId).maybeSingle(),
+          sb.from("official_documents")
+            .select("*").eq("id", id).eq("student_profile_id", spId).maybeSingle(),
+          sb.from("student_academic_status")
+            .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name)")
+            .eq("student_profile_id", spId)
+            .order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+          sb.from("site_settings")
+            .select("setting_key, setting_value")
+            .in("setting_key", ["university_name", "college_name", "logo_url", "college_logo_url"]),
+        ]);
+      if (!profile?.id) throw new Error("ليس لديك صلاحية الوصول إلى هذه الوثيقة");
       if (e1) throw new Error(e1.message);
       if (!doc) throw new Error("ليس لديك صلاحية الوصول إلى هذه الوثيقة");
-
-      const { data: status } = await sb.from("student_academic_status")
-        .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name)")
-        .eq("student_profile_id", profile.id)
-        .order("updated_at", { ascending: false }).limit(1).maybeSingle();
-
-      const { data: settings } = await sb.from("site_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", ["university_name", "college_name", "logo_url", "college_logo_url"]);
       const map = new Map<string, string>();
       (settings ?? []).forEach((r: { setting_key: string; setting_value: string }) =>
         map.set(r.setting_key, r.setting_value));

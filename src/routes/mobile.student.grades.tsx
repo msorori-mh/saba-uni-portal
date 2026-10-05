@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Award, ArrowRight, AlertTriangle, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import {
   fetchCanonicalCurrentTerm,
   filterEnrollmentsForCurrentTerm,
@@ -44,15 +45,8 @@ type GradesData = {
 };
 
 async function fetchMobileGrades(): Promise<GradesData> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { rows: [], term: { year: null, semester: null } };
-
-  const { data: sp } = await supabase
-    .from("student_profiles")
-    .select("id")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  if (!sp?.id) return { rows: [], term: { year: null, semester: null } };
+  const identity = await getMobileStudentIdentity();
+  if (!identity) return { rows: [], term: { year: null, semester: null } };
 
   const unavailableCurrentTerm: GradesData = {
     rows: [],
@@ -75,7 +69,7 @@ async function fetchMobileGrades(): Promise<GradesData> {
     .select(
       "id, course_section_id, enrollment_status, section:course_sections(section_code, offering:course_offerings(academic_year_id, semester_id, course:courses(code, name_ar)))",
     )
-    .eq("student_profile_id", (sp as { id: string }).id);
+    .eq("student_profile_id", identity.studentProfileId);
   if (e1) throw e1;
 
   type EnRaw = {
@@ -102,12 +96,21 @@ async function fetchMobileGrades(): Promise<GradesData> {
     return { rows: [], term: { year: cy?.name ?? null, semester: cs?.name ?? null } };
   }
 
-  const { data: gs, error: e2 } = await supabase
-    .from("student_grades")
-    .select("id, student_enrollment_id, grade_component_id, score, status")
-    .in("student_enrollment_id", enrollments.map((e) => e.id))
-    .eq("status", "approved");
+  const sectionIds = Array.from(new Set(enrollments.map((e) => e.course_section_id)));
+  const [{ data: gs, error: e2 }, { data: cs2, error: e3 }] = await Promise.all([
+    supabase
+      .from("student_grades")
+      .select("id, student_enrollment_id, grade_component_id, score, status")
+      .in("student_enrollment_id", enrollments.map((e) => e.id))
+      .eq("status", "approved"),
+    supabase
+      .from("grade_components")
+      .select("id, course_section_id, name, max_score, sort_order")
+      .in("course_section_id", sectionIds)
+      .order("sort_order"),
+  ]);
   if (e2) throw e2;
+  if (e3) throw e3;
 
   type GR = {
     id: string;
@@ -118,13 +121,6 @@ async function fetchMobileGrades(): Promise<GradesData> {
   };
   const grades = (gs ?? []) as GR[];
 
-  const sectionIds = Array.from(new Set(enrollments.map((e) => e.course_section_id)));
-  const { data: cs2, error: e3 } = await supabase
-    .from("grade_components")
-    .select("id, course_section_id, name, max_score, sort_order")
-    .in("course_section_id", sectionIds)
-    .order("sort_order");
-  if (e3) throw e3;
 
   type CR = { id: string; course_section_id: string; name: string; max_score: number };
   const comps = (cs2 ?? []) as CR[];

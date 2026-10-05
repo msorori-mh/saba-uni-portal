@@ -3,6 +3,7 @@ import { fetchMySectionFacultyNames } from "@/lib/student-faculty-names";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, MapPin, Clock, User, ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { DAYS, dayLabel, TYPE_LABELS, type ScheduleRow } from "@/lib/schedule-export";
 import {
   fetchCanonicalCurrentTerm,
@@ -32,16 +33,10 @@ type ScheduleData = {
 };
 
 async function fetchMobileSchedule(): Promise<ScheduleData> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { rows: [], term: { year: null, semester: null } };
+  const identity = await getMobileStudentIdentity();
+  if (!identity) return { rows: [], term: { year: null, semester: null } };
 
-  const { data: sp } = await supabase
-    .from("student_profiles")
-    .select("id")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  if (!sp?.id) return { rows: [], term: { year: null, semester: null } };
-
+  // Fail closed first: no schedule is read before the canonical term resolves.
   let currentTerm: CurrentTerm | null;
   try {
     currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
@@ -50,16 +45,20 @@ async function fetchMobileSchedule(): Promise<ScheduleData> {
   }
   if (!currentTerm) return { rows: [], term: { year: null, semester: null } };
 
-  const { data, error } = await supabase
+  // Enrollments and lecturer names are independent: fetch them together.
+  const enrollmentsPromise = supabase
     .from("student_enrollments")
     .select(
       "id, enrollment_status, section:course_sections(id, section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty_profile_id))",
     )
-    .eq("student_profile_id", (sp as { id: string }).id)
+    .eq("student_profile_id", identity.studentProfileId)
     .eq("enrollment_status", "enrolled");
 
+  const [{ data, error }, facultyNames] = await Promise.all([
+    enrollmentsPromise,
+    fetchMySectionFacultyNames(),
+  ]);
   if (error) throw error;
-  const facultyNames = await fetchMySectionFacultyNames();
 
   type Raw = {
     id: string;

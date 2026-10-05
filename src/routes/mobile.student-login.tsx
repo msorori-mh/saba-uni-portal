@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GraduationCap, Loader2, ArrowLeft, ShieldCheck, Mail } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { friendlyAuthError } from "@/components/auth/IdentifierInput";
 import { validateUniversityLoginEmailInput, normalizeUniversityLoginEmail } from "@/lib/university-email-auth";
@@ -50,13 +51,7 @@ function MobileStudentLoginPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.auth.getUser();
-      if (cancelled || !data.user) return;
-      const { data: profile } = await supabase
-        .from("student_profiles")
-        .select("user_id")
-        .eq("user_id", data.user.id)
-        .maybeSingle();
+      const profile = await getMobileStudentIdentity().catch(() => null);
       if (!cancelled && profile) {
         queryClient.clear();
         await router.invalidate();

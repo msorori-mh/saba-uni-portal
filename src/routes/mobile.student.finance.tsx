@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Wallet, Receipt, FileText, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
 import {
   STUDENT_FINANCE_FROZEN_MSG,
@@ -73,17 +74,10 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 async function fetchFinance(): Promise<FinanceData> {
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth?.user) throw new Error("غير مسجل الدخول");
-  const { data: profile, error: pErr } = await sb
-    .from("student_profiles")
-    .select("id")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  if (pErr) throw pErr;
-  if (!profile?.id) return { fees: [], payments: [], receipts: [] };
+  const identity = await getMobileStudentIdentity();
+  if (!identity) return { fees: [], payments: [], receipts: [] };
 
-  const spId = profile.id as string;
+  const spId = identity.studentProfileId;
 
   const [feesRes, paysRes, receiptsRes] = await Promise.all([
     sb
@@ -93,7 +87,7 @@ async function fetchFinance(): Promise<FinanceData> {
       .order("created_at", { ascending: false }),
     sb
       .from("student_payments")
-      .select("id, receipt_number, amount, payment_date, payment_method, fee:student_fees!inner(student_profile_id, fee_type:fee_types(name_ar))")
+      .select("id, student_fee_id, receipt_number, amount, payment_date, payment_method, fee:student_fees!inner(student_profile_id, fee_type:fee_types(name_ar))")
       .eq("fee.student_profile_id", spId)
       .order("payment_date", { ascending: false }),
     sb
@@ -107,24 +101,14 @@ async function fetchFinance(): Promise<FinanceData> {
   if (receiptsRes.error) throw receiptsRes.error;
 
   const feeRows = (feesRes.data ?? []) as Omit<FeeRow, "paid">[];
-  const paySum = new Map<string, number>();
-  for (const p of (paysRes.data ?? []) as Array<{ id: string; amount: number } & Record<string, unknown>>) {
-    // student_payments rows don't include student_fee_id in our select; fetch separately for sums
+  // Per-fee paid amount, summed from the payments already fetched above (they
+  // are scoped to this student's fees), instead of a second payments query.
+  const paidByFee = new Map<string, number>();
+  for (const p of (paysRes.data ?? []) as Array<{ student_fee_id: string | null; amount: number }>) {
+    if (!p.student_fee_id) continue;
+    paidByFee.set(p.student_fee_id, (paidByFee.get(p.student_fee_id) ?? 0) + Number(p.amount));
   }
-
-  // Get per-fee paid amount
-  let fees: FeeRow[] = feeRows.map((r) => ({ ...r, paid: 0 }));
-  if (feeRows.length > 0) {
-    const { data: sums } = await sb
-      .from("student_payments")
-      .select("student_fee_id, amount")
-      .in("student_fee_id", feeRows.map((r) => r.id));
-    const m = new Map<string, number>();
-    for (const s of (sums ?? []) as { student_fee_id: string; amount: number }[]) {
-      m.set(s.student_fee_id, (m.get(s.student_fee_id) ?? 0) + Number(s.amount));
-    }
-    fees = feeRows.map((r) => ({ ...r, paid: m.get(r.id) ?? 0 }));
-  }
+  const fees: FeeRow[] = feeRows.map((r) => ({ ...r, paid: paidByFee.get(r.id) ?? 0 }));
 
   return {
     fees,
