@@ -9,7 +9,10 @@ import {
   revokeAllDevices,
   revokeThisDevice,
 } from "@/lib/security/device-trust-client";
-import { registerTrustedDeviceFn } from "@/lib/security/device-trust.functions";
+import {
+  beginDeviceRegistrationFn,
+  registerTrustedDeviceFn,
+} from "@/lib/security/device-trust.functions";
 import type { StepUpRpcClient } from "@/lib/security/step-up-client";
 
 const rpcClient: StepUpRpcClient = {
@@ -46,6 +49,7 @@ export function MobileSecuritySettings() {
           });
           return !signInError;
         },
+        beginRegistration: async (input) => beginDeviceRegistrationFn({ data: input }),
         register: async (input) =>
           registerTrustedDeviceFn({ data: input }),
       });

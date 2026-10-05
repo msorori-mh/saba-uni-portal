@@ -15,14 +15,49 @@ import {
   isStepUpSensitiveService,
 } from "./step-up-contract";
 import { buildB1StepUpPayload } from "@/lib/student-requests/student-request-submit-contract";
+import { verifyEcdsaAssertion } from "./step-up-verify.functions";
+
+const beginDeviceRegistrationSchema = z
+  .object({
+    deviceId: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .strict();
+
+export type DeviceRegistrationChallenge = {
+  nonce: string;
+  expiresAt: string;
+  mac: string;
+  userId: string;
+};
+
+/**
+ * Issues a short-lived (~2 min) registration nonce bound to the authenticated
+ * user and the device id. Stateless: integrity comes from a server-only HMAC.
+ */
+export const beginDeviceRegistrationFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => beginDeviceRegistrationSchema.parse(input))
+  .handler(async ({ data, context }): Promise<DeviceRegistrationChallenge> => {
+    const { issueDeviceRegistrationNonce } = await import("./device-registration.server");
+    const issued = await issueDeviceRegistrationNonce({
+      userId: context.userId,
+      deviceId: data.deviceId,
+    });
+    return { ...issued, userId: context.userId };
+  });
 
 const registerDeviceSchema = z
   .object({
     password: z.string().min(1),
-    deviceId: z.string().min(8).max(256),
+    deviceId: z.string().regex(/^[0-9a-f]{64}$/),
     publicKey: z.string().min(64).max(4096),
     algorithm: z.string().min(1).max(64),
     platform: z.string().min(1).max(64),
+    // Proof of possession of the private key for `publicKey`.
+    nonce: z.string().regex(/^[0-9a-f]{48}$/),
+    expiresAt: z.string().regex(/^[0-9]{1,16}$/),
+    mac: z.string().regex(/^[0-9a-f]{64}$/),
+    signature: z.string().min(16).max(2048),
   })
   .strict();
 
@@ -40,6 +75,27 @@ export const registerTrustedDeviceFn = createServerFn({ method: "POST" })
       password: data.password,
     });
     if (authError) throw new Error("REAUTHENTICATION_FAILED");
+
+    // Proof of possession: the nonce must be one this server issued to this
+    // user for this device (HMAC + expiry), the device id must be the SHA-256
+    // of the submitted public key, and the nonce message must be signed by the
+    // matching private key. Without this any public key could be registered.
+    const { verifyDeviceRegistrationNonce } = await import("./device-registration.server");
+    const proof = await verifyDeviceRegistrationNonce({
+      userId: context.userId,
+      deviceId: data.deviceId,
+      publicKeyDer: data.publicKey,
+      nonce: data.nonce,
+      expiresAt: data.expiresAt,
+      mac: data.mac,
+    });
+    if (!proof.ok) throw new Error(proof.reason);
+    const possessionProven = await verifyEcdsaAssertion({
+      publicKeyDer: data.publicKey,
+      signatureDer: data.signature,
+      message: proof.message,
+    });
+    if (!possessionProven) throw new Error("DEVICE_KEY_PROOF_INVALID");
 
     // Privileged device registration: only the server can write the trusted
     // device row, bypassing any client-side path.
@@ -70,6 +126,8 @@ export type StepUpChallenge = {
   nonce: string;
   expiresAt: string;
   deviceId: string;
+  /** Server-built hash the client must include in the signed message. */
+  payloadHash: string;
 };
 
 export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
@@ -129,7 +187,7 @@ export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
         nonce,
         expires_at: expiresAt,
       })
-      .select("id, nonce, expires_at, device_id")
+      .select("id, nonce, expires_at, device_id, payload_hash")
       .single();
     if (insertError || !inserted) throw new Error(insertError?.message ?? "CHALLENGE_CREATE_FAILED");
 
@@ -138,6 +196,7 @@ export const beginStepUpChallengeFn = createServerFn({ method: "POST" })
       nonce: String(inserted.nonce),
       expiresAt: String(inserted.expires_at),
       deviceId: String(inserted.device_id),
+      payloadHash: String(inserted.payload_hash),
     };
   });
 
