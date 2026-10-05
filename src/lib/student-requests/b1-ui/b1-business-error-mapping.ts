@@ -30,6 +30,17 @@ const B1_BUSINESS_EXCLUDED_CODES = [
 const B1_BUSINESS_MESSAGES_AR: Readonly<Record<string, string>> = {
   B1_FINAL_CHANCE_ACADEMIC_STATUS_REQUIRED:
     "لا يمكن تطبيق الفرصة النهائية لأن حالة الطالب الأكاديمية ليست نشطة للسنة والفصل المحددين.",
+  // غياب بعذر (EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01)
+  B1_EXCUSED_ABSENCE_STUDENT_DEPARTMENT_REQUIRED:
+    "لا يمكن تقديم طلب غياب بعذر قبل تسجيل قسمك العلمي في ملفك الطلابي. راجع شؤون الطلاب لاستكمال بيانات القسم ثم أعد المحاولة.",
+  B1_EXCUSED_ABSENCE_DEPARTMENT_HEAD_ASSIGNMENT_REQUIRED:
+    "تعذر قبول الطلب لأن قسم الطالب لا يملك رئيس قسم واحداً فعّالاً معيّناً على معالجة الطلبات. يُعالج ذلك من إدارة الكلية ثم يُعاد التقديم.",
+  B1_EXCUSED_ABSENCE_FEE_DECISION_REQUIRED:
+    "لا يمكن إتمام هذه الخطوة قبل تسجيل قرار الرسوم: رسوم مستحقة، أو لا رسوم مستحقة مع السبب.",
+  B1_EXCUSED_ABSENCE_DECISION_REASON_REQUIRED:
+    "سبب الإرجاع أو الرفض إلزامي. اكتب سبباً واضحاً يظهر للطالب ثم أعد المحاولة.",
+  B1_EXCUSED_ABSENCE_FEE_DECISION_RPC_REQUIRED:
+    "قرار الرسوم يُسجَّل من بطاقة قرار الرسوم في خطوة مسجل الكلية فقط.",
 };
 
 /** Safe generic Arabic fallback for any other `B1_*_REQUIRED` business error. */
@@ -112,6 +123,7 @@ const B1_KNOWN_OPERATIONAL_PATTERNS: readonly RegExp[] = [
   /\bB1_STALE_REQUEST_VERSION\b/,
   /\bB1_INPUT_VALIDATION_FAILED\b/,
   /\bB1_[A-Z0-9_]*INPUT_INVALID\b|\bB1_DRAFT_FIELD_TYPE_INVALID\b/,
+  /\bB1_EXCUSED_ABSENCE_FEE_DECISION_(IS_IMMUTABLE|ROUTING_MISMATCH)\b/,
   /\bPAYMENT_CONFIRMATION_FAILED\b|\bPAYMENT_CONFIRMATION_STEP_NOT_FOUND\b/,
   /\bB1_READ_ACCESS_DENIED\b|\bB1_DRAFT_ACCESS_DENIED\b/,
   /\bB1_ATTACHMENT_REQUIRED\b|\bATTACHMENT_[A-Z_]+\b/,

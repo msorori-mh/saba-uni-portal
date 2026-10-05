@@ -246,7 +246,8 @@ describe("B1-EXTENDED-RUNTIME-AUTHORIZATION-MATRIX-01", () => {
     expect(excusedAbsenceWorkflowSql).toContain("EAWF01:init-student-department-scope");
     expect(excusedAbsenceWorkflowSql).toContain("EAWF01:activation-student-department-scope");
     expect(excusedAbsenceWorkflowSql).toContain("EAWF01:resubmit-student-department-scope");
-    expect(excusedAbsenceWorkflowSql).toContain("B1_EXCUSED_ABSENCE_STUDENT_DEPARTMENT_SCOPE_MISSING");
+    expect(excusedAbsenceWorkflowSql).toContain("B1_EXCUSED_ABSENCE_STUDENT_DEPARTMENT_REQUIRED");
+    expect(excusedAbsenceWorkflowSql).toContain("B1_EXCUSED_ABSENCE_DEPARTMENT_HEAD_ASSIGNMENT_REQUIRED");
   });
 
   it("pins B1 database authorization to active steps with exactly one direct assignee", () => {
@@ -311,7 +312,15 @@ describe("B1-EXTENDED-RUNTIME-AUTHORIZATION-MATRIX-01", () => {
   it("keeps payment external and exact-finance-assignee only", () => {
     expect(B1_FEE_POLICIES.department_transfer).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
     expect(B1_FEE_POLICIES.final_chance).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
-    expect(B1_FEE_POLICIES.excused_absence).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    expect(B1_FEE_POLICIES.excused_absence).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    // the fee decision carries no amount / currency either, and only FEE_REQUIRED reaches finance
+    expect(excusedAbsenceWorkflowSql).toContain("CHECK (decision IN ('FEE_REQUIRED', 'FEE_NOT_REQUIRED'))");
+    const feeTable = excusedAbsenceWorkflowSql.slice(
+      excusedAbsenceWorkflowSql.indexOf("CREATE TABLE IF NOT EXISTS public.excused_absence_fee_decisions"),
+      excusedAbsenceWorkflowSql.indexOf("COMMENT ON TABLE public.excused_absence_fee_decisions"),
+    );
+    expect(feeTable.length).toBeGreaterThan(200);
+    expect(feeTable).not.toMatch(/amount|currency|price|balance|invoice|receipt|numeric|money/i);
     expect(paymentSql).toContain("EXACTLY_ONE_DIRECT_PAYMENT_ASSIGNEE_REQUIRED");
     expect(paymentSql).toContain("DIRECT_PAYMENT_ASSIGNEE_REQUIRED");
     expect(paymentSql).toContain("EXACT_FINANCE_PROCESSING_BINDING_REQUIRED");

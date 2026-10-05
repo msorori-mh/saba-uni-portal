@@ -51,6 +51,10 @@ import { getCurrentUserIdForStepUp } from "@/lib/security/step-up-browser";
 import { performWebStepUpFn } from "@/lib/security/device-trust.functions";
 import { B1SuccessState } from "./B1SuccessState";
 import {
+  EXCUSED_ABSENCE_DEPARTMENT_REQUIRED_MESSAGE_AR,
+  evaluateExcusedAbsenceDepartmentEligibility,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
+import {
   describeError,
   describeUpdatedAt,
   traceB1Submit,
@@ -573,6 +577,19 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         requirementsAlertAr={definition.warnings?.join(" ")}
         feePolicyNoteAr={config.feePolicyLabelAr}
       />
+      {serviceCode === "excused_absence" &&
+      options &&
+      !evaluateExcusedAbsenceDepartmentEligibility({
+        departmentLabelAr: options.currentDepartmentLabelAr,
+      }).eligible ? (
+        <div
+          role="alert"
+          data-testid="b1-department-required-notice"
+          className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-bold text-amber-900 dark:text-amber-200"
+        >
+          {EXCUSED_ABSENCE_DEPARTMENT_REQUIRED_MESSAGE_AR}
+        </div>
+      ) : null}
       <B1DraftStatus state={saveState} updatedAt={draft.updatedAt} />
       {fatalError ? (
         <B1ErrorState messageAr={fatalError} onRetry={() => setFatalError(null)} />

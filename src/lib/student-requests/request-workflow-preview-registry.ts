@@ -212,12 +212,12 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
     requestTypeNameAr: "غياب بعذر",
     specNotesAr: [
       "مرفقات إلزامية من الطالب عند التقديم",
-      "تُسدَّد الرسوم في النظام الجامعي الرئيسي بعد إحالة مسجل الكلية، وتؤكد المالية السداد يدوياً دون مبلغ أو عملة داخل البوابة",
+      "يقرر مسجل الكلية لكل طلب إن كانت الرسوم مستحقة؛ وعند استحقاقها تُسدَّد في النظام الجامعي الرئيسي وتؤكد المالية السداد يدوياً دون مبلغ أو عملة داخل البوابة",
       "توقيعات رئيس قسم الطالب ثم العميد ثم مدير شؤون الطلاب لا تنشئ وثيقة أو PDF",
     ],
     steps: [
       { key: "dean_review", labelAr: "مراجعة العميد وإحالة الطلب", roleKey: "dean", processingUnitCode: "dean", actionType: "review" },
-      { key: "registrar_fee_referral", labelAr: "إحالة الطلب لسداد الرسوم", roleKey: "registrar_general", processingUnitCode: "registrar", actionType: "review" },
+      { key: "registrar_fee_referral", labelAr: "قرار مسجل الكلية بشأن الرسوم", roleKey: "registrar_general", processingUnitCode: "registrar", actionType: "review" },
       { key: "payment_confirmation", labelAr: "تأكيد السداد الخارجي", roleKey: "revenue_finance_officer", processingUnitCode: "finance", actionType: "confirm_payment", requiresFee: true },
       { key: "department_head_signature", labelAr: "توقيع رئيس القسم", roleKey: "department_head", processingUnitCode: "department", actionType: "approve" },
       { key: "dean_signature", labelAr: "توقيع العميد", roleKey: "dean", processingUnitCode: "dean", actionType: "approve" },
@@ -280,7 +280,7 @@ const B1_LABELS_AR: Readonly<Record<string, string>> = {
   manager_review: "مراجعة مدير شؤون الطلاب",
   record_apply: "تسجيل العذر في السجل",
   dean_review: "مراجعة العميد وإحالة الطلب",
-  registrar_fee_referral: "إحالة الطلب لسداد الرسوم",
+  registrar_fee_referral: "قرار مسجل الكلية بشأن الرسوم",
   department_head_signature: "توقيع رئيس القسم",
   dean_signature: "توقيع العميد",
   student_affairs_manager_signature: "توقيع مدير شؤون الطلاب",
@@ -300,7 +300,9 @@ const B1_LABELS_AR: Readonly<Record<string, string>> = {
 const B1_SPEC_NOTES_EXTRA_AR: Readonly<Record<string, readonly string[]>> = {
   excused_absence: [
     "مرفقات العذر إلزامية من الطالب عند التقديم.",
-    "يحيل مسجل الكلية الطلب لسداد الرسوم بعد مراجعة العميد، ولا يتقدّم الطلب قبل تأكيد السداد.",
+    "يسجّل مسجل الكلية قرار الرسوم لكل طلب بعد مراجعة العميد: رسوم مستحقة، أو لا رسوم (خدمة مجانية أو إعفاء).",
+    "عند استحقاق الرسوم لا يتقدّم الطلب قبل تأكيد السداد؛ وعند عدم استحقاقها تُتخطّى خطوة تأكيد السداد.",
+    "الإرجاع للطالب متاح للعميد ومسجل الكلية، والرفض متاح لهما وللموقّعين الثلاثة، بسبب مكتوب إلزامي.",
     "توقيعات رئيس قسم الطالب ثم العميد ثم مدير شؤون الطلاب تُسجَّل كاعتماد ولا تنشئ وثيقة أو PDF.",
     "يُسجَّل العذر في سجل الغياب عند مسجل الكلية ثم تُؤرشف المعاملة.",
   ],
@@ -322,9 +324,9 @@ function getB1WorkflowPreview(code: string): CanonicalWorkflowPreview | undefine
       isArchiveStep: step.action === "archive",
     })),
     specNotesAr: [
-      ...(B1_FEE_POLICIES[code as B1CanonicalCode] === "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION"
-        ? ["تُدفع الرسوم في النظام الجامعي الأساسي، وتؤكد المالية المعيّنة الاستلام يدوياً دون مبلغ أو عملة أو فاتورة داخل البوابة."]
-        : ["لا رسوم ولا مستندات لهذه الخدمة"]),
+      ...(B1_FEE_POLICIES[code as B1CanonicalCode] === "FREE_NO_PAYMENT"
+        ? ["لا رسوم ولا مستندات لهذه الخدمة"]
+        : ["تُدفع الرسوم في النظام الجامعي الأساسي، وتؤكد المالية المعيّنة الاستلام يدوياً دون مبلغ أو عملة أو فاتورة داخل البوابة."]),
       ...(B1_SPEC_NOTES_EXTRA_AR[code] ?? []),
     ],
   };

@@ -160,6 +160,12 @@ LANGUAGE sql STABLE AS $$
     (SELECT jsonb_agg(to_jsonb(rs) ORDER BY rs.id)::text FROM public.student_request_workflow_steps rs),
     (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.id)::text FROM public.student_request_workflow_events e),
     (SELECT jsonb_agg(to_jsonb(d) ORDER BY d.id)::text FROM public.absence_excuse_details d),
+    (SELECT jsonb_agg(to_jsonb(n) ORDER BY n.id)::text FROM public.notifications n),
+    (SELECT jsonb_agg(to_jsonb(cc) ORDER BY cc.code)::text FROM public.request_workflow_transition_condition_catalog cc),
+    (SELECT string_agg(c.relname, ',' ORDER BY c.relname) FROM pg_class c
+      WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'),
+    (SELECT string_agg(t.tgrelid::regclass::text || ':' || t.tgname, ',' ORDER BY 1) FROM pg_trigger t
+      WHERE NOT t.tgisinternal),
     (SELECT string_agg(md5(pg_get_functiondef(p.oid)), ',' ORDER BY p.oid::regprocedure::text)
        FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prokind = 'f'
         AND p.proname NOT LIKE 'h\_%')
@@ -178,6 +184,8 @@ WHERE p.oid IN (
   'public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)'::regprocedure,
   'public.record_external_university_payment_confirmation(uuid,text)'::regprocedure,
   'public.apply_b1_excused_absence_effect(uuid)'::regprocedure,
+  'public.evaluate_workflow_transition_condition(uuid,jsonb)'::regprocedure,
+  'public.trg_notify_student_request()'::regprocedure,
   'public.can_current_user_act_on_step(uuid,text)'::regprocedure);
 
 -- ---------------------------------------------------------------------------

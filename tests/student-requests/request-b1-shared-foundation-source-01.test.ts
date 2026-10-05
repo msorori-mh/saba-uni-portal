@@ -100,7 +100,7 @@ describe("B1 workflows and payment policy", () => {
       ["registrar_apply", "registrar", "registrar_general", "apply_decision"],
     ]);
   });
-  it("encodes the exact paid excused-absence workflow: dean → registrar referral → payment → three signatures → registrar → archive", () => {
+  it("encodes the exact excused-absence workflow: dean → registrar fee decision → payment (when due) → three signatures → registrar → archive", () => {
     expect(B1_WORKFLOWS.excused_absence.map((s) => [s.key, s.unit, s.role, s.action])).toEqual([
       ["dean_review", "dean", "dean", "review"],
       ["registrar_fee_referral", "registrar", "registrar_general", "review"],
@@ -141,9 +141,14 @@ describe("B1 workflows and payment policy", () => {
     expect(B1_WORKFLOWS.file_withdrawal.every((s) => !["sign", "assess_fee", "confirm_payment"].includes(s.action))).toBe(true);
   });
   it("uses external university confirmation without portal fee assessment", () => {
-    for (const code of ["department_transfer", "final_chance", "excused_absence"] as const) {
+    // غياب بعذر: same external confirmation, but only when the registrar decides a fee is due.
+    expect(B1_FEE_POLICIES.excused_absence).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    for (const code of ["department_transfer", "final_chance"] as const) {
       expect(B1_FEE_POLICIES[code]).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
       expect(B1_SERVICE_ADAPTERS[code].feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    }
+    for (const code of ["department_transfer", "final_chance", "excused_absence"] as const) {
       const keys = B1_WORKFLOWS[code].map((s) => s.key);
       expect(keys).not.toContain("fee_assessment");
       expect(keys).toContain("payment_confirmation");

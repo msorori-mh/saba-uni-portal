@@ -9,7 +9,11 @@ export const B1_CANONICAL_CODES = [
 ] as const;
 
 export type B1CanonicalCode = (typeof B1_CANONICAL_CODES)[number];
-export type B1FeePolicy = "FREE_NO_PAYMENT" | "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION";
+export type B1FeePolicy =
+  | "FREE_NO_PAYMENT"
+  | "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION"
+  /** The college registrar decides per request; when due, payment is external and confirmed manually. */
+  | "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT";
 export const SERVICE_ACTIVATION_BLOCKED = "SERVICE_ACTIVATION_BLOCKED" as const;
 export const BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME" as const;
 export const BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME" as const;
@@ -140,8 +144,12 @@ const suspension: readonly B1WorkflowStep[] = [
  * غياب بعذر — دورة الرسوم والتوقيعات (excused_absence_external_payment_workflow).
  *
  * - الطالب يقدّم الطلب مع المرفقات الإلزامية → العميد يراجع ويحيل.
- * - مسجل الكلية يحيل الطلب لسداد الرسوم (بلا مبلغ أو عملة داخل البوابة).
- * - المالية تؤكد السداد الخارجي يدوياً (payment_confirmation).
+ * - مسجل الكلية يسجّل قرار الرسوم لكل طلب: FEE_REQUIRED أو FEE_NOT_REQUIRED
+ *   (خدمة مجانية / إعفاء). لا مبلغ ولا عملة داخل البوابة.
+ * - عند لزوم الرسوم فقط: المالية تؤكد السداد الخارجي يدوياً
+ *   (payment_confirmation)؛ وعند عدم لزومها تُتخطّى الخطوة.
+ * - الإرجاع للطالب والرفض متاحان لهذه الخدمة فقط وفق
+ *   excused-absence-fee-decision-contract.ts.
  * - التوقيعات الثلاثة (رئيس قسم الطالب، العميد، مدير شؤون الطلاب) خطوات
  *   `approve`: محرّك B1 الذري لا ينفّذ `sign` (B1_SPECIALIZED_ACTION_RPC_REQUIRED)
  *   والتوقيع لا ينشئ وثيقة أو PDF.
@@ -209,7 +217,7 @@ export const B1_WORKFLOWS: Readonly<Record<B1CanonicalCode, readonly B1WorkflowS
 
 export const B1_FEE_POLICIES: Readonly<Record<B1CanonicalCode, B1FeePolicy>> = {
   enrollment_suspension: "FREE_NO_PAYMENT",
-  excused_absence: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+  excused_absence: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
   file_withdrawal: "FREE_NO_PAYMENT",
   department_transfer: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
   final_chance: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
@@ -394,7 +402,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     },
   ),
   excused_absence: adapter(
-    "excused_absence", ["excused_absence", "absence_excuse"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+    "excused_absence", ["excused_absence", "absence_excuse"], "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     [{ key: "current_student_enrollments", field: "course_section_id", trustedServerValidationRequired: true }],
     noClientWrite("absence_excuse_details", "many", [
       { formField: "course_section_id", detailField: "course_section_id" },

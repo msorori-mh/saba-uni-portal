@@ -44,8 +44,30 @@ export function canCompleteSuspensionAbsence(input: {
   completedStepKeys: readonly string[];
   academicStatusApplied?: boolean;
   absenceRows?: readonly { recordAppliedAt: string | null }[];
+  /**
+   * Excused absence only. The payment step may be absent from the completed
+   * steps solely when the registrar recorded FEE_NOT_REQUIRED; a missing or
+   * FEE_REQUIRED decision keeps payment confirmation mandatory.
+   */
+  feeDecision?: "FEE_REQUIRED" | "FEE_NOT_REQUIRED" | null;
 }): boolean {
-  const stepsComplete = B1_WORKFLOWS[input.service].every((step) => input.completedStepKeys.includes(step.key));
+  const requiredSteps = B1_WORKFLOWS[input.service].filter(
+    (step) =>
+      !(
+        input.service === "excused_absence" &&
+        input.feeDecision === "FEE_NOT_REQUIRED" &&
+        step.key === "payment_confirmation"
+      ),
+  );
+  if (input.service === "excused_absence" && !input.feeDecision) return false;
+  if (
+    input.service === "excused_absence" &&
+    input.feeDecision === "FEE_NOT_REQUIRED" &&
+    input.completedStepKeys.includes("payment_confirmation")
+  ) {
+    return false;
+  }
+  const stepsComplete = requiredSteps.every((step) => input.completedStepKeys.includes(step.key));
   if (!stepsComplete) return false;
   if (input.service === "enrollment_suspension") return input.academicStatusApplied === true;
   return Boolean(input.absenceRows?.length) && input.absenceRows!.every((row) => Boolean(row.recordAppliedAt));
@@ -60,12 +82,13 @@ export const ENROLLMENT_SUSPENSION_FEE_POLICY = {
 } as const;
 
 /**
- * غياب بعذر: رسوم تُسدَّد في النظام الجامعي الرئيسي وتُؤكَّد يدوياً في خطوة
- * payment_confirmation. لا بوابة دفع ولا مبلغ ولا عملة ولا وثيقة داخل البوابة.
+ * غياب بعذر: مسجل الكلية يقرر لكل طلب إن كانت الرسوم مستحقة. عند استحقاقها
+ * تُسدَّد في النظام الجامعي الرئيسي وتُؤكَّد يدوياً في خطوة payment_confirmation.
+ * لا بوابة دفع ولا مبلغ ولا عملة ولا وثيقة داخل البوابة.
  */
 export const EXCUSED_ABSENCE_FEE_POLICY = {
-  feeRequired: true,
-  externalUniversityPaymentConfirmationRequired: true,
+  feeDecidedByRegistrarPerRequest: true,
+  externalUniversityPaymentConfirmationWhenFeeRequired: true,
   portalPaymentAllowed: false,
   amountOrCurrencyAllowed: false,
   documentIssuanceAllowed: false,

@@ -68,8 +68,9 @@ describe("B1 service runtime drafts 05 readiness", () => {
     for (const service of ["enrollment_suspension", "file_withdrawal"] as const) {
       expect(B1_SERVICE_ADAPTERS[service].feePolicy).toBe("FREE_NO_PAYMENT");
     }
-    // غياب بعذر became a paid service: the fee is settled in the university's
-    // main system and only confirmed here — still no ledger contract in the portal.
-    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    // غياب بعذر: the college registrar decides per request whether a fee is due;
+    // when due it is settled in the university's main system and only confirmed
+    // here — still no ledger contract in the portal.
+    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
   });
 });

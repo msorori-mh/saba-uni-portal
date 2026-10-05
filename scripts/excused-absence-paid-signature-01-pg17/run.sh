@@ -147,6 +147,22 @@ probe "effect function no longer bound to record_apply" \
   "EXCUSED_ABSENCE_WF01_EFFECT_STEP_KEY_BINDING_DRIFTED" \
   "$(rewrite_fn "$EFFECT" "registrar_apply" "record_apply")"
 
+# Phase-2 anchors: the fee-decision routing condition and the notification label.
+EVAL="public.evaluate_workflow_transition_condition(uuid,jsonb)"
+NOTIFY="public.trg_notify_student_request()"
+probe "deployed transition-condition evaluator drifted" \
+  "$(rewrite_fn "$EVAL" "IF v_code = 'FEE_IS_ZERO' THEN" "IF v_code  =  'FEE_IS_ZERO' THEN")" \
+  "EXCUSED_ABSENCE_WF01_PATCH_ANCHOR_MUST_MATCH_EXACTLY_ONCE:EAWF01:fee-not-required-condition:0" \
+  "$(rewrite_fn "$EVAL" "IF v_code  =  'FEE_IS_ZERO' THEN" "IF v_code = 'FEE_IS_ZERO' THEN")"
+probe "deployed student-notification trigger drifted" \
+  "$(rewrite_fn "$NOTIFY" "WHEN 'absence_excuse' THEN 'عذر غياب'" "WHEN 'absence_excuse'  THEN 'عذر غياب'")" \
+  "EXCUSED_ABSENCE_WF01_PATCH_ANCHOR_MUST_MATCH_EXACTLY_ONCE:EAWF01:notification-service-label:0" \
+  "$(rewrite_fn "$NOTIFY" "WHEN 'absence_excuse'  THEN 'عذر غياب'" "WHEN 'absence_excuse' THEN 'عذر غياب'")"
+probe "fee-not-required condition code inactive in the catalog" \
+  "INSERT INTO public.request_workflow_transition_condition_catalog (code,name_ar,is_active) VALUES ('EXCUSED_ABSENCE_FEE_NOT_REQUIRED','معطّل',false)" \
+  "EXCUSED_ABSENCE_WF01_FEE_CONDITION_MUST_BE_ACTIVE_IN_CATALOG" \
+  "DELETE FROM public.request_workflow_transition_condition_catalog WHERE code='EXCUSED_ABSENCE_FEE_NOT_REQUIRED'"
+
 # Why the engine patches are required: the new cycle WITHOUT them cannot even
 # initialize (the department-head step resolves across ALL departments).
 echo "--- necessity probe: the workflow definition alone is not runnable"

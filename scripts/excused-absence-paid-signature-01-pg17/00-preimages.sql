@@ -802,3 +802,279 @@ CREATE TRIGGER trg_guard_b1_runtime_step_activation
 BEFORE UPDATE OF status ON public.student_request_workflow_steps
 FOR EACH ROW WHEN (NEW.status = 'active' AND OLD.status IS DISTINCT FROM 'active')
 EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
+
+-- ---------------------------------------------------------------------------
+-- Conditional routing, notifications and request protection
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.request_workflow_transition_condition_catalog ADD COLUMN IF NOT EXISTS description_ar text;
+ALTER TABLE public.request_workflow_transition_condition_catalog ADD COLUMN IF NOT EXISTS params_schema jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.request_workflow_transition_condition_catalog ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;
+
+-- source: 20260811202314
+INSERT INTO public.request_workflow_transition_condition_catalog(code,name_ar,description_ar,sort_order)
+VALUES
+  ('FEE_IS_ZERO','لا توجد رسوم','ينطبق عندما لا يوجد تقييم رسوم فعّال أو كان المبلغ صفرًا',10),
+  ('FEE_GREATER_THAN_ZERO','توجد رسوم مستحقة','ينطبق عندما يوجد تقييم رسوم فعّال بمبلغ أكبر من صفر',20),
+  ('PAYMENT_ALREADY_CONFIRMED','السداد مؤكد مسبقًا','ينطبق عندما تم تأكيد سداد الرسوم لهذا الطلب',30),
+  ('ATTACHMENT_PRESENT','يوجد مرفق','ينطبق عندما يملك الطلب مرفقًا واحدًا على الأقل مرفوعًا',40),
+  ('TARGET_DEPARTMENT_DIFFERS','القسم المستهدف مختلف','ينطبق عندما يختلف القسم المطلوب عن القسم الحالي للطالب',50)
+ON CONFLICT (code) DO NOTHING;
+
+-- Legacy fee-assessment ledger read by the deployed condition evaluator.
+-- It stays EMPTY in this rehearsal: the excused-absence cycle never writes it.
+CREATE TABLE IF NOT EXISTS public.student_request_fee_assessments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id uuid NOT NULL,
+  amount numeric NOT NULL DEFAULT 0,
+  payment_status text NOT NULL DEFAULT 'pending',
+  assessed_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.student_request_attachment_uploads (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_request_id uuid NOT NULL,
+  upload_status text NOT NULL DEFAULT 'uploaded'
+);
+
+-- The P1 rehearsal base ships an inert stub with a different parameter name.
+DROP FUNCTION IF EXISTS public.evaluate_workflow_transition_condition(uuid, jsonb);
+-- source: 20260811202314_488b316c-1f2f-464b-9087-0c2204c671e8.sql
+CREATE OR REPLACE FUNCTION public.evaluate_workflow_transition_condition(
+  p_request_id uuid, p_condition jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_code text; v_amount numeric; v_paid boolean;
+BEGIN
+  IF p_condition IS NULL OR p_condition = '{}'::jsonb THEN RETURN true; END IF;
+  v_code := NULLIF(btrim(COALESCE(p_condition->>'code','')),'');
+  IF v_code IS NULL THEN RETURN true; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.request_workflow_transition_condition_catalog c
+                 WHERE c.code = v_code AND c.is_active) THEN
+    RAISE EXCEPTION 'B1_CONDITION_CODE_NOT_ALLOWED:%', v_code;
+  END IF;
+
+  SELECT f.amount, (f.payment_status = 'paid') INTO v_amount, v_paid
+  FROM public.student_request_fee_assessments f
+  WHERE f.request_id = p_request_id AND f.payment_status <> 'cancelled'
+  ORDER BY f.assessed_at DESC LIMIT 1;
+
+  IF v_code = 'FEE_IS_ZERO' THEN
+    RETURN COALESCE(v_amount, 0) = 0;
+  ELSIF v_code = 'FEE_GREATER_THAN_ZERO' THEN
+    RETURN COALESCE(v_amount, 0) > 0;
+  ELSIF v_code = 'PAYMENT_ALREADY_CONFIRMED' THEN
+    RETURN COALESCE(v_paid, false);
+  ELSIF v_code = 'ATTACHMENT_PRESENT' THEN
+    RETURN EXISTS (SELECT 1 FROM public.student_request_attachment_uploads u
+                   WHERE u.student_request_id = p_request_id
+                     AND u.upload_status IN ('uploaded','attached','active'));
+  ELSIF v_code = 'TARGET_DEPARTMENT_DIFFERS' THEN
+    RETURN EXISTS (
+      SELECT 1 FROM public.transfer_request_details d
+      JOIN public.student_requests r ON r.id = d.request_id
+      JOIN public.student_profiles sp ON sp.id = r.student_profile_id
+      WHERE d.request_id = p_request_id
+        AND d.requested_department_id IS DISTINCT FROM sp.department_id);
+  END IF;
+
+  RAISE EXCEPTION 'B1_CONDITION_CODE_NOT_IMPLEMENTED:%', v_code;
+END;
+$function$;
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  notification_type text NOT NULL DEFAULT 'system',
+  reference_type text,
+  reference_id uuid,
+  is_read boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT notifications_type_chk
+    CHECK (notification_type IN ('request','grade','finance','payment_receipt','system','council','student_request_completed'))
+);
+
+-- source: 20260601021528_918c7cad-221c-4de2-bc27-1c79c1819814.sql
+CREATE OR REPLACE FUNCTION public.create_notification(
+  _target_user_id uuid,
+  _title text,
+  _message text,
+  _type text,
+  _reference_type text DEFAULT NULL,
+  _reference_id uuid DEFAULT NULL
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_id uuid;
+BEGIN
+  IF _target_user_id IS NULL THEN RETURN NULL; END IF;
+  INSERT INTO public.notifications(user_id, title, message, notification_type, reference_type, reference_id)
+  VALUES (_target_user_id, _title, _message, _type, _reference_type, _reference_id)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+-- source: 20260627120000_official_transcript_request.sql
+CREATE OR REPLACE FUNCTION public.trg_notify_student_request()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user_id uuid;
+  v_type_label text;
+  v_title text;
+  v_msg text;
+BEGIN
+  IF TG_OP <> 'UPDATE' THEN RETURN NEW; END IF;
+  IF COALESCE(OLD.status,'') = COALESCE(NEW.status,'') THEN RETURN NEW; END IF;
+  IF NEW.status NOT IN ('approved','rejected','returned') THEN RETURN NEW; END IF;
+
+  SELECT sp.user_id INTO v_user_id FROM public.student_profiles sp WHERE sp.id = NEW.student_profile_id;
+  IF v_user_id IS NULL THEN RETURN NEW; END IF;
+
+  v_type_label := CASE NEW.request_type
+    WHEN 'absence_excuse' THEN 'عذر غياب'
+    WHEN 'enrollment_suspension' THEN 'وقف القيد'
+    WHEN 'enrollment_reinstatement' THEN 'إعادة القيد'
+    WHEN 'extra_chance' THEN 'فرصة إضافية'
+    WHEN 'transfer' THEN 'التحويل'
+    WHEN 'equivalency' THEN 'المقاصة'
+    WHEN 'grade_appeal' THEN 'تظلم درجات'
+    WHEN 'official_transcript' THEN 'سجل أكاديمي رسمي'
+    ELSE NEW.request_type
+  END;
+
+  IF NEW.status = 'approved' THEN
+    v_title := 'تم اعتماد طلب ' || v_type_label;
+    v_msg := 'تم اعتماد طلبك (' || COALESCE(NEW.title,'') || ').';
+  ELSIF NEW.status = 'returned' THEN
+    v_title := 'طلب ' || v_type_label || ' يحتاج استكمال';
+    v_msg := COALESCE('ملاحظات: ' || NEW.rejection_reason, 'يرجى استكمال بيانات الطلب وإعادة الإرسال.');
+  ELSE
+    v_title := 'تم رفض طلب ' || v_type_label;
+    v_msg := COALESCE('سبب الرفض: ' || NEW.rejection_reason, 'تم رفض طلبك.');
+  END IF;
+
+  PERFORM public.create_notification(v_user_id, v_title, v_msg, 'request', 'student_request', NEW.id);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_notify_student_request ON public.student_requests;
+CREATE TRIGGER trg_notify_student_request
+AFTER UPDATE ON public.student_requests
+FOR EACH ROW EXECUTE FUNCTION public.trg_notify_student_request();
+
+ALTER TABLE public.student_requests ADD COLUMN IF NOT EXISTS reviewed_by uuid;
+ALTER TABLE public.student_requests ADD COLUMN IF NOT EXISTS reviewed_at timestamptz;
+ALTER TABLE public.student_requests ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
+
+-- source: 20260812135536_a66697e2-7839-4f21-b0b1-ce47d1240c34.sql
+CREATE OR REPLACE FUNCTION public.protect_student_request()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_via_rpc boolean := COALESCE(current_setting('student_request.submit_via_rpc', true), '') = '1';
+  v_b1_atomic boolean := COALESCE(current_setting('b1.atomic_action', true), '') = '1';
+BEGIN
+  IF public.has_any_role(v_uid, ARRAY['admin','system_admin','dean','registrar','student_affairs']) THEN
+    RETURN NEW;
+  END IF;
+
+  IF v_b1_atomic AND v_uid IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.student_request_workflow_steps s
+    WHERE s.student_request_id = OLD.id
+      AND s.completed_by = v_uid
+      AND s.status IN ('completed','rejected','returned')
+  ) THEN
+    NEW.id                 := OLD.id;
+    NEW.student_profile_id := OLD.student_profile_id;
+    NEW.request_type       := OLD.request_type;
+    NEW.submitted_at       := OLD.submitted_at;
+    RETURN NEW;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.student_profiles sp
+    WHERE sp.id = OLD.student_profile_id AND sp.user_id = v_uid
+  ) THEN
+    IF NEW.status = 'cancelled' AND OLD.status NOT IN ('approved','completed') THEN
+      NEW.student_profile_id := OLD.student_profile_id;
+      NEW.request_type       := OLD.request_type;
+      NEW.submitted_at       := OLD.submitted_at;
+      NEW.reviewed_by        := OLD.reviewed_by;
+      NEW.reviewed_at        := OLD.reviewed_at;
+      NEW.rejection_reason   := OLD.rejection_reason;
+      NEW.completed_at       := OLD.completed_at;
+      NEW.cancelled_at       := now();
+      RETURN NEW;
+    END IF;
+
+    IF v_via_rpc
+       AND OLD.status IN ('draft', 'returned', 'returned_for_completion')
+       AND NEW.status = 'submitted' THEN
+      NEW.submitted_at := COALESCE(NEW.submitted_at, now());
+      NEW.student_profile_id := OLD.student_profile_id;
+      NEW.request_type       := OLD.request_type;
+      NEW.cancelled_at       := OLD.cancelled_at;
+      NEW.completed_at       := OLD.completed_at;
+      IF OLD.status IN ('returned', 'returned_for_completion') THEN
+        NEW.rejection_reason := NULL;
+        NEW.reviewed_by := NULL;
+        NEW.reviewed_at := NULL;
+      ELSE
+        NEW.reviewed_by        := OLD.reviewed_by;
+        NEW.reviewed_at        := OLD.reviewed_at;
+        NEW.rejection_reason   := OLD.rejection_reason;
+      END IF;
+      RETURN NEW;
+    END IF;
+
+    IF OLD.status IN ('draft', 'returned', 'returned_for_completion')
+       AND NEW.status = 'submitted' THEN
+      RAISE EXCEPTION 'يجب إرسال الطلب عبر submit_student_request() وليس التحديث المباشر'
+        USING ERRCODE = '42501';
+    END IF;
+
+    IF OLD.status = 'draft' AND NEW.status = 'draft' THEN
+      NEW.student_profile_id := OLD.student_profile_id;
+      NEW.request_type       := OLD.request_type;
+      NEW.submitted_at       := OLD.submitted_at;
+      NEW.reviewed_by        := OLD.reviewed_by;
+      NEW.reviewed_at        := OLD.reviewed_at;
+      NEW.rejection_reason   := OLD.rejection_reason;
+      NEW.cancelled_at       := OLD.cancelled_at;
+      NEW.completed_at       := OLD.completed_at;
+      RETURN NEW;
+    END IF;
+
+    IF OLD.status IN ('returned','returned_for_completion')
+       AND NEW.status IN ('returned','returned_for_completion') THEN
+      NEW.student_profile_id := OLD.student_profile_id;
+      NEW.request_type       := OLD.request_type;
+      NEW.submitted_at       := OLD.submitted_at;
+      NEW.reviewed_by        := OLD.reviewed_by;
+      NEW.reviewed_at        := OLD.reviewed_at;
+      NEW.rejection_reason   := OLD.rejection_reason;
+      NEW.cancelled_at       := OLD.cancelled_at;
+      NEW.completed_at       := OLD.completed_at;
+      RETURN NEW;
+    END IF;
+
+    RAISE EXCEPTION 'Students cannot modify a request after submission';
+  END IF;
+
+  RAISE EXCEPTION 'Not authorized to modify this request';
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_protect_student_request ON public.student_requests;
+CREATE TRIGGER trg_protect_student_request
+BEFORE UPDATE ON public.student_requests
+FOR EACH ROW EXECUTE FUNCTION public.protect_student_request();

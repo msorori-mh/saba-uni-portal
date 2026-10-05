@@ -81,17 +81,29 @@ describe("suspension and excused absence source contract", () => {
     expect(canCompleteSuspensionAbsence({ service: "enrollment_suspension", completedStepKeys: suspensionSteps, academicStatusApplied: false })).toBe(false);
     expect(canCompleteSuspensionAbsence({ service: "enrollment_suspension", completedStepKeys: suspensionSteps, academicStatusApplied: true })).toBe(true);
     const absenceSteps = B1_WORKFLOWS.excused_absence.map((step) => step.key);
-    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: [] })).toBe(false);
-    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: [{ recordAppliedAt: null }] })).toBe(false);
-    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(true);
+    const applied = [{ recordAppliedAt: "2026-07-17T00:00:00Z" }];
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: [], feeDecision: "FEE_REQUIRED" })).toBe(false);
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: [{ recordAppliedAt: null }], feeDecision: "FEE_REQUIRED" })).toBe(false);
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: applied, feeDecision: "FEE_REQUIRED" })).toBe(true);
+    // no recorded fee decision → never complete, even with every step done
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: applied })).toBe(false);
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: applied, feeDecision: null })).toBe(false);
+    // FEE_NOT_REQUIRED: payment confirmation is bypassed — and must NOT have happened
+    const withoutPayment = absenceSteps.filter((key) => key !== "payment_confirmation");
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: withoutPayment, absenceRows: applied, feeDecision: "FEE_NOT_REQUIRED" })).toBe(true);
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: absenceSteps, absenceRows: applied, feeDecision: "FEE_NOT_REQUIRED" })).toBe(false);
+    // FEE_REQUIRED: skipping payment confirmation is never a completed request
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: withoutPayment, absenceRows: applied, feeDecision: "FEE_REQUIRED" })).toBe(false);
   });
 
   it("requires the excuse to be recorded AND the request archived before completion", () => {
     const allButArchive = B1_WORKFLOWS.excused_absence.map((step) => step.key).filter((key) => key !== "archive");
-    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: allButArchive, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(false);
+    for (const feeDecision of ["FEE_REQUIRED", "FEE_NOT_REQUIRED"] as const) {
+      expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: allButArchive, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }], feeDecision })).toBe(false);
+      expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: ["student_affairs_intake", "manager_review", "record_apply"], absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }], feeDecision })).toBe(false);
+    }
     const allButPayment = B1_WORKFLOWS.excused_absence.map((step) => step.key).filter((key) => key !== "payment_confirmation");
-    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: allButPayment, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(false);
-    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: ["student_affairs_intake", "manager_review", "record_apply"], absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }] })).toBe(false);
+    expect(canCompleteSuspensionAbsence({ service: "excused_absence", completedStepKeys: allButPayment, absenceRows: [{ recordAppliedAt: "2026-07-17T00:00:00Z" }], feeDecision: "FEE_REQUIRED" })).toBe(false);
   });
 
   it("keeps suspension free: no fees, portal payment, amounts, currencies, or document issuance", () => {
@@ -102,13 +114,13 @@ describe("suspension and excused absence source contract", () => {
 
   it("charges excused absence outside the portal only: no gateway, amount, currency, or document", () => {
     expect(EXCUSED_ABSENCE_FEE_POLICY).toEqual({
-      feeRequired: true,
-      externalUniversityPaymentConfirmationRequired: true,
+      feeDecidedByRegistrarPerRequest: true,
+      externalUniversityPaymentConfirmationWhenFeeRequired: true,
       portalPaymentAllowed: false,
       amountOrCurrencyAllowed: false,
       documentIssuanceAllowed: false,
     });
-    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     const payment = B1_WORKFLOWS.excused_absence.filter((step) => step.action === "confirm_payment");
     expect(payment).toEqual([{ key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" }]);
     expect(B1_WORKFLOWS.excused_absence.some((step) => step.key === "fee_assessment" || (step.action as string) === "assess_fee")).toBe(false);

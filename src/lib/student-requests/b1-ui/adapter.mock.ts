@@ -14,6 +14,7 @@ import {
   type B1AttachmentMeta,
   type B1CanonicalCode,
   type B1Draft,
+  type B1ExcusedAbsenceFeeDecisionSubmission,
   type B1FormOptions,
   type B1ReferenceOption,
   type B1RequestDetails,
@@ -35,6 +36,14 @@ import {
 import { validateB1FormValues } from "./validation";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import { buildB1StudentFormSummaryItems } from "./form-summary";
+import {
+  EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY,
+  EXCUSED_ABSENCE_PAYMENT_STEP_KEY,
+  excusedAbsenceFeeDecisionStudentMessageAr,
+  getB1StepExitActions,
+  validateExcusedAbsenceFeeDecisionInput,
+  type ExcusedAbsenceFeeDecisionRecord,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
 
 export const B1_MOCK_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const B1_MOCK_ALLOWED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
@@ -55,6 +64,8 @@ type MockRequest = {
   submittedAt?: string;
   steps: B1WorkflowStepView[];
   studentVisibleMessages: B1StudentVisibleMessage[];
+  /** غياب بعذر: the registrar's fee decision, once recorded. */
+  feeDecision?: ExcusedAbsenceFeeDecisionRecord;
   updatedAt: string;
 };
 
@@ -705,6 +716,27 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
           comment: "comment_required",
         });
       }
+      if (
+        (action === "return" || action === "reject") &&
+        request.serviceCode === "excused_absence" &&
+        !getB1StepExitActions(request.serviceCode, step.key).includes(action)
+      ) {
+        throw new B1AdapterError(
+          "PERMISSION_DENIED",
+          `Action ${action} is not allowed on step ${step.key} of this service.`,
+        );
+      }
+      if (
+        request.serviceCode === "excused_absence" &&
+        step.key === EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY &&
+        action !== "return" &&
+        action !== "reject"
+      ) {
+        throw new B1AdapterError(
+          "BUSINESS_RULE_BLOCKED",
+          "B1_EXCUSED_ABSENCE_FEE_DECISION_REQUIRED",
+        );
+      }
       if (!allowedActionsForStep(step).includes(action)) {
         throw new B1AdapterError(
           "PERMISSION_DENIED",
@@ -728,6 +760,54 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         );
       }
       return applyProgression(request, step, index, "confirm_payment", optionalNote);
+    },
+
+    async recordB1ExcusedAbsenceFeeDecision(
+      stepId: string,
+      submission: B1ExcusedAbsenceFeeDecisionSubmission,
+    ): Promise<B1StepActionResult> {
+      await sleep();
+      const { request, step, index } = findStep(stepId);
+      if (
+        request.serviceCode !== "excused_absence" ||
+        step.key !== EXCUSED_ABSENCE_FEE_DECISION_STEP_KEY ||
+        step.status !== "active"
+      ) {
+        throw new B1AdapterError(
+          "PERMISSION_DENIED",
+          "Fee decision can only be recorded on the active registrar step of an excused-absence request.",
+        );
+      }
+      const validated = validateExcusedAbsenceFeeDecisionInput({ stepId, ...submission });
+      if (!validated.valid) {
+        throw new B1AdapterError("VALIDATION_ERROR", "Fee decision is invalid.", {
+          decision: validated.error,
+        });
+      }
+      const record: ExcusedAbsenceFeeDecisionRecord = {
+        requestId: request.requestId,
+        decision: validated.normalized.decision,
+        exemptionReason: validated.normalized.exemptionReason,
+        decidedAt: nowIso(),
+      };
+      request.feeDecision = record;
+      if (record.decision === "FEE_NOT_REQUIRED") {
+        // No payment is due: the confirmation step does not apply to this request.
+        request.steps = request.steps.filter((item) => item.key !== EXCUSED_ABSENCE_PAYMENT_STEP_KEY);
+      }
+      pushStudentMessage(
+        request,
+        "مسجل الكلية (تجريبي)",
+        excusedAbsenceFeeDecisionStudentMessageAr(record),
+      );
+      return applyProgression(request, step, index, "review", validated.normalized.note ?? undefined);
+    },
+
+    async getB1ExcusedAbsenceFeeDecision(
+      requestId: string,
+    ): Promise<ExcusedAbsenceFeeDecisionRecord | null> {
+      await sleep();
+      return requireRequest(requestId).feeDecision ?? null;
     },
   };
 }

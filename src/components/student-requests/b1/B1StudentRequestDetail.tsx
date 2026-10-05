@@ -18,6 +18,11 @@ import { B1LoadingState } from "./B1LoadingState";
 import { B1RequestStatusCard } from "./B1RequestStatusCard";
 import { B1RequestSummary } from "./B1RequestSummary";
 import { B1WorkflowTimeline } from "./B1WorkflowTimeline";
+import {
+  EXCUSED_ABSENCE_PAYMENT_STEP_KEY,
+  excusedAbsenceFeeDecisionStudentMessageAr,
+  type ExcusedAbsenceFeeDecisionRecord,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
 
 const STATUS_LABEL_AR: Record<B1RequestDetails["status"], string> = {
   draft: "مسودة",
@@ -34,12 +39,14 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
   const adapter = useMemo(() => getB1UiAdapter(), []);
   const [details, setDetails] = useState<B1RequestDetails | null>(null);
   const [formOptions, setFormOptions] = useState<B1FormOptions | null>(null);
+  const [feeDecision, setFeeDecision] = useState<ExcusedAbsenceFeeDecisionRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     setError(null);
     setDetails(null);
     setFormOptions(null);
+    setFeeDecision(null);
     void adapter
       .getB1RequestDetails(requestId)
       .then(async (loaded) => {
@@ -50,6 +57,14 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
           } catch {
             // Labels still come from the form registry; options enrich names when available.
             setFormOptions(null);
+          }
+        }
+        if (loaded.serviceCode === "excused_absence") {
+          try {
+            setFeeDecision(await adapter.getB1ExcusedAbsenceFeeDecision(loaded.requestId));
+          } catch {
+            // The decision is supplementary; the timeline stays authoritative.
+            setFeeDecision(null);
           }
         }
       })
@@ -67,6 +82,12 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
   const awaitingExternalPayment =
     activeStep?.key === B1_EXTERNAL_PAYMENT_STEP_KEY ||
     details.status === "waiting_payment_confirmation";
+  // غياب بعذر: when the registrar decided that no fee is due, the payment
+  // confirmation step does not apply to this request and is not listed.
+  const timelineSteps =
+    feeDecision?.decision === "FEE_NOT_REQUIRED"
+      ? details.steps.filter((step) => step.key !== EXCUSED_ABSENCE_PAYMENT_STEP_KEY)
+      : details.steps;
   const serviceCode = details.serviceCode as B1CanonicalCode;
   const config = getB1ServiceConfig(serviceCode);
   const summaryItems = isB1ServiceCode(serviceCode)
@@ -98,7 +119,20 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
         </p>
       ) : null}
 
-      {awaitingExternalPayment ? (
+      {feeDecision ? (
+        <section
+          data-testid="b1-fee-decision-summary"
+          data-fee-decision={feeDecision.decision}
+          className="rounded-lg border border-border bg-card p-3 text-sm"
+        >
+          <h2 className="font-bold text-primary">قرار الرسوم</h2>
+          <p className="mt-1 text-muted-foreground">
+            {excusedAbsenceFeeDecisionStudentMessageAr(feeDecision)}
+          </p>
+        </section>
+      ) : null}
+
+      {awaitingExternalPayment && !feeDecision ? (
         <p
           data-testid="b1-external-payment-guidance"
           className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground"
@@ -119,7 +153,7 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
         attachments={details.attachments}
       />
 
-      {details.steps.length > 0 ? <B1WorkflowTimeline steps={details.steps} /> : null}
+      {timelineSteps.length > 0 ? <B1WorkflowTimeline steps={timelineSteps} /> : null}
       {details.studentVisibleMessages.length > 0 ? (
         <section data-testid="b1-request-history" className="space-y-2">
           <h2 className="font-bold text-primary">الملاحظات وسجل الحالة</h2>

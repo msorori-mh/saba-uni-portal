@@ -30,7 +30,7 @@ export const B1_STEP_LABELS_AR: Readonly<Record<string, string>> = {
   manager_review: "مراجعة مدير شؤون الطلاب",
   record_apply: "تطبيق القرار",
   dean_review: "مراجعة العميد وإحالة الطلب",
-  registrar_fee_referral: "إحالة الطلب لسداد الرسوم",
+  registrar_fee_referral: "قرار مسجل الكلية بشأن الرسوم",
   department_head_signature: "توقيع رئيس القسم",
   dean_signature: "توقيع العميد",
   student_affairs_manager_signature: "توقيع مدير شؤون الطلاب",
@@ -54,6 +54,8 @@ export const B1_FEE_POLICY_LABELS_AR: Readonly<Record<B1FeePolicy, string>> = {
   FREE_NO_PAYMENT: "خدمة مجانية — لا توجد رسوم داخل البوابة",
   EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION:
     "السداد يتم في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا تسجّل البوابة مبلغًا أو عملة",
+  REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT:
+    "يحدد مسجل الكلية لكل طلب إن كانت الرسوم مستحقة؛ وعند استحقاقها يتم السداد في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا تسجّل البوابة مبلغًا أو عملة",
 };
 
 /** Step that waits for the manual external-payment confirmation by the revenue officer. */

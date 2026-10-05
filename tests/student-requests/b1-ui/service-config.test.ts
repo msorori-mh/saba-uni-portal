@@ -23,7 +23,7 @@ describe("B1 UI service config", () => {
     }
     expect(getB1ServiceConfig("enrollment_suspension")!.feePolicy).toBe("FREE_NO_PAYMENT");
     expect(getB1ServiceConfig("excused_absence")!.feePolicy).toBe(
-      "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     );
     expect(getB1ServiceConfig("file_withdrawal")!.feePolicy).toBe("FREE_NO_PAYMENT");
     expect(getB1ServiceConfig("department_transfer")!.feePolicy).toBe(
@@ -36,6 +36,13 @@ describe("B1 UI service config", () => {
 
   it("ships Arabic fee copy with no amounts or currency", () => {
     expect(B1_FEE_POLICY_LABELS_AR.FREE_NO_PAYMENT).toContain("مجانية");
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain(
+      "النظام الجامعي الرئيسي",
+    );
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain("مسجل الكلية");
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain(
+      "لا تسجّل البوابة مبلغًا أو عملة",
+    );
     expect(B1_FEE_POLICY_LABELS_AR.EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION).toContain(
       "النظام الجامعي الرئيسي",
     );
