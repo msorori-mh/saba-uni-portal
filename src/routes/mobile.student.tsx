@@ -236,7 +236,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: "الرئيسية", icon: Home, to: "/mobile/student" },
   { label: "الجدول", icon: CalendarClock, to: "/mobile/student/schedule" },
-  { label: "الطلبات", icon: ClipboardList, to: "/mobile/student/requests" },
+  { label: "الخدمات الطلابية", icon: ClipboardList, to: "/mobile/student/requests" },
   { label: "الوثائق", icon: FileText, to: "/mobile/student/documents" },
   { label: "المزيد", icon: LayoutGrid, to: "/mobile/student/more" },
 ];
@@ -271,7 +271,7 @@ function MobileBottomNav() {
               ].join(" ")}
             >
               <Icon className={`h-5 w-5 ${active ? "text-gold" : ""}`} />
-              <span className="leading-none">{item.label}</span>
+              <span className="px-0.5 text-center leading-tight">{item.label}</span>
               {disabled && (
                 <span className="text-[8px] font-bold text-gold/80 leading-none">قريباً</span>
               )}
