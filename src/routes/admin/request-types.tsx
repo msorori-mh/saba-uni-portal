@@ -29,6 +29,7 @@ import {
   type RequestTypeConfigFormState,
 } from "@/components/admin/RequestTypeConfigDialog";
 import { Button } from "@/components/ui/button";
+import { StudentServicesSwitchCard } from "@/components/admin/StudentServicesSwitchCard";
 import {
   INELIGIBLE_DISPLAY_MODE_LABELS_AR,
   REQUEST_AUDIENCE_LABELS_AR,
@@ -181,6 +182,8 @@ function AdminRequestTypesPage() {
         إعداد أنواع الطلبات وفق المواصفة المعتمدة. دورة الحياة (الخطوات والجهات) تُدار منفصلة عبر «إعداد دورة
         الحياة». الأنواع المعطلة لا تظهر للطلاب كخدمة قابلة للاستخدام.
       </p>
+
+      <StudentServicesSwitchCard />
 
       {!capabilities.hasAudienceFields && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">

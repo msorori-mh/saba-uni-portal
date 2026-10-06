@@ -3402,6 +3402,57 @@ export type Database = {
         }
         Relationships: []
       }
+      excused_absence_fee_decisions: {
+        Row: {
+          amount_due: number | null
+          decided_at: string
+          decided_by: string
+          decision: string
+          exemption_reason: string | null
+          id: string
+          note: string | null
+          request_id: string
+          runtime_step_id: string
+        }
+        Insert: {
+          amount_due?: number | null
+          decided_at?: string
+          decided_by: string
+          decision: string
+          exemption_reason?: string | null
+          id?: string
+          note?: string | null
+          request_id: string
+          runtime_step_id: string
+        }
+        Update: {
+          amount_due?: number | null
+          decided_at?: string
+          decided_by?: string
+          decision?: string
+          exemption_reason?: string | null
+          id?: string
+          note?: string | null
+          request_id?: string
+          runtime_step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excused_absence_fee_decisions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "excused_absence_fee_decisions_runtime_step_id_fkey"
+            columns: ["runtime_step_id"]
+            isOneToOne: true
+            referencedRelation: "student_request_workflow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extra_chance_details: {
         Row: {
           academic_year_id: string
@@ -11960,6 +12011,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      b1_excused_absence_before_step_action: {
+        Args: { p_action: string; p_comment: string; p_step_id: string }
+        Returns: undefined
+      }
+      b1_excused_absence_paid_cycle_step: {
+        Args: { p_step_id: string }
+        Returns: string
+      }
+      b1_excused_absence_step_decision_allowed: {
+        Args: { p_action: string; p_step_id: string }
+        Returns: boolean
+      }
+      b1_excused_absence_student_department: {
+        Args: { p_request_id: string }
+        Returns: string
+      }
       b1_expected_secure_attachment_field: {
         Args: { p_request_type: string }
         Returns: string
@@ -13073,6 +13140,10 @@ export type Database = {
         Args: { p_agenda_item_id: string }
         Returns: Json
       }
+      get_excused_absence_fee_decision: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
       get_graduation_project_detail: {
         Args: { p_project_id: string }
         Returns: Json
@@ -14160,6 +14231,16 @@ export type Database = {
       }
       record_council_meeting_attendance: {
         Args: { p_entries: Json; p_meeting_id: string }
+        Returns: Json
+      }
+      record_excused_absence_fee_decision: {
+        Args: {
+          p_amount_due?: number
+          p_decision: string
+          p_exemption_reason?: string
+          p_note?: string
+          p_step_id: string
+        }
         Returns: Json
       }
       record_external_university_payment_confirmation: {

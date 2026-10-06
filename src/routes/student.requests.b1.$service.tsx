@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { B1StudentRequestForm } from "@/components/student-requests/b1/B1StudentRequestForm";
 import { B1ErrorState } from "@/components/student-requests/b1/B1ErrorState";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { StudentServicesNewRequestGate } from "@/components/student-requests/StudentServicesPausedNotice";
 
 export const Route = createFileRoute("/student/requests/b1/$service")({
   component: B1StudentServiceRoute,
@@ -10,5 +11,9 @@ export const Route = createFileRoute("/student/requests/b1/$service")({
 function B1StudentServiceRoute() {
   const { service } = Route.useParams();
   if (!isB1ServiceCode(service)) return <B1ErrorState messageAr="نوع الخدمة غير معروف." />;
-  return <B1StudentRequestForm serviceCode={service} />;
+  return (
+    <StudentServicesNewRequestGate resumeB1ServiceCode={service}>
+      <B1StudentRequestForm serviceCode={service} />
+    </StudentServicesNewRequestGate>
+  );
 }

@@ -14,7 +14,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const ASSESS_ROLES = new Set(["student_affairs_manager"]);
+// Processing roles that may hold the assess_fee step. The RPC additionally
+// requires the caller to match the ACTIVE assess_fee runtime step.
+// registrar_general = مسجل الكلية (owner rule: registrar sets service fees).
+export const ASSESS_ROLES = new Set(["student_affairs_manager", "registrar_general"]);
 const CONFIRM_ROLES = new Set(["revenue_finance_officer", "finance_officer"]);
 
 export type FeeProcessingCapability = {

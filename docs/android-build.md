@@ -6,7 +6,7 @@
 |---|---|
 | اسم التطبيق | ITCS Portal |
 | Package / appId | `ye.edu.usr.fitcs.portal` |
-| Version | `versionCode 4` / `versionName 0.4.0` |
+| Version | `versionCode 5` / `versionName 0.4.1` |
 | Min SDK | 24 |
 | Target SDK | 36 |
 | نقطة الدخول | `https://quboolye.com/mobile/student-login` |
