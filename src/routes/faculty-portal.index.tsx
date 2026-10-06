@@ -16,6 +16,9 @@ import {
   ScrollText,
   Inbox,
   ArrowLeft,
+  BarChart3,
+  FolderKanban,
+  Activity,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
@@ -33,6 +36,7 @@ import { LazyMount } from "@/components/util/LazyMount";
 import { portalFeatures } from "@/lib/portal-features";
 import { academicRankLabel } from "@/lib/public-site-format";
 import { listFacultyDeliverySections } from "@/lib/lecture-execution.functions";
+import { FACULTY_HOME_COPY } from "@/lib/faculty-portal/dashboard-role";
 
 type FacultyProfileRow = {
   id: string;
@@ -136,12 +140,13 @@ function FacultyDashboard() {
     deliverySections.map((section) => [section.course_section_id, section]),
   );
   const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
-  const { data: processingAccess } = useQuery({
+  const processingQuery = useQuery({
     queryKey: ["faculty-portal", "processing-access"],
     queryFn: () => processingAccessFn({ data: {} }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+  const processingAccess = processingQuery.data;
   const showProcessingCard =
     !!processingAccess && (processingAccess.hasAssignment || processingAccess.isAdmin);
 
@@ -149,6 +154,9 @@ function FacultyDashboard() {
   const todaySessions = getTodaySessions(teaching, todayCode);
   const coursesCount = teaching.length;
   const processingLabel = processingAccessSummaryLabel(processingAccess);
+  const homeRole = processingAccess?.homeRole ?? "faculty_member";
+  const homeCopy = FACULTY_HOME_COPY[homeRole];
+  const isLeadership = homeRole !== "faculty_member";
 
   const statusLabel: Record<string, string> = {
     active: "نشط",
@@ -246,6 +254,59 @@ function FacultyDashboard() {
                 </span>
               </div>
             </div>
+
+            {/* Each role starts with its own real work; destination guards remain authoritative. */}
+            {processingQuery.isPending ? (
+              <div className="mt-5 h-28 animate-pulse rounded-xl bg-muted" aria-label="جارٍ تحميل مساحة العمل" />
+            ) : processingQuery.isError ? (
+              <div className="mt-5 rounded-xl border border-destructive/30 bg-card p-4" role="alert">
+                <p className="text-sm">تعذر تحديد مهامك الحالية.</p>
+                <button type="button" onClick={() => void processingQuery.refetch()} className="mt-2 text-sm font-bold text-primary underline">إعادة المحاولة</button>
+              </div>
+            ) : <section data-testid="faculty-role-home" className="mt-5 rounded-xl border border-gold/30 bg-card p-4" aria-label={homeCopy.title}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-base font-extrabold text-primary">{homeCopy.title}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">{homeCopy.description}</p>
+                </div>
+                {isLeadership && <span className="rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-primary">{homeRole === "department_head" ? "نطاق القسم" : "نطاق الكلية"}</span>}
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {homeRole === "dean" && (
+                  <Link to="/admin/executive-dashboard" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring" data-testid="faculty-dean-executive-link">
+                    <BarChart3 className="mb-1 h-4 w-4 text-gold" aria-hidden /> لوحة المؤشرات التنفيذية للكلية
+                  </Link>
+                )}
+                {processingAccess?.canMonitorDelivery && (
+                  <Link to="/faculty-portal/lecture-monitoring" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring" data-testid="faculty-monitoring-home-link">
+                    <Activity className="mb-1 h-4 w-4 text-gold" aria-hidden /> متابعة سير العملية التعليمية
+                  </Link>
+                )}
+                {processingAccess?.canViewDepartmentReports && homeRole === "department_head" && (
+                  <Link to="/faculty-portal/department-reports" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring" data-testid="faculty-department-reports-link">
+                    <BarChart3 className="mb-1 h-4 w-4 text-gold" aria-hidden /> تقارير القسم
+                  </Link>
+                )}
+                {homeRole === "department_head" || homeRole === "vice_dean_academic" ? (
+                  <Link to="/faculty-portal/graduation-projects" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring">
+                    <FolderKanban className="mb-1 h-4 w-4 text-gold" aria-hidden /> مشاريع التخرج
+                  </Link>
+                ) : null}
+                {isLeadership && showProcessingCard && (
+                  <Link to="/faculty-portal/processing-requests" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring">
+                    <Inbox className="mb-1 h-4 w-4 text-gold" aria-hidden /> الخدمات الطلابية المحالة إليّ
+                  </Link>
+                )}
+                <Link to="/faculty-portal/reports" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring">
+                  <ScrollText className="mb-1 h-4 w-4 text-gold" aria-hidden /> تقاريري الأكاديمية
+                </Link>
+                {!isLeadership && (
+                  <Link to="/faculty-portal/lecture-execution" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring">
+                    <CalendarCheck className="mb-1 h-4 w-4 text-gold" aria-hidden /> تسجيل تنفيذ المحاضرات
+                  </Link>
+                )}
+              </div>
+            </section>}
 
             {/* 3 — My teaching schedule / today's sessions (single section) */}
             <section data-testid="faculty-teaching-schedule" className="mt-5">
