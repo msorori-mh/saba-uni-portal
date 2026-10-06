@@ -332,6 +332,12 @@ jobs:
               supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
               tests/graduation-projects/postgres-student-level4-eligibility-guard-verifier.sql
+          # Chain: minimal schema -> STUDENT-REQUEST-DRAFT-DELETE-01 draft -> verifier.
+          - name: student-request-draft-delete
+            files: >-
+              tests/student-requests/student-request-draft-delete-01.pg-setup.sql
+              docs/migration-drafts/STUDENT-REQUEST-DRAFT-DELETE-01.sql
+              tests/student-requests/student-request-draft-delete-01.pg-verify.sql
           # Chain: prelude (roles/stubs) -> minimal schema -> SET U -> promoted GP
           # migrations -> positions setup -> DEPARTMENT-HEAD-WORKFLOW-01 draft -> verifier.
           - name: graduation-projects-department-head-workflow
