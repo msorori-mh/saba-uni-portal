@@ -8,6 +8,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  ADMIN_NAV_DESCRIPTIONS,
   ADMIN_NAV_GROUPS,
   ADMIN_NAV_LEGACY_SIDEBAR_PATHS,
   ADMIN_NAV_PRIMARY_GROUP_ORDER,
@@ -18,7 +19,6 @@ import {
   findActiveAdminNavGroupId,
   hasDuplicateNavPaths,
   searchAdminNav,
-  searchMatchingGroupIds,
   toggleExclusiveGroup,
   type AdminNavGroup,
 } from "../../src/lib/admin-navigation-config";
@@ -117,15 +117,36 @@ describe("ADMIN-NAVIGATION-AND-DASHBOARD-UX-REORGANIZATION-01", () => {
     expect(SHELL).toMatch(/setExpandedGroupId\(activeGroupId\)/);
   });
 
-  it("9 — accordion prefers one primary group open", () => {
+  it("9 — accordion prefers one primary group open; search presents distinct results", () => {
     expect(toggleExclusiveGroup(null, "academic")).toBe("academic");
     expect(toggleExclusiveGroup("academic", "students")).toBe("students");
     expect(toggleExclusiveGroup("students", "students")).toBe(null);
     expect(SHELL).toContain("toggleExclusiveGroup");
     expect(SHELL).toContain("expandedGroupId");
-    // Search temporarily expands matching groups.
-    const open = searchMatchingGroupIds(visibleFor(["admin"]), "درجات");
-    expect(open.has("academic")).toBe(true);
+    expect(SHELL).toContain('data-testid="admin-nav-search-results"');
+    expect(SHELL).toContain("searching ? (");
+  });
+
+  it("search ranks matching page names ahead of descriptions and section matches", () => {
+    const hits = searchAdminNav(visibleFor(["admin"]), "الطلاب");
+    const studentPage = hits.findIndex((hit) => hit.item.to === "/admin/students");
+    const enrollmentPage = hits.findIndex((hit) => hit.item.to === "/admin/enrollments");
+    expect(studentPage).toBeGreaterThanOrEqual(0);
+    expect(enrollmentPage).toBeGreaterThanOrEqual(0);
+    expect(studentPage).toBeLessThan(enrollmentPage);
+  });
+
+  it("search finds descriptions with Arabic letter variants without exposing hidden items", () => {
+    const admin = visibleFor(["admin"]);
+    expect(
+      searchAdminNav(admin, "اكاديمية").some((hit) => hit.item.to === "/admin/study-plans"),
+    ).toBe(true);
+    expect(searchAdminNav(admin, "توزيع الطلاب")[0].item.to).toBe("/admin/enrollments");
+    expect(searchAdminNav(admin, "النسخ الاحتياطي")[0].item.to).toBe("/admin/backup-status");
+    expect(searchAdminNav(visibleFor(["hr_officer"]), "النسخ الاحتياطي")).toHaveLength(0);
+    for (const path of collectAdminNavPaths(ADMIN_NAV_GROUPS)) {
+      expect(ADMIN_NAV_DESCRIPTIONS[path]?.length).toBeGreaterThan(12);
+    }
   });
 
   it("10 — dashboard route unchanged (/admin/)", () => {
