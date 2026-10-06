@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { MvpProjectList } from "@/components/graduation-projects/MvpProjectList";
-import { MvpEmpty, MvpError } from "@/components/graduation-projects/MvpStates";
+import { MvpError } from "@/components/graduation-projects/MvpStates";
+import { StudentTeamStarter } from "@/components/graduation-projects/StudentTeamStarter";
 import { GP_STUDENT_LEVEL4_REQUIRED_MSG } from "@/lib/graduation-projects/eligibility";
 import { useMobileStudentContext } from "@/lib/mobile/student-context";
 import { useGraduationProjectList } from "./-graduation-projects-adapter";
@@ -20,6 +21,7 @@ function MobileGraduationProjects() {
   const ctx = useMobileStudentContext();
   const eligible = ctx.data?.gpEligible === true;
   const query = useGraduationProjectList("assigned", { enabled: eligible });
+  const navigate = useNavigate();
 
   if (ctx.isLoading) {
     return (
@@ -43,7 +45,14 @@ function MobileGraduationProjects() {
       ) : query.error ? (
         <MvpError message={query.error.message} retry={() => void query.refetch()} />
       ) : !query.data?.length ? (
-        <MvpEmpty message="لا يوجد مشروع تخرج معيّن لك حالياً." />
+        <StudentTeamStarter
+          onCreated={(projectId) =>
+            void navigate({
+              to: "/mobile/student/graduation-projects/$projectId",
+              params: { projectId },
+            })
+          }
+        />
       ) : (
         <MvpProjectList
           projects={query.data}

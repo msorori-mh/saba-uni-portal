@@ -332,6 +332,33 @@ jobs:
               supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
               tests/graduation-projects/postgres-student-level4-eligibility-guard-verifier.sql
+          # Chain: prelude (roles/stubs) -> minimal schema -> SET U -> promoted GP
+          # migrations -> positions setup -> DEPARTMENT-HEAD-WORKFLOW-01 draft -> verifier.
+          - name: graduation-projects-department-head-workflow
+            files: >-
+              tests/graduation-projects/gp-department-head-workflow-01.pg-prelude.sql
+              tests/graduation-projects/postgres-minimal-schema.sql
+              supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql
+              supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql
+              supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql
+              supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
+              supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
+              supabase/migrations/20260811010000_gp_identity_options_and_revision_notes_01.sql
+              supabase/migrations/20260811020000_gp_independent_security_audit_remediation_02.sql
+              supabase/migrations/20260811031627_a68cd5b4-5216-4281-ab26-d35b66e84441.sql
+              supabase/migrations/20260811031831_7834ce1f-99a1-4855-a62b-152ba8602ef1.sql
+              supabase/migrations/20260811031925_a94c8866-39c6-42ec-8a94-ba32b3951032.sql
+              supabase/migrations/20260811041600_de9e9a8e-741e-4415-9741-fd8a2e53d22d.sql
+              supabase/migrations/20260811190158_bca4b22e-3703-4369-a85e-f8fa344954fc.sql
+              supabase/migrations/20260811200036_ae13edb4-bc34-46ad-98c2-b9740c275adc.sql
+              supabase/migrations/20260811200149_1c3029d7-ad78-4130-b349-4ad891ebde83.sql
+              supabase/migrations/20260811212840_930698de-64c5-4112-a8d3-6726578cddce.sql
+              supabase/migrations/20260811212955_7f5e6374-4bcd-4610-9827-4735519b3a48.sql
+              supabase/migrations/20260811220334_5e2b5f28-0805-406b-8030-29e43c0b2394.sql
+              supabase/migrations/20260811223514_4ac99ade-3785-4e3c-a3d9-6595221a48a1.sql
+              tests/graduation-projects/gp-department-head-workflow-01.pg-setup.sql
+              docs/migration-drafts/GRADUATION-PROJECTS-DEPARTMENT-HEAD-WORKFLOW-01.sql
+              tests/graduation-projects/gp-department-head-workflow-01.pg-verify.sql
           # Chain: GA authorization setup -> promoted Foundation ->
           # promoted Completion -> promoted AUTH04 -> post-verifier.
           - name: graduates-affairs-promotion-foundation

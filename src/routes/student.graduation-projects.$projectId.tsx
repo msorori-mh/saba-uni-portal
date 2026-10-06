@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { MvpProjectWorkspace } from "@/components/graduation-projects/MvpProjectWorkspace";
+import { ProjectWorkflowCard } from "@/components/graduation-projects/ProjectWorkflowCard";
 import { MvpError, MvpLoading, MvpSuccess } from "@/components/graduation-projects/MvpStates";
 import { useGraduationProject, useGraduationProjectAction } from "./-graduation-projects-adapter";
 export const Route = createFileRoute("/student/graduation-projects/$projectId")({
@@ -17,6 +18,7 @@ function StudentProject() {
           العودة إلى مشروعي
         </Link>
         {action.isSuccess ? <MvpSuccess message="تم تنفيذ الإجراء بنجاح." /> : null}
+        <ProjectWorkflowCard projectId={projectId} />
         {action.error ? <MvpError message={action.error.message} /> : null}
         {query.isLoading ? (
           <MvpLoading label="جارٍ تحميل مساحة المشروع…" />
