@@ -191,11 +191,18 @@ const withdrawal: readonly B1WorkflowStep[] = [
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
   { key: "archive", unit: "archive", role: "archive_officer", action: "archive" },
 ];
+/**
+ * B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01 (قرار المالك): في «التحويل بين
+ * الأقسام» و«الفرصة الأخيرة» يقرر مسجل الكلية الرسوم لكل طلب في خطوة
+ * `registrar_fee_decision` قبل `payment_confirmation` (تُتخطّى عند عدم لزوم
+ * الرسوم)، ثم يطبّق القرار في `registrar_apply`. بقية الخطوات كما كانت.
+ */
 const transfer: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "source_department_head_approval", unit: "department", role: "department_head", action: "approve" },
   { key: "target_department_head_approval", unit: "department", role: "department_head", action: "approve" },
   { key: "dean_approval", unit: "dean", role: "dean", action: "approve" },
+  { key: "registrar_fee_decision", unit: "registrar", role: "registrar_general", action: "review" },
   { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
@@ -203,6 +210,7 @@ const finalChance: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "manager_review", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "dean_decision", unit: "dean", role: "dean", action: "approve" },
+  { key: "registrar_fee_decision", unit: "registrar", role: "registrar_general", action: "review" },
   { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
@@ -219,8 +227,8 @@ export const B1_FEE_POLICIES: Readonly<Record<B1CanonicalCode, B1FeePolicy>> = {
   enrollment_suspension: "FREE_NO_PAYMENT",
   excused_absence: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
   file_withdrawal: "FREE_NO_PAYMENT",
-  department_transfer: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
-  final_chance: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+  department_transfer: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
+  final_chance: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
 };
 
 export type StepActor = {
@@ -420,7 +428,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     },
   ),
   department_transfer: adapter(
-    "department_transfer", ["department_transfer", "transfer"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+    "department_transfer", ["department_transfer", "transfer"], "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     [
       { key: "available_departments", field: "target_department_id", trustedServerValidationRequired: true },
       { key: "available_programs", field: "target_program_id", dependsOnField: "target_department_id", trustedServerValidationRequired: true },
@@ -433,7 +441,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     requiredText(["target_department_id", "target_program_id", "transfer_reason"]),
   ),
   final_chance: adapter(
-    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [
+    "final_chance", ["extra_chance"], "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT", [
       { key: "academic_years", field: "target_academic_year", trustedServerValidationRequired: true },
       { key: "semesters_for_year", field: "target_semester", dependsOnField: "target_academic_year", trustedServerValidationRequired: true },
     ],

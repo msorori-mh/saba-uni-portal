@@ -281,7 +281,8 @@ export const confirmB1UiRevenueReceiptFn = createServerFn({ method: "POST" })
     }
   });
 
-// Fee decision of the college registrar for an excused-absence request.
+// Fee decision of the college registrar (غياب بعذر، التحويل بين الأقسام، الفرصة الأخيرة).
+// `serviceCode` only selects the service's RPC; the database authorizes the step.
 // Strict schema: decision + reason + optional note + the display-only amount due
 // (decimal text, validated again by the contract and by the RPC). No currency.
 const feeDecisionSchema = z
@@ -296,6 +297,7 @@ const feeDecisionSchema = z
       .optional()
       .nullable(),
     note: z.string().trim().max(EXCUSED_ABSENCE_FEE_DECISION_NOTE_MAX).optional().nullable(),
+    serviceCode: z.enum(["excused_absence", "department_transfer", "final_chance"]).optional(),
   })
   .strict();
 
@@ -310,7 +312,7 @@ export const recordB1UiExcusedAbsenceFeeDecisionFn = createServerFn({ method: "P
         exemptionReason: data.exemptionReason ?? null,
         amountDue: data.amountDue ?? null,
         note: data.note ?? null,
-      });
+      }, data.serviceCode ?? "excused_absence");
       if (result.success !== true) throw new Error("B1_ACTION_FAILED");
       return {
         accepted: true,
@@ -329,13 +331,22 @@ export const recordB1UiExcusedAbsenceFeeDecisionFn = createServerFn({ method: "P
     }
   });
 
-const feeDecisionReadSchema = z.object({ requestId: z.string().uuid() }).strict();
+const feeDecisionReadSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    serviceCode: z.enum(["excused_absence", "department_transfer", "final_chance"]).optional(),
+  })
+  .strict();
 
 export const getB1UiExcusedAbsenceFeeDecisionFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => feeDecisionReadSchema.parse(input))
   .handler(async ({ data, context }): Promise<ExcusedAbsenceFeeDecisionRecord | null> => {
-    const raw = await rpcGetExcusedAbsenceFeeDecision(asSessionRpc(context.supabase), data.requestId);
+    const raw = await rpcGetExcusedAbsenceFeeDecision(
+      asSessionRpc(context.supabase),
+      data.requestId,
+      data.serviceCode ?? "excused_absence",
+    );
     return parseExcusedAbsenceFeeDecisionRecord(raw);
   });
 

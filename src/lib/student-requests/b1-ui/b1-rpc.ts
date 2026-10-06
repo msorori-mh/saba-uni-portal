@@ -6,6 +6,7 @@
  * RpcClient so auth.uid() is present inside SECURITY DEFINER RPCs.
  */
 
+import { getB1FeeDecisionRpcs } from "@/lib/student-requests/b1-fee-decision-contract";
 import { validateExternalPaymentConfirmationInput } from "@/lib/student-requests/external-payment-confirmation-contract";
 import {
   validateExcusedAbsenceFeeDecisionInput,
@@ -258,22 +259,34 @@ export function buildRecordExcusedAbsenceFeeDecisionRpcArgs(input: ExcusedAbsenc
 export async function rpcRecordExcusedAbsenceFeeDecision(
   client: B1RpcClient,
   input: ExcusedAbsenceFeeDecisionInput,
+  serviceCode: string = "excused_absence",
 ): Promise<Record<string, unknown>> {
   const args = buildRecordExcusedAbsenceFeeDecisionRpcArgs(input);
-  const { data, error } = await client.rpc("record_excused_absence_fee_decision", args);
-  if (error) throw new Error(error.message ?? "record_excused_absence_fee_decision failed");
+  const rpc = resolveB1FeeDecisionRpcName(serviceCode, "recordRpc");
+  const { data, error } = await client.rpc(rpc, args);
+  if (error) throw new Error(error.message ?? `${rpc} failed`);
   return (data ?? {}) as Record<string, unknown>;
+}
+
+/**
+ * The fee-decision RPC of a service (same argument contract for all three).
+ * Fail closed: a service without a registrar fee decision has no RPC to call.
+ */
+export function resolveB1FeeDecisionRpcName(serviceCode: string, kind: "recordRpc" | "readRpc"): string {
+  const rpcs = getB1FeeDecisionRpcs(serviceCode);
+  if (!rpcs) throw new Error("B1_FEE_DECISION_SERVICE_NOT_SUPPORTED");
+  return rpcs[kind];
 }
 
 /** Owner / direct-assignee read of the decision. Returns the raw payload (null when not visible). */
 export async function rpcGetExcusedAbsenceFeeDecision(
   client: B1RpcClient,
   requestId: string,
+  serviceCode: string = "excused_absence",
 ): Promise<unknown> {
-  const { data, error } = await client.rpc("get_excused_absence_fee_decision", {
-    p_request_id: requestId,
-  });
-  if (error) throw new Error(error.message ?? "get_excused_absence_fee_decision failed");
+  const rpc = resolveB1FeeDecisionRpcName(serviceCode, "readRpc");
+  const { data, error } = await client.rpc(rpc, { p_request_id: requestId });
+  if (error) throw new Error(error.message ?? `${rpc} failed`);
   return data ?? null;
 }
 

@@ -34,3 +34,6 @@
 ## حالة runtime
 
 المصدر جاهز للسياسة، لكن runtime يبقى مغلقاً حتى تطبيق migration جديدة مراجعة واختبار مصفوفة RPC الإيجابية والسلبية في بيئة آمنة.
+
+## Update — B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01 (source/draft until applied)
+The fee is decided per request by the college registrar in a new step `registrar_fee_decision` (unit `registrar`, role `registrar_general`, action `review`, completed only through `record_b1_fee_decision`) placed immediately before `payment_confirmation`: `FEE_REQUIRED` with a DISPLAY-ONLY `amount_due` shown to the student (pay in the university main system, then finance confirms), or `FEE_NOT_REQUIRED` with reason `FREE_SERVICE` / `EXEMPTION` (payment confirmation skipped). Every other step, scope and effect code is unchanged; reject / return remain unavailable. This replaces the `FEE_GREATER_THAN_ZERO` branch of version 2. See `docs/reviews/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.md`.

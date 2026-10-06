@@ -1,7 +1,8 @@
 /**
  * Live B1 UI adapter — wires final Secure Read + Secure Draft contracts.
  *
- * React components must not import Supabase; this adapter calls server fns only.
+ * React components must not import type { B1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
+import Supabase; this adapter calls server fns only.
  * runtimeAvailable is never hardcoded true — derived from capability readiness.
  */
 
@@ -86,7 +87,10 @@ export type LiveB1UiAdapterDeps = {
     stepId: string,
     submission: B1ExcusedAbsenceFeeDecisionSubmission,
   ) => Promise<B1StepActionResult>;
-  getExcusedAbsenceFeeDecision: (requestId: string) => Promise<ExcusedAbsenceFeeDecisionRecord | null>;
+  getExcusedAbsenceFeeDecision: (
+    requestId: string,
+    serviceCode?: B1FeeDecisionService,
+  ) => Promise<ExcusedAbsenceFeeDecisionRecord | null>;
   uploadB1RequestAttachment: (
     requestId: string,
     attachmentType: string,
@@ -362,11 +366,14 @@ function defaultDeps(): LiveB1UiAdapterDeps {
           exemptionReason: submission.exemptionReason ?? null,
           amountDue: submission.amountDue ?? null,
           note: submission.note ?? null,
+          ...(submission.serviceCode ? { serviceCode: submission.serviceCode } : {}),
         },
       });
     },
-    async getExcusedAbsenceFeeDecision(requestId) {
-      return getB1UiExcusedAbsenceFeeDecisionFn({ data: { requestId } });
+    async getExcusedAbsenceFeeDecision(requestId, serviceCode) {
+      return getB1UiExcusedAbsenceFeeDecisionFn({
+        data: { requestId, ...(serviceCode ? { serviceCode } : {}) },
+      });
     },
     async uploadB1RequestAttachment(requestId, attachmentType, file) {
       const fieldKey = asSecureFieldKey(attachmentType);
@@ -573,9 +580,10 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
 
     async getB1ExcusedAbsenceFeeDecision(
       requestId: string,
+      serviceCode?: B1FeeDecisionService,
     ): Promise<ExcusedAbsenceFeeDecisionRecord | null> {
       try {
-        return await deps.getExcusedAbsenceFeeDecision(requestId);
+        return await deps.getExcusedAbsenceFeeDecision(requestId, serviceCode);
       } catch (error) {
         mapLiveError(error);
       }

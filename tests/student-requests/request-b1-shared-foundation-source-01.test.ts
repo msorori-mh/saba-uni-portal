@@ -144,9 +144,10 @@ describe("B1 workflows and payment policy", () => {
     // غياب بعذر: same external confirmation, but only when the registrar decides a fee is due.
     expect(B1_FEE_POLICIES.excused_absence).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     expect(B1_SERVICE_ADAPTERS.excused_absence.feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    // B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01: the same per-request registrar decision.
     for (const code of ["department_transfer", "final_chance"] as const) {
-      expect(B1_FEE_POLICIES[code]).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
-      expect(B1_SERVICE_ADAPTERS[code].feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+      expect(B1_FEE_POLICIES[code]).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+      expect(B1_SERVICE_ADAPTERS[code].feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     }
     for (const code of ["department_transfer", "final_chance", "excused_absence"] as const) {
       const keys = B1_WORKFLOWS[code].map((s) => s.key);

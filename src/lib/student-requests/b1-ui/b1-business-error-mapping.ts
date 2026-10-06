@@ -41,6 +41,11 @@ const B1_BUSINESS_MESSAGES_AR: Readonly<Record<string, string>> = {
     "سبب الإرجاع أو الرفض إلزامي. اكتب سبباً واضحاً يظهر للطالب ثم أعد المحاولة.",
   B1_EXCUSED_ABSENCE_FEE_DECISION_RPC_REQUIRED:
     "قرار الرسوم يُسجَّل من بطاقة قرار الرسوم في خطوة مسجل الكلية فقط.",
+  // التحويل بين الأقسام + الفرصة الأخيرة (B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01)
+  B1_FEE_DECISION_REQUIRED:
+    "لا يمكن إتمام هذه الخطوة قبل تسجيل قرار الرسوم: رسوم مستحقة مع قيمتها، أو لا رسوم مستحقة مع السبب.",
+  B1_FEE_DECISION_RPC_REQUIRED:
+    "قرار الرسوم يُسجَّل من بطاقة قرار الرسوم في خطوة مسجل الكلية فقط.",
 };
 
 /** Safe generic Arabic fallback for any other `B1_*_REQUIRED` business error. */
@@ -123,7 +128,8 @@ const B1_KNOWN_OPERATIONAL_PATTERNS: readonly RegExp[] = [
   /\bB1_STALE_REQUEST_VERSION\b/,
   /\bB1_INPUT_VALIDATION_FAILED\b/,
   /\bB1_[A-Z0-9_]*INPUT_INVALID\b|\bB1_DRAFT_FIELD_TYPE_INVALID\b/,
-  /\bB1_EXCUSED_ABSENCE_FEE_DECISION_(IS_IMMUTABLE|ROUTING_MISMATCH)\b/,
+  /\bB1_(EXCUSED_ABSENCE_)?FEE_DECISION_(IS_IMMUTABLE|ROUTING_MISMATCH)\b/,
+  /\bB1_FEE_DECISION_SERVICE_NOT_SUPPORTED\b/,
   /\bPAYMENT_CONFIRMATION_FAILED\b|\bPAYMENT_CONFIRMATION_STEP_NOT_FOUND\b/,
   /\bB1_READ_ACCESS_DENIED\b|\bB1_DRAFT_ACCESS_DENIED\b/,
   /\bB1_ATTACHMENT_REQUIRED\b|\bATTACHMENT_[A-Z_]+\b/,

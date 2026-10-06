@@ -27,10 +27,10 @@ describe("B1 UI service config", () => {
     );
     expect(getB1ServiceConfig("file_withdrawal")!.feePolicy).toBe("FREE_NO_PAYMENT");
     expect(getB1ServiceConfig("department_transfer")!.feePolicy).toBe(
-      "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     );
     expect(getB1ServiceConfig("final_chance")!.feePolicy).toBe(
-      "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     );
   });
 

@@ -56,6 +56,11 @@ const excusedAbsenceWorkflowSql = readFileSync(
   "utf8",
 );
 
+const paidServicesFeeDecisionSql = readFileSync(
+  join(process.cwd(), "docs", "migration-drafts", "B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql"),
+  "utf8",
+);
+
 /**
  * Where the database pins the exact (step, unit, role, action) contract.
  * - Four services: the hard-coded legacy contract in the applied actor
@@ -67,6 +72,19 @@ function expectDatabaseContractPin(
   service: string,
   step: { key: string; unit: string; role: string; action: string },
 ) {
+  if (step.key === "registrar_fee_decision") {
+    // B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01: the step is cloned from
+    // registrar_apply (registrar / registrar_general) as a `review` step and
+    // pinned into b1_workflow_runtime_contract_snapshot by that draft.
+    expect(["department_transfer", "final_chance"]).toContain(service);
+    expect(step).toEqual({ key: "registrar_fee_decision", unit: "registrar", role: "registrar_general", action: "review" });
+    expect(actorSql).toContain(`('${service}','registrar_apply','registrar','registrar_general','apply_decision')`);
+    expect(paidServicesFeeDecisionSql).toContain("SELECT s.*, true FROM public.request_type_workflow_steps s WHERE s.id = v_apply");
+    expect(paidServicesFeeDecisionSql).toContain("CASE WHEN v_row.is_fee_step THEN 'registrar_fee_decision' ELSE v_row.step_key END");
+    expect(paidServicesFeeDecisionSql).toContain("CASE WHEN v_row.is_fee_step THEN 'review' ELSE v_row.action_type END");
+    expect(paidServicesFeeDecisionSql).toContain("INSERT INTO public.b1_workflow_runtime_contract_snapshot");
+    return;
+  }
   if (service !== "excused_absence") {
     expect(actorSql).toContain(
       `('${service}','${step.key}','${step.unit}','${step.role}','${step.action}')`,
@@ -310,8 +328,8 @@ describe("B1-EXTENDED-RUNTIME-AUTHORIZATION-MATRIX-01", () => {
   });
 
   it("keeps payment external and exact-finance-assignee only", () => {
-    expect(B1_FEE_POLICIES.department_transfer).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
-    expect(B1_FEE_POLICIES.final_chance).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    expect(B1_FEE_POLICIES.department_transfer).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
+    expect(B1_FEE_POLICIES.final_chance).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     expect(B1_FEE_POLICIES.excused_absence).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     // the fee decision carries ONE display-only amount (owner-approved exception) and nothing
     // else financial; only FEE_REQUIRED reaches finance

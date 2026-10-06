@@ -395,6 +395,42 @@ jobs:
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
               scripts/excused-absence-paid-signature-01-pg17/03-cases.sql
+          # B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01: the two paid services as the
+          # applied chain publishes them (verbatim extracts) + the applied
+          # excused-absence draft -> this draft TWICE (idempotency) -> both
+          # services x both fee branches -> the excused-absence cases again.
+          # scripts/b1-paid-services-registrar-fee-decision-01-pg17/run.sh adds
+          # the pre-flight / verify / rollback checks and the fail-closed probes.
+          - name: b1-paid-services-registrar-fee-decision
+            files: >-
+              scripts/p1-source-closure-02-pg17/00-harness.sql
+              docs/migration-drafts/p1/P1-01-DETAIL-MODELS.sql
+              docs/migration-drafts/p1/P1-02-BACKEND-VALIDATION.sql
+              docs/migration-drafts/p1/P1-03-WORKFLOW-SEEDS.sql
+              docs/migration-drafts/p1/P1-04-GRADE-APPEAL-TRIGGER-REPLACE.sql
+              scripts/p1-source-closure-02-pg17/02-p1-05-prereqs.sql
+              docs/migration-drafts/p1/P1-05-PASS-THRESHOLD-48.sql
+              scripts/p1-atomic-submit-07a-pg17/00-harness-ext.sql
+              docs/migration-drafts/p1/P1-06-ATOMIC-SUBMIT-PATH.sql
+              scripts/p1-strict-assignment-08a-pg17/00-strict-preimages.sql
+              docs/migration-drafts/p1/P1-07-WORKFLOW-TRANSITIONS-AND-SPECIALIZED-ACTIONS.sql
+              scripts/p1-strict-assignment-08a-pg17/01-fixtures.sql
+              docs/migration-drafts/p1/P1-08-STRICT-RUNTIME-ASSIGNMENT-REUSE.sql
+              scripts/p1-strict-assignment-08a-pg17/02-cases.sql
+              scripts/excused-absence-paid-signature-01-pg17/00-preimages.sql
+              scripts/excused-absence-paid-signature-01-pg17/01-fixtures.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/00-preimages.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/00a-applied-effects.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/01-fixtures.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/01a-applied-v2-publish.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/02-after-v2.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/03-cases-v2-as-deployed.sql
+              docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql
+              docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/05-cases-fee-decision.sql
+              scripts/b1-paid-services-registrar-fee-decision-01-pg17/06-before-absence-cases.sql
+              scripts/excused-absence-paid-signature-01-pg17/03-cases.sql
     services:
       postgres:
         image: postgres:17
