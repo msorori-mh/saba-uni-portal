@@ -212,7 +212,7 @@ const LOCAL_SIGNATORY_TO_PROCESSING_ROLE: Readonly<
 };
 
 export const DOCUMENT_ARCHIVE_EXECUTION_UNAVAILABLE_MSG =
-  "إنشاء المستندات والتوقيع والأرشفة يحتاج تطبيق مخطط طلبات الطلاب على بيئة آمنة أولاً. شهادة القيد متوقفة أيضاً بسبب غياب مولّد PDF/Storage خادم قابل لإعادة الاستخدام.";
+  "إنشاء المستندات والتوقيع والأرشفة يحتاج تطبيق مخطط الخدمات الطلابية على بيئة آمنة أولاً. شهادة القيد متوقفة أيضاً بسبب غياب مولّد PDF/Storage خادم قابل لإعادة الاستخدام.";
 
 export const DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG =
   "تم التحقق فقط. لم يتم إنشاء أو توقيع أو أرشفة أي مستند.";

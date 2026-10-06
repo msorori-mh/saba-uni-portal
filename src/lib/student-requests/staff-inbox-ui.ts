@@ -133,7 +133,7 @@ export const STAFF_INBOX_UNAVAILABLE_MSG: Record<StaffInboxUnavailableReason, st
 export const STAFF_INBOX_EMPTY_MSG = "لا توجد طلبات تتطلب إجراءك حالياً.";
 
 export const STAFF_ACTIONS_DISABLED_MSG =
-  "تنفيذ الإجراء يحتاج تطبيق مخطط دورة حياة طلبات الطلاب.";
+  "تنفيذ الإجراء يحتاج تطبيق مخطط دورة حياة الخدمات الطلابية.";
 
 /** Staff / processing role labels (display only — no role grants). */
 export const STAFF_ROLE_LABELS_AR: Readonly<Record<string, string>> = {

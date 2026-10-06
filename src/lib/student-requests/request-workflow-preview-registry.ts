@@ -76,7 +76,7 @@ const CENTRAL_LABELS_AR: Readonly<Record<string, string>> = {
 
 /** Shown when workflow schema/RPC is unavailable — preview remains static. */
 export const WORKFLOW_SCHEMA_UNAVAILABLE_MSG =
-  "تفعيل وحفظ دورة الحياة يحتاج تطبيق مخطط طلبات الطلاب أولاً.";
+  "تفعيل وحفظ دورة الحياة يحتاج تطبيق مخطط الخدمات الطلابية أولاً.";
 
 /** Official eight canonical codes — aliases resolve via normalizeStudentRequestTypeCode. */
 export const OFFICIAL_WORKFLOW_PREVIEW_CODES = [

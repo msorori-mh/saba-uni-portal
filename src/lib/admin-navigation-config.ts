@@ -102,7 +102,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
       { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
       { to: "/admin/imports", label: "الاستيراد الجماعي", icon: Upload },
-      { to: "/admin/student-progress", label: "تقدم الطلاب الأكاديمي", icon: TrendingUp },
+      { to: "/admin/student-progress", label: "تقدم الطلاب الأكاديمي (الترفيعات)", icon: TrendingUp },
       // مخفي بناءً على طلب الإدارة — الصفحة تبقى متاحة عبر الرابط المباشر
       // { to: "/admin/at-risk-students", label: "الطلاب المتعثرون أكاديمياً", icon: AlertCircle },
     ],
@@ -113,8 +113,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: FileWarning,
     items: [
       { to: "/admin/students", label: "إدارة الطلاب", icon: GraduationCap },
-      { to: "/admin/student-requests", label: "طلبات الطلاب", icon: FileWarning },
-      { to: "/admin/request-types", label: "أنواع الطلبات", icon: ListChecks },
+      { to: "/admin/student-requests", label: "الخدمات الطلابية", icon: FileWarning },
+      { to: "/admin/request-types", label: "أنواع الخدمات الطلابية", icon: ListChecks },
     ],
   },
   {

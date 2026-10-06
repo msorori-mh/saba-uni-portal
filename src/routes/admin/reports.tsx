@@ -468,7 +468,7 @@ function RequestsReport() {
             <FileWarning className="h-5 w-5 text-gold" /> تقارير الطلبات
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            نظرة شاملة على طلبات الطلاب حسب النوع والحالة والقسم والبرنامج.
+            نظرة شاملة على الخدمات الطلابية حسب النوع والحالة والقسم والبرنامج.
           </p>
         </div>
 

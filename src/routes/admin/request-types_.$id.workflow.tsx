@@ -378,7 +378,7 @@ function AdminRequestTypeWorkflowPage() {
             to="/admin/request-types"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"
           >
-            <ArrowRight className="h-3.5 w-3.5" /> العودة إلى أنواع الطلبات
+            <ArrowRight className="h-3.5 w-3.5" /> العودة إلى أنواع الخدمات الطلابية
           </Link>
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-gold" />

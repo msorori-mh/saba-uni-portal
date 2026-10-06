@@ -15,7 +15,7 @@ export const Route = createFileRoute("/staff/processing-requests")({
   head: () => ({
     meta: [
       { title: "صندوق معالجة الطلبات — بوابة الموظف" },
-      { name: "description", content: "خطوات طلبات الطلاب المسندة إليك للمعالجة، ومنها تأكيد السداد." },
+      { name: "description", content: "خطوات معالجة الخدمات الطلابية المسندة إليك، ومنها تأكيد السداد." },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),

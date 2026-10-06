@@ -67,7 +67,7 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_OPERATIONAL_INTEGRATION_02Q", () => {
     expect(home).toContain("assignedStudentRequests.isError");
     expect(home).toContain("assignedStudentRequests.isLoading");
     // Quick action preserved.
-    expect(home).toContain('"معالجة الطلبات الطلابية", "student-requests"');
+    expect(home).toContain('"معالجة الخدمات الطلابية", "student-requests"');
   });
 
   test("portal navigation shows a count badge sharing the same query cache", () => {

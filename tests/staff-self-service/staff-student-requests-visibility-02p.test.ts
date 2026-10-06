@@ -11,13 +11,13 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_VISIBILITY_02P", () => {
   test("restores the assigned student requests workspace inside the employee portal", () => {
     expect(portal).toContain('from "@/components/student-requests/b1/B1StaffWorkspace"');
     expect(portal).toContain('| "student-requests"');
-    expect(portal).toContain('label: "الطلبات الطلابية المسندة"');
+    expect(portal).toContain('label: "الخدمات الطلابية المسندة"');
     expect(portal).toContain('section === "student-requests"');
     expect(portal).toContain("<B1StaffWorkspace embedded />");
   });
 
   test("keeps a direct quick action on the compact employee home", () => {
-    expect(home).toContain('"معالجة الطلبات الطلابية", "student-requests"');
+    expect(home).toContain('"معالجة الخدمات الطلابية", "student-requests"');
   });
 
   test("preserves the previous direct route and backend-authoritative workspace", () => {

@@ -267,7 +267,7 @@ function AdminDashboard() {
     {
       title: "الشؤون الأكاديمية",
       cards: [
-        { label: "المقررات المطروحة", value: aops?.activeOfferings ?? 0, icon: CalendarDays, to: "/admin/academic-operations" },
+        { label: "المقررات المسندة", value: aops?.activeOfferings ?? 0, icon: CalendarDays, to: "/admin/academic-operations" },
         { label: "المجموعات الدراسية النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
         { label: "التسجيلات النشطة", value: aops?.activeEnrollments ?? 0, icon: ClipboardList, to: "/admin/academic-operations" },
         { label: "إيصالات قيد المراجعة", value: aops?.pendingReceipts ?? 0, icon: Receipt, to: "/admin/academic-operations" },

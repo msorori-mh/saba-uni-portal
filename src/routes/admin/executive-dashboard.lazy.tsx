@@ -565,7 +565,7 @@ function ExecutiveDashboardPage() {
               <TrendDelta {...analytics.trends.revenue} />
             </div>
             <div className="rounded-lg border border-border p-4">
-              <div className="text-[11px] font-bold text-muted-foreground mb-1">طلبات الطلاب</div>
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">الخدمات الطلابية</div>
               <TrendDelta {...analytics.trends.requests} />
             </div>
           </div>

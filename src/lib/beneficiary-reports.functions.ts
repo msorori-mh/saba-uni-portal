@@ -693,7 +693,7 @@ export const getOperationalUnitReportsSummary = createServerFn({ method: "POST" 
         "تجميع الوثائق حسب الوحدة غير مكوّن — لا عمود وحدة على official_documents",
       ),
       links: [
-        { to: "/admin/reports?tab=requests", label: "طلبات الطلاب" },
+        { to: "/admin/reports?tab=requests", label: "الخدمات الطلابية" },
         { to: "/admin/student-requests", label: "صندوق الطلبات" },
         { to: "/admin/documents", label: "الوثائق" },
       ],

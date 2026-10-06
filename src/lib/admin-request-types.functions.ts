@@ -113,7 +113,7 @@ async function assertRequestTypesAdmin(userId: string) {
   await assertAnyRole(
     userId,
     REQUEST_TYPES_ADMIN_ROLES,
-    "ليس لديك صلاحية إدارة أنواع الطلبات",
+    "ليس لديك صلاحية إدارة أنواع الخدمات الطلابية",
   );
 }
 

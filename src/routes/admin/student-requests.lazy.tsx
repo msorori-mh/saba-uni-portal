@@ -194,7 +194,7 @@ function AdminRequestsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <FileWarning className="h-5 w-5 text-gold" />
-          <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب</h1>
+          <h1 className="font-display text-xl font-extrabold text-primary">الخدمات الطلابية</h1>
         </div>
         <div className="flex rounded-lg border bg-muted/30 p-0.5 text-xs font-bold">
           <button
