@@ -22,7 +22,7 @@ fails closed on a wrong applicationId, cleartext traffic, or an undocumented per
 | Field | Current value |
 | --- | --- |
 | `versionCode` | `8` |
-| `versionName` | `1.1.3` |
+| `versionName` | `0.4.1` |
 
 Rules:
 

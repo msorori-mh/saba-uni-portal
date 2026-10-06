@@ -9,7 +9,7 @@
  *   namespace     = ye.edu.usr.fitcs.portal
  *   app label     = ITCS Portal
  *   versionCode   = 8
- *   versionName   = 1.1.3
+ *   versionName   = 0.4.1
  *
  * It also fails closed on: wrong applicationId, cleartext traffic enabled,
  * and any Android permission outside the documented allowlist.
@@ -20,7 +20,7 @@ import path from "node:path";
 export const APPLICATION_ID = "ye.edu.usr.fitcs.portal";
 export const APP_LABEL = "ITCS Portal";
 export const VERSION_CODE = 8;
-export const VERSION_NAME = "1.1.3";
+export const VERSION_NAME = "0.4.1";
 /** Minimum permission set: network access only. */
 export const ALLOWED_PERMISSIONS = ["android.permission.INTERNET"];
 
