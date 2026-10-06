@@ -7,6 +7,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { useFacultyLogout } from "@/lib/faculty-portal/use-faculty-logout";
 import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
+import { DELIVERY_MONITORING_LABEL } from "@/lib/faculty-portal/delivery-monitoring-roles";
 import { portalFeatures } from "@/lib/portal-features";
 import { cn } from "@/lib/utils";
 
@@ -81,7 +82,7 @@ export function FacultyPortalShell({
 
   const baseItems: NavItem[] = [...NAV_ITEMS];
   if (showMonitoringLink) {
-    baseItems.splice(3, 0, { to: "/faculty-portal/lecture-monitoring", label: "متابعة التنفيذ" });
+    baseItems.splice(3, 0, { to: "/faculty-portal/lecture-monitoring", label: DELIVERY_MONITORING_LABEL });
   }
 
   const items: NavItem[] = [

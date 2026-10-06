@@ -5,12 +5,12 @@ import { DeliveryMonitoringPanel } from "@/components/lecture-execution/Delivery
 export const Route = createFileRoute("/faculty-portal/lecture-monitoring")({
   head: () => ({
     meta: [
-      { title: "متابعة تنفيذ المحاضرات — بوابة الكلية" },
+      { title: "متابعة سير العملية التعليمية — بوابة الكلية" },
       {
         name: "description",
         content: "متابعة المخطط مقابل المنفذ من المحاضرات لرؤساء الأقسام والعميد.",
       },
-      { property: "og:title", content: "متابعة تنفيذ المحاضرات" },
+      { property: "og:title", content: "متابعة سير العملية التعليمية" },
       {
         property: "og:description",
         content: "متابعة المخطط مقابل المنفذ من المحاضرات لرؤساء الأقسام والعميد.",
@@ -25,9 +25,9 @@ export const Route = createFileRoute("/faculty-portal/lecture-monitoring")({
 function FacultyLectureMonitoringPage() {
   return (
     <FacultyPortalShell
-      title="متابعة تنفيذ المحاضرات"
+      title="متابعة سير العملية التعليمية"
       subtitle="المخطط مقابل المنفذ ومؤشرات المخاطر الأكاديمية"
-      breadcrumbs={[{ label: "متابعة تنفيذ المحاضرات" }]}
+      breadcrumbs={[{ label: "متابعة سير العملية التعليمية" }]}
     >
       <DeliveryMonitoringPanel />
     </FacultyPortalShell>

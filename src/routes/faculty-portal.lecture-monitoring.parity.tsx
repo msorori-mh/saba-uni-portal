@@ -29,7 +29,7 @@ function LectureMonitoringParityPage() {
       title="مطابقة قيم المتابعة مع تفاصيل المقرر"
       subtitle="DATA_MINING_DETAIL_PARITY — فحص قراءة فقط لصفوف الاختلاف"
       breadcrumbs={[
-        { label: "متابعة تنفيذ المحاضرات", to: "/faculty-portal/lecture-monitoring" },
+        { label: "متابعة سير العملية التعليمية", to: "/faculty-portal/lecture-monitoring" },
         { label: "مطابقة التفاصيل" },
       ]}
     >
