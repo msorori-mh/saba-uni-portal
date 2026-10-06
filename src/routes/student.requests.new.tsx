@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { NewStudentRequestScreen } from "@/components/student-requests/NewStudentRequestScreen";
+import { StudentServicesNewRequestGate } from "@/components/student-requests/StudentServicesPausedNotice";
 
 export const Route = createFileRoute("/student/requests/new")({
   validateSearch: (search: Record<string, unknown>): { type?: string } => ({
@@ -10,5 +11,9 @@ export const Route = createFileRoute("/student/requests/new")({
 
 function NewStudentRequestRoute() {
   const { type } = Route.useSearch();
-  return <NewStudentRequestScreen typeFromSearch={type} />;
+  return (
+    <StudentServicesNewRequestGate>
+      <NewStudentRequestScreen typeFromSearch={type} />
+    </StudentServicesNewRequestGate>
+  );
 }

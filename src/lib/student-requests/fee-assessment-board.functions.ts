@@ -7,7 +7,7 @@ import {
 } from "@/lib/student-requests/processing-assignment-identity.server";
 
 /** Processing role this board is built for. */
-export const FEE_ASSESSMENT_ROLE_CODE = "student_affairs_manager";
+export const FEE_ASSESSMENT_ROLE_CODES = ["student_affairs_manager", "registrar_general"] as const;
 /** Step this board tracks. */
 export const FEE_ASSESSMENT_STEP_KEY = "fee_assessment";
 
@@ -56,13 +56,13 @@ export const fetchFeeAssessmentBoard = createServerFn({ method: "GET" })
 
     if (!isAdmin) {
       // Must hold an ACTIVE processing assignment bound to the manager role.
-      const { data: roleRow } = await supabaseAdmin
+      const { data: roleRows } = await supabaseAdmin
         .from("request_processing_roles")
         .select("id")
-        .eq("code", FEE_ASSESSMENT_ROLE_CODE)
-        .maybeSingle();
-      if (!roleRow) {
-        return { available: false, messageAr: "دور مدير شؤون الطلاب غير مُعرّف في النظام.", rows: [], summary: empty };
+        .in("code", [...FEE_ASSESSMENT_ROLE_CODES]);
+      const roleIds = (roleRows ?? []).map((r) => r.id);
+      if (roleIds.length === 0) {
+        return { available: false, messageAr: "أدوار تقييم الرسوم غير مُعرّفة في النظام.", rows: [], summary: empty };
       }
 
       const [staffRes, facultyRes, positionRes] = await Promise.all([
@@ -83,7 +83,7 @@ export const fetchFeeAssessmentBoard = createServerFn({ method: "GET" })
           "id, assignment_type, user_id, staff_profile_id, faculty_profile_id, position_assignment_id, is_active, starts_at, ends_at",
         )
         .eq("is_active", true)
-        .eq("role_id", roleRow.id);
+        .in("role_id", roleIds);
 
       const allowed = (assignments ?? []).some(
         (row) => isAssignmentWindowActive(row) && assignmentMatchesIdentity(row, identity),
@@ -91,7 +91,7 @@ export const fetchFeeAssessmentBoard = createServerFn({ method: "GET" })
       if (!allowed) {
         return {
           available: false,
-          messageAr: "هذه اللوحة مخصّصة لمدير شؤون الطلاب — لا يوجد تعيين معالجة نشط لحسابك في هذا الدور.",
+          messageAr: "هذه اللوحة مخصّصة لمسجل الكلية أو مدير شؤون الطلاب — لا يوجد تعيين معالجة نشط لحسابك.",
           rows: [],
           summary: empty,
         };

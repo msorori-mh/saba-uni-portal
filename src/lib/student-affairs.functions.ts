@@ -32,6 +32,7 @@ import {
   getRequestServiceAdapter,
   validateB1ServiceActivation,
 } from "@/lib/student-requests/request-service-adapter";
+import { assertStudentServicesOpenForNewRequest } from "@/lib/student-requests/student-services-switch.server";
 
 const ADMIN_ROLES = [
   "admin",
@@ -585,6 +586,8 @@ export async function submitCanonicalStudentRequestCore(input: {
       // The live atomic RPC has no canonical resubmit contract — fail closed.
       throw new Error("P1_RESUBMIT_NOT_SUPPORTED");
     }
+    // Global admin switch: a new request cannot be started while paused.
+    await assertStudentServicesOpenForNewRequest(input.sessionClient);
     const p1Payload = buildStudentRequestSubmitPayload(validation.normalized);
     const atomic = await rpcSubmitStudentRequestWithDetails(input.sessionClient, {
       requestType: validation.normalized.requestTypeCode,
@@ -657,6 +660,11 @@ export async function submitCanonicalStudentRequestCore(input: {
       throw new Error("لا يمكن إرسال هذا الطلب في حالته الحالية");
     }
     priorStatus = existing.status;
+    // Global admin switch: submitting a DRAFT is paused; resubmitting a request
+    // staff returned is not a new service and stays available.
+    await assertStudentServicesOpenForNewRequest(input.sessionClient, {
+      existingStatus: priorStatus,
+    });
     const storedType = normalizeStudentRequestTypeCode(existing.request_type);
     if (storedType !== validation.normalized.requestTypeCode) {
       throw new Error("نوع الطلب لا يطابق الطلب المحفوظ");
@@ -681,6 +689,8 @@ export async function submitCanonicalStudentRequestCore(input: {
       if (updateErr) throw new Error(updateErr.message);
     }
   } else {
+    // Global admin switch: covers the service-role fallback writes below too.
+    await assertStudentServicesOpenForNewRequest(input.sessionClient);
     requestId = b1Adapter
       ? await createB1DraftFailClosed({
           sessionClient: input.sessionClient, requestType: payload.requestType,
@@ -790,6 +800,8 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
     const requestType = normalizeStudentRequestTypeCode(data.requestType);
     // P1 atomic services have no generic draft-create path — fail closed.
     if (isP1AtomicSubmitService(requestType)) throw new Error("P1_ATOMIC_SUBMIT_REQUIRED");
+    // Global admin switch: no new draft while the student services are paused.
+    await assertStudentServicesOpenForNewRequest(context.supabase);
     await assertStudentEligibleForRequestType(context.supabase, context.userId, requestType);
     const adapter = getRequestServiceAdapter(requestType);
     if (adapter) {
