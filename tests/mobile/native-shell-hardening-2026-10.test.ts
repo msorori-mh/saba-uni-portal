@@ -359,18 +359,18 @@ describe("release build hardening and version", () => {
     }
   });
 
-  test("version is 8 / 1.1.3 everywhere and the applicationId is unchanged", () => {
+  test("version is 8 / 0.4.1 everywhere and the applicationId is unchanged", () => {
     expect(gradle).toContain("versionCode 8");
-    expect(gradle).toContain('versionName "1.1.3"');
+    expect(gradle).toContain('versionName "0.4.1"');
     expect(gradle).toContain('applicationId "ye.edu.usr.fitcs.portal"');
     const script = read("scripts/mobile/apply-android-identity.mjs");
     expect(script).toContain("VERSION_CODE = 8;");
-    expect(script).toContain('VERSION_NAME = "1.1.3";');
+    expect(script).toContain('VERSION_NAME = "0.4.1";');
     expect(script).toContain("versionCode   = 8");
-    expect(script).toContain("versionName   = 1.1.3");
+    expect(script).toContain("versionName   = 0.4.1");
     const contract = read("docs/mobile/ANDROID-PLAY-IDENTITY-CONTRACT.md");
     expect(contract).toContain("| `versionCode` | `8` |");
-    expect(contract).toContain("| `versionName` | `1.1.3` |");
+    expect(contract).toContain("| `versionName` | `0.4.1` |");
     expect(contract).toContain("android.permission.USE_BIOMETRIC");
     expect(contract).toContain("android.permission.USE_FINGERPRINT");
   });
