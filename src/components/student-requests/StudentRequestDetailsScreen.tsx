@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Circle, Clock, Download, FileText, Loader2, Send, Wallet } from "lucide-react";
@@ -235,7 +236,9 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
       toast.success("تمت إعادة الإرسال", { description: "انتقل الطلب إلى: مُرسَل — بانتظار المراجعة." });
       qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
     } catch (e) {
-      toast.error("تعذر إعادة الإرسال", { description: (e as Error).message });
+      toast.error("تعذر إعادة الإرسال", {
+        description: studentServicesDisabledMessageAr(e) ?? (e as Error).message,
+      });
     } finally {
       resubmitInFlightRef.current = false;
       setResubmitting(false);

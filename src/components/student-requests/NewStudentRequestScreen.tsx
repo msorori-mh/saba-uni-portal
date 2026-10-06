@@ -17,6 +17,7 @@ import {
   isDynamicFormSupported,
 } from "@/components/student-requests/DynamicStudentRequestForm";
 import { StudentRequestEligibilityNotice } from "@/components/student-requests/StudentRequestEligibilityNotice";
+import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
 import {
   getEmptyFormValues,
   getStudentRequestFormDefinition,
@@ -305,7 +306,8 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
       });
       navigate({ to: routes.detail, params: { id: result.id } });
     } catch (e) {
-      const msg = (e as Error).message;
+      // A submit that raced the admin switch surfaces as the plain pause message.
+      const msg = studentServicesDisabledMessageAr(e) ?? (e as Error).message;
       setError(msg);
       toast.error("تعذر إرسال الطلب", { description: msg });
     } finally {

@@ -25,6 +25,7 @@
  * - getB1RuntimeCapability()
  */
 
+import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
 import { b1BusinessRuleMessageAr } from "@/lib/student-requests/b1-ui/b1-business-error-mapping";
 import type {
   B1CanonicalCode,
@@ -91,6 +92,10 @@ export function isB1AdapterError(error: unknown): error is B1AdapterError {
 
 /** Maps an adapter error code to a safe Arabic message (never raw SQL/servers strings). */
 export function b1AdapterErrorMessageAr(error: unknown): string {
+  // Admin paused the student services (STUDENT-SERVICES-GLOBAL-SWITCH-01):
+  // recognised whatever adapter code the message was classified under.
+  const pausedMessageAr = studentServicesDisabledMessageAr(error);
+  if (pausedMessageAr) return pausedMessageAr;
   if (isB1AdapterError(error)) {
     switch (error.code) {
       case "NETWORK_ERROR":

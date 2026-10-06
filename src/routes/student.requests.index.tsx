@@ -17,6 +17,11 @@ import {
 import { portalFeatures } from "@/lib/portal-features";
 import { B1StudentServiceList } from "@/components/student-requests/b1";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import {
+  StudentServicesPausedBanner,
+  StudentServicesPausedButton,
+  useStudentServicesStatus,
+} from "@/components/student-requests/StudentServicesPausedNotice";
 
 export const Route = createFileRoute("/student/requests/")({
   component: StudentRequestsIndexPage,
@@ -122,6 +127,7 @@ function StudentRequestsIndexPage() {
   );
 
   const [activeTab, setActiveTab] = useState<"services" | "requests">("services");
+  const { paused: servicesPaused, messageAr: servicesPausedMessageAr } = useStudentServicesStatus();
 
   return (
     <div dir="rtl" className="space-y-6">
@@ -176,6 +182,8 @@ function StudentRequestsIndexPage() {
           ) : null}
         </button>
       </nav>
+
+      {servicesPaused ? <StudentServicesPausedBanner messageAr={servicesPausedMessageAr} /> : null}
 
       {activeTab === "services" ? (
         <>
@@ -239,7 +247,9 @@ function StudentRequestsIndexPage() {
                       </p>
                     ) : null}
                     <div className="mt-2">
-                      {actionable ? (
+                      {servicesPaused ? (
+                        <StudentServicesPausedButton />
+                      ) : actionable ? (
                         isB1ServiceCode(normalizeStudentRequestTypeCode(type.code)) ? (
                           <Link
                             to="/student/requests/b1/$service"
