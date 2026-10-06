@@ -149,7 +149,7 @@ describe("server gate wiring", () => {
     expect(route).toContain('title="متابعة سير العملية التعليمية"');
     const panel = read("src/components/lecture-execution/DeliveryMonitoringPanel.tsx");
     expect(panel).toMatch(/message\.includes\("CDP_NOT_AUTHORIZED"\)\s*\? "غير مصرح/);
-    expect(panel).toContain('data.scope === "department" ? departmentScopeLabel(data.departments) : "الكلية"');
+    expect(panel).toMatch(/data\.scope === "department"\s*\? departmentScopeLabel\(data\.departments\)/);
   });
 });
 

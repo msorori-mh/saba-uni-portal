@@ -21,6 +21,12 @@ import {
   type MonitoringPeriod,
   type MonitoringRow,
 } from "@/lib/lecture-execution.functions";
+import {
+  rowsOfDepartment,
+  summarizeByDepartment,
+  totalsOfRows,
+  type DepartmentMonitoringSummary,
+} from "@/lib/lecture-execution-by-department";
 
 const RISK_STYLES: Record<string, string> = {
   high: "bg-destructive/10 text-destructive",
@@ -36,6 +42,8 @@ const RISK_STYLES: Record<string, string> = {
  */
 export function DeliveryMonitoringPanel() {
   const [period, setPeriod] = useState<MonitoringPeriod>("term");
+  // College scope only: `null` = the whole college, otherwise one department.
+  const [departmentKey, setDepartmentKey] = useState<string | null>(null);
   const fetchMonitoring = useServerFn(getDeliveryMonitoring);
 
   const q = useQuery({
@@ -65,9 +73,17 @@ export function DeliveryMonitoringPanel() {
 
   const data = q.data;
   if (!data) return null;
-  const t = data.totals;
-  const plannedRows = data.rows.filter((r) => r.plan_status === "published");
-  const awaitingRows = data.rows.filter((r) => r.plan_status !== "published");
+  const isCollege = data.scope === "college";
+  const departmentSummaries = isCollege ? summarizeByDepartment(data.rows) : [];
+  // A department that vanished after a refetch falls back to the whole college.
+  const activeDepartment =
+    isCollege && departmentKey !== null
+      ? (departmentSummaries.find((d) => d.key === departmentKey) ?? null)
+      : null;
+  const visibleRows = activeDepartment ? rowsOfDepartment(data.rows, activeDepartment.key) : data.rows;
+  const t = activeDepartment ? totalsOfRows(visibleRows) : data.totals;
+  const plannedRows = visibleRows.filter((r) => r.plan_status === "published");
+  const awaitingRows = visibleRows.filter((r) => r.plan_status !== "published");
   const atRisk = plannedRows.filter(
     (r) => r.risk_level === "high" || r.risk_level === "medium",
   );
@@ -96,10 +112,22 @@ export function DeliveryMonitoringPanel() {
           مطابقة القيم مع تفاصيل المقرر
         </Link>
         <span className="text-xs text-muted-foreground">
-          النطاق: {data.scope === "department" ? departmentScopeLabel(data.departments) : "الكلية"}
+          النطاق:{" "}
+          {data.scope === "department"
+            ? departmentScopeLabel(data.departments)
+            : activeDepartment
+              ? `الكلية — ${activeDepartment.name}`
+              : "الكلية"}
         </span>
       </div>
 
+      {isCollege && departmentSummaries.length > 0 && (
+        <DepartmentBreakdown
+          summaries={departmentSummaries}
+          activeKey={activeDepartment?.key ?? null}
+          onSelect={setDepartmentKey}
+        />
+      )}
 
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         {[
@@ -146,6 +174,11 @@ export function DeliveryMonitoringPanel() {
 
       <section className="rounded-xl border bg-card p-4">
         <h2 className="font-display text-base font-extrabold text-primary">أسباب عدم التنفيذ</h2>
+        {activeDepartment && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            هذه الأسباب مجمّعة على مستوى الكلية كلها، وليست خاصة بالقسم المحدد.
+          </p>
+        )}
         {data.reasons.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">لا توجد حالات عدم تنفيذ مسجلة.</p>
         ) : (
@@ -189,6 +222,86 @@ export function DeliveryMonitoringPanel() {
         يعتمدها عضو هيئة التدريس المسند للمجموعة.
       </p>
     </div>
+  );
+}
+
+/**
+ * College scope (dean / academic administration): one row per department with
+ * its own figures, and a filter that narrows everything below to that department.
+ */
+function DepartmentBreakdown({
+  summaries,
+  activeKey,
+  onSelect,
+}: {
+  summaries: DepartmentMonitoringSummary[];
+  activeKey: string | null;
+  onSelect: (key: string | null) => void;
+}) {
+  const chip = (selected: boolean) =>
+    cn(
+      "rounded-lg border px-3 py-1 text-sm transition-colors",
+      selected ? "border-gold bg-gold/10 font-bold text-primary" : "hover:bg-muted",
+    );
+  return (
+    <section className="space-y-3 rounded-xl border bg-card p-4">
+      <h2 className="font-display text-base font-extrabold text-primary">المتابعة حسب القسم</h2>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="تصفية حسب القسم">
+        <button
+          type="button"
+          aria-pressed={activeKey === null}
+          onClick={() => onSelect(null)}
+          className={chip(activeKey === null)}
+        >
+          كل الأقسام
+        </button>
+        {summaries.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            aria-pressed={activeKey === d.key}
+            onClick={() => onSelect(d.key)}
+            className={chip(activeKey === d.key)}
+          >
+            {d.name}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded-xl border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>القسم</TableHead>
+              <TableHead>المجموعات</TableHead>
+              <TableHead>بانتظار اعتماد الخطة</TableHead>
+              <TableHead>المخطط</TableHead>
+              <TableHead>المنفذ (شامل التعويض)</TableHead>
+              <TableHead>المتبقي</TableHead>
+              <TableHead>غير المعوّض</TableHead>
+              <TableHead>نسبة التنفيذ</TableHead>
+              <TableHead>مقررات متأخرة</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {summaries.map((d) => (
+              <TableRow key={d.key} className={cn(activeKey === d.key && "bg-gold/5")}>
+                <TableCell className="whitespace-nowrap font-bold">{d.name}</TableCell>
+                <TableCell>{d.totals.sections}</TableCell>
+                <TableCell>{d.awaitingPlan}</TableCell>
+                <TableCell>{d.totals.planned}</TableCell>
+                <TableCell>{d.totals.executed}</TableCell>
+                <TableCell>{d.totals.remaining}</TableCell>
+                <TableCell>{d.totals.uncompensated}</TableCell>
+                <TableCell className="font-bold">
+                  {d.totals.execution_percent === null ? "—" : `${d.totals.execution_percent}%`}
+                </TableCell>
+                <TableCell>{d.totals.behind_plan_courses}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
   );
 }
 
