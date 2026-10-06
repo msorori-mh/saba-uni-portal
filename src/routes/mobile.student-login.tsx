@@ -5,6 +5,7 @@ import { GraduationCap, Loader2, ArrowLeft, ShieldCheck, Mail } from "lucide-rea
 import collegeLogo from "@/assets/college-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
+import { wipeMobileOfflineData } from "@/lib/mobile/offline/offline-store";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { friendlyAuthError } from "@/components/auth/IdentifierInput";
 import { validateUniversityLoginEmailInput, normalizeUniversityLoginEmail } from "@/lib/university-email-auth";
@@ -96,6 +97,9 @@ function MobileStudentLoginPage() {
       if (signInError) throw signInError;
       if (!data.user) throw new Error("invalid");
 
+      // A fresh sign-in never inherits data persisted for a previous session.
+      wipeMobileOfflineData();
+
       // Student-only: must have student_profiles row
       const { data: profile } = await supabase
         .from("student_profiles")
@@ -104,6 +108,8 @@ function MobileStudentLoginPage() {
         .maybeSingle();
 
       if (!profile) {
+        // Not a student: nothing persisted for the offline mode may remain.
+        wipeMobileOfflineData();
         await supabase.auth.signOut();
         setError("هذا التطبيق مخصص للطلاب فقط.");
         setLoading(false);

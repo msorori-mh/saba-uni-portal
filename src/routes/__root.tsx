@@ -13,7 +13,11 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { getErrorRecoveryHomePath, retryRouteError } from "../lib/route-error-recovery";
+import {
+  getErrorRecoveryHomePath,
+  isChunkLoadError,
+  retryRouteError,
+} from "../lib/route-error-recovery";
 import { BUILD_SHA } from "@/lib/build-provenance";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
@@ -26,6 +30,14 @@ import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
 import { isInternalPortalPath } from "@/lib/portal-scope";
 import { PortalFallbackBar } from "@/components/portal/PortalFallbackBar";
 import { isNativePlatform } from "@/lib/native/platform";
+import { isMobileOfflineActive } from "@/lib/mobile/offline/config";
+import { readStoredSupabaseSession } from "@/lib/mobile/offline/stored-session";
+import { discardMobileOfflineQueriesIfOnline } from "@/lib/mobile/offline/query-persistence";
+import {
+  purgeMobileOfflineCachesIfOnline,
+  recoverMobileStaleAssets,
+  startMobileOfflineRuntime,
+} from "@/lib/mobile/offline/service-worker-client";
 
 function NotFoundComponent() {
   // Unknown /admin/* paths get an admin-scoped 404 that keeps the admin
@@ -90,9 +102,29 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const homePath = getErrorRecoveryHomePath(pathname);
   const homeLabel = homePath === "/admin" ? "العودة إلى لوحة الإدارة" : "العودة للرئيسية";
 
+  const isMobileApp = isMobileAppPath(pathname);
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  // Mobile offline-first self-healing (no-op elsewhere, never blocks the UI):
+  //  - a failed code chunk means the stored shell is older than the deploy →
+  //    one guarded purge + network reload;
+  //  - any other render error while the server is reachable drops the saved
+  //    offline data, in case it no longer matches what the new code expects.
+  // Only on devices where the offline mode is active.
+  useEffect(() => {
+    if (!isMobileApp || !isMobileOfflineActive()) return;
+    if (isChunkLoadError(error)) {
+      void recoverMobileStaleAssets();
+      return;
+    }
+    void discardMobileOfflineQueriesIfOnline(
+      router.options.context.queryClient,
+      readStoredSupabaseSession()?.userId ?? null,
+    );
+  }, [error, isMobileApp, router]);
 
   return (
     <div dir="rtl" className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -117,6 +149,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
                 invalidate: () => router.invalidate(),
                 error,
                 reload: () => window.location.reload(),
+                // Mobile app: drop the stale stored build (only when the
+                // server is reachable) so the reload really gets the new one.
+                beforeReload: isMobileApp ? purgeMobileOfflineCachesIfOnline : undefined,
               });
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -254,6 +289,13 @@ function RootComponent() {
     }
     registerPortalPWA();
   }, [isNativeMobileApp]);
+
+  // Offline-first for the student app (browser AND installed native shell):
+  // a separate worker scoped to /mobile/ only. Other portals and the public
+  // site are never controlled by it. See docs/mobile/OFFLINE-FIRST-01.md.
+  useEffect(() => {
+    if (isMobileApp) startMobileOfflineRuntime();
+  }, [isMobileApp]);
 
   return (
     <QueryClientProvider client={queryClient}>
