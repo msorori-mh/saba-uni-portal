@@ -1785,6 +1785,60 @@ export type Database = {
         }
         Relationships: []
       }
+      b1_request_fee_decisions: {
+        Row: {
+          amount_due: number | null
+          decided_at: string
+          decided_by: string
+          decision: string
+          exemption_reason: string | null
+          id: string
+          note: string | null
+          request_id: string
+          runtime_step_id: string
+          service_code: string
+        }
+        Insert: {
+          amount_due?: number | null
+          decided_at?: string
+          decided_by: string
+          decision: string
+          exemption_reason?: string | null
+          id?: string
+          note?: string | null
+          request_id: string
+          runtime_step_id: string
+          service_code: string
+        }
+        Update: {
+          amount_due?: number | null
+          decided_at?: string
+          decided_by?: string
+          decision?: string
+          exemption_reason?: string | null
+          id?: string
+          note?: string | null
+          request_id?: string
+          runtime_step_id?: string
+          service_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b1_request_fee_decisions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b1_request_fee_decisions_runtime_step_id_fkey"
+            columns: ["runtime_step_id"]
+            isOneToOne: true
+            referencedRelation: "student_request_workflow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       b1_workflow_runtime_contract_snapshot: {
         Row: {
           action_code: string | null
@@ -5733,8 +5787,12 @@ export type Database = {
           policy_snapshot: Json | null
           problem_statement: string | null
           program_id: string | null
+          proposal_supervisor_endorsed_at: string | null
           semester_id: string | null
           summary: string | null
+          team_approved_at: string | null
+          team_approved_by: string | null
+          team_submitted_at: string | null
           title: string | null
           updated_at: string
           version: number
@@ -5759,8 +5817,12 @@ export type Database = {
           policy_snapshot?: Json | null
           problem_statement?: string | null
           program_id?: string | null
+          proposal_supervisor_endorsed_at?: string | null
           semester_id?: string | null
           summary?: string | null
+          team_approved_at?: string | null
+          team_approved_by?: string | null
+          team_submitted_at?: string | null
           title?: string | null
           updated_at?: string
           version?: number
@@ -5785,8 +5847,12 @@ export type Database = {
           policy_snapshot?: Json | null
           problem_statement?: string | null
           program_id?: string | null
+          proposal_supervisor_endorsed_at?: string | null
           semester_id?: string | null
           summary?: string | null
+          team_approved_at?: string | null
+          team_approved_by?: string | null
+          team_submitted_at?: string | null
           title?: string | null
           updated_at?: string
           version?: number
@@ -11180,6 +11246,30 @@ export type Database = {
           },
         ]
       }
+      student_services_switch: {
+        Row: {
+          enabled: boolean
+          id: boolean
+          message_ar: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: boolean
+          message_ar?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: boolean
+          message_ar?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       student_trusted_devices: {
         Row: {
           algorithm: string
@@ -11708,6 +11798,7 @@ export type Database = {
         Args: { p_request_type_id: string }
         Returns: Json
       }
+      admin_get_student_services_switch: { Args: never; Returns: Json }
       admin_mark_faculty_password_reset: {
         Args: { _profile_id: string }
         Returns: {
@@ -11768,6 +11859,10 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      admin_set_student_services_enabled: {
+        Args: { p_enabled: boolean; p_message?: string }
+        Returns: Json
       }
       admin_set_student_status: {
         Args: { _active: boolean; _profile_id: string }
@@ -12031,6 +12126,7 @@ export type Database = {
         Args: { p_request_type: string }
         Returns: string
       }
+      b1_fee_decision_step: { Args: { p_step_id: string }; Returns: string }
       b1_is_five_service_type: { Args: { p_stored: string }; Returns: boolean }
       b1_legacy_fallback_enabled: {
         Args: { p_service_code: string }
@@ -12710,6 +12806,10 @@ export type Database = {
           unit_name_ar: string
         }[]
       }
+      delivery_monitoring_headed_departments: {
+        Args: { p_user: string }
+        Returns: string[]
+      }
       dispatch_council_notification: {
         Args: {
           p_council_id: string
@@ -13028,6 +13128,7 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      get_b1_fee_decision: { Args: { p_request_id: string }; Returns: Json }
       get_b1_request_details_for_student: {
         Args: { p_request_id: string }
         Returns: Json
@@ -13269,7 +13370,16 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      get_student_services_status: { Args: never; Returns: Json }
       gp_academic_date: { Args: { p_at?: string }; Returns: string }
+      gp_add_team_member_by_profile: {
+        Args: {
+          p_correlation_id: string
+          p_project_id: string
+          p_student_profile_id: string
+        }
+        Returns: string
+      }
       gp_admin_list_policies: {
         Args: never
         Returns: {
@@ -13317,6 +13427,15 @@ export type Database = {
         Args: { p_policy_id: string }
         Returns: string[]
       }
+      gp_approve_team_and_assign_supervisor: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_supervisor_faculty_profile_id: string
+        }
+        Returns: string
+      }
       gp_assert_version: {
         Args: {
           p: Database["public"]["Tables"]["graduation_projects"]["Row"]
@@ -13324,11 +13443,27 @@ export type Database = {
         }
         Returns: undefined
       }
+      gp_caller_manages_department: {
+        Args: { p_department_id: string }
+        Returns: boolean
+      }
       gp_can_manage_policies: { Args: never; Returns: boolean }
       gp_current_revision_final_ready: {
         Args: { p_project_id: string }
         Returns: boolean
       }
+      gp_department_head_user: {
+        Args: { p_department_id: string }
+        Returns: string
+      }
+      gp_department_manager_faculty: {
+        Args: { p_department_id: string }
+        Returns: {
+          faculty_profile_id: string
+          user_id: string
+        }[]
+      }
+      gp_department_projects_overview: { Args: never; Returns: Json }
       gp_effective_policy: {
         Args: { p_academic_year_id: string; p_department_id: string }
         Returns: {
@@ -13412,6 +13547,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      gp_list_supervisor_options: { Args: never; Returns: Json }
+      gp_list_team_candidates: { Args: { p_project_id: string }; Returns: Json }
       gp_project_policy: {
         Args: { p_project_id: string }
         Returns: {
@@ -13450,6 +13587,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      gp_project_workflow_status: {
+        Args: { p_project_id: string }
+        Returns: Json
+      }
       gp_proposal_complete: {
         Args: { p: Database["public"]["Tables"]["graduation_projects"]["Row"] }
         Returns: boolean
@@ -13459,6 +13600,46 @@ export type Database = {
           p_correlation_id: string
           p_event_type: string
           p_project_id: string
+        }
+        Returns: string
+      }
+      gp_require_department_manager: {
+        Args: { p_department_id: string }
+        Returns: string
+      }
+      gp_return_team: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_reason: string
+        }
+        Returns: string
+      }
+      gp_set_project_coordinator: {
+        Args: {
+          p_department_id: string
+          p_faculty_profile_id: string
+          p_project_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      gp_submit_team_for_approval: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
+      gp_supervisor_review_proposal: {
+        Args: {
+          p_action: string
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_reason: string
         }
         Returns: string
       }
@@ -13502,6 +13683,7 @@ export type Database = {
         }
       }
       gp_validate_policy: { Args: { p_policy_id: string }; Returns: string[] }
+      gp_vice_dean_academic_user: { Args: never; Returns: string }
       graduate_add_contact_point: {
         Args: {
           p_channel_type: string
@@ -14227,6 +14409,16 @@ export type Database = {
       }
       reconcile_department_head_council_memberships: {
         Args: { p_user_id?: string }
+        Returns: Json
+      }
+      record_b1_fee_decision: {
+        Args: {
+          p_amount_due?: number
+          p_decision: string
+          p_exemption_reason?: string
+          p_note?: string
+          p_step_id: string
+        }
         Returns: Json
       }
       record_council_meeting_attendance: {
@@ -15083,6 +15275,10 @@ export type Database = {
         Args: { p_agenda_item_id: string }
         Returns: Json
       }
+      student_create_graduation_project_team: {
+        Args: { p_correlation_id: string }
+        Returns: string
+      }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
         Returns: boolean
@@ -15103,6 +15299,7 @@ export type Database = {
         Args: { _profile_status: string; _request_audience: string }
         Returns: boolean
       }
+      student_services_enabled: { Args: never; Returns: boolean }
       submit_b1_student_request_atomic:
         | {
             Args: {
