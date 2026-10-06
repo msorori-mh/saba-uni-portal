@@ -269,7 +269,7 @@ function FacultyDashboard() {
                   <h2 className="font-display text-base font-extrabold text-primary">{homeCopy.title}</h2>
                   <p className="mt-1 text-xs text-muted-foreground">{homeCopy.description}</p>
                 </div>
-                {isLeadership && <span className="rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-primary">{homeRole === "department_head" ? "نطاق القسم" : "نطاق الكلية"}</span>}
+                {isLeadership && <span className="rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-primary">{homeRole === "department_head" ? "نطاق القسم" : homeRole === "dean" ? "نطاق الكلية" : "مهام النيابة"}</span>}
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {homeRole === "dean" && (
