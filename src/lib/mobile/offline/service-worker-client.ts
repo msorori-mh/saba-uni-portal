@@ -10,14 +10,16 @@
 import { isChunkLoadError, recoverFromStaleAssets } from "@/lib/route-error-recovery";
 import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
 import {
-  MOBILE_OFFLINE_ENABLED,
+  MOBILE_OFFLINE_ROLLOUT,
   MOBILE_OFFLINE_SW_SCOPE,
   MOBILE_OFFLINE_SW_URL,
   getMobileOfflineController,
+  isMobileOfflineActive,
   isMobileOfflineCacheName,
   isMobileOfflineScope,
+  writeMobileOfflineOptIn,
 } from "./config";
-import { probeMobileConnectivity } from "./connectivity";
+import { probeMobileConnectivity, resetMobileConnectivity } from "./connectivity";
 import { wipeMobileOfflineData } from "./offline-store";
 
 const ASSET_SYNC_DELAY_MS = 8_000;
@@ -88,8 +90,28 @@ export async function purgeMobileOfflineCaches(): Promise<void> {
   await deleteMobileOfflineCaches();
 }
 
+/**
+ * Applies the Settings toggle on this device, immediately:
+ *  - on:  remember the opt-in and register the worker;
+ *  - off: forget the opt-in, unregister the worker, delete its caches and wipe
+ *         every persisted payload. Nothing of the feature stays active.
+ */
+export async function setMobileOfflineMode(enabled: boolean): Promise<void> {
+  if (enabled) {
+    writeMobileOfflineOptIn(true);
+    started = false;
+    startMobileOfflineRuntime();
+    return;
+  }
+  writeMobileOfflineOptIn(false);
+  started = false;
+  resetMobileConnectivity();
+  await disableMobileOffline();
+}
+
 /** Purge for a manual "retry" after a chunk error — kept when the server is unreachable. */
 export async function purgeMobileOfflineCachesIfOnline(): Promise<void> {
+  if (!isMobileOfflineActive()) return;
   if ((await probeMobileConnectivity({ force: true })) !== "online") return;
   await purgeMobileOfflineCaches();
 }
@@ -131,6 +153,8 @@ export function syncLoadedAssetsToServiceWorker(): void {
 
 /** One guarded reload when the running document references assets that are gone. */
 export function recoverMobileStaleAssets(): Promise<"reloaded" | "offline" | "cooldown"> {
+  // Not active on this device: the pre-feature behaviour (manual retry) applies.
+  if (!isMobileOfflineActive()) return Promise.resolve("cooldown");
   return recoverFromStaleAssets({
     // Never purge without a reachable server: offline, the stored assets are
     // the only copy of the app the device has.
@@ -149,7 +173,8 @@ export function installMobileStaleAssetRecovery(): void {
   if (recoveryInstalled || typeof window === "undefined") return;
   recoveryInstalled = true;
 
-  const onMobileRoute = () => isMobileAppPath(window.location.pathname);
+  // Re-checked on every event: after an opt-out the listeners are inert.
+  const onMobileRoute = () => isMobileOfflineActive() && isMobileAppPath(window.location.pathname);
 
   window.addEventListener("vite:preloadError", () => {
     if (onMobileRoute()) void recoverMobileStaleAssets();
@@ -176,12 +201,17 @@ export function installMobileStaleAssetRecovery(): void {
 export function startMobileOfflineRuntime(): void {
   if (started) return;
   if (!canUseServiceWorker()) return;
-  started = true;
 
-  if (!MOBILE_OFFLINE_ENABLED) {
+  if (MOBILE_OFFLINE_ROLLOUT === "off") {
+    // Kill switch: actively remove whatever an earlier release installed.
+    started = true;
     void disableMobileOffline();
     return;
   }
+  // Pilot and this device did not opt in: do NOTHING — no registration, no
+  // listener, no cache or storage access. Identical to the pre-feature app.
+  if (!isMobileOfflineActive()) return;
+  started = true;
 
   installMobileStaleAssetRecovery();
 

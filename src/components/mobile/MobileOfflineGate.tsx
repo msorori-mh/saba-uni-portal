@@ -2,7 +2,11 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { CloudOff, Loader2, WifiOff } from "lucide-react";
-import { classifyMobileOfflineScreen } from "@/lib/mobile/offline/config";
+import {
+  classifyMobileOfflineScreen,
+  isMobileOfflineActive,
+  subscribeMobileOfflineActive,
+} from "@/lib/mobile/offline/config";
 import {
   isMobileOnline,
   probeMobileConnectivity,
@@ -26,6 +30,15 @@ export function formatMobileOfflineTimestamp(timestamp: number | null): string {
   } catch {
     return new Date(timestamp).toLocaleString();
   }
+}
+
+/** True when the offline mode is active on this device (reacts to the Settings toggle). */
+export function useMobileOfflineActive(): boolean {
+  return useSyncExternalStore(
+    subscribeMobileOfflineActive,
+    () => isMobileOfflineActive(),
+    () => false,
+  );
 }
 
 export function useMobileOnline(): boolean {
@@ -100,7 +113,11 @@ export function MobileOfflineGate({
   pathname: string;
   children: ReactNode;
 }) {
-  const online = useMobileOnline();
+  // Not active on this device ⇒ always "online" here: the gate renders the
+  // screen untouched, whatever the browser reports (pre-feature behaviour).
+  const active = useMobileOfflineActive();
+  const measuredOnline = useMobileOnline();
+  const online = !active || measuredOnline;
   const queryClient = useQueryClient();
   const router = useRouter();
   // `offline` = this screen was ENTERED while offline.
@@ -110,7 +127,7 @@ export function MobileOfflineGate({
   }
   const enteredOfflinePath = entry.offline ? entry.pathname : null;
   useEffect(() => {
-    if (!online || !enteredOfflinePath) return;
+    if (!active || !online || !enteredOfflinePath) return;
     let cancelled = false;
     // Back online on a screen that could not load: let the router load it
     // again (its code/data may have failed while offline) before showing it.
@@ -125,7 +142,7 @@ export function MobileOfflineGate({
     return () => {
       cancelled = true;
     };
-  }, [online, enteredOfflinePath, router]);
+  }, [active, online, enteredOfflinePath, router]);
 
   // One stable element shape — `{banner}{content}` — in every state, so going
   // offline/online never remounts the screen that is already open.
@@ -134,6 +151,7 @@ export function MobileOfflineGate({
 
   if (online) {
     const reloading =
+      active &&
       entry.pathname === pathname &&
       entry.offline &&
       classifyMobileOfflineScreen(pathname).kind === "online-only";

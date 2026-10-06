@@ -521,18 +521,33 @@ describe("deploys", () => {
   });
 });
 
-describe("kill switch", () => {
-  const disabled = SW_SOURCE.replace(
-    "const MOBILE_OFFLINE_ENABLED = true;",
-    "const MOBILE_OFFLINE_ENABLED = false;",
-  );
+describe("rollout switch", () => {
+  const withRollout = (state: string) =>
+    SW_SOURCE.replace(
+      'const MOBILE_OFFLINE_ROLLOUT = "pilot";',
+      `const MOBILE_OFFLINE_ROLLOUT = "${state}";`,
+    );
+  const disabled = withRollout("off");
 
-  test("the switch is a single literal in the worker file", () => {
-    expect(SW_SOURCE.match(/const MOBILE_OFFLINE_ENABLED = true;/g)).toHaveLength(1);
+  test("the switch is a single literal in the worker file and this release ships in pilot", () => {
+    expect(SW_SOURCE.match(/const MOBILE_OFFLINE_ROLLOUT = "(off|pilot|on)";/g)).toHaveLength(1);
+    expect(SW_SOURCE).toContain('const MOBILE_OFFLINE_ROLLOUT = "pilot";');
+    expect(SW_SOURCE).toContain('const MOBILE_OFFLINE_ENABLED = MOBILE_OFFLINE_ROLLOUT !== "off";');
     expect(disabled).not.toBe(SW_SOURCE);
   });
 
-  test("a disabled worker deletes its caches, unregisters itself and intercepts nothing", async () => {
+  test.each(["pilot", "on"])('"%s": a registered worker is fully functional', async (state) => {
+    const worker = createWorker({ source: withRollout(state) });
+    worker.deploy(BUILD_A);
+    await worker.boot();
+    expect(worker.lifecycle.unregistered).toBe(0);
+    expect(worker.lifecycle.claimed).toBe(1);
+    expect(worker.cachedPaths()).toContain("/mobile/student");
+    const status = await worker.message({ type: "MOBILE_OFFLINE_STATUS" });
+    expect(status).toMatchObject({ enabled: true, rollout: state });
+  });
+
+  test('"off": a worker that finds itself active purges, unregisters and intercepts nothing', async () => {
     const worker = createWorker({ source: disabled });
     worker.stores.set(
       "mobile-offline-v1-build-old",

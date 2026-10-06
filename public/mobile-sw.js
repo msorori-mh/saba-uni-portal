@@ -2,14 +2,20 @@
  * Mobile student app — offline-first service worker. Scope: /mobile/ only.
  * See docs/mobile/OFFLINE-FIRST-01.md.
  *
- * KILL SWITCH: set MOBILE_OFFLINE_ENABLED to false here AND in
- * src/lib/mobile/offline/config.ts (a test keeps both in sync), then deploy.
- * On the next online launch this worker deletes every cache it owns and
- * unregisters itself; the app goes back to plain network loading.
+ * ROLLOUT SWITCH (mirrors MOBILE_OFFLINE_ROLLOUT in
+ * src/lib/mobile/offline/config.ts — a test keeps both in sync):
+ *   "off"   kill switch: on the next online launch this worker deletes every
+ *           cache it owns and unregisters itself.
+ *   "pilot" the worker runs only on devices that opted in from Settings. A
+ *           worker cannot read localStorage, so the APP decides whether to
+ *           register it; a device that did not opt in never has this worker.
+ *   "on"    every device.
  */
-const MOBILE_OFFLINE_ENABLED = true;
+const MOBILE_OFFLINE_ROLLOUT = "pilot";
+/** Defensive: a worker that finds itself running while "off" purges and unregisters. */
+const MOBILE_OFFLINE_ENABLED = MOBILE_OFFLINE_ROLLOUT !== "off";
 /** Bump on any change to this file or to mobile-offline-policy.js. */
-const MOBILE_SW_VERSION = "2026-10-06.1";
+const MOBILE_SW_VERSION = "2026-10-06.2";
 
 importScripts("/mobile-offline-policy.js");
 
@@ -389,6 +395,7 @@ self.addEventListener("message", (event) => {
       readMeta().then((meta) =>
         reply({
           enabled: MOBILE_OFFLINE_ENABLED,
+          rollout: MOBILE_OFFLINE_ROLLOUT,
           version: MOBILE_SW_VERSION,
           buildId: meta.current,
           lastNavigation,

@@ -16,11 +16,14 @@
  * only, documents network-first, self-recovering after deploys — see
  * public/mobile-offline-policy.js), it is what lets the installed app open
  * without a network, and its `mobile-offline-*` caches are not portal-owned
- * caches, so they are not deleted here either. With the kill switch off
- * (`MOBILE_OFFLINE_ENABLED = false`) it is unregistered like any other worker.
+ * caches, so they are not deleted here either. It is kept ONLY while the
+ * feature is active on this device (`isMobileOfflineActive()`: rollout "on",
+ * or rollout "pilot" + the device opted in). On every other device — and with
+ * the rollout "off" — it is unregistered like any other worker, exactly as
+ * before the feature existed.
  */
 import { isNativePlatform } from "@/lib/native/platform";
-import { MOBILE_OFFLINE_ENABLED, isMobileOfflineScope } from "@/lib/mobile/offline/config";
+import { isMobileOfflineActive, isMobileOfflineScope } from "@/lib/mobile/offline/config";
 
 /** Cache names owned by the portal service worker (see public/sw-cache-policy.js). */
 export const PORTAL_OWNED_CACHE_PREFIX = "portal-pwa-";
@@ -41,7 +44,7 @@ export function isPwaAllowedHere(): boolean {
 
 /** True for the one registration the native shell keeps (mobile offline worker). */
 export function isRegistrationKeptInNativeShell(scopeUrl: string | null | undefined): boolean {
-  return MOBILE_OFFLINE_ENABLED && isMobileOfflineScope(scopeUrl);
+  return isMobileOfflineActive() && isMobileOfflineScope(scopeUrl);
 }
 
 /**

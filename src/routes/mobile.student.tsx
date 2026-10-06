@@ -15,8 +15,8 @@ import {
   getMobileStudentIdentity,
 } from "@/lib/mobile/student-identity";
 import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
-import { MobileOfflineGate } from "@/components/mobile/MobileOfflineGate";
-import { MOBILE_OFFLINE_ENABLED, MOBILE_OFFLINE_WARM_ROUTES } from "@/lib/mobile/offline/config";
+import { MobileOfflineGate, useMobileOfflineActive } from "@/components/mobile/MobileOfflineGate";
+import { MOBILE_OFFLINE_WARM_ROUTES, isMobileOfflineActive } from "@/lib/mobile/offline/config";
 import {
   isMobileOnline,
   resolveMobileLaunchConnectivity,
@@ -53,10 +53,12 @@ export const Route = createFileRoute("/mobile/student")({
     // session read plus a cached student-profile check (see student-identity).
     // Data access itself is still enforced server-side by RLS and the RPCs.
     //
-    // Offline-first: learn from the service worker whether this launch is
-    // offline (memoized, <=300 ms once), then read the session locally — a
-    // stored session is never treated as "signed out" because of a network
-    // error — and hydrate the student's saved data BEFORE anything renders.
+    // Offline-first (only when active on this device — every call below is a
+    // no-op otherwise, see isMobileOfflineActive): learn from the service
+    // worker whether this launch is offline (memoized, <=300 ms once), then
+    // read the session locally — a stored session is never treated as "signed
+    // out" because of a network error — and hydrate the student's saved data
+    // BEFORE anything renders.
     await resolveMobileLaunchConnectivity();
     const userId = await getMobileSessionUserId();
     if (!userId) {
@@ -104,6 +106,8 @@ function MobileStudentLayout() {
   const { pathname } = useLocation();
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const authUserIdRef = useRef<string | null>(null);
+  // Rollout "on", or rollout "pilot" + this device opted in (Settings toggle).
+  const offlineActive = useMobileOfflineActive();
 
   // Native (Capacitor/Android) app-shell: status bar, splash hide, back button.
   // No-op on the web.
@@ -114,8 +118,6 @@ function MobileStudentLayout() {
     // Removes the portal-wide PWA worker inside the native shell; the mobile
     // offline worker (scope /mobile/) is deliberately kept — see native-pwa-cleanup.
     void disablePwaInNativeShell();
-    startMobileConnectivityWatch();
-    startMobileOfflinePersistence(queryClient, () => authUserIdRef.current);
 
     void getMobileSessionUserId().then((userId) => {
       if (cancelled) return;
@@ -130,9 +132,12 @@ function MobileStudentLayout() {
       // session (the refresh failed) while the session is still stored on the
       // device. Only an explicit SIGNED_OUT, or a session that is really gone
       // from storage, means the student is signed out.
+      // (Only with the offline mode active; otherwise the original rule.)
       const nextUserId =
         session?.user.id ??
-        (event === "SIGNED_OUT" ? null : (readStoredSupabaseSession()?.userId ?? null));
+        (event === "SIGNED_OUT" || !isMobileOfflineActive()
+          ? null
+          : (readStoredSupabaseSession()?.userId ?? null));
       if (authUserIdRef.current && authUserIdRef.current !== nextUserId) {
         clearMobileStudentIdentity();
         // Sign-out from any screen, or another account: nothing persisted survives.
@@ -153,10 +158,18 @@ function MobileStudentLayout() {
     };
   }, [navigate, queryClient, router]);
 
+  // Connectivity measurement + persistence run only while the offline mode is
+  // active on this device, and stop immediately when it is switched off.
+  useEffect(() => {
+    if (!offlineActive) return;
+    startMobileConnectivityWatch();
+    return startMobileOfflinePersistence(queryClient, () => authUserIdRef.current);
+  }, [offlineActive, queryClient]);
+
   // Download the code of the offline-capable screens in advance (through the
   // service worker, which stores it), so they open later without a network.
   useEffect(() => {
-    if (!MOBILE_OFFLINE_ENABLED || !authUserId) return;
+    if (!offlineActive || !authUserId) return;
     const timer = setTimeout(() => {
       if (!isMobileOnline()) return;
       for (const to of MOBILE_OFFLINE_WARM_ROUTES) {
@@ -164,7 +177,7 @@ function MobileStudentLayout() {
       }
     }, 3_000);
     return () => clearTimeout(timer);
-  }, [authUserId, router]);
+  }, [authUserId, offlineActive, router]);
 
   const { data: profile } = useQuery({
     queryKey: ["mobile-student", "short-profile", authUserId],

@@ -8,12 +8,93 @@
  */
 
 /**
- * KILL SWITCH. Set to `false` here AND in public/mobile-sw.js, then deploy:
- *  - the worker deletes its caches and unregisters itself on the next online launch;
- *  - the app stops registering it, deletes the caches from the page as well and
- *    wipes every persisted student payload on the device.
+ * ROLLOUT SWITCH — one constant, three states. It is mirrored by
+ * `MOBILE_OFFLINE_ROLLOUT` in public/mobile-sw.js; a test keeps both in sync.
+ *
+ *  - "off":   kill switch. Nobody gets the feature; the worker deletes its
+ *             caches and unregisters itself, the app wipes persisted payloads.
+ *  - "pilot": only devices that explicitly opted in from the mobile Settings
+ *             screen («الوضع بدون إنترنت (تجريبي)»). Every other device behaves
+ *             exactly as before this feature existed: no worker for /mobile/,
+ *             no persistence, no connectivity probe, the original guard.
+ *  - "on":    every device.
+ *
+ * To change the state, edit this line AND the same line in public/mobile-sw.js.
  */
-export const MOBILE_OFFLINE_ENABLED = true;
+export type MobileOfflineRollout = "off" | "pilot" | "on";
+export const MOBILE_OFFLINE_ROLLOUT: MobileOfflineRollout = "pilot";
+
+/**
+ * Per-device pilot opt-in. Deliberately NOT under MOBILE_OFFLINE_STORAGE_PREFIX
+ * and not an auth key: it is a device preference, not account data, so it
+ * survives sign-out and is never touched by the sign-out wipes.
+ */
+export const MOBILE_OFFLINE_OPT_IN_KEY = "mobile.offline-mode.opt-in.v1";
+
+type OptInStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+function defaultOptInStorage(): OptInStorage | null {
+  try {
+    return typeof localStorage !== "undefined" ? localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readMobileOfflineOptIn(
+  storage: OptInStorage | null | undefined = defaultOptInStorage(),
+): boolean {
+  try {
+    return storage?.getItem(MOBILE_OFFLINE_OPT_IN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const activeListeners = new Set<() => void>();
+
+/** Subscribe to opt-in changes on this device (useSyncExternalStore-compatible). */
+export function subscribeMobileOfflineActive(listener: () => void): () => void {
+  activeListeners.add(listener);
+  return () => {
+    activeListeners.delete(listener);
+  };
+}
+
+/** Stores the device preference only. Use `setMobileOfflineMode` to apply it. */
+export function writeMobileOfflineOptIn(
+  enabled: boolean,
+  storage: OptInStorage | null | undefined = defaultOptInStorage(),
+): void {
+  try {
+    if (enabled) storage?.setItem(MOBILE_OFFLINE_OPT_IN_KEY, "1");
+    else storage?.removeItem(MOBILE_OFFLINE_OPT_IN_KEY);
+  } catch {
+    /* blocked storage: the feature simply stays off on this device */
+  }
+  for (const listener of Array.from(activeListeners)) listener();
+}
+
+/**
+ * THE gate of the whole feature on this device. Every entry point (worker
+ * registration, persistence, hydration, connectivity probe, the offline
+ * branches of the guard) checks it and is a no-op when it is false.
+ */
+export function isMobileOfflineActive(
+  storage?: OptInStorage | null,
+  rollout: MobileOfflineRollout = MOBILE_OFFLINE_ROLLOUT,
+): boolean {
+  if (rollout === "on") return true;
+  if (rollout !== "pilot") return false;
+  return storage === undefined ? readMobileOfflineOptIn() : readMobileOfflineOptIn(storage);
+}
+
+/** The Settings toggle exists only while the feature is being piloted. */
+export function isMobileOfflinePilot(
+  rollout: MobileOfflineRollout = MOBILE_OFFLINE_ROLLOUT,
+): boolean {
+  return rollout === "pilot";
+}
 
 export const MOBILE_OFFLINE_SW_URL = "/mobile-sw.js";
 export const MOBILE_OFFLINE_SW_SCOPE = "/mobile/";

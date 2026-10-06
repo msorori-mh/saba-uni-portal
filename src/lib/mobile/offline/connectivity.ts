@@ -20,7 +20,7 @@
  */
 
 import { onlineManager } from "@tanstack/react-query";
-import { MOBILE_OFFLINE_ENABLED, getMobileOfflineController } from "./config";
+import { getMobileOfflineController, isMobileOfflineActive } from "./config";
 
 export type MobileConnectivity = "online" | "offline" | "unknown";
 
@@ -48,7 +48,8 @@ export function subscribeMobileOnline(listener: () => void): () => void {
 }
 
 function applyConnectivity(result: MobileConnectivity): void {
-  if (result === "unknown") return;
+  // Not opted in / switched off: React Query's own online state is never touched.
+  if (result === "unknown" || !isMobileOfflineActive()) return;
   const online = result === "online";
   if (onlineManager.isOnline() !== online) onlineManager.setOnline(online);
   syncRecheckTimer();
@@ -56,7 +57,7 @@ function applyConnectivity(result: MobileConnectivity): void {
 
 function syncRecheckTimer(): void {
   if (typeof window === "undefined") return;
-  const offline = !onlineManager.isOnline();
+  const offline = isMobileOfflineActive() && !onlineManager.isOnline();
   if (offline && !recheckTimer) {
     recheckTimer = setInterval(() => {
       if (typeof document === "undefined" || document.visibilityState !== "hidden") {
@@ -101,6 +102,8 @@ async function runProbe(): Promise<MobileConnectivity> {
 export function probeMobileConnectivity(options?: {
   force?: boolean;
 }): Promise<MobileConnectivity> {
+  // Inert unless the feature is active on this device: no request is sent.
+  if (!isMobileOfflineActive()) return Promise.resolve("unknown");
   if (probeInFlight) return probeInFlight;
   if (!options?.force && lastProbe && Date.now() - lastProbe.at < PROBE_MEMO_MS) {
     return Promise.resolve(lastProbe.result);
@@ -148,7 +151,7 @@ function askServiceWorkerForLaunchHint(): Promise<LaunchHint> {
 export function resolveMobileLaunchConnectivity(): Promise<void> {
   if (launchPromise) return launchPromise;
   launchPromise = (async () => {
-    if (!MOBILE_OFFLINE_ENABLED || typeof window === "undefined") return;
+    if (!isMobileOfflineActive() || typeof window === "undefined") return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       applyConnectivity("offline");
       return;
@@ -165,7 +168,7 @@ export function resolveMobileLaunchConnectivity(): Promise<void> {
 
 /** Keeps the online state honest for the lifetime of the page. Idempotent. */
 export function startMobileConnectivityWatch(): void {
-  if (watchStarted || typeof window === "undefined") return;
+  if (watchStarted || typeof window === "undefined" || !isMobileOfflineActive()) return;
   watchStarted = true;
   window.addEventListener("offline", () => applyConnectivity("offline"));
   window.addEventListener("online", () => void probeMobileConnectivity({ force: true }));
@@ -176,4 +179,19 @@ export function startMobileConnectivityWatch(): void {
   });
   onlineManager.subscribe(() => syncRecheckTimer());
   syncRecheckTimer();
+}
+
+/**
+ * Opt-out on this device: stop measuring and hand the online state back to
+ * what the browser itself reports (React Query's default behaviour).
+ */
+export function resetMobileConnectivity(): void {
+  lastProbe = null;
+  launchPromise = null;
+  if (recheckTimer) {
+    clearInterval(recheckTimer);
+    recheckTimer = null;
+  }
+  const browserOnline = typeof navigator === "undefined" || navigator.onLine !== false;
+  if (onlineManager.isOnline() !== browserOnline) onlineManager.setOnline(browserOnline);
 }

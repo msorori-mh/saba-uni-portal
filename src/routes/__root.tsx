@@ -30,6 +30,7 @@ import { isMobileAppPath } from "@/lib/mobile/mobile-scope";
 import { isInternalPortalPath } from "@/lib/portal-scope";
 import { PortalFallbackBar } from "@/components/portal/PortalFallbackBar";
 import { isNativePlatform } from "@/lib/native/platform";
+import { isMobileOfflineActive } from "@/lib/mobile/offline/config";
 import { readStoredSupabaseSession } from "@/lib/mobile/offline/stored-session";
 import { discardMobileOfflineQueriesIfOnline } from "@/lib/mobile/offline/query-persistence";
 import {
@@ -112,8 +113,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   //    one guarded purge + network reload;
   //  - any other render error while the server is reachable drops the saved
   //    offline data, in case it no longer matches what the new code expects.
+  // Only on devices where the offline mode is active.
   useEffect(() => {
-    if (!isMobileApp) return;
+    if (!isMobileApp || !isMobileOfflineActive()) return;
     if (isChunkLoadError(error)) {
       void recoverMobileStaleAssets();
       return;

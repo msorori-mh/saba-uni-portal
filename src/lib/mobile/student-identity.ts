@@ -23,9 +23,14 @@
  *    persisted the last time the server confirmed it (per user, 7 days max).
  * Online, the server stays authoritative: an account without a student
  * profile is still reported as `null` and signed out by the callers.
+ *
+ * Both fallbacks exist ONLY while the feature is active on the device
+ * (`isMobileOfflineActive()`); otherwise this module behaves exactly as it
+ * did before: `getSession()` for the user id, the server for the profile.
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { isMobileOfflineActive } from "@/lib/mobile/offline/config";
 import { isMobileOnline, resolveMobileLaunchConnectivity } from "@/lib/mobile/offline/connectivity";
 import {
   readPersistedMobileIdentity,
@@ -71,7 +76,9 @@ function isRetryableAuthError(error: unknown): boolean {
  *    refresh token → supabase-js deletes the stored session) returns null.
  */
 export async function getMobileSessionUserId(): Promise<string | null> {
-  const stored = readStoredSupabaseSession();
+  // Feature not active on this device (pilot without opt-in, or "off"): the
+  // original behaviour, untouched — one local getSession() read.
+  const stored = isMobileOfflineActive() ? readStoredSupabaseSession() : null;
   if (stored) {
     await resolveMobileLaunchConnectivity();
     if (!isMobileOnline()) return stored.userId;
@@ -122,8 +129,11 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
     return { userId, studentProfileId: cached.studentProfileId };
   }
 
-  const persisted = readPersistedMobileIdentity(userId);
-  if (!isMobileOnline()) {
+  // `offlineActive` false ⇒ `persisted` is null and nothing is written, which
+  // reduces everything below to the original server-checked flow.
+  const offlineActive = isMobileOfflineActive();
+  const persisted = offlineActive ? readPersistedMobileIdentity(userId) : null;
+  if (offlineActive && !isMobileOnline()) {
     if (persisted) return persisted;
     throw new Error("MOBILE_IDENTITY_UNAVAILABLE_OFFLINE");
   }
@@ -141,7 +151,7 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
     const studentProfileId = (data as { id?: string } | null)?.id;
     if (!studentProfileId) return null;
     cached = { userId, studentProfileId, at: Date.now() };
-    writePersistedMobileIdentity({ userId, studentProfileId });
+    if (offlineActive) writePersistedMobileIdentity({ userId, studentProfileId });
     return { userId, studentProfileId };
   })().finally(() => {
     if (inflight?.promise === promise) inflight = null;

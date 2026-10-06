@@ -14,7 +14,7 @@
 
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import {
-  MOBILE_OFFLINE_ENABLED,
+  isMobileOfflineActive,
   isMobileQueryKeyOwnedBy,
   isPersistableMobileQueryKey,
   type MobileOfflineQuerySegment,
@@ -46,7 +46,7 @@ const states = new WeakMap<QueryClient, PersistenceState>();
  * anything renders. Returns the number of restored queries.
  */
 export function hydrateMobileOfflineQueries(queryClient: QueryClient, userId: string): number {
-  if (!MOBILE_OFFLINE_ENABLED) return 0;
+  if (!isMobileOfflineActive()) return 0;
   const snapshot = readMobileOfflineSnapshot(userId);
   if (!snapshot) return 0;
   let restored = 0;
@@ -67,7 +67,7 @@ export function hydrateMobileOfflineQueries(queryClient: QueryClient, userId: st
  * (unmounted for a while) still paints immediately — online or offline.
  */
 export function ensureMobileOfflineHydrated(queryClient: QueryClient, userId: string): void {
-  if (!MOBILE_OFFLINE_ENABLED) return;
+  if (!isMobileOfflineActive()) return;
   hydrateMobileOfflineQueries(queryClient, userId);
 }
 
@@ -158,7 +158,7 @@ export function startMobileOfflinePersistence(
   queryClient: QueryClient,
   getUserId: () => string | null,
 ): () => void {
-  if (!MOBILE_OFFLINE_ENABLED || typeof window === "undefined") return () => undefined;
+  if (!isMobileOfflineActive() || typeof window === "undefined") return () => undefined;
   const existing = states.get(queryClient);
   if (existing) {
     existing.getUserId = getUserId;
@@ -275,7 +275,7 @@ export async function discardMobileOfflineQueriesIfOnline(
   queryClient: QueryClient,
   userId: string | null,
 ): Promise<boolean> {
-  if (!MOBILE_OFFLINE_ENABLED) return false;
+  if (!isMobileOfflineActive()) return false;
   if ((await probeMobileConnectivity()) !== "online") return false;
   if (userId) removeMobileOfflineSnapshot(userId);
   queryClient.removeQueries({ predicate: (query) => isPersistableMobileQueryKey(query.queryKey) });

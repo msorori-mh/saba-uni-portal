@@ -8,7 +8,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   MOBILE_OFFLINE_CACHE_PREFIX,
-  MOBILE_OFFLINE_ENABLED,
+  MOBILE_OFFLINE_OPT_IN_KEY,
+  MOBILE_OFFLINE_ROLLOUT,
+  isMobileOfflineActive,
+  isMobileOfflinePilot,
+  readMobileOfflineOptIn,
+  subscribeMobileOfflineActive,
+  writeMobileOfflineOptIn,
   MOBILE_OFFLINE_SW_SCOPE,
   MOBILE_OFFLINE_SW_URL,
 } from "../../../src/lib/mobile/offline/config";
@@ -36,10 +42,17 @@ const guard = layout.slice(
 );
 
 describe("kill switch and shared constants stay in sync", () => {
-  test("the worker flag equals the app flag", () => {
-    const workerFlag = /const MOBILE_OFFLINE_ENABLED = (true|false);/.exec(sw)?.[1];
-    expect(workerFlag).toBe(String(MOBILE_OFFLINE_ENABLED));
-    expect(config).toMatch(/export const MOBILE_OFFLINE_ENABLED = (true|false);/);
+  test("the worker rollout state equals the app rollout state, and this release is a pilot", () => {
+    const workerState = /const MOBILE_OFFLINE_ROLLOUT = "(off|pilot|on)";/.exec(sw)?.[1];
+    expect(workerState).toBe(MOBILE_OFFLINE_ROLLOUT);
+    expect(config).toMatch(
+      /export const MOBILE_OFFLINE_ROLLOUT: MobileOfflineRollout = "(off|pilot|on)";/,
+    );
+    expect(MOBILE_OFFLINE_ROLLOUT).toBe("pilot");
+    // No second, independent on/off flag is left anywhere in the app.
+    for (const source of [config, persistence, connectivity, swClient, cleanup, layout, identity]) {
+      expect(source).not.toContain("MOBILE_OFFLINE_ENABLED");
+    }
   });
 
   test("worker URL, scope and cache prefix match the policy file", () => {
@@ -57,8 +70,10 @@ describe("kill switch and shared constants stay in sync", () => {
     expect(disable).toContain("wipeMobileOfflineData();");
     expect(disable).toContain("registration.unregister()");
     expect(disable).toContain("deleteMobileOfflineCaches()");
-    expect(swClient).toMatch(/if \(!MOBILE_OFFLINE_ENABLED\) \{\s*void disableMobileOffline\(\);/);
-    expect(persistence).toContain("if (!MOBILE_OFFLINE_ENABLED) return 0;");
+    expect(swClient).toMatch(
+      /if \(MOBILE_OFFLINE_ROLLOUT === "off"\) \{[\s\S]*?void disableMobileOffline\(\);\s*return;/,
+    );
+    expect(persistence).toContain("if (!isMobileOfflineActive()) return 0;");
   });
 });
 
@@ -104,7 +119,7 @@ describe("worker lifecycle (versioned caches, takeover, no self-reload)", () => 
 
 describe("native shell: portal PWA still removed, mobile offline worker kept (no new APK)", () => {
   test("the cleanup skips only the /mobile/ registration and only while the feature is enabled", () => {
-    expect(cleanup).toContain("MOBILE_OFFLINE_ENABLED && isMobileOfflineScope(scopeUrl)");
+    expect(cleanup).toContain("isMobileOfflineActive() && isMobileOfflineScope(scopeUrl)");
     expect(cleanup).toContain(
       "regs.filter((r) => !isRegistrationKeptInNativeShell(r.scope)).map((r) => r.unregister())",
     );
@@ -153,7 +168,9 @@ describe("offline guard: a stored session is never treated as signed out", () =>
       identity.indexOf("export async function getMobileSessionUserId"),
       identity.indexOf("async function revokeNonStudent"),
     );
-    expect(fn).toContain("const stored = readStoredSupabaseSession();");
+    expect(fn).toContain(
+      "const stored = isMobileOfflineActive() ? readStoredSupabaseSession() : null;",
+    );
     expect(fn).toContain("if (!isMobileOnline()) return stored.userId;");
     expect(fn).toContain("storedSessionNeedsRefresh(stored)");
     expect(fn).toContain("SESSION_REFRESH_WAIT_MS");
@@ -166,13 +183,17 @@ describe("offline guard: a stored session is never treated as signed out", () =>
 
   test("the profile check has a persisted per-user fallback and still fails closed online", () => {
     const fn = identity.slice(identity.indexOf("export async function getMobileStudentIdentity"));
-    expect(fn).toContain("const persisted = readPersistedMobileIdentity(userId);");
+    expect(fn).toContain(
+      "const persisted = offlineActive ? readPersistedMobileIdentity(userId) : null;",
+    );
     expect(fn).toMatch(
-      /if \(!isMobileOnline\(\)\) \{\s*if \(persisted\) return persisted;\s*throw new Error/,
+      /if \(offlineActive && !isMobileOnline\(\)\) \{\s*if \(persisted\) return persisted;\s*throw new Error/,
     );
     expect(fn).toContain("if (error) throw error;");
     expect(fn).toContain("if (!studentProfileId) return null;");
-    expect(fn).toContain("writePersistedMobileIdentity({ userId, studentProfileId });");
+    expect(fn).toContain(
+      "if (offlineActive) writePersistedMobileIdentity({ userId, studentProfileId });",
+    );
     // A definite "not a student" from the server still signs the account out.
     expect(fn).toContain("if (identity === null) void revokeNonStudent(userId);");
     expect(identity).toMatch(
@@ -188,8 +209,8 @@ describe("offline guard: a stored session is never treated as signed out", () =>
   });
 
   test("a null session from a failed offline refresh does not bounce to login; SIGNED_OUT does", () => {
-    expect(layout).toContain(
-      '(event === "SIGNED_OUT" ? null : (readStoredSupabaseSession()?.userId ?? null))',
+    expect(layout).toMatch(
+      /event === "SIGNED_OUT" \|\| !isMobileOfflineActive\(\)\s*\? null\s*: \(readStoredSupabaseSession\(\)\?\.userId \?\? null\)/,
     );
     expect(layout).toMatch(
       /if \(!nextUserId\) \{\s*clearMobileOfflineUserData\(queryClient\);\s*navigate\(\{ to: "\/mobile\/student-login", replace: true \}\);/,
