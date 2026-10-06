@@ -810,7 +810,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "LEC-COURSE-DELIVERY-PLAN",
     name_ar: "خطة المحاضرات المرقمة للمقرر",
     description:
-      "خطة مرقمة 1..N بعناوين مخطط لها لكل مجموعة، مع حالة كل محاضرة وتواريخ التنفيذ/التعويض — يراها الطالب للمقررات المسجل فيها (بلا أسباب أو ملاحظات داخلية) ويحررها عضو هيئة التدريس.",
+      "خطة محاضرات المقرر مرتبة بالتسلسل لكل مجموعة: عنوان كل محاضرة وحالتها وتاريخ تنفيذها أو تعويضها. يحررها عضو هيئة التدريس ويطّلع عليها طلاب المقرر.",
     beneficiaries: ["student", "faculty_supervisor", "dept_head_coordinator"],
     required_role: ["faculty_member", "student"],
     data_scope: "course_section",
@@ -1238,7 +1238,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "FAC-TEACHING-LOAD",
     name_ar: "العبء التدريسي (ذاتي / قسم / كلية)",
     description:
-      "نفس مصدر الإسناد عبر buildTeachingLoadKpis مع محولات نطاق: عضو هيئة تدريس (مسند)، رئيس قسم، عميد/نائب أكاديمي.",
+      "عدد المجموعات الدراسية المسندة ومجموع ساعاتها المعتمدة، لعضو هيئة التدريس عن نفسه، ولرئيس القسم عن قسمه، وللعمادة عن الكلية.",
     beneficiaries: ["faculty_supervisor", "dept_head_coordinator", "dean", "vp_academic_affairs"],
     required_role: ["faculty_member", "department_head", "dean", "registrar", "admin", "system_admin"],
     data_scope: "self/assigned/department/college",
