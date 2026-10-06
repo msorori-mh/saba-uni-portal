@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { isInternalPortalPath } from "../../src/lib/portal-scope";
-import { DELIVERY_MONITORING_ROLES, canSeeDeliveryMonitoring } from "../../src/lib/faculty-portal/delivery-monitoring-roles";
+import { DELIVERY_MONITORING_COLLEGE_ROLES, canSeeDeliveryMonitoring } from "../../src/lib/faculty-portal/delivery-monitoring-roles";
 
 describe("internal portal chrome", () => {
   test("portal paths hide the public header/footer", () => {
@@ -14,12 +14,12 @@ describe("internal portal chrome", () => {
       expect(isInternalPortalPath(p)).toBe(false);
     }
   });
-  test("monitoring tab roles mirror cdp_delivery_monitoring", () => {
-    expect([...DELIVERY_MONITORING_ROLES].sort()).toEqual(
-      ["admin", "dean", "department_head", "registrar", "student_affairs", "system_admin"],
-    );
-    expect(canSeeDeliveryMonitoring(["faculty_member"])).toBe(false);
-    expect(canSeeDeliveryMonitoring(["faculty_member", "department_head"])).toBe(true);
+  // Owner rule (DELIVERY-MONITORING-POSITION-HEADS-01): in the faculty portal the
+  // tab is for the dean and for department heads only; the RPC keeps its own roles.
+  test("monitoring tab is for the dean and department heads only", () => {
+    expect([...DELIVERY_MONITORING_COLLEGE_ROLES]).toEqual(["dean"]);
+    expect(canSeeDeliveryMonitoring({ roles: ["faculty_member"], headedDepartmentIds: [] })).toBe(false);
+    expect(canSeeDeliveryMonitoring({ roles: ["faculty_member"], headedDepartmentIds: ["d1"] })).toBe(true);
     const shell = readFileSync("src/components/portal/FacultyPortalShell.tsx", "utf8");
     expect(shell).toContain("canMonitorDelivery");
     expect(shell).not.toMatch(/NAV_ITEMS: NavItem\[\] = \[[^\]]*lecture-monitoring/);

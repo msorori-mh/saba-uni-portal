@@ -18,13 +18,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userRoles } from "@/lib/authz.server";
+import { headedDepartmentIdsForUser } from "@/lib/faculty-portal/delivery-monitoring-heads.server";
 import { canSeeDeliveryMonitoring } from "@/lib/faculty-portal/delivery-monitoring-roles";
 import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
 
 export type HasActiveProcessingAssignmentResult = {
   hasAssignment: boolean;
   isAdmin: boolean;
-  /** UI gate mirroring cdp_delivery_monitoring roles; the page/RPC stay authoritative. */
+  /**
+   * Faculty-portal «متابعة سير العملية التعليمية» tab: college-wide role holder
+   * or head of at least one department (active department-head position, or
+   * the legacy role). UI gate only — the page/RPC stay authoritative.
+   */
   canMonitorDelivery: boolean;
 };
 
@@ -40,7 +45,14 @@ export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
       context.userId,
     );
 
-    const canMonitorDelivery = canSeeDeliveryMonitoring(roles);
+    // Fail closed: a failed headship lookup grants no department scope.
+    let headedDepartmentIds: string[] = [];
+    try {
+      headedDepartmentIds = await headedDepartmentIdsForUser(context.userId, roles);
+    } catch {
+      headedDepartmentIds = [];
+    }
+    const canMonitorDelivery = canSeeDeliveryMonitoring({ roles, headedDepartmentIds });
 
     return { hasAssignment, isAdmin, canMonitorDelivery };
   });

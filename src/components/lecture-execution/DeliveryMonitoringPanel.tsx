@@ -57,7 +57,7 @@ export function DeliveryMonitoringPanel() {
     return (
       <div className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
         {message.includes("CDP_NOT_AUTHORIZED")
-          ? "هذه المتابعة متاحة لرؤساء الأقسام والشؤون الأكاديمية والعميد والإدارة فقط."
+          ? "غير مصرح: متابعة سير العملية التعليمية متاحة لرئيس القسم (في قسمه) وللعميد والإدارة الأكاديمية فقط."
           : "تعذر تحميل بيانات المتابعة."}
       </div>
     );
@@ -96,7 +96,7 @@ export function DeliveryMonitoringPanel() {
           مطابقة القيم مع تفاصيل المقرر
         </Link>
         <span className="text-xs text-muted-foreground">
-          النطاق: {data.scope === "department" ? "القسم" : "الكلية"}
+          النطاق: {data.scope === "department" ? departmentScopeLabel(data.departments) : "الكلية"}
         </span>
       </div>
 
@@ -190,6 +190,12 @@ export function DeliveryMonitoringPanel() {
       </p>
     </div>
   );
+}
+
+/** Department scope shows which department(s) the head is looking at. */
+function departmentScopeLabel(departments: { department_name_ar: string }[] | undefined): string {
+  const names = (departments ?? []).map((d) => d.department_name_ar).filter(Boolean);
+  return names.length > 0 ? `القسم — ${names.join("، ")}` : "القسم";
 }
 
 function MonitoringTable({
