@@ -397,23 +397,30 @@ export function StaffRequestDetailPanel({
               )}
 
               {!isB1Service && !showSignPanel && !showArchivePanel && (
-                // The generic panel executes review steps only. On any other step its
-                // buttons can never run, so it is not rendered: the step's own panel
-                // above (fees, clearance, issuance) is the only place to act.
-                isReviewStep || !activeType ? (
-                  <StaffRequestActionPanel
-                    requestId={detail.id}
-                    requestTypeCode={detail.requestTypeCode}
-                    currentStepKey={active?.stepKey ?? null}
-                    currentRoleKey={detail.currentRoleKey}
-                    workflowStepRuntimeId={active?.id ?? null}
-                    activeStepActionType={activeType}
-                    activeStepIsActionable={active?.isActionable ?? false}
-                    workflowRuntimeAvailable={workflowRuntimeAvailable}
-                    requestUpdatedAt={detail.updatedAt}
-                    canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
-                  />
-                ) : !showFee && !showFinanceClearance && !showEcIssueButton ? (
+                <StaffRequestActionPanel
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                  currentStepKey={active?.stepKey ?? null}
+                  currentRoleKey={detail.currentRoleKey}
+                  workflowStepRuntimeId={active?.id ?? null}
+                  activeStepActionType={activeType}
+                  activeStepIsActionable={active?.isActionable ?? false}
+                  workflowRuntimeAvailable={workflowRuntimeAvailable}
+                  requestUpdatedAt={detail.updatedAt}
+                  canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
+                />
+              )}
+
+              {/* The generic panel hides itself on non-review steps (its buttons could
+                  never run there). When no dedicated panel covers the step either, say so. */}
+              {!isB1Service &&
+                !!activeType &&
+                !isReviewStep &&
+                !showSignPanel &&
+                !showArchivePanel &&
+                !showFee &&
+                !showFinanceClearance &&
+                !showEcIssueButton && (
                   <p
                     data-testid="staff-request-no-review-actions"
                     role="status"
@@ -421,8 +428,7 @@ export function StaffRequestDetailPanel({
                   >
                     لا يوجد إجراء متاح لك على المرحلة الحالية من هذه الصفحة.
                   </p>
-                ) : null
-              )}
+                )}
             </>
           );
         })()}

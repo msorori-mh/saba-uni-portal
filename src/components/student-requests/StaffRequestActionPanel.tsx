@@ -251,6 +251,11 @@ export function StaffRequestActionPanel({
           : STAFF_ACTIONS_DISABLED_MSG
       : null;
 
+  // This panel executes review steps only. On any other step type none of its
+  // buttons could ever run, so it renders nothing: the step's own panel (fees,
+  // clearance, issuance, signature, archive) is the place to act.
+  if (activeStepActionType && activeStepActionType !== "review") return null;
+
   return (
     <div className="rounded-lg border bg-card p-3 space-y-3">
       <div className="text-xs font-bold text-primary">إجراءات المعالجة</div>
