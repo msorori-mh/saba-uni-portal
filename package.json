@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && bun run scripts/validate-tanstack-route-tree-register.ts",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 vite build && bun run scripts/validate-tanstack-route-tree-register.ts",
     "build:dev": "NODE_OPTIONS=--max-old-space-size=8192 vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
