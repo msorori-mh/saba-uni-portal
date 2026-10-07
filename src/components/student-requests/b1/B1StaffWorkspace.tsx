@@ -9,23 +9,15 @@ import {
   type B1StaffAction,
 } from "@/lib/student-requests/b1-ui";
 import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
-<<<<<<< HEAD
-import { getB1StepExitActions } from "@/lib/student-requests/excused-absence-fee-decision-contract";
-=======
->>>>>>> origin/main
 import {
   getB1FeeDecisionService,
   isB1FeeDecisionStep,
 } from "@/lib/student-requests/b1-fee-decision-contract";
-<<<<<<< HEAD
-=======
 import { getB1StepExitActions } from "@/lib/student-requests/excused-absence-fee-decision-contract";
 import { B1FeeDecisionCard } from "./B1FeeDecisionCard";
->>>>>>> origin/main
 import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
 import { B1EmptyState } from "./B1EmptyState";
 import { B1ErrorState } from "./B1ErrorState";
-import { B1FeeDecisionCard } from "./B1FeeDecisionCard";
 import { B1LoadingState } from "./B1LoadingState";
 import { B1RequestSummary } from "./B1RequestSummary";
 import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
@@ -149,28 +141,6 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
     setActing(true);
     try {
       await adapter.confirmB1RevenueReceipt(stepId, note);
-      await refreshAfterAction(details.requestId);
-    } finally {
-      setActing(false);
-    }
-  };
-
-  // Registrar fee step (غياب بعذر، التحويل بين الأقسام، الفرصة الأخيرة): completed
-  // only by a recorded fee decision with its display-only value due, never by
-  // the generic review button.
-  const decideFee = async (
-    stepId: string,
-    submission: B1ExcusedAbsenceFeeDecisionSubmission,
-  ) => {
-    if (!details || acting) return;
-    if (stepId !== details.stepId) throw new Error("B1_STEP_ID_MISMATCH");
-    const service = getB1FeeDecisionService(details.serviceCode);
-    setActing(true);
-    try {
-      await adapter.recordB1ExcusedAbsenceFeeDecision(
-        stepId,
-        service ? { ...submission, serviceCode: service } : submission,
-      );
       await refreshAfterAction(details.requestId);
     } finally {
       setActing(false);
@@ -378,11 +348,7 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   stepId={details.stepId}
                   stepLabelAr={details.stepLabelAr}
                   acting={acting}
-<<<<<<< HEAD
-                  onDecide={decideFee}
-=======
                   onDecide={recordFeeDecision}
->>>>>>> origin/main
                 />
               ) : details.allowedAction ? (
                 <B1EmployeeActionPanel
@@ -397,22 +363,6 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   لا يوجد إجراء مسموح لك على هذه المرحلة حالياً.
                 </p>
               )}
-<<<<<<< HEAD
-              {/* Return / reject where the service contract allows them; the backend authorizes every call. */}
-              {getB1StepExitActions(details.serviceCode, details.stepKey)
-                .filter((action) => action !== details.allowedAction)
-                .map((action) => (
-                  <B1EmployeeActionPanel
-                    key={action}
-                    panelId={action}
-                    allowedAction={action}
-                    stepLabelAr={details.stepLabelAr}
-                    stepKey={details.stepKey}
-                    acting={acting}
-                    onAct={act}
-                  />
-                ))}
-=======
               {details.allowedAction
                 ? getB1StepExitActions(details.serviceCode, details.stepKey).map((exitAction) => (
                     <B1EmployeeActionPanel
@@ -426,7 +376,6 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                     />
                   ))
                 : null}
->>>>>>> origin/main
             </>
           )}
         </section>

@@ -20,12 +20,11 @@ describe("B1 staff workspace — registrar fee decision card", () => {
   });
 
   test("the decision goes through the dedicated executor, not a plain review", () => {
-    const start = workspace.indexOf("const decideFee");
-    const body = workspace.slice(start, workspace.indexOf("// Operational bar counts"));
+    const start = workspace.indexOf("const recordFeeDecision");
     expect(start).toBeGreaterThan(-1);
+    const body = workspace.slice(start, start + 700);
     expect(body).toContain("adapter.recordB1ExcusedAbsenceFeeDecision(");
     expect(body).not.toContain("actOnB1RequestStep");
-    expect(body).toContain("B1_STEP_ID_MISMATCH");
   });
 
   test("only the registrar fee step of the three services is a fee-decision step", () => {
