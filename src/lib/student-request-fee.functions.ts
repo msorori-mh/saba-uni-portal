@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
+import { resolveStudentRequestOwner } from "@/lib/student-requests/student-request-owner.server";
 import type { FeePaymentStatus } from "@/lib/student-requests/request-fee-workflow-contract";
 
 /**
@@ -30,20 +31,9 @@ async function insertFeeAssessmentNotificationIfMissing(params: {
   }
 
   // Resolve the student user_id (notification recipient) via the request → profile link.
-  const { data: reqRow, error: reqErr } = await supabaseAdmin
-    .from("student_requests")
-    .select(
-      "id, request_number, student_profile:student_profiles!inner(user_id)",
-    )
-    .eq("id", params.requestId)
-    .maybeSingle();
-  if (reqErr) throw new Error(reqErr.message);
-
-  const ownerUserId =
-    (reqRow as { student_profile?: { user_id?: string | null } } | null)?.student_profile
-      ?.user_id ?? null;
-  const requestNumber =
-    (reqRow as { request_number?: string | null } | null)?.request_number ?? null;
+  const owner = await resolveStudentRequestOwner(params.requestId);
+  const ownerUserId = owner?.ownerUserId ?? null;
+  const requestNumber = owner?.requestNumber ?? null;
   if (!ownerUserId) return { inserted: false, skippedReason: "no_owner" };
 
   // Idempotency pre-check.

@@ -175,6 +175,33 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "مكتمل",
 };
 
+/** Arabic labels for the request history; an unknown type falls back to a neutral label. */
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  created: "تم إنشاء الطلب",
+  draft_created: "تم إنشاء الطلب",
+  submitted: "تم إرسال الطلب",
+  resubmitted: "أُعيد إرسال الطلب",
+  in_review: "قيد المراجعة",
+  under_review: "قيد المراجعة",
+  reviewed: "تمت المراجعة",
+  approved: "تمت الموافقة",
+  rejected: "تم رفض الطلب",
+  returned: "أُعيد الطلب للاستكمال",
+  returned_for_completion: "أُعيد الطلب للاستكمال",
+  cancelled: "تم إلغاء الطلب",
+  completed: "اكتمل الطلب",
+  payment_requested: "مطلوب سداد الرسوم",
+  payment_confirmed: "تم تأكيد السداد",
+  signed: "تم التوقيع",
+  document_issued: "صدرت الوثيقة",
+  archived: "تمت الأرشفة",
+};
+
+function eventLabel(eventType: unknown): string {
+  const key = String(eventType ?? "").trim().toLowerCase();
+  return EVENT_TYPE_LABEL[key] ?? "تحديث على الطلب";
+}
+
 export function StudentRequestDetailsScreen({ id }: { id: string }) {
   const qc = useQueryClient();
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
@@ -451,7 +478,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
             <div className="text-sm text-muted-foreground">لا توجد أحداث بعد.</div>
           ) : data.events.map((event: any) => (
             <div key={event.id} className="rounded-lg border border-border bg-background p-3 text-xs">
-              <div className="font-bold">{event.event_type}</div>
+              <div className="font-bold">{eventLabel(event.event_type)}</div>
               <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG")}</div>
               {event.notes && <div className="mt-1">{event.notes}</div>}
             </div>
