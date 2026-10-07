@@ -87,7 +87,7 @@ export function MobileOfflineModeSetting() {
       </p>
       <p className="text-[10px] font-bold text-muted-foreground" role="status">
         {active
-          ? "مفعّل على هذا الجهاز. افتح الصفحات مرة واحدة مع الاتصال لتُحفظ."
+          ? "مفعّل على هذا الجهاز. تُحفظ الصفحات تلقائياً خلال ثوانٍ عند فتح التطبيق مع الاتصال."
           : "غير مفعّل. إيقافه يحذف كل ما حُفظ على هذا الجهاز فوراً."}
       </p>
       {active ? <MobileOfflineSavedStatus /> : null}
@@ -155,8 +155,8 @@ function MobileOfflineSavedStatus() {
       </p>
       {savedCount < screens.length ? (
         <p className="text-[10px] font-bold leading-relaxed text-amber-700">
-          افتح كل صفحة غير محفوظة مرة واحدة مع الاتصال، ثم عُد إلى هنا وتأكد من ظهور علامة الحفظ
-          بجانبها قبل قطع الاتصال.
+          يجري حفظ الصفحات تلقائياً مع الاتصال. انتظر ظهور علامة الحفظ بجانب كل صفحة قبل قطع
+          الاتصال؛ وإن تأخرت إحداها فافتحها مرة واحدة.
         </p>
       ) : null}
     </div>

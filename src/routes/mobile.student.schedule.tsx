@@ -12,6 +12,10 @@ import {
   type CurrentTermClient,
 } from "@/lib/current-term";
 import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import {
+  MOBILE_OFFLINE_PREFETCH_OPTIONS,
+  prefetchMobileOfflineScreen,
+} from "@/lib/mobile/offline/screen-prefetch";
 
 export const Route = createFileRoute("/mobile/student/schedule")({
   head: () => ({
@@ -20,6 +24,16 @@ export const Route = createFileRoute("/mobile/student/schedule")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
+  // Offline mode: the layout preloads this route after launch, which downloads
+  // (and saves) the schedule without the student opening the screen.
+  loader: ({ context }) =>
+    prefetchMobileOfflineScreen(context.queryClient, (queryClient) =>
+      queryClient.prefetchQuery({
+        queryKey: ["mobile-student", "schedule"],
+        queryFn: fetchMobileSchedule,
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      }),
+    ),
   component: MobileStudentSchedulePage,
 });
 
