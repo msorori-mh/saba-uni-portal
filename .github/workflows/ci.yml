@@ -338,6 +338,16 @@ jobs:
               tests/student-requests/student-request-draft-delete-01.pg-setup.sql
               docs/migration-drafts/STUDENT-REQUEST-DRAFT-DELETE-01.sql
               tests/student-requests/student-request-draft-delete-01.pg-verify.sql
+          # Chain: minimal schema + deployed function bodies -> STAFF-VIEW-HOTFIX-01
+          # (twice: re-runnable) -> EXCUSED-ABSENCE-MULTI-COURSE-01 (twice) -> verifier.
+          - name: excused-absence-multi-course
+            files: >-
+              tests/student-requests/excused-absence-multi-course-01.pg-setup.sql
+              docs/migration-drafts/STUDENT-REQUEST-STAFF-VIEW-HOTFIX-01.sql
+              docs/migration-drafts/STUDENT-REQUEST-STAFF-VIEW-HOTFIX-01.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-MULTI-COURSE-01.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-MULTI-COURSE-01.sql
+              tests/student-requests/excused-absence-multi-course-01.pg-verify.sql
           # Chain: prelude (roles/stubs) -> minimal schema -> SET U -> promoted GP
           # migrations -> positions setup -> DEPARTMENT-HEAD-WORKFLOW-01 draft -> verifier.
           - name: graduation-projects-department-head-workflow
