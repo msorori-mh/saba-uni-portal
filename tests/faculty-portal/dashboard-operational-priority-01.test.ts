@@ -11,6 +11,7 @@ import {
   getTodaySessions,
   jsDayToCode,
   processingAccessSummaryLabel,
+  summarizeFacultyCourses,
   type TeachingSection,
 } from "@/lib/faculty-portal/dashboard-schedule";
 import { portalFeatures } from "@/lib/portal-features";
@@ -27,7 +28,8 @@ const SAMPLE_TEACHING: TeachingSection[] = [
   {
     id: "sec-1",
     section_code: "A",
-    course: { code: "CS101", name_ar: "مقدمة حاسب" },
+    course: { id: "course-101", code: "CS101", name_ar: "مقدمة حاسب" },
+    program_id: "program-it",
     program_name: "تقنية المعلومات",
     level_name: "المستوى الأول",
     schedule: [
@@ -50,7 +52,8 @@ const SAMPLE_TEACHING: TeachingSection[] = [
   {
     id: "sec-2",
     section_code: "B",
-    course: { code: "CS202", name_ar: "هياكل بيانات" },
+    course: { id: "course-202", code: "CS202", name_ar: "هياكل بيانات" },
+    program_id: "program-cs",
     program_name: "علوم الحاسوب",
     level_name: "المستوى الثاني",
     schedule: [
@@ -107,6 +110,37 @@ describe("dashboard-schedule helpers — today sessions", () => {
       /\d/,
     );
   });
+
+  it("counts distinct courses and programs, retaining the actual section count", () => {
+    const sameCourseOtherLevel = {
+      ...SAMPLE_TEACHING[0]!, id: "sec-3", section_code: "B", level_name: "المستوى الثاني",
+    };
+    const sameCourseOtherProgram = {
+      ...SAMPLE_TEACHING[0]!, id: "sec-4", program_id: "program-cs", program_name: "علوم الحاسوب",
+    };
+    const result = summarizeFacultyCourses([
+      ...SAMPLE_TEACHING,
+      sameCourseOtherLevel,
+      sameCourseOtherProgram,
+    ]);
+    expect(result.courses).toHaveLength(2);
+    const shared = result.courses.find((course) => course.id === "course-101")!;
+    expect(shared.sectionCount).toBe(3);
+    expect(shared.programs.map((program) => program.id).sort()).toEqual(["program-cs", "program-it"]);
+    expect(result.unresolvedSections).toBe(0);
+  });
+
+  it("does not merge different course ids by title and flags missing course links", () => {
+    const similar = {
+      ...SAMPLE_TEACHING[0]!, id: "sec-5",
+      course: { id: "course-999", code: "CS999", name_ar: "مقدمة حاسب" },
+      program_id: "program-another", program_name: "تقنية المعلومات",
+    };
+    const unknown = { ...SAMPLE_TEACHING[0]!, id: "sec-6", course: null };
+    const result = summarizeFacultyCourses([SAMPLE_TEACHING[0]!, similar, unknown]);
+    expect(result.courses).toHaveLength(2);
+    expect(result.unresolvedSections).toBe(1);
+  });
 });
 
 describe("faculty dashboard IA — operational priority order", () => {
@@ -147,6 +181,9 @@ describe("faculty dashboard IA — operational priority order", () => {
     expect(INDEX_SRC).toMatch(/data-testid="faculty-summary-processing"/);
     expect(INDEX_SRC).toMatch(/getTodaySessions/);
     expect(INDEX_SRC).toMatch(/processingAccessSummaryLabel/);
+    expect(INDEX_SRC).toMatch(/summarizeFacultyCourses\(teaching\)/);
+    expect(INDEX_SRC).toMatch(/courseSummary\.courses\.length/);
+    expect(INDEX_SRC).toMatch(/data-testid="faculty-course-summary"/);
     // no hard-coded fake counters in summary
     expect(INDEX_SRC).not.toMatch(/محاضرات اليوم:\s*2/);
     expect(INDEX_SRC).not.toMatch(/pendingRequests\s*=\s*3/);

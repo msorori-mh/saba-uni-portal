@@ -64,6 +64,6 @@ export const FACULTY_HOME_COPY: Record<FacultyHomeRole, { title: string; descrip
   },
   dean: {
     title: "متابعة الكلية",
-    description: "اطّلع على مؤشرات الكلية وسير المحاضرات والمجالس، ثم راجع أعمالك التدريسية.",
+    description: "تابع سير المحاضرات والمجالس والمهام المحالة إليك، ثم راجع أعمالك التدريسية.",
   },
 };

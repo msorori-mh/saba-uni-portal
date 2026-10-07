@@ -16,7 +16,6 @@ import {
   ScrollText,
   Inbox,
   ArrowLeft,
-  BarChart3,
   FolderKanban,
   Activity,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import {
   getTodayDayCode,
   getTodaySessions,
   processingAccessSummaryLabel,
+  summarizeFacultyCourses,
   type TeachingSection,
 } from "@/lib/faculty-portal/dashboard-schedule";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
@@ -68,7 +68,7 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
   const { data, error } = await supabase
     .from("course_sections")
     .select(
-      "id, section_code, offering:course_offerings(program:programs(name_ar), level:academic_levels(name), course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
+      "id, section_code, offering:course_offerings(program:programs(id, name_ar), level:academic_levels(name), course:courses(id, code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
     )
     .eq("faculty_profile_id", facultyProfileId)
     .eq("status", "active");
@@ -83,9 +83,9 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
     id: string;
     section_code: string;
     offering: {
-      program: { name_ar: string } | null;
+      program: { id: string; name_ar: string } | null;
       level: { name: string } | null;
-      course: { code: string; name_ar: string } | null;
+      course: { id: string; code: string; name_ar: string } | null;
     } | null;
     schedule: RawSched[] | null;
   };
@@ -93,6 +93,7 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
     id: r.id,
     section_code: r.section_code,
     course: r.offering?.course ?? null,
+    program_id: r.offering?.program?.id ?? null,
     program_name: r.offering?.program?.name_ar ?? null,
     level_name: r.offering?.level?.name ?? null,
     schedule: (r.schedule ?? [])
@@ -122,7 +123,7 @@ function FacultyDashboard() {
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const { data: teaching = [] } = useQuery({
+  const { data: teaching = [], isLoading: teachingLoading, isError: teachingError, refetch: refetchTeaching } = useQuery({
     queryKey: ["faculty", "teaching", profile?.id],
     queryFn: () => fetchMyTeaching(profile!.id),
     enabled: !!profile?.id,
@@ -152,7 +153,8 @@ function FacultyDashboard() {
 
   const todayCode = getTodayDayCode();
   const todaySessions = getTodaySessions(teaching, todayCode);
-  const coursesCount = teaching.length;
+  const courseSummary = summarizeFacultyCourses(teaching);
+  const coursesCount = courseSummary.courses.length;
   const processingLabel = processingAccessSummaryLabel(processingAccess);
   const homeRole = processingAccess?.homeRole ?? "faculty_member";
   const homeCopy = FACULTY_HOME_COPY[homeRole];
@@ -239,7 +241,7 @@ function FacultyDashboard() {
                   data-testid="faculty-summary-courses"
                   className="font-display font-extrabold text-primary text-base sm:text-lg font-mono"
                 >
-                  {coursesCount}
+                  {teachingLoading || teachingError || courseSummary.unresolvedSections > 0 ? "—" : coursesCount}
                 </span>
               </div>
               <div className="rounded-lg border bg-card px-3 py-2.5 flex items-center justify-between gap-2 min-w-0 sm:col-span-1">
@@ -254,6 +256,48 @@ function FacultyDashboard() {
                 </span>
               </div>
             </div>
+
+            <section data-testid="faculty-course-summary" className="mt-4 rounded-xl border bg-card p-4" aria-label="تفصيل مقرراتي">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-display text-base font-bold text-primary">مقرراتي حسب البرامج</h2>
+                {!teachingLoading && !teachingError && <span className="text-xs text-muted-foreground">المجموعات المسندة: {teaching.length}</span>}
+              </div>
+              {teachingError ? (
+                <div role="alert" className="mt-3 text-sm text-destructive">
+                  تعذر تحميل المقررات المسندة.
+                  <button type="button" onClick={() => void refetchTeaching()} className="ms-2 font-bold underline">إعادة المحاولة</button>
+                </div>
+              ) : teachingLoading ? (
+                <p className="mt-3 text-sm text-muted-foreground">جارٍ تحميل المقررات…</p>
+              ) : courseSummary.courses.length === 0 && courseSummary.unresolvedSections === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">لا توجد مقررات مسندة إليك حالياً.</p>
+              ) : (
+                <>
+                  <ul className="mt-3 divide-y divide-border">
+                    {courseSummary.courses.map((course) => (
+                      <li key={course.id} className="flex flex-wrap items-start justify-between gap-2 py-2.5 text-sm">
+                        <div className="min-w-0">
+                          <span className="font-mono font-bold text-primary">{course.code}</span>
+                          <span className="mx-1.5 text-muted-foreground">—</span>
+                          <span className="font-semibold">{course.name}</span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {course.programs.length ? course.programs.map((p) => p.name).join("، ") : "لم يحدد البرنامج"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-bold">
+                          البرامج: {course.programs.length} · المجموعات: {course.sectionCount}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {courseSummary.unresolvedSections > 0 && (
+                    <p role="status" className="mt-2 text-xs text-amber-700">
+                      تعذر تحديد المقرر في {courseSummary.unresolvedSections} مجموعة؛ راجع بيانات الإسناد.
+                    </p>
+                  )}
+                </>
+              )}
+            </section>
 
             {/* Each role starts with its own real work; destination guards remain authoritative. */}
             {processingQuery.isPending ? (
@@ -272,11 +316,6 @@ function FacultyDashboard() {
                 {isLeadership && <span className="rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-primary">{homeRole === "department_head" ? "نطاق القسم" : homeRole === "dean" ? "نطاق الكلية" : "مهام النيابة"}</span>}
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {homeRole === "dean" && (
-                  <Link to="/admin/executive-dashboard" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring" data-testid="faculty-dean-executive-link">
-                    <BarChart3 className="mb-1 h-4 w-4 text-gold" aria-hidden /> لوحة المؤشرات التنفيذية للكلية
-                  </Link>
-                )}
                 {processingAccess?.canMonitorDelivery && (
                   <Link to="/faculty-portal/lecture-monitoring" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring" data-testid="faculty-monitoring-home-link">
                     <Activity className="mb-1 h-4 w-4 text-gold" aria-hidden /> متابعة سير العملية التعليمية
@@ -284,7 +323,7 @@ function FacultyDashboard() {
                 )}
                 {processingAccess?.canViewDepartmentReports && homeRole === "department_head" && (
                   <Link to="/faculty-portal/department-reports" className="rounded-lg border p-3 text-sm font-bold text-primary hover:border-gold focus-visible:ring-2 focus-visible:ring-ring" data-testid="faculty-department-reports-link">
-                    <BarChart3 className="mb-1 h-4 w-4 text-gold" aria-hidden /> تقارير القسم
+                    <ScrollText className="mb-1 h-4 w-4 text-gold" aria-hidden /> تقارير القسم
                   </Link>
                 )}
                 {homeRole === "department_head" || homeRole === "vice_dean_academic" ? (
@@ -338,7 +377,7 @@ function FacultyDashboard() {
                 >
                   <p className="text-sm font-semibold text-primary">لا توجد محاضرات اليوم</p>
                   <p className="text-xs text-muted-foreground">
-                    لديك {coursesCount} مقرر/مجموعة مسندة — يمكنك مراجعة الجدول الأسبوعي الكامل.
+                    لديك {teaching.length} مجموعة مسندة — يمكنك مراجعة الجدول الأسبوعي الكامل.
                   </p>
                   <Link
                     to="/faculty-portal/schedule"
