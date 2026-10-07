@@ -8,6 +8,13 @@ import {
   type B1AssignedRequestDetails,
   type B1StaffAction,
 } from "@/lib/student-requests/b1-ui";
+import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
+import {
+  getB1FeeDecisionService,
+  isB1FeeDecisionStep,
+} from "@/lib/student-requests/b1-fee-decision-contract";
+import { getB1StepExitActions } from "@/lib/student-requests/excused-absence-fee-decision-contract";
+import { B1FeeDecisionCard } from "./B1FeeDecisionCard";
 import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
 import { B1EmptyState } from "./B1EmptyState";
 import { B1ErrorState } from "./B1ErrorState";
@@ -100,6 +107,33 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
     } finally {
       setActing(false);
     }
+  };
+
+  // غياب بعذر / التحويل بين الأقسام / الفرصة الأخيرة: the registrar fee step is
+  // completed ONLY by a recorded fee decision — never by a plain review.
+  const recordFeeDecision = async (
+    stepId: string,
+    submission: B1ExcusedAbsenceFeeDecisionSubmission,
+  ) => {
+    if (!details || acting) return;
+    if (stepId !== details.stepId) throw new Error("B1_STEP_ID_MISMATCH");
+    const serviceCode = getB1FeeDecisionService(details.serviceCode);
+    setActing(true);
+    try {
+      await adapter.recordB1ExcusedAbsenceFeeDecision(
+        details.stepId,
+        serviceCode ? { ...submission, serviceCode } : submission,
+      );
+      await refreshAfterAction(details.requestId);
+    } finally {
+      setActing(false);
+    }
+  };
+
+  // Return / reject where the service contract allows them; the backend authorizes.
+  const exitAct = async (action: B1StaffAction, comment?: string) => {
+    if (action !== "return" && action !== "reject") throw new Error("B1_ACTION_TYPE_MISMATCH");
+    await act(action, comment);
   };
 
   const confirmRevenue = async (stepId: string, note?: string) => {
@@ -308,6 +342,14 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   acting={acting}
                   onConfirm={confirmRevenue}
                 />
+              ) : details.allowedAction === "review" &&
+                isB1FeeDecisionStep(details.serviceCode, details.stepKey) ? (
+                <B1FeeDecisionCard
+                  stepId={details.stepId}
+                  stepLabelAr={details.stepLabelAr}
+                  acting={acting}
+                  onDecide={recordFeeDecision}
+                />
               ) : details.allowedAction ? (
                 <B1EmployeeActionPanel
                   allowedAction={details.allowedAction}
@@ -321,6 +363,19 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   لا يوجد إجراء مسموح لك على هذه المرحلة حالياً.
                 </p>
               )}
+              {details.allowedAction
+                ? getB1StepExitActions(details.serviceCode, details.stepKey).map((exitAction) => (
+                    <B1EmployeeActionPanel
+                      key={exitAction}
+                      panelId={exitAction}
+                      allowedAction={exitAction}
+                      stepLabelAr={details.stepLabelAr}
+                      stepKey={details.stepKey}
+                      acting={acting}
+                      onAct={exitAct}
+                    />
+                  ))
+                : null}
             </>
           )}
         </section>

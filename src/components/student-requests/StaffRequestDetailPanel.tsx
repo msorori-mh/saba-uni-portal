@@ -410,6 +410,25 @@ export function StaffRequestDetailPanel({
                   canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
                 />
               )}
+
+              {/* The generic panel hides itself on non-review steps (its buttons could
+                  never run there). When no dedicated panel covers the step either, say so. */}
+              {!isB1Service &&
+                !!activeType &&
+                !isReviewStep &&
+                !showSignPanel &&
+                !showArchivePanel &&
+                !showFee &&
+                !showFinanceClearance &&
+                !showEcIssueButton && (
+                  <p
+                    data-testid="staff-request-no-review-actions"
+                    role="status"
+                    className="rounded-lg border bg-card p-3 text-xs text-muted-foreground"
+                  >
+                    لا يوجد إجراء متاح لك على المرحلة الحالية من هذه الصفحة.
+                  </p>
+                )}
             </>
           );
         })()}

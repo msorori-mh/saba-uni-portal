@@ -1078,3 +1078,12 @@ DROP TRIGGER IF EXISTS trg_protect_student_request ON public.student_requests;
 CREATE TRIGGER trg_protect_student_request
 BEFORE UPDATE ON public.student_requests
 FOR EACH ROW EXECUTE FUNCTION public.protect_student_request();
+
+-- Production parity (defect of 2026-10-07): the deployed CHECK on event types, exactly
+-- as it stood before B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01. NOT VALID only because
+-- the upstream harness seeds rows production never had; new rows are enforced.
+ALTER TABLE public.student_request_workflow_events
+  DROP CONSTRAINT IF EXISTS student_request_workflow_events_event_type_chk;
+ALTER TABLE public.student_request_workflow_events
+  ADD CONSTRAINT student_request_workflow_events_event_type_chk
+  CHECK (event_type = ANY (ARRAY['created'::text, 'submitted'::text, 'step_entered'::text, 'assigned'::text, 'commented'::text, 'approved'::text, 'rejected'::text, 'returned'::text, 'attachment_requested'::text, 'payment_requested'::text, 'payment_confirmed'::text, 'reviewed'::text, 'cleared'::text, 'applied'::text, 'signed'::text, 'archived'::text, 'document_issued'::text, 'completed'::text, 'cancelled'::text, 'academic_effect_applied'::text])) NOT VALID;
