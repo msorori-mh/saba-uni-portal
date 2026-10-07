@@ -307,7 +307,11 @@ function FacultyDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+              <Link
+                to="/faculty-portal/materials"
+                aria-label="فتح مقرراتي وموادها التعليمية"
+                className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                   <BookOpen className="h-5 w-5" />
                 </span>
@@ -320,8 +324,12 @@ function FacultyDashboard() {
                     {coursesCount}
                   </div>
                 </div>
-              </div>
-              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:col-span-1">
+              </Link>
+              <Link
+                to="/faculty-portal/processing-requests"
+                aria-label="فتح صندوق طلبات المعالجة"
+                className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold/15 text-primary-deep">
                   <Inbox className="h-5 w-5" />
                 </span>
@@ -334,7 +342,7 @@ function FacultyDashboard() {
                     {processingLabel}
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* 3 — My teaching schedule / today's sessions (single section) */}
