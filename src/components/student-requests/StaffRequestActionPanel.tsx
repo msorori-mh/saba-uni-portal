@@ -245,7 +245,7 @@ export function StaffRequestActionPanel({
     ? STAFF_ACTION_EXECUTION_UNAVAILABLE_MSG
     : !canExecuteReview
       ? activeStepActionType && activeStepActionType !== "review"
-        ? `الإجراء هنا متاح فقط لخطوة action_type='review' — الخطوة النشطة نوعها: ${activeStepActionType}.`
+        ? "المرحلة الحالية ليست مرحلة مراجعة، لذلك لا تُنفَّذ إجراءات المراجعة عليها من هنا."
         : !activeStepIsActionable
           ? "لست الفاعل المُسنَد للخطوة النشطة."
           : STAFF_ACTIONS_DISABLED_MSG
