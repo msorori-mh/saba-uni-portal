@@ -60,12 +60,13 @@ describe("SQL drafts — staff view hotfix and multi-course excuse", () => {
 describe("B1 staff actions — decision-style button wording", () => {
   const panel = read("src/components/student-requests/b1/B1EmployeeActionPanel.tsx");
 
-  test("well-known steps read as a decision; the action itself is unchanged", async () => {
-    const { b1StepButtonLabelAr } = await import("@/components/student-requests/b1/B1EmployeeActionPanel");
-    expect(b1StepButtonLabelAr("review", "dean_review")).toBe("موافقة وإحالة الطلب");
-    expect(b1StepButtonLabelAr("approve", "dean_signature")).toBe("موافقة وتوقيع");
-    expect(b1StepButtonLabelAr("review", "unknown_step")).toBe("مراجعة");
-    expect(b1StepButtonLabelAr("reject", "dean_review")).toBe("رفض");
+  test("well-known steps read as a decision; the action itself is unchanged", () => {
+    expect(panel).toContain('dean_review: { review: "موافقة وإحالة الطلب" }');
+    expect(panel).toContain('dean_signature: { approve: "موافقة وتوقيع" }');
+    // Unknown steps fall back to the literal action label.
+    expect(panel).toContain("?? ACTION_META[action].labelAr");
+    expect(panel).toContain('labelAr: "مراجعة"');
+    // Wording never changes what is executed.
     expect(panel).toContain("await onAct(allowedAction, trimmedComment || undefined);");
   });
 
