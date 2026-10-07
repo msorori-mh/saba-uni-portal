@@ -12806,6 +12806,10 @@ export type Database = {
           unit_name_ar: string
         }[]
       }
+      delete_my_student_request_draft: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
       delivery_monitoring_headed_departments: {
         Args: { p_user: string }
         Returns: string[]
