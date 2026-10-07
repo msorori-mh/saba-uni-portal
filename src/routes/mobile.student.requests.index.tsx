@@ -277,6 +277,9 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
               text: request.status,
               cls: "bg-muted",
             };
+            const b1Request = isB1ServiceCode(
+              normalizeStudentRequestTypeCode(request.request_type),
+            );
             const displayName = getStudentRequestTypeDisplayName(
               request.request_type,
               request.request_type_name_ar,
@@ -284,8 +287,12 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
             return (
               <div key={request.id} className="space-y-1.5">
               <Link
-                to="/mobile/student/requests/$id"
-                params={{ id: request.id }}
+                to={b1Request
+                  ? "/mobile/student/requests/b1/view/$requestId"
+                  : "/mobile/student/requests/$id"}
+                params={b1Request
+                  ? { requestId: request.id }
+                  : { id: request.id }}
                 className="block rounded-xl border border-border bg-card p-3 shadow-card"
               >
                 <div className="flex items-start justify-between gap-2">
