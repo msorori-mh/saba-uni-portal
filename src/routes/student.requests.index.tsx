@@ -17,6 +17,7 @@ import {
 import { portalFeatures } from "@/lib/portal-features";
 import { B1StudentServiceList } from "@/components/student-requests/b1";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { DeleteDraftRequestButton } from "@/components/student-requests/DeleteDraftRequestButton";
 import {
   StudentServicesPausedBanner,
   StudentServicesPausedButton,
@@ -382,6 +383,9 @@ function StudentRequestsIndexPage() {
                         عرض التفاصيل
                       </Link>
                     )}
+                    {request.status === "draft" ? (
+                      <DeleteDraftRequestButton requestId={request.id} />
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -461,6 +465,11 @@ function StudentRequestsIndexPage() {
                               عرض
                             </Link>
                           )}
+                          {request.status === "draft" ? (
+                            <div className="mt-1">
+                              <DeleteDraftRequestButton requestId={request.id} compact />
+                            </div>
+                          ) : null}
                         </td>
                       </tr>
                     ))}

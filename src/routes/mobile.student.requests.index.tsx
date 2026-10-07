@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { DeleteDraftRequestButton } from "@/components/student-requests/DeleteDraftRequestButton";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, FileWarning, Loader2, Plus, RefreshCw } from "lucide-react";
 import {
@@ -281,8 +282,8 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
               request.request_type_name_ar,
             );
             return (
+              <div key={request.id} className="space-y-1.5">
               <Link
-                key={request.id}
                 to="/mobile/student/requests/$id"
                 params={{ id: request.id }}
                 className="block rounded-xl border border-border bg-card p-3 shadow-card"
@@ -306,6 +307,10 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
                     : `أُنشئ: ${new Date(request.created_at).toLocaleDateString("ar-EG")}`}
                 </div>
               </Link>
+              {request.status === "draft" ? (
+                <DeleteDraftRequestButton requestId={request.id} compact />
+              ) : null}
+              </div>
             );
           })}
         </div>
