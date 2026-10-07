@@ -9,6 +9,7 @@ import {
   type B1StaffAction,
 } from "@/lib/student-requests/b1-ui";
 import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
+import { getB1StepExitActions } from "@/lib/student-requests/excused-absence-fee-decision-contract";
 import {
   getB1FeeDecisionService,
   isB1FeeDecisionStep,
@@ -355,6 +356,20 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   لا يوجد إجراء مسموح لك على هذه المرحلة حالياً.
                 </p>
               )}
+              {/* Return / reject where the service contract allows them; the backend authorizes every call. */}
+              {getB1StepExitActions(details.serviceCode, details.stepKey)
+                .filter((action) => action !== details.allowedAction)
+                .map((action) => (
+                  <B1EmployeeActionPanel
+                    key={action}
+                    panelId={action}
+                    allowedAction={action}
+                    stepLabelAr={details.stepLabelAr}
+                    stepKey={details.stepKey}
+                    acting={acting}
+                    onAct={act}
+                  />
+                ))}
             </>
           )}
         </section>

@@ -56,3 +56,20 @@ describe("SQL drafts — staff view hotfix and multi-course excuse", () => {
     expect(multi).toContain("from anon, authenticated");
   });
 });
+
+describe("B1 staff actions — decision-style button wording", () => {
+  const panel = read("src/components/student-requests/b1/B1EmployeeActionPanel.tsx");
+
+  test("well-known steps read as a decision; the action itself is unchanged", async () => {
+    const { b1StepButtonLabelAr } = await import("@/components/student-requests/b1/B1EmployeeActionPanel");
+    expect(b1StepButtonLabelAr("review", "dean_review")).toBe("موافقة وإحالة الطلب");
+    expect(b1StepButtonLabelAr("approve", "dean_signature")).toBe("موافقة وتوقيع");
+    expect(b1StepButtonLabelAr("review", "unknown_step")).toBe("مراجعة");
+    expect(b1StepButtonLabelAr("reject", "dean_review")).toBe("رفض");
+    expect(panel).toContain("await onAct(allowedAction, trimmedComment || undefined);");
+  });
+
+  test("the staff workspace offers return / reject where the contract allows", () => {
+    expect(workspace).toContain("getB1StepExitActions(details.serviceCode, details.stepKey)");
+  });
+});
