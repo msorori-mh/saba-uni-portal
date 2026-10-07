@@ -15,12 +15,12 @@ import { B1LoadingState } from "./B1LoadingState";
 import { B1RequestSummary } from "./B1RequestSummary";
 import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
 import { B1WorkflowTimeline } from "./B1WorkflowTimeline";
+import { STAFF_ASSIGNED_REQUESTS_QUERY_KEY } from "@/components/staff-portal/useAssignedStudentRequests";
 
 /**
- * Shared React Query key for the assigned-requests count shown on the staff
- * home card and the portal navigation badge. The workspace itself reads via
- * the adapter directly, but after every successful action it invalidates
- * this key so all counters refresh from the trusted backend source.
+ * Cache key for consumers of the B1-only assigned requests. The employee
+ * portal counts all services through the actor inbox, whose key is also
+ * invalidated after B1 actions.
  */
 export const B1_ASSIGNED_REQUESTS_QUERY_KEY = ["b1-assigned-requests"] as const;
 
@@ -72,6 +72,7 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
     try {
       await loadInbox();
       await queryClient.invalidateQueries({ queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: STAFF_ASSIGNED_REQUESTS_QUERY_KEY });
     } finally {
       setRefreshing(false);
     }
@@ -79,8 +80,9 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
 
   const refreshAfterAction = async (requestId: string) => {
     await loadInbox();
-    // Counters (home card + nav badge) re-read from the trusted source.
+    // Refresh both the B1-only cache and the all-service employee counters.
     await queryClient.invalidateQueries({ queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY });
+    await queryClient.invalidateQueries({ queryKey: STAFF_ASSIGNED_REQUESTS_QUERY_KEY });
     try {
       setDetails(await adapter.getAssignedB1RequestDetails(requestId));
     } catch {

@@ -5,6 +5,8 @@ const read = (path: string) => readFileSync(path, "utf8");
 const portal = read("src/components/staff-portal/StaffEmployeePortal.tsx");
 const home = read("src/components/staff-portal/StaffEmployeeHome.tsx");
 const workspace = read("src/components/student-requests/b1/B1StaffWorkspace.tsx");
+const assigned = read("src/components/staff-portal/useAssignedStudentRequests.ts");
+const count = read("src/lib/student-requests/assigned-inbox-count.ts");
 const legacyRoute = read("src/routes/staff.b1-requests.tsx");
 
 const FORBIDDEN = [/مناقصة/, /المناقصة/, /العطاء/, /tender/i, /\bRFP\b/i, /بيانات تجريبية/];
@@ -51,15 +53,17 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_OPERATIONAL_INTEGRATION_02Q", () => {
     expect(workspace).toContain('dir="rtl"');
   });
 
-  test("post-action refresh invalidates the shared count cache from the trusted source", () => {
+  test("post-action refresh invalidates the specialized and all-service counts", () => {
     expect(workspace).toContain("B1_ASSIGNED_REQUESTS_QUERY_KEY");
     expect(workspace).toContain('queryClient.invalidateQueries({ queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY })');
+    expect(workspace).toContain('queryClient.invalidateQueries({ queryKey: STAFF_ASSIGNED_REQUESTS_QUERY_KEY })');
     expect(workspace).toContain('["b1-assigned-requests"]');
   });
 
-  test("home shows the assigned-requests card from the same source and an attention alert", () => {
-    expect(home).toContain("B1_ASSIGNED_REQUESTS_QUERY_KEY");
-    expect(home).toContain("getB1UiAdapter().getAssignedB1Requests()");
+  test("home shows all assigned services from the actor inbox and an attention alert", () => {
+    expect(home).toContain("useAssignedStudentRequests()");
+    expect(assigned).toContain("fetchStaffInbox");
+    expect(count).toContain('dataSource !== "actor_inbox_rpc"');
     expect(home).toContain("طلبات طلابية مسندة");
     expect(home).toContain('onOpen("student-requests")');
     expect(home).toContain("طلبات طلابية مسندة إليك");
@@ -70,10 +74,10 @@ describe("PORTAL_STAFF_STUDENT_REQUESTS_OPERATIONAL_INTEGRATION_02Q", () => {
     expect(home).toContain('"معالجة الطلبات الطلابية", "student-requests"');
   });
 
-  test("portal navigation shows a count badge sharing the same query cache", () => {
-    expect(portal).toContain('data-testid="b1-assigned-nav-badge"');
-    expect(portal).toContain("B1_ASSIGNED_REQUESTS_QUERY_KEY");
-    expect(portal).toContain("getB1UiAdapter().getAssignedB1Requests()");
+  test("portal navigation shows a count badge sharing the all-service actor inbox", () => {
+    expect(portal).toContain('data-testid="staff-assigned-nav-badge"');
+    expect(portal).toContain("useAssignedStudentRequests()");
+    expect(portal).toContain("<StaffInboxShell />");
     expect(portal).toContain('item.id === "student-requests"');
   });
 
