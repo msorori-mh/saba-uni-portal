@@ -239,6 +239,20 @@ PGDATABASE=eawf01_rollback psql -v ON_ERROR_STOP=1 -q -f "$DRAFT" >/dev/null 2>&
 expect_field "draft re-applied after a rollback" eawf01_rollback "$VERIFY" applied_correctly t
 psql -v ON_ERROR_STOP=1 -q -c "drop database eawf01_rollback"
 
+# ---- event-type CHECK (production defect 2026-10-07) ---------------------------------
+# The schema carries production's CHECK without the fee-decision event types: prove the
+# defect, apply B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01 twice (idempotent), then run the cases.
+EVT_DRAFT="$DRAFTS/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql"
+evt_def() { psql -v ON_ERROR_STOP=1 -q -Atc "select pg_get_constraintdef(oid) from pg_constraint where conrelid='public.student_request_workflow_events'::regclass and conname='student_request_workflow_events_event_type_chk'"; }
+case "$(evt_def)" in *fee_decision_recorded*|*"'skip'"*) echo "EVT_PARITY_CONSTRAINT_ALREADY_WIDE"; exit 1;; esac
+echo "ok: production-shaped CHECK rejects the fee-decision event types before the fix"
+psql -v ON_ERROR_STOP=1 -q -f "$EVT_DRAFT" >/dev/null
+evt_first="$(evt_def)"
+psql -v ON_ERROR_STOP=1 -q -f "$EVT_DRAFT" >/dev/null
+[ "$evt_first" = "$(evt_def)" ] || { echo "EVT_DRAFT_IS_NOT_IDEMPOTENT"; exit 1; }
+case "$evt_first" in *fee_decision_recorded*"'skip'"*) ;; *) echo "EVT_DRAFT_DID_NOT_WIDEN"; exit 1;; esac
+echo "ok: event-type CHECK widened (fee_decision_recorded, skip); second apply changed nothing"
+
 echo "--- direct-RPC authorization matrix + lifecycle"
 psql -v ON_ERROR_STOP=1 -f "$HARNESS/03-cases.sql"
 
