@@ -24,16 +24,18 @@ import { getEnrollmentCertificateDocumentSignedUrl } from "@/lib/student-request
 import { openSignedPdf } from "@/lib/documents/official-document-actions";
 
 
+// Same look as the newer services' timeline (B1WorkflowTimeline) so every
+// service shows its stages to the student in one consistent way.
 const STEP_STATUS_META: Record<
   StudentWorkflowTimelineStep["status"],
-  { label: string; className: string; icon: typeof CheckCircle2 }
+  { label: string; rowClass: string; iconClass: string; icon: typeof CheckCircle2 }
 > = {
-  completed: { label: "مكتملة", className: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
-  current: { label: "الحالية", className: "text-primary bg-primary/10 border-primary/30", icon: Clock },
-  upcoming: { label: "قادمة", className: "text-muted-foreground bg-muted/40 border-border", icon: Circle },
-  skipped: { label: "متجاوَزة", className: "text-muted-foreground bg-muted/30 border-border", icon: Circle },
-  returned: { label: "مُعادة", className: "text-orange-800 bg-orange-50 border-orange-200", icon: AlertCircle },
-  cancelled: { label: "ملغاة", className: "text-rose-700 bg-rose-50 border-rose-200", icon: Circle },
+  completed: { label: "مكتملة", rowClass: "border-emerald-200 bg-emerald-50/60", iconClass: "text-emerald-600", icon: CheckCircle2 },
+  current: { label: "المرحلة الحالية", rowClass: "border-primary/40 bg-primary/5 ring-1 ring-primary/20", iconClass: "text-primary", icon: Clock },
+  upcoming: { label: "معلقة", rowClass: "border-border bg-muted/30", iconClass: "text-muted-foreground", icon: Circle },
+  skipped: { label: "غير مطلوبة", rowClass: "border-border bg-muted/20", iconClass: "text-muted-foreground", icon: Circle },
+  returned: { label: "معادة", rowClass: "border-amber-300 bg-amber-50", iconClass: "text-amber-600", icon: AlertCircle },
+  cancelled: { label: "ملغاة", rowClass: "border-destructive/30 bg-destructive/5", iconClass: "text-destructive", icon: Circle },
 };
 
 function formatAmount(amount: number, currency: string): string {
@@ -121,28 +123,25 @@ function WorkflowTimelineSection({ steps }: { steps: StudentWorkflowTimelineStep
         {steps.map((step) => {
           const meta = STEP_STATUS_META[step.status];
           const Icon = meta.icon;
+          const at = step.completedAt ?? (step.status === "current" ? step.enteredAt : null);
           return (
             <li
               key={`${step.stepOrder}-${step.stepKey}`}
-              className={`flex items-start gap-3 rounded-lg border p-3 text-sm ${meta.className}`}
+              aria-current={step.status === "current" ? "step" : undefined}
+              className={`rounded-xl border p-3 ${meta.rowClass}`}
             >
-              <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-              <div className="flex-1">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div className="font-bold">
-                    {step.stepOrder}. {step.stepNameAr}
-                  </div>
-                  <div className="text-[11px] font-bold">{meta.label}</div>
-                </div>
-                <div className="mt-1 space-y-0.5 text-[11px] opacity-80">
-                  {step.enteredAt && (
-                    <div>بدأت: {new Date(step.enteredAt).toLocaleString("ar-EG")}</div>
-                  )}
-                  {step.completedAt && (
-                    <div>انتهت: {new Date(step.completedAt).toLocaleString("ar-EG")}</div>
-                  )}
-                </div>
+              <div className="flex items-center gap-2.5">
+                <Icon className={`h-5 w-5 shrink-0 ${meta.iconClass}`} />
+                <span className="flex-1 text-sm font-bold">{step.stepNameAr}</span>
+                <span className="rounded-full border border-current/20 px-2 py-0.5 text-[11px] font-bold opacity-80">
+                  {meta.label}
+                </span>
               </div>
+              {at && (
+                <div className="mt-1.5 ps-8 text-[11px] text-muted-foreground">
+                  {step.completedAt ? "بتاريخ" : "بدأت"}: {new Date(at).toLocaleString("ar-EG")}
+                </div>
+              )}
             </li>
           );
         })}
