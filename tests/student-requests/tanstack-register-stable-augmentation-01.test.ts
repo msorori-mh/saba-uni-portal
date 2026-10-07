@@ -66,11 +66,10 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
     const packageJson = read("package.json");
     const validator = read("scripts/validate-tanstack-route-tree-register.ts");
 
-    // The build may invoke Vite through `vite build` or through Node with a
-    // raised memory limit (`node … vite.js build`); either way the validator
-    // must run right after it.
+    // The validator must run right after the production vite build, however vite is
+    // invoked (plain `vite build`, or through node with a raised memory limit).
     expect(packageJson).toMatch(
-      /"build": "[^"]*\bvite(?:\.js)? build && bun run scripts\/validate-tanstack-route-tree-register\.ts"/,
+      /"build":\s*"[^"]*\bvite(?:\.js)? build && bun run scripts\/validate-tanstack-route-tree-register\.ts"/,
     );
     expect(packageJson).not.toContain("normalize-tanstack-route-tree-register");
     expect(validator).not.toContain("writeFile");

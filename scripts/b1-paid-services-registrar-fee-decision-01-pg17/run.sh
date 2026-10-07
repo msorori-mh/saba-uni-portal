@@ -96,6 +96,20 @@ run "post-cut-over state + helpers" "$HARNESS/02-after-v2.sql"
 echo "--- APPLIED excused-absence draft (production state)"
 psql -v ON_ERROR_STOP=1 -q -f "$ABSENCE_DRAFT" >/dev/null 2>&1
 
+# ---- event-type CHECK (production defect 2026-10-07) ---------------------------------
+# The schema carries production's CHECK without the fee-decision event types: prove the
+# defect, apply B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01 twice (idempotent), then run the cases.
+EVT_DRAFT="$DRAFTS/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql"
+evt_def() { psql -v ON_ERROR_STOP=1 -q -Atc "select pg_get_constraintdef(oid) from pg_constraint where conrelid='public.student_request_workflow_events'::regclass and conname='student_request_workflow_events_event_type_chk'"; }
+case "$(evt_def)" in *fee_decision_recorded*|*"'skip'"*) echo "EVT_PARITY_CONSTRAINT_ALREADY_WIDE"; exit 1;; esac
+echo "ok: production-shaped CHECK rejects the fee-decision event types before the fix"
+psql -v ON_ERROR_STOP=1 -q -f "$EVT_DRAFT" >/dev/null
+evt_first="$(evt_def)"
+psql -v ON_ERROR_STOP=1 -q -f "$EVT_DRAFT" >/dev/null
+[ "$evt_first" = "$(evt_def)" ] || { echo "EVT_DRAFT_IS_NOT_IDEMPOTENT"; exit 1; }
+case "$evt_first" in *fee_decision_recorded*"'skip'"*) ;; *) echo "EVT_DRAFT_DID_NOT_WIDEN"; exit 1;; esac
+echo "ok: event-type CHECK widened (fee_decision_recorded, skip); second apply changed nothing"
+
 echo "=== version 2 as deployed: the defect this package replaces (leaves two in-flight v2 requests)"
 psql -v ON_ERROR_STOP=1 -q -f "$HARNESS/03-cases-v2-as-deployed.sql" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //' \
   | grep -E "^observed|DEFECT|CASES_DONE|ERROR|CASE_FAIL"

@@ -437,6 +437,8 @@ jobs:
               scripts/excused-absence-paid-signature-01-pg17/01-fixtures.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
               scripts/excused-absence-paid-signature-01-pg17/03-cases.sql
           # B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01: the two paid services as the
           # applied chain publishes them (verbatim extracts) + the applied
@@ -468,6 +470,8 @@ jobs:
               scripts/b1-paid-services-registrar-fee-decision-01-pg17/01a-applied-v2-publish.sql
               scripts/b1-paid-services-registrar-fee-decision-01-pg17/02-after-v2.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
               scripts/b1-paid-services-registrar-fee-decision-01-pg17/03-cases-v2-as-deployed.sql
               docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql
               docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql
