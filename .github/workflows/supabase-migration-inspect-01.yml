@@ -1,0 +1,114 @@
+name: Supabase Migration 01 — Inspect Lovable Cloud export
+
+# Step 1 of moving the portal off Lovable Cloud to the college-owned Supabase
+# project (pwapivqjofdsevycegph). READ-ONLY toward every database:
+#   - downloads the Lovable Cloud full export (.backup, PostgreSQL custom
+#     format) that the owner uploaded to a PRIVATE bucket of the new project;
+#   - lists its table of contents (object names and counts only — no rows,
+#     no password hashes, no personal data) and uploads that summary.
+# Nothing is restored here. The restore step is a separate workflow written
+# after this inventory has been reviewed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_object:
+        description: "Path of the .backup file inside the private bucket 'migration-private' (e.g. lovable-export.backup)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migration
+  cancel-in-progress: false
+
+env:
+  TARGET_PROJECT_REF: pwapivqjofdsevycegph
+  TARGET_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co
+  LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
+  BACKUP_BUCKET: migration-private
+
+jobs:
+  inspect:
+    name: Inventory of the export (no data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: supabase-migration
+    steps:
+      - name: Validate input
+        env:
+          BACKUP_OBJECT: ${{ inputs.backup_object }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$BACKUP_OBJECT" =~ ^[A-Za-z0-9._/-]{1,200}$ ]] || [[ "$BACKUP_OBJECT" == *..* ]]; then
+            echo "::error::backup_object must be a plain object path inside the bucket"
+            exit 1
+          fi
+
+      - name: Install PostgreSQL 17 client (zstd-capable pg_restore)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_restore --version
+
+      - name: Download the export from the private bucket
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_OBJECT: ${{ inputs.backup_object }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SERVICE_KEY:-}" ]; then
+            echo "::error::Secret TARGET_SUPABASE_SERVICE_ROLE_KEY is not set in the 'supabase-migration' environment"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/export"
+          curl -fsS --retry 3 \
+            -H "Authorization: Bearer $SERVICE_KEY" \
+            -H "apikey: $SERVICE_KEY" \
+            -o "$RUNNER_TEMP/export/lovable.backup" \
+            "$TARGET_SUPABASE_URL/storage/v1/object/$BACKUP_BUCKET/$BACKUP_OBJECT"
+          ls -l "$RUNNER_TEMP/export/lovable.backup"
+          sha256sum "$RUNNER_TEMP/export/lovable.backup" | cut -d' ' -f1 > "$RUNNER_TEMP/export/sha256.txt"
+          echo "sha256: $(cat "$RUNNER_TEMP/export/sha256.txt")"
+
+      - name: Table of contents (names only)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          /usr/lib/postgresql/17/bin/pg_restore -l lovable.backup > toc.txt
+          head -n 20 toc.txt | grep '^;' || true
+          {
+            echo "# Lovable Cloud export — inventory"
+            echo
+            echo "sha256: $(cat sha256.txt)"
+            echo
+            echo "## Entries per schema and type"
+            echo '```'
+            # "<id>; <oid> <oid> <TYPE WORDS> <schema> <name> <owner>" -> "<schema> | <TYPE>"
+            grep -v '^;' toc.txt | grep -v '^[[:space:]]*$' \
+              | sed -E 's/^[0-9]+; [0-9]+ [0-9]+ ([A-Z][A-Z ]*[A-Z]) ([^ ]+) .*/\2 | \1/' \
+              | sort | uniq -c | sort -k2
+            echo '```'
+            echo
+            echo "## Data entries outside public (auth / storage / other)"
+            echo '```'
+            grep ' TABLE DATA ' toc.txt | grep -v ' TABLE DATA public ' || true
+            echo '```'
+          } > inventory.md
+          cat inventory.md
+
+      - name: Upload inventory (no data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lovable-export-inventory
+          path: |
+            ${{ runner.temp }}/export/inventory.md
+            ${{ runner.temp }}/export/toc.txt
+          retention-days: 14
