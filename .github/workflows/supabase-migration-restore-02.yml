@@ -176,6 +176,19 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare roles referenced by the export
+        if: ${{ inputs.mode == 'restore' }}
+        env:
+          TARGET_DB_URL: ${{ secrets.TARGET_DB_URL }}
+        run: |
+          set -euo pipefail
+          # Lovable Cloud grants some privileges to its own role "sandbox_exec".
+          # It does not exist in a plain Supabase project, and a GRANT to a
+          # missing role would abort the whole restore. Create it without login
+          # so the grants apply; it is removed again right after the restore.
+          "$PG_BIN/psql" "$TARGET_DB_URL" -X -v ON_ERROR_STOP=1 -c \
+            "do \$\$ begin if not exists (select 1 from pg_roles where rolname = 'sandbox_exec') then create role sandbox_exec nologin; end if; end \$\$;"
+
       - name: Restore (single transaction — all or nothing)
         if: ${{ inputs.mode == 'restore' }}
         env:
@@ -195,6 +208,19 @@ jobs:
             exit 1
           fi
           echo "::notice title=restore::completed in one transaction"
+
+      - name: Remove the Lovable-only role again
+        if: ${{ inputs.mode == 'restore' }}
+        env:
+          TARGET_DB_URL: ${{ secrets.TARGET_DB_URL }}
+        run: |
+          set -euo pipefail
+          if "$PG_BIN/psql" "$TARGET_DB_URL" -X -v ON_ERROR_STOP=1 \
+               -c "drop owned by sandbox_exec" -c "drop role sandbox_exec"; then
+            echo "::notice title=roles::sandbox_exec privileges revoked and role dropped"
+          else
+            echo "::warning title=roles::could not drop sandbox_exec (NOLOGIN, harmless); remove it manually later"
+          fi
 
       - name: Verify (counts only)
         if: ${{ inputs.mode == 'restore' }}
