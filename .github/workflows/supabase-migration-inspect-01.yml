@@ -38,14 +38,21 @@ jobs:
     environment: supabase-migration
     steps:
       - name: Validate input
+        id: input
         env:
-          BACKUP_OBJECT: ${{ inputs.backup_object }}
+          RAW_BACKUP_OBJECT: ${{ inputs.backup_object }}
         run: |
           set -euo pipefail
+          # Pasted names often carry spaces or invisible direction marks
+          # (U+200E/U+200F/U+202A-U+202E/U+2066-U+2069/U+FEFF): strip them.
+          BACKUP_OBJECT="$(printf '%s' "$RAW_BACKUP_OBJECT" \
+            | perl -CSD -pe 's/[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]//g; s/^\s+|\s+$//g')"
           if [[ ! "$BACKUP_OBJECT" =~ ^[A-Za-z0-9._/-]{1,200}$ ]] || [[ "$BACKUP_OBJECT" == *..* ]]; then
-            echo "::error::backup_object must be a plain object path inside the bucket"
+            echo "::error::backup_object must be a plain object path inside the bucket (received: $(printf '%q' "$RAW_BACKUP_OBJECT"))"
             exit 1
           fi
+          echo "Using object: $BACKUP_OBJECT"
+          echo "object=$BACKUP_OBJECT" >> "$GITHUB_OUTPUT"
 
       - name: Install PostgreSQL 17 client (zstd-capable pg_restore)
         run: |
@@ -61,7 +68,7 @@ jobs:
       - name: Download the export from the private bucket
         env:
           SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
-          BACKUP_OBJECT: ${{ inputs.backup_object }}
+          BACKUP_OBJECT: ${{ steps.input.outputs.object }}
         run: |
           set -euo pipefail
           if [ -z "${SERVICE_KEY:-}" ]; then
