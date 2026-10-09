@@ -40,6 +40,7 @@ GitHub ← Settings ← Environments ← `supabase-migration` ← Secrets، وس
    أسرار بيئة `supabase-migration`: `CLOUDFLARE_API_TOKEN`، `CLOUDFLARE_ACCOUNT_ID`، `TARGET_SUPABASE_PUBLISHABLE_KEY` (+ `TARGET_SUPABASE_SERVICE_ROLE_KEY` الموجود).
    عند ليلة الانتقال فقط: تحويل مرجع الإنتاج في الكود (`staging-isolation.ts`، `vite.config.ts`، `native/file-redirect.ts`، `supabase/config.toml`) إلى المشروع الجديد.
 7. **ليلة التحويل** — إيقاف قصير، تصدير نهائي واستعادة، نقل DNS إلى Cloudflare، فحص، فتح.
+   الخطوات التفصيلية وتعديلات الكود: [LOVABLE-EXIT-02-CUTOVER-RUNBOOK.md](./LOVABLE-EXIT-02-CUTOVER-RUNBOOK.md).
 8. **بعد أسبوع مستقر** — إيقاف نشر Lovable.
 
 ## ما ينقل يدوياً خارج الأرشيف
