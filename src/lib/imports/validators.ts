@@ -1,3 +1,4 @@
+import { parseResultMark, RESULT_MARK_VALUES, type ResultMark } from "@/lib/academic/result-marks";
 import type { LookupMaps, RowError, ValidatedRow, ValidationResult } from "./types";
 import { normKey } from "./lookups";
 import { normalizeStudySystemTag } from "@/lib/course-materials.shared";
@@ -1311,6 +1312,8 @@ export type StudentEnrollmentRow = {
   student_profile_id: string;
   course_section_id: string;
   enrollment_status: string;
+  /** Official result mark kept verbatim (CYB-HISTORY-RESULT-MARKS-01). */
+  result_mark: ResultMark | null;
   _existingId: string | null;
 };
 
@@ -1470,6 +1473,21 @@ export async function validateStudentEnrollments(
         message: "حالة التسجيل غير صحيحة (enrolled/dropped/completed)",
       });
 
+    const parsedMark = parseResultMark(raw.result_mark);
+    if (parsedMark === "invalid")
+      errors.push({
+        row: rowNumber,
+        column: "result_mark",
+        message: `رمز النتيجة غير معروف (${RESULT_MARK_VALUES.join(" / ")})`,
+      });
+    const result_mark = parsedMark === "invalid" ? null : parsedMark;
+    if (result_mark && enrollment_status !== "completed")
+      errors.push({
+        row: rowNumber,
+        column: "result_mark",
+        message: "رمز النتيجة يتطلب حالة تسجيل completed",
+      });
+
     let course_section_id: string | null = null;
     let _existingId: string | null = null;
 
@@ -1537,6 +1555,7 @@ export async function validateStudentEnrollments(
             student_profile_id: student!.id,
             course_section_id: course_section_id!,
             enrollment_status,
+            result_mark,
             _existingId,
           },
     });
