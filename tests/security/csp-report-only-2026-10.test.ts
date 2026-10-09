@@ -130,6 +130,7 @@ describe("resource CSP is rolled out report-only", () => {
   });
 
   it("matches the committed production Supabase URL and what the root document loads", () => {
+    expect(read(".env.production")).toContain(`VITE_SUPABASE_URL=${PROD_SUPABASE}`);
     expect(read(".github/workflows/cloudflare-production.yml")).toContain(`VITE_SUPABASE_URL: ${PROD_SUPABASE}`);
     const rootRoute = read("src/routes/__root.tsx");
     expect(rootRoute).toContain("https://fonts.googleapis.com/css2?");

@@ -35,6 +35,17 @@ describe("LOVABLE-EXIT-02 production cutover", () => {
       for (const status of [302, 403, 500]) expect(() => assertProductionSmokeResponse(path, status, "html", sha)).toThrow();
     }
   });
+  test("production build profiles pin the new backend without a committed legacy key", () => {
+    const read = (path: string) => readFileSync(resolve(import.meta.dir, "../..", path), "utf8");
+    for (const path of [".github/workflows/production-runtime-preflight-04e.yml", ".github/workflows/production-release-contract-04f.yml"]) {
+      const source = read(path);
+      expect(source).toContain(`VITE_SUPABASE_URL: ${CUTOVER_SUPABASE_URL}`);
+      expect(source).not.toContain("wpmicqriltrowwonknox");
+    }
+    const env = read(".env.production");
+    expect(env).toContain(`VITE_SUPABASE_URL=${CUTOVER_SUPABASE_URL}`);
+    expect(env).not.toMatch(/^(VITE_)?SUPABASE_PUBLISHABLE_KEY=/m);
+  });
   test("workflow remains manual/main-only with exact SHA, dry-run size gate and rollback", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).not.toMatch(/^\s*(push|pull_request|schedule):/m);

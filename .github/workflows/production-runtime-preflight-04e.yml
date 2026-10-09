@@ -51,7 +51,7 @@ concurrency:
 
 env:
   VITE_PORTAL_DEPLOY_TARGET: production
-  VITE_SUPABASE_URL: https://wpmicqriltrowwonknox.supabase.co
+  VITE_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
   # Deliberately fake public-format value. This workflow never reads production secrets.
   VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_04e_preflight_only_not_a_credential
 
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           node --import tsx scripts/validate-tanstack-route-tree-register.ts
-          grep -R -q "wpmicqriltrowwonknox\.supabase\.co" .output
+          grep -R -q "cldpnartkfnmllrkjaoi\.supabase\.co" .output
           if grep -R -E -q 'sb_secret_[A-Za-z0-9_-]{20,}|eyJhbGciOi[A-Za-z0-9_-]{20,}\.' .output; then
             echo "::error::Generated output contains a forbidden secret-shaped token"
             exit 1
