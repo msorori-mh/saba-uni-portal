@@ -26,8 +26,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TARGET_PROJECT_REF: pwapivqjofdsevycegph
-  TARGET_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co
+  TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi
+  TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
   LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
   BACKUP_BUCKET: migration-private
 
@@ -36,7 +36,7 @@ jobs:
     name: Inventory of the export (no data)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: supabase-migration
+    environment: supabase-production
     steps:
       - name: Validate input
         id: input
