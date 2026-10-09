@@ -71,7 +71,7 @@ describe("03W — staging project identity", () => {
 describe("03W-R1 — protected ref is assembled at runtime, not bundled literally", () => {
   const isolationSource = read("src/integrations/supabase/staging-isolation.ts");
   // Rebuilt from fragments so this test file itself carries no contiguous literal.
-  const expectedProductionRef = ["wpmicq", "riltrow", "wonknox"].join("");
+  const expectedProductionRef = ["cldpna", "rtkfnml", "lrkjaoi"].join("");
 
   test("runtime value equals the full protected ref", () => {
     expect(PRODUCTION_SUPABASE_PROJECT_REF).toBe(expectedProductionRef);

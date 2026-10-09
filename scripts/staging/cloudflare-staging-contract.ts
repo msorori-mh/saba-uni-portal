@@ -13,7 +13,7 @@ export const STAGING_SUPABASE_PROJECT_REF = "ldjhuutywqhjxabdotmn";
 export const STAGING_SUPABASE_URL = `https://${STAGING_SUPABASE_PROJECT_REF}.supabase.co`;
 
 const PRODUCTION_HOSTS = new Set(["quboolye.com", "www.quboolye.com"]);
-const PRODUCTION_SUPABASE_PROJECT_REF = ["wpmicq", "riltrow", "wonknox"].join("");
+const PRODUCTION_SUPABASE_PROJECT_REF = ["cldpna", "rtkfnml", "lrkjaoi"].join("");
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const CAIRO_FONT_SOURCE_PATH = "src/assets/fonts/cairo/Cairo-Variable.ttf";
 export const CLOUDFLARE_CAIRO_FONT_ASSET_PATH = "__worker-assets/Cairo-Variable.ttf";

@@ -20,7 +20,7 @@
 
 export const FILE_REDIRECT_HOST = "saba-uni-portal.lovable.app";
 export const FILE_REDIRECT_PATH = "/api/public/file-redirect";
-export const SIGNED_STORAGE_HOST = "wpmicqriltrowwonknox.supabase.co";
+export const SIGNED_STORAGE_HOST = "cldpnartkfnmllrkjaoi.supabase.co";
 export const SIGNED_STORAGE_PREFIX = "/storage/v1/object/sign/";
 export const FILE_REDIRECT_BUCKETS = [
   "course-materials",
