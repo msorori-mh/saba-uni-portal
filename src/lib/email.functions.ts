@@ -1,4 +1,4 @@
-// Phase 9B: Email service via Resend (Lovable Connector Gateway)
+// Phase 9B: Email service via Resend (Lovable Connector Gateway, or direct API outside Lovable)
 // - Never throws to caller. Always returns { ok, error? }.
 // - Always logs attempts to email_logs.
 // - Business transactions succeed first; email is secondary.
@@ -8,8 +8,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole, EMAIL_SENDER_ROLES } from "@/lib/authz.server";
 import { renderTemplate, type EmailTemplateKey } from "./email-templates";
-
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
+import { resolveEmailTransport } from "./email-transport";
 
 const inputSchema = z.object({
   templateKey: z.enum([
@@ -85,11 +84,13 @@ export const sendNotificationEmail = createServerFn({ method: "POST" })
       ...data.variables,
     });
 
-    // 3) Send via Resend connector gateway
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const resendKey = process.env.RESEND_API_KEY;
+    // 3) Send via Resend (Lovable connector gateway, or the direct API outside Lovable)
+    const transport = resolveEmailTransport({
+      LOVABLE_API_KEY: process.env.LOVABLE_API_KEY,
+      RESEND_API_KEY: process.env.RESEND_API_KEY,
+    });
 
-    if (!lovableKey || !resendKey) {
+    if (!transport) {
       await supabase.from("email_logs").insert({
         template_name: data.templateKey,
         recipient_email: data.recipientEmail,
@@ -105,12 +106,11 @@ export const sendNotificationEmail = createServerFn({ method: "POST" })
     }
 
     try {
-      const resp = await fetch(`${GATEWAY_URL}/emails`, {
+      const resp = await fetch(transport.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": resendKey,
+          ...transport.headers,
         },
         body: JSON.stringify({
           from: `${site.from_name} <${site.from_email}>`,
