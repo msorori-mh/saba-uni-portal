@@ -17,7 +17,7 @@
 // exists only so the full protected target identity never appears as a
 // contiguous string inside the public JS bundle, while the deny guard keeps
 // comparing against the exact, complete value at runtime.
-const PRODUCTION_REF_FRAGMENTS = ["wpmicq", "riltrow", "wonknox"] as const;
+const PRODUCTION_REF_FRAGMENTS = ["cldpna", "rtkfnml", "lrkjaoi"] as const;
 
 export const PRODUCTION_SUPABASE_PROJECT_REF = PRODUCTION_REF_FRAGMENTS.join("");
 

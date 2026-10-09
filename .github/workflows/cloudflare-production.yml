@@ -1,0 +1,169 @@
+name: Cloudflare Production — LOVABLE-EXIT-02 cutover
+
+# Manual cutover only: exact main SHA; no migrations or database writes.
+# Uses the dedicated supabase-production environment and production domains.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Exact 40-character SHA of the current main head"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+env:
+  WORKER_NAME: saba-uni-portal-production
+  VITE_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
+  VITE_PORTAL_DEPLOY_TARGET: production
+
+jobs:
+  production:
+    name: Build, deploy and smoke-test the production Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: supabase-production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TARGET_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Validate dispatch input
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$DISPATCH_REF" != "refs/heads/main" ]; then
+            echo "::error::dispatch from main only"
+            exit 1
+          fi
+          SHA="$(printf '%s' "$CANDIDATE_SHA" | tr -d '[:space:]' | tr 'A-F' 'a-f')"
+          if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be exactly 40 hexadecimal characters"
+            exit 1
+          fi
+          echo "CANDIDATE_SHA=$SHA" >> "$GITHUB_ENV"
+
+      - name: Check required secrets (presence only)
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ] || missing="$missing TARGET_SUPABASE_PUBLISHABLE_KEY"
+          [ -n "${SERVICE_KEY:-}" ] || missing="$missing TARGET_SUPABASE_SERVICE_ROLE_KEY"
+          [ -n "${RESEND_API_KEY:-}" ] || missing="$missing RESEND_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets in the 'supabase-production' environment:$missing"
+            exit 1
+          fi
+          if [[ ! "$VITE_SUPABASE_PUBLISHABLE_KEY" =~ ^sb_publishable_ ]]; then
+            echo "::error::TARGET_SUPABASE_PUBLISHABLE_KEY must be the public sb_publishable_ key (not the secret key)"
+            exit 1
+          fi
+
+      - name: Check out the authorized SHA without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove the candidate is the current main head
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$CANDIDATE_SHA" = "$(git rev-parse HEAD)"
+          if [ "$CANDIDATE_SHA" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::candidate_sha is not the current head of main"
+            exit 1
+          fi
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Contract tests
+        run: bun test tests/security/cloudflare-production-cutover.test.ts tests/security/cloudflare-staging-deployment-04d.test.ts
+
+      - name: Build for the production Supabase project
+        env:
+          GITHUB_SHA: ${{ env.CANDIDATE_SHA }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: bun run build
+
+      - name: Prepare the production bundle and dry-run
+        run: |
+          set -euo pipefail
+          bun run scripts/production/prepare-cloudflare-production-bundle.ts
+          SIZE_LOG=".wrangler/production-dry-run-size.log"
+          bunx wrangler deploy --dry-run --outdir .wrangler/production-dry-run \
+            --name "$WORKER_NAME" 2>&1 | tee "$SIZE_LOG"
+          bun run scripts/staging/assert-cloudflare-staging-size.ts "$SIZE_LOG"
+
+      - name: Deploy the production Worker (custom production domains)
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --name saba-uni-portal-production
+
+      - name: Set server-side runtime secrets on the production Worker
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          SECRETS_FILE="$RUNNER_TEMP/worker-secrets.json"
+          jq -n \
+            --arg url "$VITE_SUPABASE_URL" \
+            --arg pub "$VITE_SUPABASE_PUBLISHABLE_KEY" \
+            --arg svc "$SERVICE_KEY" \
+            --arg resend "$RESEND_API_KEY" \
+            '{SUPABASE_URL:$url, SUPABASE_PUBLISHABLE_KEY:$pub, SUPABASE_SERVICE_ROLE_KEY:$svc, PORTAL_DEPLOY_TARGET:"production", RESEND_API_KEY:$resend, SITE_URL:"https://quboolye.com"}' \
+            > "$SECRETS_FILE"
+          bunx wrangler secret bulk "$SECRETS_FILE" --name "$WORKER_NAME"
+          rm -f "$SECRETS_FILE"
+
+      - name: Smoke test (exact version SHA, root and portal login)
+        env:
+          EXPECTED_BUILD_SHA: ${{ env.CANDIDATE_SHA }}
+        run: bun run scripts/production/verify-cloudflare-production-deployment.ts
+
+      - name: Record evidence
+        if: ${{ success() }}
+        env:
+          DEPLOYMENT_URL: https://quboolye.com
+        run: |
+          {
+            echo "## PASS_PRODUCTION_CUTOVER"
+            echo "- Worker: \`$WORKER_NAME\` (custom production domains)"
+            echo "- SHA: \`$CANDIDATE_SHA\`"
+            echo "- URL: $DEPLOYMENT_URL"
+            echo "- Supabase: $VITE_SUPABASE_URL"
+            echo "- Custom domains: quboolye.com, www.quboolye.com"
+            echo "- Database migrations/writes: 0"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back the production Worker after a failed smoke test
+        if: ${{ failure() && steps.deploy.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          bunx wrangler rollback --name "$WORKER_NAME" \
+            --message "Automatic rollback after production smoke failure for $CANDIDATE_SHA"

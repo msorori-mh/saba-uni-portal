@@ -15,7 +15,7 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // NO fallback URL and NO embedded key: staging must be configured explicitly
 // with its own isolated backend, and the build fails closed if it is ever
 // pointed at the production project ref.
-const PRODUCTION_SUPABASE_PROJECT_REF = "wpmicqriltrowwonknox";
+const PRODUCTION_SUPABASE_PROJECT_REF = "cldpnartkfnmllrkjaoi";
 const PRODUCTION_SUPABASE_URL = `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`;
 
 const viteEnvironment = loadEnv(

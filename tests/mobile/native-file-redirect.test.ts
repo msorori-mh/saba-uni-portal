@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { validateSignedStorageUrl, buildFileRedirectUrl } from "../../src/lib/native/file-redirect";
 import { Route } from "../../src/routes/api/public/file-redirect";
 
-const OK = "https://wpmicqriltrowwonknox.supabase.co/storage/v1/object/sign/course-materials/a/b.pdf?token=abc";
+const OK = "https://cldpnartkfnmllrkjaoi.supabase.co/storage/v1/object/sign/course-materials/a/b.pdf?token=abc";
 const handler = (Route as any).options.server.handlers.GET;
 const call = (u: string) => handler({ request: new Request(`https://saba-uni-portal.lovable.app/api/public/file-redirect?u=${encodeURIComponent(u)}`) });
 
@@ -13,11 +13,11 @@ describe("native file redirect", () => {
   });
   test.each([
     "https://evil.com/storage/v1/object/sign/course-materials/a?token=x",
-    "http://wpmicqriltrowwonknox.supabase.co/storage/v1/object/sign/course-materials/a?token=x",
-    "https://wpmicqriltrowwonknox.supabase.co/storage/v1/object/public/course-materials/a?token=x",
-    "https://wpmicqriltrowwonknox.supabase.co/storage/v1/object/sign/payment-receipts/a?token=x",
-    "https://wpmicqriltrowwonknox.supabase.co/storage/v1/object/sign/course-materials/a",
-    "https://wpmicqriltrowwonknox.supabase.co.evil.com/storage/v1/object/sign/course-materials/a?token=x",
+    "http://cldpnartkfnmllrkjaoi.supabase.co/storage/v1/object/sign/course-materials/a?token=x",
+    "https://cldpnartkfnmllrkjaoi.supabase.co/storage/v1/object/public/course-materials/a?token=x",
+    "https://cldpnartkfnmllrkjaoi.supabase.co/storage/v1/object/sign/payment-receipts/a?token=x",
+    "https://cldpnartkfnmllrkjaoi.supabase.co/storage/v1/object/sign/course-materials/a",
+    "https://cldpnartkfnmllrkjaoi.supabase.co.evil.com/storage/v1/object/sign/course-materials/a?token=x",
     "javascript:alert(1)",
     "",
   ])("rejects %s", async (u) => {

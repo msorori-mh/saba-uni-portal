@@ -10,7 +10,7 @@ import {
 const root = join(import.meta.dir, "../..");
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
-const PROD_SUPABASE = "https://wpmicqriltrowwonknox.supabase.co";
+const PROD_SUPABASE = "https://cldpnartkfnmllrkjaoi.supabase.co";
 const REPORT_ONLY = "content-security-policy-report-only";
 
 const html = () =>
@@ -75,7 +75,7 @@ describe("resource CSP is rolled out report-only", () => {
     expect(d.get("connect-src")).toEqual([
       "'self'",
       PROD_SUPABASE,
-      "wss://wpmicqriltrowwonknox.supabase.co",
+      "wss://cldpnartkfnmllrkjaoi.supabase.co",
     ]);
     expect(d.get("img-src")).toEqual(["'self'", "data:", "blob:", PROD_SUPABASE]);
     expect(d.get("font-src")).toEqual(["'self'", "https://fonts.gstatic.com", "data:"]);
@@ -100,8 +100,8 @@ describe("resource CSP is rolled out report-only", () => {
   it("the Supabase origin is validated, never copied verbatim from configuration", () => {
     for (const bad of [
       "https://evil.example.com",
-      "http://wpmicqriltrowwonknox.supabase.co",
-      "https://wpmicqriltrowwonknox.supabase.co.evil.example",
+      "http://cldpnartkfnmllrkjaoi.supabase.co",
+      "https://cldpnartkfnmllrkjaoi.supabase.co.evil.example",
       "https://*.supabase.co",
       "https://x.supabase.co; script-src *",
       "",
@@ -130,7 +130,7 @@ describe("resource CSP is rolled out report-only", () => {
   });
 
   it("matches the committed production Supabase URL and what the root document loads", () => {
-    expect(read(".env.production")).toContain(`VITE_SUPABASE_URL=${PROD_SUPABASE}`);
+    expect(read(".github/workflows/cloudflare-production.yml")).toContain(`VITE_SUPABASE_URL: ${PROD_SUPABASE}`);
     const rootRoute = read("src/routes/__root.tsx");
     expect(rootRoute).toContain("https://fonts.googleapis.com/css2?");
     expect(rootRoute).toContain("https://fonts.gstatic.com");

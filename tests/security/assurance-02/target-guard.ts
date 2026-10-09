@@ -16,7 +16,7 @@ export const ALLOWED_SUPABASE_ORIGIN = "https://ldjhuutywqhjxabdotmn.supabase.co
 export const ALLOWED_APP_ORIGIN = "https://uniportaltest.com";
 
 /** Production identities — never allowed, never overridable. */
-const DENIED_FRAGMENTS = ["wpmicqriltrowwonknox", "quboolye.com"] as const;
+const DENIED_FRAGMENTS = ["wpmicqriltrowwonknox", "cldpnartkfnmllrkjaoi", "quboolye.com"] as const;
 
 export class TargetGuardError extends Error {
   constructor(reason: string) {

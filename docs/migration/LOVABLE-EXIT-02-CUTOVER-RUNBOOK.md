@@ -47,27 +47,27 @@ Environments ← `supabase-migration` فقط.
 
 ## ج. تعديلات الكود (فرع واحد، تُدمج في الخطوة 6)
 
-القيمة الجديدة في كل الحالات هي مرجع مشروع الإنتاج الجديد `PROD_REF` (الخطوة A7)، لا مشروع التجارب `pwapivqjofdsevycegph`. الأمثلة في الجداول أدناه مكتوبة بمرجع مشروع التجارب، ويُستبدل بها `PROD_REF` عند التنفيذ.
+القيمة الجديدة في كل الحالات هي مرجع مشروع الإنتاج الجديد `PROD_REF` (الخطوة A7)، لا مشروع التجارب `pwapivqjofdsevycegph`. الجداول أدناه تستخدم مرجع الإنتاج المعتمد `cldpnartkfnmllrkjaoi`.
 
 ### ملفات التشغيل
 
 | الملف | السطر الحالي | يصبح |
 |---|---|---|
-| `src/integrations/supabase/staging-isolation.ts` (سطر 20) | `const PRODUCTION_REF_FRAGMENTS = ["wpmicq", "riltrow", "wonknox"] as const;` | `const PRODUCTION_REF_FRAGMENTS = ["pwapiv", "qjofdsev", "ycegph"] as const;` |
-| `vite.config.ts` (سطر 18) | `const PRODUCTION_SUPABASE_PROJECT_REF = "wpmicqriltrowwonknox";` | `const PRODUCTION_SUPABASE_PROJECT_REF = "pwapivqjofdsevycegph";` |
-| `src/lib/native/file-redirect.ts` (سطر 23) | `export const SIGNED_STORAGE_HOST = "wpmicqriltrowwonknox.supabase.co";` | `export const SIGNED_STORAGE_HOST = "pwapivqjofdsevycegph.supabase.co";` |
-| `supabase/config.toml` (سطر 1) | `project_id = "wpmicqriltrowwonknox"` | `project_id = "pwapivqjofdsevycegph"` |
-| `scripts/staging/cloudflare-staging-contract.ts` (سطر 16) | `["wpmicq", "riltrow", "wonknox"].join("")` | `["pwapiv", "qjofdsev", "ycegph"].join("")` |
+| `src/integrations/supabase/staging-isolation.ts` (سطر 20) | `const PRODUCTION_REF_FRAGMENTS = ["wpmicq", "riltrow", "wonknox"] as const;` | `const PRODUCTION_REF_FRAGMENTS = ["cldpna", "rtkfnml", "lrkjaoi"] as const;` |
+| `vite.config.ts` (سطر 18) | `const PRODUCTION_SUPABASE_PROJECT_REF = "wpmicqriltrowwonknox";` | `const PRODUCTION_SUPABASE_PROJECT_REF = "cldpnartkfnmllrkjaoi";` |
+| `src/lib/native/file-redirect.ts` (سطر 23) | `export const SIGNED_STORAGE_HOST = "wpmicqriltrowwonknox.supabase.co";` | `export const SIGNED_STORAGE_HOST = "cldpnartkfnmllrkjaoi.supabase.co";` |
+| `supabase/config.toml` (سطر 1) | `project_id = "wpmicqriltrowwonknox"` | `project_id = "cldpnartkfnmllrkjaoi"` |
+| `scripts/staging/cloudflare-staging-contract.ts` (سطر 16) | `["wpmicq", "riltrow", "wonknox"].join("")` | `["cldpna", "rtkfnml", "lrkjaoi"].join("")` |
 
 ### الاختبارات التي تتبع مرجع الإنتاج
 
 | الملف | التعديل |
 |---|---|
-| `tests/security/staging-publish-env-closure-03w.test.ts` (سطر 74) | `expectedProductionRef` = `["pwapiv", "qjofdsev", "ycegph"].join("")` |
+| `tests/security/staging-publish-env-closure-03w.test.ts` (سطر 74) | `expectedProductionRef` = `["cldpna", "rtkfnml", "lrkjaoi"].join("")` |
 | `tests/security/csp-report-only-2026-10.test.ts` (الأسطر 13، 78، 103، 104) | استبدال المرجع القديم بالجديد في المواضع الأربعة |
 | `tests/mobile/native-file-redirect.test.ts` (الأسطر 5، 16 إلى 20) | استبدال المرجع القديم بالجديد في كل المواضع |
 | `tests/security/cloudflare-staging-deployment-04d.test.ts` (سطر 82) | استبدال المرجع القديم بالجديد |
-| `tests/security/assurance-02/target-guard.ts` (سطر 19) | `DENIED_FRAGMENTS = ["wpmicqriltrowwonknox", "pwapivqjofdsevycegph", "quboolye.com"]`، أي إضافة الجديد مع إبقاء القديم |
+| `tests/security/assurance-02/target-guard.ts` (سطر 19) | `DENIED_FRAGMENTS = ["wpmicqriltrowwonknox", "cldpnartkfnmllrkjaoi", "quboolye.com"]`، أي إضافة الجديد مع إبقاء القديم |
 
 ### ما لا يُغيَّر
 
@@ -94,7 +94,7 @@ Environments ← `supabase-migration` فقط.
 | النطاقات | ممنوعة (workers.dev فقط) | `routes: [{ pattern: "quboolye.com", custom_domain: true }, { pattern: "www.quboolye.com", custom_domain: true }]`، وتُضاف في سكربت تحضير خاص بالإنتاج |
 | أسرار العامل | `SUPABASE_URL`، `SUPABASE_PUBLISHABLE_KEY`، `SUPABASE_SERVICE_ROLE_KEY`، `PORTAL_DEPLOY_TARGET=staging` | نفس الثلاثة + `PORTAL_DEPLOY_TARGET=production` + `RESEND_API_KEY` + `SITE_URL=https://quboolye.com` |
 | الفحص بعد النشر | `verify-cloudflare-staging-deployment.ts` على workers.dev | `/version.json` يطابق الـSHA، و`/` و`/portal-login` بحالة 200 على `https://quboolye.com` |
-| البيئة | `supabase-migration` | `supabase-migration`، أو بيئة `production` بموافقة يدوية (Required reviewers = المالك) |
+| البيئة | `supabase-migration` | `supabase-production` |
 
 يبقى من البروفة: التشغيل يدوي فقط، ومن `main` فقط، والـSHA يساوي رأس main، وdry-run وحد الحجم، والتراجع عند فشل الفحص.
 
