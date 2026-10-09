@@ -23,6 +23,7 @@ Environments ← `supabase-migration` فقط.
 | A6 | تنزيل ملفات التخزين من Lovable (Cloud ← Storage)، لكل حاوية بمجلداتها | المالك | 77 ملفاً، والقائمة الدقيقة يستخرجها الوكيل من قاعدة الإنتاج |
 | A7 | قرار المالك (2026-10-09، الطريقة 1): **مشروع Supabase جديد فارغ للإنتاج** (`PROD_REF` = `cldpnartkfnmllrkjaoi`، انظر القسم ح). يبقى `pwapivqjofdsevycegph` بيئة تجارب دائمة للكلية (عامل البروفة). يضع المالك أسرار المشروع الجديد في بيئة GitHub جديدة `supabase-production`، ويحدّث الوكيل أدوات الجرد والاستعادة لتقبل الهدف الجديد | المالك + الوكيل | تشغيل `plan` على المشروع الجديد ينجح، والهدف فارغ |
 | A8 | تجهيز فرع `claude/lovable-exit-cutover` بالتعديلات في القسم ج **دون دمج**، ثم مراجعته | المالك أو وكيل مخوّل | فحوص CI خضراء على الفرع |
+| A9 | ضبط Custom SMTP في مشروع الإنتاج `cldpnartkfnmllrkjaoi` ← Authentication ← SMTP Settings على Resend: Host = `smtp.resend.com`، Port = `465` (SSL)، Username = `resend`، Password = مفتاح Resend API، وعنوان المرسل من النطاق الموثّق `quboolye.com` مع اسم البوابة. يُدخل المفتاح في لوحة Supabase فقط ولا يُحفظ في المستودع | المالك | الإعداد محفوظ؛ قبل فتح البوابة تُختبر رسالة استعادة إلى حساب اختبار مصرح به ويُتحقق من وصولها. [مرجع Resend](https://resend.com/docs/send-with-supabase-smtp) |
 
 ---
 
@@ -38,9 +39,9 @@ Environments ← `supabase-migration` فقط.
    - بعدها يُحذف الدور `sandbox_exec`: `grant sandbox_exec to postgres; drop owned by sandbox_exec; drop role sandbox_exec;`
 5. **الملفات:** رفع الملفات من الخطوة A6 إلى الحاويات نفسها، بالمسارات نفسها حرفياً.
 6. **دمج فرع الانتقال** (القسم ج). بعد الدمج لن تعمل نسخة Lovable مع الكود الجديد، وهذا متوقع.
-7. **النطاق:** لا خطوة. النطاق على Cloudflare أصلاً، فلا تغيير في Hostinger.
+7. **تهيئة النطاق قبل الخطوة 8:** يحذف المالك في Cloudflare سجلّي `A @` و`A www` اللذين يشيران إلى `185.158.133.1`، ويُبقي جميع سجلات TXT `_lovable` و`_lovable.www` كما هي. لا تغيير في Hostinger.
 8. **النشر الإنتاجي:** تشغيل سير العمل الإنتاجي (القسم د) بـSHA رأس main. يضيف `quboolye.com`
-   و`www.quboolye.com` كنطاقات مخصصة للعامل، فيحل محل سجلات Lovable.
+   و`www.quboolye.com` كنطاقات مخصصة للعامل بعد إزالة سجلّي A في الخطوة 7.
 9. **الفحص** (القسم هـ)، ثم فتح البوابة.
 
 ---
@@ -117,7 +118,7 @@ Environments ← `supabase-migration` فقط.
 ## و. التراجع (إن فشل الفحص)
 
 1. في Cloudflare ← Workers ← `saba-uni-portal-production` ← Domains: إزالة النطاقين.
-2. إعادة السجلين `A @` و`A www` إلى `185.158.133.1` بحالة DNS only (سجلات TXT `_lovable` تبقى كما هي)، فتعود الحركة إلى Lovable.
+2. يعيد المالك في Cloudflare إنشاء سجلّي `A @` و`A www` المحذوفين في الخطوة 7، بقيمة `185.158.133.1` وبحالة DNS only. تبقى سجلات TXT `_lovable` و`_lovable.www` كما هي، فتعود الحركة إلى Lovable.
 3. قاعدة Lovable لم تُمس، لكن أي إدخال تم على القاعدة الجديدة بعد الفتح لا يعود تلقائياً.
 4. لا يُرجَع `main` بـreset. يُفتح طلب دمج عكسي للتعديلات في القسم ج، وذلك فقط إن تقرر البقاء على Lovable.
 
