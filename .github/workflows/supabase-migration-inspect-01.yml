@@ -13,8 +13,9 @@ on:
   workflow_dispatch:
     inputs:
       backup_object:
-        description: "Path of the .backup file inside the private bucket 'migration-private' (e.g. lovable-export.backup)"
+        description: "File name inside the private bucket 'migration-private' (.zip or .backup)"
         required: true
+        default: bucket-database_export_08_10_26-files.zip
         type: string
 
 permissions:
