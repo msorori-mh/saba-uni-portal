@@ -72,16 +72,62 @@ jobs:
           curl -fsS --retry 3 \
             -H "Authorization: Bearer $SERVICE_KEY" \
             -H "apikey: $SERVICE_KEY" \
-            -o "$RUNNER_TEMP/export/lovable.backup" \
+            -o "$RUNNER_TEMP/export/download.bin" \
             "$TARGET_SUPABASE_URL/storage/v1/object/$BACKUP_BUCKET/$BACKUP_OBJECT"
-          ls -l "$RUNNER_TEMP/export/lovable.backup"
-          sha256sum "$RUNNER_TEMP/export/lovable.backup" | cut -d' ' -f1 > "$RUNNER_TEMP/export/sha256.txt"
+          ls -l "$RUNNER_TEMP/export/download.bin"
+          sha256sum "$RUNNER_TEMP/export/download.bin" | cut -d' ' -f1 > "$RUNNER_TEMP/export/sha256.txt"
           echo "sha256: $(cat "$RUNNER_TEMP/export/sha256.txt")"
+
+      - name: Unwrap (the Lovable download may be a .zip around the archive)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          : > zip-listing.txt
+          if [ "$(head -c 2 download.bin)" = "PK" ]; then
+            echo "Download is a zip archive. Contents (names and sizes only):"
+            unzip -l download.bin | tee zip-listing.txt
+            mkdir -p unzipped
+            unzip -q download.bin -d unzipped
+            # Prefer a PostgreSQL custom-format archive (magic "PGDMP").
+            found=""
+            while IFS= read -r -d '' candidate; do
+              if [ "$(head -c 5 "$candidate")" = "PGDMP" ]; then found="$candidate"; break; fi
+            done < <(find unzipped -type f -print0)
+            if [ -z "$found" ]; then
+              echo "::warning::No PostgreSQL archive (PGDMP) inside the zip. It may hold storage files only; see zip-listing.txt."
+              echo "none" > archive-kind.txt
+              exit 0
+            fi
+            echo "PostgreSQL archive found inside the zip: ${found#unzipped/}"
+            mv "$found" lovable.backup
+          elif [ "$(head -c 5 download.bin)" = "PGDMP" ]; then
+            mv download.bin lovable.backup
+          else
+            echo "::error::The file is neither a zip nor a PostgreSQL custom-format archive."
+            head -c 16 download.bin | od -c | head -2
+            exit 1
+          fi
+          echo "pgdump" > archive-kind.txt
 
       - name: Table of contents (names only)
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/export"
+          : > toc.txt
+          if [ "$(cat archive-kind.txt)" != "pgdump" ]; then
+            {
+              echo "# Lovable export — inventory"
+              echo
+              echo "sha256: $(cat sha256.txt)"
+              echo
+              echo "No PostgreSQL archive in this file. Zip listing:"
+              echo '```'
+              cat zip-listing.txt
+              echo '```'
+            } > inventory.md
+            cat inventory.md
+            exit 0
+          fi
           /usr/lib/postgresql/17/bin/pg_restore -l lovable.backup > toc.txt
           head -n 20 toc.txt | grep '^;' || true
           {
@@ -111,4 +157,5 @@ jobs:
           path: |
             ${{ runner.temp }}/export/inventory.md
             ${{ runner.temp }}/export/toc.txt
+            ${{ runner.temp }}/export/zip-listing.txt
           retention-days: 14
