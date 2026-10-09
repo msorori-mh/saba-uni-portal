@@ -158,6 +158,36 @@ jobs:
           } > inventory.md
           cat inventory.md
 
+      - name: Publish inventory as annotations (readable through the API)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          # Annotations are the one run output readable without downloading
+          # artifacts. Names and counts only — never rows.
+          emit() {
+            local title="$1" file="$2" part=1
+            [ -s "$file" ] || return 0
+            split -C 3500 -d "$file" "$file.part-"
+            for chunk in "$file".part-*; do
+              [ "$part" -le 8 ] || break
+              body="$(sed -e 's/%/%25/g' "$chunk" | sed -e ':a;N;$!ba;s/\r//g;s/\n/%0A/g')"
+              echo "::notice title=${title} (${part})::${body}"
+              part=$((part + 1))
+            done
+          }
+          if [ -s toc.txt ]; then
+            grep -v '^;' toc.txt | grep -v '^[[:space:]]*$' \
+              | sed -E 's/^[0-9]+; [0-9]+ [0-9]+ ([A-Z][A-Z ]*[A-Z]) ([^ ]+) .*/\2 | \1/' \
+              | sort | uniq -c | sort -k2 > counts.txt
+            grep ' TABLE DATA ' toc.txt | grep -v ' TABLE DATA public ' \
+              | sed -E 's/^[0-9]+; [0-9]+ [0-9]+ TABLE DATA //' > non-public-data.txt || true
+            grep -E '^;' toc.txt | head -n 15 > header.txt || true
+            emit "archive header" header.txt
+            emit "objects per schema and type" counts.txt
+            emit "data outside public" non-public-data.txt
+          fi
+          emit "zip listing" zip-listing.txt
+
       - name: Upload inventory (no data)
         uses: actions/upload-artifact@v4
         with:
