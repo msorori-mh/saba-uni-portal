@@ -145,6 +145,17 @@ jobs:
                   kept[f"{schema} | {typ}"] += 1
               else:
                   skipped[f"{schema} | {typ}"] += 1
+          # pg_restore follows the list order. Supabase already created the
+          # auth tables with their foreign keys (identities -> users), so users
+          # must be loaded before identities whatever their order in the archive.
+          def is_auth_data(line, table):
+              m = line_re.match(line)
+              return bool(m) and m.group(2) == "TABLE DATA" and m.group(3) == "auth" and m.group(4) == table
+          users = [l for l in keep if is_auth_data(l, "users")]
+          if users:
+              keep = [l for l in keep if not is_auth_data(l, "users")]
+              first_auth = next((i for i, l in enumerate(keep) if is_auth_data(l, "identities")), len(keep))
+              keep[first_auth:first_auth] = users
           open("toc.selected", "w", encoding="utf-8").write("\n".join(keep) + "\n")
           with open("plan.txt", "w", encoding="utf-8") as out:
               out.write("RESTORED\n")
