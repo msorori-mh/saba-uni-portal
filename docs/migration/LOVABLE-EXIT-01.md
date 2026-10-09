@@ -36,6 +36,9 @@ GitHub ← Settings ← Environments ← `supabase-migration` ← Secrets، وس
    السر المطلوب: `TARGET_DB_URL` (Session pooler) في بيئة `supabase-migration`.
 5. **الملفات** — 78 ملفاً (≈12 MB) في 14 bucket تُنقل بسكربت منفصل.
 6. **الاستضافة** — Worker إنتاج على Cloudflare + بروفة كاملة على رابط workers.dev مقابل القاعدة الجديدة.
+   البروفة: Workflow «Cloudflare College Rehearsal» → Worker `saba-uni-portal-college` بملف `staging` ومشروع `pwapivqjofdsevycegph`.
+   أسرار بيئة `supabase-migration`: `CLOUDFLARE_API_TOKEN`، `CLOUDFLARE_ACCOUNT_ID`، `TARGET_SUPABASE_PUBLISHABLE_KEY` (+ `TARGET_SUPABASE_SERVICE_ROLE_KEY` الموجود).
+   عند ليلة الانتقال فقط: تحويل مرجع الإنتاج في الكود (`staging-isolation.ts`، `vite.config.ts`، `native/file-redirect.ts`، `supabase/config.toml`) إلى المشروع الجديد.
 7. **ليلة التحويل** — إيقاف قصير، تصدير نهائي واستعادة، نقل DNS إلى Cloudflare، فحص، فتح.
 8. **بعد أسبوع مستقر** — إيقاف نشر Lovable.
 
