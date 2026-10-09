@@ -21,7 +21,7 @@ Environments ← `supabase-migration` فقط.
 | A4 | إضافة السر `RESEND_API_KEY` إلى بيئة `supabase-migration` | المالك | يظهر في قائمة الأسرار |
 | A5 | Supabase الجديد ← Authentication ← URL Configuration: Site URL = `https://quboolye.com`، وRedirect URLs = `https://quboolye.com/**` و`https://www.quboolye.com/**` | المالك | محفوظ |
 | A6 | تنزيل ملفات التخزين من Lovable (Cloud ← Storage)، لكل حاوية بمجلداتها | المالك | 77 ملفاً، والقائمة الدقيقة يستخرجها الوكيل من قاعدة الإنتاج |
-| A7 | قرار المالك (2026-10-09، الطريقة 1): **مشروع Supabase جديد فارغ للإنتاج** (`PROD_REF`، يُحدَّد عند إنشائه). يبقى `pwapivqjofdsevycegph` بيئة تجارب دائمة للكلية (عامل البروفة). يضع المالك أسرار المشروع الجديد في بيئة GitHub جديدة `supabase-production`، ويحدّث الوكيل أدوات الجرد والاستعادة لتقبل الهدف الجديد | المالك + الوكيل | تشغيل `plan` على المشروع الجديد ينجح، والهدف فارغ |
+| A7 | قرار المالك (2026-10-09، الطريقة 1): **مشروع Supabase جديد فارغ للإنتاج** (`PROD_REF` = `cldpnartkfnmllrkjaoi`، انظر القسم ح). يبقى `pwapivqjofdsevycegph` بيئة تجارب دائمة للكلية (عامل البروفة). يضع المالك أسرار المشروع الجديد في بيئة GitHub جديدة `supabase-production`، ويحدّث الوكيل أدوات الجرد والاستعادة لتقبل الهدف الجديد | المالك + الوكيل | تشغيل `plan` على المشروع الجديد ينجح، والهدف فارغ |
 | A8 | تجهيز فرع `claude/lovable-exit-cutover` بالتعديلات في القسم ج **دون دمج**، ثم مراجعته | المالك أو وكيل مخوّل | فحوص CI خضراء على الفرع |
 
 ---
@@ -126,3 +126,41 @@ Environments ← `supabase-migration` فقط.
 - إيقاف نشر Lovable (Unpublish) وإزالة النطاق منه.
 - حذف عامل البروفة `saba-uni-portal-college`.
 - إزالة الحاوية `migration-private` بعد حفظ نسخة التصدير الأخيرة خارجياً.
+
+---
+
+## ح. توجيه أداتي الجرد والاستعادة إلى مشروع الإنتاج (قبل الليلة)
+
+مشروع الإنتاج: `cldpnartkfnmllrkjaoi` (أُنشئ في 2026-10-09). بيئة GitHub الخاصة به: `supabase-production`.
+
+ينفّذ التعديل التالي المالكُ أو وكيل مخوّل، في فرع مستقل، على الملفين
+`.github/workflows/supabase-migration-inspect-01.yml` و`.github/workflows/supabase-migration-restore-02.yml`:
+
+| السطر الحالي | يصبح |
+|---|---|
+| `TARGET_PROJECT_REF: pwapivqjofdsevycegph` | `TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi` |
+| `TARGET_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co` | `TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co` |
+| `environment: supabase-migration` | `environment: supabase-production` |
+
+ويُحدَّث في `restore-02` نص وصف `confirm_project_ref` إلى `cldpnartkfnmllrkjaoi`.
+
+### أسرار بيئة `supabase-production` (يضعها المالك)
+
+| السر | المصدر |
+|---|---|
+| `TARGET_DB_URL` | المشروع الجديد ← Connect ← Session pooler (`@` في كلمة المرور تُكتب `%40`) |
+| `TARGET_SUPABASE_SERVICE_ROLE_KEY` | API Keys ← Legacy ← service_role |
+| `TARGET_SUPABASE_PUBLISHABLE_KEY` | API Keys ← `sb_publishable_…` |
+| `CLOUDFLARE_ACCOUNT_ID` | `4ba7b52986c5c8a2f52d87ace2ea582d` |
+| `CLOUDFLARE_API_TOKEN` | رمز جديد من قالب «Edit Cloudflare Workers» |
+| `RESEND_API_KEY` | حساب Resend (الخطوة A3) |
+
+وفي المشروع الجديد: حاوية خاصة باسم `migration-private` يُرفع إليها التصدير النهائي.
+
+### التحقق
+
+1. Migration 01 على المشروع الجديد ينجح في جرد ملف التصدير.
+2. Migration 02 بوضع `plan` يعرض الخطة دون كتابة.
+3. ليلة الانتقال: Migration 02 بوضع `restore` مع `confirm_project_ref = cldpnartkfnmllrkjaoi`.
+
+عامل البروفة `saba-uni-portal-college` يبقى على مشروع التجارب `pwapivqjofdsevycegph` ولا يتغير.
