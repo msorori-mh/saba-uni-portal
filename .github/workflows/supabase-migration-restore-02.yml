@@ -1,0 +1,234 @@
+name: Supabase Migration 02 — Restore Lovable export into the college project
+
+# Step 2 of LOVABLE-EXIT-01. Restores the Lovable Cloud export into the
+# college-owned Supabase project (pwapivqjofdsevycegph) ONLY:
+#   - refuses any database that is not that project, and refuses a target
+#     that already holds application tables or users (no overwrite, ever);
+#   - restores, in ONE transaction (all or nothing):
+#       public  — every table, function, view, trigger, policy, grant and row;
+#       auth    — rows of users and identities only (same passwords);
+#       storage — bucket definitions and the custom policies on objects;
+#   - skips what must not or cannot move: the stale backup_20261002 copy,
+#     sessions/refresh tokens/audit logs, vault secrets (bound to the old
+#     project's key), Supabase-managed schemas, extensions and event triggers;
+#   - publishes counts (never rows) as annotations for verification.
+# The legacy production database is never contacted.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_object:
+        description: "File name inside the private bucket 'migration-private' (.zip or .backup)"
+        required: true
+        default: bucket-database_export_08_10_26-files.zip
+        type: string
+      mode:
+        description: "plan = list what would be restored (no writes); restore = write into the new project"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - restore
+      confirm_project_ref:
+        description: "For restore: type the target project ref exactly (pwapivqjofdsevycegph)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migration
+  cancel-in-progress: false
+
+env:
+  TARGET_PROJECT_REF: pwapivqjofdsevycegph
+  TARGET_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co
+  LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
+  BACKUP_BUCKET: migration-private
+  PG_BIN: /usr/lib/postgresql/18/bin
+
+jobs:
+  restore:
+    name: Restore into the college project (${{ inputs.mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: supabase-migration
+    steps:
+      - name: Validate inputs
+        id: input
+        env:
+          RAW_BACKUP_OBJECT: ${{ inputs.backup_object }}
+          MODE: ${{ inputs.mode }}
+          CONFIRM: ${{ inputs.confirm_project_ref }}
+        run: |
+          set -euo pipefail
+          BACKUP_OBJECT="$(printf '%s' "$RAW_BACKUP_OBJECT" \
+            | perl -CSD -pe 's/[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]//g; s/^\s+|\s+$//g')"
+          if [[ ! "$BACKUP_OBJECT" =~ ^[A-Za-z0-9._/-]{1,200}$ ]] || [[ "$BACKUP_OBJECT" == *..* ]]; then
+            echo "::error::backup_object must be a plain object path inside the bucket"
+            exit 1
+          fi
+          CONFIRM_CLEAN="$(printf '%s' "$CONFIRM" | perl -CSD -pe 's/[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]//g; s/^\s+|\s+$//g')"
+          if [ "$MODE" = "restore" ] && [ "$CONFIRM_CLEAN" != "$TARGET_PROJECT_REF" ]; then
+            echo "::error::restore requires confirm_project_ref = $TARGET_PROJECT_REF"
+            exit 1
+          fi
+          echo "object=$BACKUP_OBJECT" >> "$GITHUB_OUTPUT"
+
+      - name: Install PostgreSQL 18 client (matches the pg_dump that made the export)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          "$PG_BIN/pg_restore" --version
+
+      - name: Download and unwrap the export
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_OBJECT: ${{ steps.input.outputs.object }}
+        run: |
+          set -euo pipefail
+          [ -n "${SERVICE_KEY:-}" ] || { echo "::error::Secret TARGET_SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/export" && cd "$RUNNER_TEMP/export"
+          curl -fsS --retry 3 -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" \
+            -o download.bin "$TARGET_SUPABASE_URL/storage/v1/object/$BACKUP_BUCKET/$BACKUP_OBJECT"
+          if [ "$(head -c 2 download.bin)" = "PK" ]; then
+            mkdir -p unzipped && unzip -q download.bin -d unzipped
+            found=""
+            while IFS= read -r -d '' f; do
+              if [ "$(head -c 5 "$f")" = "PGDMP" ]; then found="$f"; break; fi
+            done < <(find unzipped -type f -print0)
+            [ -n "$found" ] || { echo "::error::No PostgreSQL archive inside the zip"; exit 1; }
+            mv "$found" lovable.backup
+          elif [ "$(head -c 5 download.bin)" = "PGDMP" ]; then
+            mv download.bin lovable.backup
+          else
+            echo "::error::Not a zip and not a PostgreSQL archive"; exit 1
+          fi
+          echo "::notice title=export sha256::$(sha256sum lovable.backup | cut -d' ' -f1)"
+
+      - name: Select what to restore
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          "$PG_BIN/pg_restore" -l lovable.backup > toc.full
+          python3 - <<'PY'
+          import re, collections
+          line_re = re.compile(r'^(\d+); \d+ \d+ ([A-Z][A-Z ]*[A-Z]) (\S+) (\S+)')
+          keep, skipped = [], collections.Counter()
+          kept = collections.Counter()
+          AUTH_DATA = {"users", "identities"}
+          for raw in open("toc.full", encoding="utf-8"):
+              line = raw.rstrip("\n")
+              m = line_re.match(line)
+              if not m:
+                  continue
+              typ, schema, name = m.group(2), m.group(3), m.group(4)
+              take = False
+              if schema == "public":
+                  # Supabase already defines the default privileges of public;
+                  # re-declaring them for other owners is refused.
+                  take = typ != "DEFAULT ACL"
+              elif schema == "auth":
+                  take = typ == "TABLE DATA" and name in AUTH_DATA
+              elif schema == "storage":
+                  take = (typ == "TABLE DATA" and name == "buckets") or typ == "POLICY"
+              if take:
+                  keep.append(line)
+                  kept[f"{schema} | {typ}"] += 1
+              else:
+                  skipped[f"{schema} | {typ}"] += 1
+          open("toc.selected", "w", encoding="utf-8").write("\n".join(keep) + "\n")
+          with open("plan.txt", "w", encoding="utf-8") as out:
+              out.write("RESTORED\n")
+              for k in sorted(kept): out.write(f"{kept[k]:6d}  {k}\n")
+              out.write("\nSKIPPED\n")
+              for k in sorted(skipped): out.write(f"{skipped[k]:6d}  {k}\n")
+          PY
+          cat plan.txt
+          body="$(sed -e 's/%/%25/g' plan.txt | sed -e ':a;N;$!ba;s/\n/%0A/g')"
+          echo "::notice title=restore plan::${body}"
+
+      - name: Guard — right project, and it is empty
+        if: ${{ inputs.mode == 'restore' }}
+        env:
+          TARGET_DB_URL: ${{ secrets.TARGET_DB_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "${TARGET_DB_URL:-}" ] || { echo "::error::Secret TARGET_DB_URL is missing"; exit 1; }
+          case "$TARGET_DB_URL" in
+            *"$LEGACY_PRODUCTION_REF"*) echo "::error::TARGET_DB_URL points at the legacy production project"; exit 1 ;;
+            *"$TARGET_PROJECT_REF"*) ;;
+            *) echo "::error::TARGET_DB_URL is not the $TARGET_PROJECT_REF project"; exit 1 ;;
+          esac
+          read -r tables users <<<"$("$PG_BIN/psql" "$TARGET_DB_URL" -X -A -t -F ' ' -v ON_ERROR_STOP=1 -c \
+            "select (select count(*) from pg_tables where schemaname='public'), (select count(*) from auth.users)")"
+          echo "target public tables: $tables, auth users: $users"
+          if [ "$tables" != "0" ] || [ "$users" != "0" ]; then
+            echo "::error::Target is not empty (public tables: $tables, users: $users). Nothing was written."
+            exit 1
+          fi
+
+      - name: Restore (single transaction — all or nothing)
+        if: ${{ inputs.mode == 'restore' }}
+        env:
+          TARGET_DB_URL: ${{ secrets.TARGET_DB_URL }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          set +e
+          "$PG_BIN/pg_restore" --dbname="$TARGET_DB_URL" --use-list=toc.selected \
+            --no-owner --single-transaction --exit-on-error --verbose lovable.backup > restore.log 2>&1
+          status=$?
+          set -e
+          tail -n 40 restore.log
+          if [ "$status" -ne 0 ]; then
+            body="$(grep -iE 'error|fatal' restore.log | head -n 20 | sed -e 's/%/%25/g' | sed -e ':a;N;$!ba;s/\n/%0A/g')"
+            echo "::error title=restore failed (rolled back, target unchanged)::${body}"
+            exit 1
+          fi
+          echo "::notice title=restore::completed in one transaction"
+
+      - name: Verify (counts only)
+        if: ${{ inputs.mode == 'restore' }}
+        env:
+          TARGET_DB_URL: ${{ secrets.TARGET_DB_URL }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          "$PG_BIN/psql" "$TARGET_DB_URL" -X -A -t -v ON_ERROR_STOP=1 > summary.txt <<'SQL'
+          select 'tables '         || count(*) from pg_tables where schemaname = 'public';
+          select 'functions '      || count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public';
+          select 'policies '       || count(*) from pg_policies where schemaname = 'public';
+          select 'triggers '       || count(*) from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and not t.tgisinternal;
+          select 'auth_users '     || count(*) from auth.users;
+          select 'auth_identities '|| count(*) from auth.identities;
+          select 'buckets '        || count(*) from storage.buckets;
+          select 'storage_policies ' || count(*) from pg_policies where schemaname = 'storage';
+          SQL
+          "$PG_BIN/psql" "$TARGET_DB_URL" -X -A -t -F ' ' -v ON_ERROR_STOP=1 > rows.txt <<'SQL'
+          select c.relname,
+                 (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', c.relname), false, true, '')))[1]::text
+          from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind in ('r', 'p')
+          order by 1;
+          SQL
+          cat summary.txt
+          emit() {
+            local title="$1" file="$2" part=1
+            split -C 3500 -d "$file" "$file.part-"
+            for chunk in "$file".part-*; do
+              [ "$part" -le 8 ] || break
+              echo "::notice title=${title} (${part})::$(sed -e 's/%/%25/g' "$chunk" | sed -e ':a;N;$!ba;s/\n/%0A/g')"
+              part=$((part + 1))
+            done
+          }
+          emit "restored summary" summary.txt
+          emit "rows per public table" rows.txt
