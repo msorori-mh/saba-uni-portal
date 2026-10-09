@@ -26,9 +26,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi
-TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
-LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
+  TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi
+  TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
+  LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
   BACKUP_BUCKET: migration-private
 
 jobs:
