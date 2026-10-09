@@ -17,8 +17,8 @@ Environments ← `supabase-migration` فقط.
 |---|---|---|---|
 | A1 | ✅ (2026-10-09) النطاق على Cloudflare منذ يونيو 2026 (NS: `gloria`/`leif.ns.cloudflare.com`، الحالة Active). السجلات: `A @` و`A www` ← `185.158.133.1` (DNS only)، و4 سجلات TXT `_lovable` و`_lovable.www` | المالك | الموقع يعمل على الرابطين |
 | A2 | ✅ لا توجد سجلات بريد (MX/SPF/DKIM/DMARC) على النطاق | الوكيل | — |
-| A3 | حساب Resend، وتوثيق النطاق `quboolye.com`، وإضافة سجلات Resend في Cloudflare | المالك | Resend يعرض النطاق Verified |
-| A4 | إضافة السر `RESEND_API_KEY` إلى بيئة `supabase-migration` | المالك | يظهر في قائمة الأسرار |
+| A3 | ✅ (2026-10-10) Resend: النطاق `quboolye.com` موثَّق (DKIM + SPF، منطقة eu-west-1)، الإرسال مفعّل | المالك | Verified |
+| A4 | ✅ السر `RESEND_API_KEY` في بيئة `supabase-production` | المالك | يظهر في قائمة الأسرار |
 | A5 | Supabase الجديد ← Authentication ← URL Configuration: Site URL = `https://quboolye.com`، وRedirect URLs = `https://quboolye.com/**` و`https://www.quboolye.com/**` | المالك | محفوظ |
 | A6 | تنزيل ملفات التخزين من Lovable (Cloud ← Storage)، لكل حاوية بمجلداتها | المالك | 77 ملفاً، والقائمة الدقيقة يستخرجها الوكيل من قاعدة الإنتاج |
 | A7 | قرار المالك (2026-10-09، الطريقة 1): **مشروع Supabase جديد فارغ للإنتاج** (`PROD_REF` = `cldpnartkfnmllrkjaoi`، انظر القسم ح). يبقى `pwapivqjofdsevycegph` بيئة تجارب دائمة للكلية (عامل البروفة). يضع المالك أسرار المشروع الجديد في بيئة GitHub جديدة `supabase-production`، ويحدّث الوكيل أدوات الجرد والاستعادة لتقبل الهدف الجديد | المالك + الوكيل | تشغيل `plan` على المشروع الجديد ينجح، والهدف فارغ |
@@ -37,6 +37,8 @@ Environments ← `supabase-migration` فقط.
    - يجب أن تطابق أعداد الجداول والدوال والسياسات والمستخدمين الإنتاجَ.
    - بعدها يُحذف الدور `sandbox_exec`: `grant sandbox_exec to postgres; drop owned by sandbox_exec; drop role sandbox_exec;`
 5. **الملفات:** رفع الملفات من الخطوة A6 إلى الحاويات نفسها، بالمسارات نفسها حرفياً.
+   - **عنوان المرسل:** في محرر SQL للمشروع الجديد (البريد لا يعمل بالعنوان الافتراضي `onboarding@resend.dev`):
+     `insert into public.site_settings (setting_key, setting_value) values ('email_from_address','no-reply@quboolye.com'), ('email_from_name','بوابة كلية تكنولوجيا المعلومات') on conflict (setting_key) do update set setting_value = excluded.setting_value;`
 6. **دمج فرع الانتقال** (القسم ج). بعد الدمج لن تعمل نسخة Lovable مع الكود الجديد، وهذا متوقع.
 7. **النطاق:** لا خطوة. النطاق على Cloudflare أصلاً، فلا تغيير في Hostinger.
 8. **النشر الإنتاجي:** تشغيل سير العمل الإنتاجي (القسم د) بـSHA رأس main. يضيف `quboolye.com`
