@@ -31,7 +31,7 @@ on:
           - plan
           - restore
       confirm_project_ref:
-        description: "For restore: type the target project ref exactly (pwapivqjofdsevycegph)"
+        description: "For restore: type the target project ref exactly (cldpnartkfnmllrkjaoi)"
         required: false
         default: ""
         type: string
@@ -44,8 +44,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TARGET_PROJECT_REF: pwapivqjofdsevycegph
-  TARGET_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co
+  TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi
+  TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
   LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
   BACKUP_BUCKET: migration-private
   PG_BIN: /usr/lib/postgresql/18/bin
@@ -55,7 +55,7 @@ jobs:
     name: Restore into the college project (${{ inputs.mode }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: supabase-migration
+    environment: supabase-production
     steps:
       - name: Validate inputs
         id: input
