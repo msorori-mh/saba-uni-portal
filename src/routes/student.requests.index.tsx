@@ -145,6 +145,8 @@ function StudentRequestsIndexPage() {
         </div>
       </header>
 
+      <StudentServiceGuide variant="web" />
+
       <nav
         aria-label="أقسام الخدمات الطلابية"
         role="tablist"
