@@ -245,7 +245,7 @@ export function buildRequestsAggregateReport(
 
   return {
     reportId: REQUESTS_OVERVIEW_REPORT_ID,
-    title: input.title ?? "نظرة مجمعة على طلبات الطلاب",
+    title: input.title ?? "نظرة مجمعة على الخدمات الطلابية",
     beneficiary: input.beneficiary,
     minimumCellSize: threshold,
     kpis: [

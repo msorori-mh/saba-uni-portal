@@ -128,7 +128,7 @@ async function runChecks(): Promise<Section[]> {
       c("وجود بيانات طلاب", students, "must"),
       c("وجود الطالب التجريبي 20230001", testStudent, "must"),
       c("الخطط الدراسية النشطة", activePlans, "must"),
-      c("وجود مجموعات مطروحة", sections, "must"),
+      c("وجود مجموعات دراسية", sections, "must"),
       c("وجود تسجيلات للطلاب", enrollments, "must"),
       c("وجود درجات معتمدة (السجل الأكاديمي)", gradesApproved, "should"),
       c("وجود رسوم مرتبطة بالطلاب", fees, "must"),
@@ -507,7 +507,7 @@ async function runChecks(): Promise<Section[]> {
         ? pass("يوجد فصل دراسي حالي", `العدد: ${currentSem.count}`)
         : fail("لا يوجد فصل دراسي حالي", "اضبطه من مركز الشؤون الأكاديمية"),
       offerings.ok && sections.ok && enrollments.ok && receipts.ok
-        ? pass("KPIs تعمل", `طرح:${offerings.count} · مجموعات:${sections.count} · تسجيلات:${enrollments.count} · إيصالات:${receipts.count}`)
+        ? pass("KPIs تعمل", `إسناد:${offerings.count} · مجموعات:${sections.count} · تسجيلات:${enrollments.count} · إيصالات:${receipts.count}`)
         : warn("بعض مؤشرات KPI غير متاحة"),
       aopsAuditTotal > 0
         ? pass("Audit integration active", `year:${aopsYearAudit.count} · semester:${aopsSemAudit.count}`)

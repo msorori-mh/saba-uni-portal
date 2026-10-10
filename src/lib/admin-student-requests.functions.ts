@@ -82,7 +82,7 @@ async function assertRequestsAdmin(userId: string) {
   await assertAnyRole(
     userId,
     STUDENT_REQUESTS_ADMIN_ROLES,
-    "ليس لديك صلاحية إدارة طلبات الطلاب",
+    "ليس لديك صلاحية إدارة الخدمات الطلابية",
   );
 }
 

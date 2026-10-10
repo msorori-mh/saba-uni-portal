@@ -398,7 +398,7 @@ export function NewStudentRequestScreen({ typeFromSearch }: { typeFromSearch?: s
 
       {!focusedMode && (
       <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-3">
-        <h2 className="text-sm font-bold text-primary">أنواع الطلبات المتاحة</h2>
+        <h2 className="text-sm font-bold text-primary">أنواع الخدمات الطلابية المتاحة</h2>
         {isLoading ? (
           <div className="grid place-items-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />

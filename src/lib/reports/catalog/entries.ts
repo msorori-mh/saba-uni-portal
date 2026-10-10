@@ -136,9 +136,9 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
   },
   {
     report_code: "ADM-STUDENT-REQUESTS",
-    name_ar: "تقرير طلبات الطلاب",
+    name_ar: "تقرير الخدمات الطلابية",
     description:
-      "طلبات الطلاب مع ترشيحات؛ القسم الوحيد من عائلة الدوال القديمة الموصول فعلاً بالواجهة، مع تدقيق عرض/تصدير (reportName: student_requests_report). يغطي بند §5 «طلبات الطلاب حسب الحالة».",
+      "الخدمات الطلابية مع ترشيحات؛ القسم الوحيد من عائلة الدوال القديمة الموصول فعلاً بالواجهة، مع تدقيق عرض/تصدير (reportName: student_requests_report). يغطي بند §5 «الخدمات الطلابية حسب الحالة».",
     beneficiaries: ["vp_student_affairs", "dean", "operational_units_staff"],
     required_role: ["system_admin", "admin", "dean", "registrar", "finance_officer", "student_affairs"],
     data_scope: "university",
@@ -187,9 +187,9 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
   // ------------------------------------------------------------------
   {
     report_code: "AGG-REQUESTS-OVERVIEW",
-    name_ar: "نظرة مجمعة على طلبات الطلاب (aggregate-only)",
+    name_ar: "نظرة مجمعة على الخدمات الطلابية (aggregate-only)",
     description:
-      "KPIs وجداول مجمعة (حسب النوع/البرنامج/المستوى/الحالة/عمر التعليق) مع حجب الخلايا الصغيرة والكتمان التكميلي ونسب آمنة. يغطي بند §5 «طلبات الطلاب حسب النوع/البرنامج/المستوى» وبند «الطلبات المتأخرة» (جدول pending_age).",
+      "KPIs وجداول مجمعة (حسب النوع/البرنامج/المستوى/الحالة/عمر التعليق) مع حجب الخلايا الصغيرة والكتمان التكميلي ونسب آمنة. يغطي بند §5 «الخدمات الطلابية حسب النوع/البرنامج/المستوى» وبند «الطلبات المتأخرة» (جدول pending_age).",
     beneficiaries: ["dean", "vp_student_affairs", "university_presidency_council"],
     required_role: ["dean", "student_affairs", "admin", "system_admin"],
     data_scope: "university",

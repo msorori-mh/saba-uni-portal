@@ -22,7 +22,7 @@ export function RequestsAggregateDashboard({
   return (
     <div dir="rtl" className="space-y-3">
       <p className="text-sm text-gray-600">
-        {subtitle ?? "لوحة متابعة مؤشرات طلبات الطلاب — بيانات مجمعة فقط."}
+        {subtitle ?? "لوحة متابعة مؤشرات الخدمات الطلابية — بيانات مجمعة فقط."}
       </p>
       <AggregateReportView report={report} />
     </div>

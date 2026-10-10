@@ -68,7 +68,7 @@ function AdminStudentProgressPage() {
   return (
     <div dir="rtl" className="space-y-5">
       <div>
-        <h1 className="font-display text-2xl font-extrabold text-primary">تقدم الطلاب الأكاديمي</h1>
+        <h1 className="font-display text-2xl font-extrabold text-primary">تقدم الطلاب الأكاديمي (الترفيعات)</h1>
         <p className="text-sm text-muted-foreground">ابحث بالاسم أو الرقم الأكاديمي لعرض الملخص، تدقيق التخرج، والأهلية.</p>
       </div>
 

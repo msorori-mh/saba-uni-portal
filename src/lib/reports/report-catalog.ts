@@ -33,7 +33,7 @@ export const REPORT_CATALOG: readonly ReportCatalogEntry[] = [
   // ── Delivered by this slice ──────────────────────────────────────────────
   {
     reportId: "student_requests_overview",
-    title: "نظرة مجمعة على طلبات الطلاب",
+    title: "نظرة مجمعة على الخدمات الطلابية",
     beneficiary: "dean",
     priority: "critical",
     status: "delivered",
@@ -42,7 +42,7 @@ export const REPORT_CATALOG: readonly ReportCatalogEntry[] = [
   },
   {
     reportId: "student_requests_overview",
-    title: "نظرة مجمعة على طلبات الطلاب",
+    title: "نظرة مجمعة على الخدمات الطلابية",
     beneficiary: "student_affairs",
     priority: "critical",
     status: "delivered",
@@ -51,7 +51,7 @@ export const REPORT_CATALOG: readonly ReportCatalogEntry[] = [
   },
   {
     reportId: "student_requests_overview",
-    title: "نظرة مجمعة على طلبات الطلاب",
+    title: "نظرة مجمعة على الخدمات الطلابية",
     beneficiary: "university_leadership",
     priority: "high",
     status: "delivered",

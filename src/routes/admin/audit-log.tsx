@@ -26,7 +26,7 @@ type AuditRow = {
 
 const ENTITY_TYPES = [
   { value: "", label: "كل الكيانات" },
-  { value: "student_request", label: "طلبات الطلاب" },
+  { value: "student_request", label: "الخدمات الطلابية" },
   { value: "grade", label: "الدرجات" },
   { value: "finance", label: "المالية" },
 ];

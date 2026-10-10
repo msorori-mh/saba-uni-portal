@@ -209,9 +209,9 @@ function AcademicOpsPage() {
         )}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
-            label="المقررات المطروحة"
+            label="المقررات المسندة"
             value={kpis.data?.activeOfferings}
-            sub={kpis.data ? `من ${kpis.data.totalOfferings} طرح` : undefined}
+            sub={kpis.data ? `من إجمالي ${kpis.data.totalOfferings} إسناد` : undefined}
             icon={CalendarDays}
             to="/admin/course-offerings"
             loading={kpis.isLoading}

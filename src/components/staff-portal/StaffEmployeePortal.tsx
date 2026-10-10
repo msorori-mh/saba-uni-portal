@@ -79,7 +79,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
       { id: "home", label: "الرئيسية", icon: Home },
       { id: "profile", label: "ملفي الوظيفي", icon: UserRound },
       { id: "requests", label: "طلباتي ومعاملاتي", icon: FileText },
-      { id: "student-requests", label: "الطلبات الطلابية المسندة", icon: ClipboardCheck },
+      { id: "student-requests", label: "الخدمات الطلابية المسندة", icon: ClipboardCheck },
       { id: "notifications", label: "الإشعارات", icon: Bell },
     ],
   },

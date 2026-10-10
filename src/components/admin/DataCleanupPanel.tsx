@@ -12,7 +12,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from "lucide-react";
 const CLEANUP_TABLE_LABELS: Record<string, string> = {
   student_enrollments: "تسجيلات المقررات",
   student_grades: "الدرجات",
-  student_requests: "طلبات الطلاب",
+  student_requests: "الخدمات الطلابية",
   student_request_attachments: "مرفقات الطلبات",
   student_fees: "رسوم الطلاب",
   student_payments: "مدفوعات",

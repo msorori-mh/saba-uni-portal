@@ -69,7 +69,7 @@ export function formatNumber(n: number): string {
 export function bucketLabel(bucketId: string): string {
   switch (bucketId) {
     case "student-request-attachments":
-      return "مرفقات طلبات الطلاب";
+      return "مرفقات الخدمات الطلابية";
     case "student-request-secure-attachments":
       return "المرفقات الآمنة للطلبات";
     case "official-documents":
