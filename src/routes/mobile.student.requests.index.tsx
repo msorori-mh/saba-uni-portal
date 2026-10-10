@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { DeleteDraftRequestButton } from "@/components/student-requests/DeleteDraftRequestButton";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, FileWarning, Loader2, Plus, RefreshCw } from "lucide-react";
 import {
@@ -14,6 +15,11 @@ import {
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import {
+  StudentServicesPausedBanner,
+  useStudentServicesStatus,
+} from "@/components/student-requests/StudentServicesPausedNotice";
 
 export const Route = createFileRoute("/mobile/student/requests/")({
   head: () => ({ meta: [{ title: "الخدمات الطلابية" }] }),
@@ -88,16 +94,19 @@ function MobileStudentRequests() {
   const [activeTab, setActiveTab] = useState<"services" | "history">("services");
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
   const listFn = useServerFn(getMyStudentServiceRequests);
+  const { paused: servicesPaused, messageAr: servicesPausedMessageAr } = useStudentServicesStatus();
 
   const typesQuery = useQuery({
     queryKey: ["mobile-student", "request-types"],
     queryFn: () => typesFn({ data: {} }),
     staleTime: 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
   const requestsQuery = useQuery({
     queryKey: ["mobile-student", "requests"],
     queryFn: () => listFn({ data: {} }),
     staleTime: 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const refetch = () => {
@@ -111,7 +120,7 @@ function MobileStudentRequests() {
     const error = typesQuery.error ?? requestsQuery.error;
     return (
       <ErrorBox
-        message={error instanceof Error ? error.message : "تعذر تحميل الطلبات"}
+        message={error instanceof Error ? error.message : "تعذر تحميل الخدمات الطلابية"}
         onRetry={refetch}
         busy={isFetching}
       />
@@ -163,17 +172,21 @@ function MobileStudentRequests() {
         </TabButton>
       </nav>
 
+      {servicesPaused ? <StudentServicesPausedBanner messageAr={servicesPausedMessageAr} /> : null}
+
       {activeTab === "services" ? (
         <div className="space-y-5" role="tabpanel">
           <ServiceSection
             title="الحالة والقيد الأكاديمي"
             items={academicServices}
             emptyText="لا توجد خدمات أكاديمية متاحة لك حالياً."
+            paused={servicesPaused}
           />
           <ServiceSection
             title="الوثائق والإفادات والشكاوى"
             items={documentServices}
             emptyText="لا توجد خدمات وثائق أو إفادات متاحة حالياً."
+            paused={servicesPaused}
           />
           {unavailable.length > 0 ? (
             <section>
@@ -228,10 +241,12 @@ function ServiceSection({
   title,
   items,
   emptyText,
+  paused,
 }: {
   title: string;
   items: ServiceType[];
   emptyText: string;
+  paused: boolean;
 }) {
   return (
     <section>
@@ -241,7 +256,7 @@ function ServiceSection({
       ) : (
         <div className="space-y-2">
           {items.map((type) => (
-            <ServiceCard key={type.id} type={type} />
+            <ServiceCard key={type.id} type={type} paused={paused} />
           ))}
         </div>
       )}
@@ -266,13 +281,8 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
               request.request_type,
               request.request_type_name_ar,
             );
-            return (
-              <Link
-                key={request.id}
-                to="/mobile/student/requests/$id"
-                params={{ id: request.id }}
-                className="block rounded-xl border border-border bg-card p-3 shadow-card"
-              >
+            const cardBody = (
+              <>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-bold text-sm text-primary">{displayName}</div>
@@ -291,7 +301,33 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
                     ? `أُرسل: ${new Date(request.submitted_at).toLocaleDateString("ar-EG")}`
                     : `أُنشئ: ${new Date(request.created_at).toLocaleDateString("ar-EG")}`}
                 </div>
-              </Link>
+              </>
+            );
+            return (
+              <div key={request.id} className="space-y-1.5">
+              {/* Same split as the web list: the five B1 services open their
+                  own tracking view (stages, fee decision, summary). */}
+              {isB1ServiceCode(normalizeStudentRequestTypeCode(request.request_type)) ? (
+                <Link
+                  to="/mobile/student/requests/b1/view/$requestId"
+                  params={{ requestId: request.id }}
+                  className="block rounded-xl border border-border bg-card p-3 shadow-card"
+                >
+                  {cardBody}
+                </Link>
+              ) : (
+                <Link
+                  to="/mobile/student/requests/$id"
+                  params={{ id: request.id }}
+                  className="block rounded-xl border border-border bg-card p-3 shadow-card"
+                >
+                  {cardBody}
+                </Link>
+              )}
+              {request.status === "draft" ? (
+                <DeleteDraftRequestButton requestId={request.id} compact />
+              ) : null}
+              </div>
             );
           })}
         </div>
@@ -300,7 +336,7 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
   );
 }
 
-function ServiceCard({ type }: { type: ServiceType }) {
+function ServiceCard({ type, paused }: { type: ServiceType; paused: boolean }) {
   const canonical = normalizeStudentRequestTypeCode(type.code);
   const body = (
     <>
@@ -317,13 +353,32 @@ function ServiceCard({ type }: { type: ServiceType }) {
           <div className="mt-1 text-[10px] font-bold text-amber-800">يتطلب إرفاق مستند</div>
         ) : null}
       </div>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground">
-        <Plus className="h-3 w-3" /> تقديم
-      </span>
+      {paused ? (
+        <span className="inline-flex shrink-0 items-center rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground">
+          متوقفة مؤقتًا
+        </span>
+      ) : (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground">
+          <Plus className="h-3 w-3" /> تقديم
+        </span>
+      )}
     </>
   );
   const className =
     "flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3 shadow-card active:scale-[0.99]";
+
+  // Paused by the admin: the card stays visible but is not a link any more.
+  if (paused) {
+    return (
+      <div
+        aria-disabled="true"
+        data-testid="student-services-paused-card"
+        className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3 opacity-75"
+      >
+        {body}
+      </div>
+    );
+  }
 
   return isB1ServiceCode(canonical) ? (
     <Link

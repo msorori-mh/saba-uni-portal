@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { memberCount, normalizeRank, programCountLabel, programDescription } from "../../src/lib/public-site-format";
+import { academicRankLabel, memberCount, normalizeRank, programCountLabel, programDescription } from "../../src/lib/public-site-format";
 
 describe("public site formatting", () => {
   test("normalizes Arabic and English ranks", () => {
@@ -9,6 +9,11 @@ describe("public site formatting", () => {
     expect(normalizeRank("أستاذ")).toBe("professor");
     expect(normalizeRank("Associate Professor")).toBe("associate");
     expect(normalizeRank("TEST_ONLY")).toBeNull();
+    expect(academicRankLabel("Professor")).toBe("أستاذ");
+    expect(academicRankLabel("Lecturer Assistant")).toBe("مدرس مساعد");
+    expect(academicRankLabel("Assistant Lecturer")).toBe("مدرس");
+    expect(academicRankLabel("أستاذ مشارك")).toBe("أستاذ مشارك");
+    expect(academicRankLabel("محاضر مساعد")).toBe("محاضر مساعد");
   });
   test("Arabic count agreement", () => {
     expect(memberCount(1)).toBe("عضو واحد");

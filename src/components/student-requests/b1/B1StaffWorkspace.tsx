@@ -8,6 +8,13 @@ import {
   type B1AssignedRequestDetails,
   type B1StaffAction,
 } from "@/lib/student-requests/b1-ui";
+import type { B1ExcusedAbsenceFeeDecisionSubmission } from "@/lib/student-requests/b1-ui/adapter.types";
+import {
+  getB1FeeDecisionService,
+  isB1FeeDecisionStep,
+} from "@/lib/student-requests/b1-fee-decision-contract";
+import { getB1StepExitActions } from "@/lib/student-requests/excused-absence-fee-decision-contract";
+import { B1FeeDecisionCard } from "./B1FeeDecisionCard";
 import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
 import { B1EmptyState } from "./B1EmptyState";
 import { B1ErrorState } from "./B1ErrorState";
@@ -15,12 +22,12 @@ import { B1LoadingState } from "./B1LoadingState";
 import { B1RequestSummary } from "./B1RequestSummary";
 import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
 import { B1WorkflowTimeline } from "./B1WorkflowTimeline";
+import { STAFF_ASSIGNED_REQUESTS_QUERY_KEY } from "@/components/staff-portal/useAssignedStudentRequests";
 
 /**
- * Shared React Query key for the assigned-requests count shown on the staff
- * home card and the portal navigation badge. The workspace itself reads via
- * the adapter directly, but after every successful action it invalidates
- * this key so all counters refresh from the trusted backend source.
+ * Cache key for consumers of the B1-only assigned requests. The employee
+ * portal counts all services through the actor inbox, whose key is also
+ * invalidated after B1 actions.
  */
 export const B1_ASSIGNED_REQUESTS_QUERY_KEY = ["b1-assigned-requests"] as const;
 
@@ -72,6 +79,7 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
     try {
       await loadInbox();
       await queryClient.invalidateQueries({ queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: STAFF_ASSIGNED_REQUESTS_QUERY_KEY });
     } finally {
       setRefreshing(false);
     }
@@ -79,8 +87,9 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
 
   const refreshAfterAction = async (requestId: string) => {
     await loadInbox();
-    // Counters (home card + nav badge) re-read from the trusted source.
+    // Refresh both the B1-only cache and the all-service employee counters.
     await queryClient.invalidateQueries({ queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY });
+    await queryClient.invalidateQueries({ queryKey: STAFF_ASSIGNED_REQUESTS_QUERY_KEY });
     try {
       setDetails(await adapter.getAssignedB1RequestDetails(requestId));
     } catch {
@@ -98,6 +107,33 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
     } finally {
       setActing(false);
     }
+  };
+
+  // غياب بعذر / التحويل بين الأقسام / الفرصة الأخيرة: the registrar fee step is
+  // completed ONLY by a recorded fee decision — never by a plain review.
+  const recordFeeDecision = async (
+    stepId: string,
+    submission: B1ExcusedAbsenceFeeDecisionSubmission,
+  ) => {
+    if (!details || acting) return;
+    if (stepId !== details.stepId) throw new Error("B1_STEP_ID_MISMATCH");
+    const serviceCode = getB1FeeDecisionService(details.serviceCode);
+    setActing(true);
+    try {
+      await adapter.recordB1ExcusedAbsenceFeeDecision(
+        details.stepId,
+        serviceCode ? { ...submission, serviceCode } : submission,
+      );
+      await refreshAfterAction(details.requestId);
+    } finally {
+      setActing(false);
+    }
+  };
+
+  // Return / reject where the service contract allows them; the backend authorizes.
+  const exitAct = async (action: B1StaffAction, comment?: string) => {
+    if (action !== "return" && action !== "reject") throw new Error("B1_ACTION_TYPE_MISMATCH");
+    await act(action, comment);
   };
 
   const confirmRevenue = async (stepId: string, note?: string) => {
@@ -306,6 +342,14 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   acting={acting}
                   onConfirm={confirmRevenue}
                 />
+              ) : details.allowedAction === "review" &&
+                isB1FeeDecisionStep(details.serviceCode, details.stepKey) ? (
+                <B1FeeDecisionCard
+                  stepId={details.stepId}
+                  stepLabelAr={details.stepLabelAr}
+                  acting={acting}
+                  onDecide={recordFeeDecision}
+                />
               ) : details.allowedAction ? (
                 <B1EmployeeActionPanel
                   allowedAction={details.allowedAction}
@@ -319,6 +363,19 @@ export function B1StaffWorkspace({ embedded = false }: { embedded?: boolean }) {
                   لا يوجد إجراء مسموح لك على هذه المرحلة حالياً.
                 </p>
               )}
+              {details.allowedAction
+                ? getB1StepExitActions(details.serviceCode, details.stepKey).map((exitAction) => (
+                    <B1EmployeeActionPanel
+                      key={exitAction}
+                      panelId={exitAction}
+                      allowedAction={exitAction}
+                      stepLabelAr={details.stepLabelAr}
+                      stepKey={details.stepKey}
+                      acting={acting}
+                      onAct={exitAct}
+                    />
+                  ))
+                : null}
             </>
           )}
         </section>

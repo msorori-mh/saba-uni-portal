@@ -9,7 +9,7 @@ import { fetchFeeAssessmentBoard } from "@/lib/student-requests/fee-assessment-b
 export const Route = createFileRoute("/staff/fee-assessment-board")({
   head: () => ({
     meta: [
-      { title: "لوحة مهام تقييم الرسوم — مدير شؤون الطلاب" },
+      { title: "لوحة مهام تقييم الرسوم — مسجل الكلية" },
       {
         name: "description",
         content: "الطلبات المعلقة في خطوة تقييم الرسوم مع حالة كل طلب والخطوة التالية المقترحة.",
@@ -64,7 +64,7 @@ function FeeAssessmentBoardPage() {
           لوحة مهام تقييم الرسوم
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          مخصّصة لدور «مدير شؤون الطلاب»: الطلبات المتوقفة عند خطوة تقييم الرسوم، وحالة كل طلب،
+          مخصّصة لمسجل الكلية (ومدير شؤون الطلاب للطلبات الجارية): الطلبات المتوقفة عند خطوة تقييم الرسوم، وحالة كل طلب،
           والخطوة التالية المقترحة.
         </p>
 

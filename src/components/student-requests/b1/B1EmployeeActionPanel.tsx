@@ -18,6 +18,8 @@ type Props = {
   onAct: (action: B1StaffAction, comment?: string) => Promise<void> | void;
   /** Defaults to the contract list (return/reject require a comment). */
   requireComment?: boolean;
+  /** Distinguishes the comment field when several panels share one page. */
+  panelId?: string;
 };
 
 type ExecutableAction = Exclude<B1StaffAction, "confirm_payment">;
@@ -53,6 +55,25 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
   },
 };
 
+/**
+ * Decision-style wording for the positive button of well-known steps, so the
+ * employee reads what pressing it means («موافقة…») instead of the bare action
+ * name. Wording only: the executed action is always the literal configured one.
+ */
+const STEP_BUTTON_LABELS_AR: Readonly<
+  Record<string, Partial<Record<ExecutableAction, string>>>
+> = {
+  dean_review: { review: "موافقة وإحالة الطلب" },
+  department_head_signature: { approve: "موافقة وتوقيع" },
+  dean_signature: { approve: "موافقة وتوقيع" },
+  student_affairs_manager_signature: { approve: "موافقة وتوقيع" },
+  archive: { archive: "أرشفة الطلب" },
+};
+
+export function b1StepButtonLabelAr(action: ExecutableAction, stepKey?: string | null): string {
+  return STEP_BUTTON_LABELS_AR[(stepKey ?? "").trim()]?.[action] ?? ACTION_META[action].labelAr;
+}
+
 function ActionIcon({ action }: { action: ExecutableAction }) {
   const cls = "h-4 w-4";
   if (action === "reject") return <XCircle className={cls} />;
@@ -72,10 +93,15 @@ function ActionIcon({ action }: { action: ExecutableAction }) {
 export function B1EmployeeActionPanel({
   allowedAction,
   stepLabelAr,
+  stepKey,
   acting = false,
   onAct,
   requireComment,
+  panelId,
 }: Props) {
+  const commentFieldId = panelId
+    ? `b1-employee-action-comment-${panelId}`
+    : "b1-employee-action-comment";
   const [comment, setComment] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -103,8 +129,8 @@ export function B1EmployeeActionPanel({
   const commentRequired =
     requireComment ?? B1_STAFF_ACTIONS_REQUIRING_COMMENT.includes(allowedAction);
   const meta = ACTION_META[allowedAction];
-  // Label is derived literally from the configured action — never aliased.
-  const labelAr = meta.labelAr;
+  // The action itself is never aliased; only the button wording is step-aware.
+  const labelAr = b1StepButtonLabelAr(allowedAction, stepKey);
   const controlsDisabled = busy || acting;
 
   const handleAct = async () => {
@@ -146,13 +172,13 @@ export function B1EmployeeActionPanel({
 
       <div className="space-y-1.5">
         <label
-          htmlFor="b1-employee-action-comment"
+          htmlFor={commentFieldId}
           className="block text-xs font-bold text-muted-foreground"
         >
           التعليق {commentRequired ? "(إلزامي)" : "(اختياري)"}
         </label>
         <textarea
-          id="b1-employee-action-comment"
+          id={commentFieldId}
           value={comment}
           onChange={(event) => {
             setComment(event.target.value);

@@ -62,9 +62,21 @@ export const RANK_LABEL_AR: Record<RankKey, string> = {
   associate: "أستاذ مشارك",
   assistant: "أستاذ مساعد",
   lecturer: "محاضر",
-  lecturer_assistant: "محاضر مساعد",
+  lecturer_assistant: "مدرس مساعد",
   teaching: "معيد",
 };
+
+/** User-facing Arabic label for stored Arabic or English academic ranks. */
+export function academicRankLabel(rank: string | null | undefined): string | null {
+  if (!rank) return null;
+  const trimmed = rank.trim();
+  if (!trimmed || trimmed === "TEST_ONLY") return null;
+  if (/[\u0600-\u06FF]/.test(trimmed)) return trimmed;
+  const normalized = trimmed.replace(/\s+/g, " ").toLowerCase();
+  if (normalized === "assistant lecturer") return "مدرس";
+  const key = normalizeRank(trimmed);
+  return key ? RANK_LABEL_AR[key] : trimmed;
+}
 
 type ProgramDegreeLike = { code: string; degree_type?: string | null; years?: number | null };
 

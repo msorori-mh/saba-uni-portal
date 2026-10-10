@@ -7,7 +7,15 @@ import { toast } from "sonner";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any };
 
-type Section = { id: string; section_code: string; course_code: string; course_name: string };
+type Section = {
+  id: string;
+  section_code: string;
+  course_code: string;
+  course_name: string;
+  program_name: string | null;
+  level_name: string | null;
+  student_count?: number;
+};
 
 export function FacultyGradesManager({ facultyProfileId, sections }: { facultyProfileId: string; sections: Section[] }) {
   const qc = useQueryClient();
@@ -176,10 +184,16 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
               >
                 <div className="font-mono font-bold text-primary text-sm">{s.course_code}</div>
                 <div className="text-sm font-semibold mt-0.5 line-clamp-2 break-words">{s.course_name}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {[s.program_name, s.level_name].filter(Boolean).join(" • ")}
+                </div>
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded">
                     مجموعة {s.section_code}
                   </span>
+                  {typeof s.student_count === "number" ? (
+                    <span className="text-[10px] text-muted-foreground">{s.student_count} طالب</span>
+                  ) : null}
                   <span className="text-[11px] font-bold text-primary-deep border border-gold/40 bg-gold/10 px-2 py-1 rounded-md">
                     إدارة الدرجات
                   </span>
@@ -194,6 +208,9 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
             <div className="font-mono font-bold text-primary text-sm">{selected?.course_code}</div>
             <div className="text-xs font-semibold truncate">
               {selected?.course_name} · مجموعة {selected?.section_code}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {[selected?.program_name, selected?.level_name].filter(Boolean).join(" • ")}
             </div>
           </div>
           <button

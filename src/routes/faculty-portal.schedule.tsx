@@ -75,7 +75,7 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: FacultyInfo | n
   const { data, error } = await supabase
     .from("class_schedule")
     .select(
-      "id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), section:course_sections(section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)))",
+      "id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), section:course_sections(section_code, status, offering:course_offerings(academic_year_id, semester_id, status, program:programs(name_ar), level:academic_levels(name), course:courses(code, name_ar)))",
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .eq("faculty_profile_id", (fp as any).id)
@@ -95,6 +95,8 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: FacultyInfo | n
         academic_year_id: string;
         semester_id: string;
         status: string;
+        program: { name_ar: string } | null;
+        level: { name: string } | null;
         course: { code: string; name_ar: string } | null;
       } | null;
     } | null;
@@ -109,6 +111,8 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: FacultyInfo | n
       course_code: r.section?.offering?.course?.code ?? "—",
       course_name: r.section?.offering?.course?.name_ar ?? "—",
       section_code: r.section?.section_code ?? "—",
+      program_name: r.section?.offering?.program?.name_ar ?? null,
+      level_name: r.section?.offering?.level?.name ?? null,
       room: r.room?.name_ar ?? r.room?.code ?? null,
       schedule_type: r.schedule_type,
       day_of_week: r.time_slot!.day_of_week,

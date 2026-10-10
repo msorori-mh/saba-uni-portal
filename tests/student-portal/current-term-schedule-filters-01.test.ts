@@ -95,7 +95,7 @@ describe("schedule route current-term contracts", () => {
     const source = routeSources.mobileStudent;
     expectCanonicalResolverBefore(source, "student_enrollments");
     expectFailClosedWiring(source);
-    expect(source).toContain('.eq("student_profile_id", (sp as { id: string }).id)');
+    expect(source).toContain('.eq("student_profile_id", identity.studentProfileId)');
     expect(source).toContain('.eq("enrollment_status", "enrolled")');
     expect(source).toContain('if (s.status !== "published" || !s.time_slot) continue');
   });

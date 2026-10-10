@@ -9,7 +9,11 @@ export const B1_CANONICAL_CODES = [
 ] as const;
 
 export type B1CanonicalCode = (typeof B1_CANONICAL_CODES)[number];
-export type B1FeePolicy = "FREE_NO_PAYMENT" | "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION";
+export type B1FeePolicy =
+  | "FREE_NO_PAYMENT"
+  | "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION"
+  /** The college registrar decides per request; when due, payment is external and confirmed manually. */
+  | "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT";
 export const SERVICE_ACTIVATION_BLOCKED = "SERVICE_ACTIVATION_BLOCKED" as const;
 export const BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME" as const;
 export const BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME" as const;
@@ -136,7 +140,44 @@ const suspension: readonly B1WorkflowStep[] = [
   { key: "manager_approval", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
+/**
+ * غياب بعذر — دورة الرسوم والتوقيعات (excused_absence_external_payment_workflow).
+ *
+ * - الطالب يقدّم الطلب مع المرفقات الإلزامية → العميد يراجع ويحيل.
+ * - مسجل الكلية يسجّل قرار الرسوم لكل طلب: FEE_REQUIRED أو FEE_NOT_REQUIRED
+ *   (خدمة مجانية / إعفاء). لا مبلغ ولا عملة داخل البوابة.
+ * - عند لزوم الرسوم فقط: المالية تؤكد السداد الخارجي يدوياً
+ *   (payment_confirmation)؛ وعند عدم لزومها تُتخطّى الخطوة.
+ * - الإرجاع للطالب والرفض متاحان لهذه الخدمة فقط وفق
+ *   excused-absence-fee-decision-contract.ts.
+ * - التوقيعات الثلاثة (رئيس قسم الطالب، العميد، مدير شؤون الطلاب) خطوات
+ *   `approve`: محرّك B1 الذري لا ينفّذ `sign` (B1_SPECIALIZED_ACTION_RPC_REQUIRED)
+ *   والتوقيع لا ينشئ وثيقة أو PDF.
+ * - `record_apply` يبقى مفتاح خطوة تسجيل العذر لأن apply_b1_excused_absence_effect
+ *   مربوطة به؛ ينفّذها الآن مسجل الكلية ثم تُؤرشف المعاملة.
+ */
 const absence: readonly B1WorkflowStep[] = [
+  { key: "dean_review", unit: "dean", role: "dean", action: "review" },
+  { key: "registrar_fee_referral", unit: "registrar", role: "registrar_general", action: "review" },
+  { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
+  { key: "department_head_signature", unit: "department", role: "department_head", action: "approve" },
+  { key: "dean_signature", unit: "dean", role: "dean", action: "approve" },
+  { key: "student_affairs_manager_signature", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
+  { key: "record_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
+  { key: "archive", unit: "archive", role: "archive_officer", action: "archive" },
+];
+
+/** Department-head steps scoped to the requesting student's own department. */
+export const B1_STUDENT_DEPARTMENT_SCOPED_STEPS: Readonly<Partial<Record<B1CanonicalCode, readonly string[]>>> = {
+  excused_absence: ["department_head_signature"],
+};
+
+/**
+ * The retired three-step free cycle (excused_absence_free_workflow v1/v2).
+ * Requests submitted before the cut-over keep running on this snapshot; it is
+ * read-only history and is never used to initialize a new request.
+ */
+export const EXCUSED_ABSENCE_LEGACY_FREE_WORKFLOW: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "manager_review", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "record_apply", unit: "student_affairs", role: "student_affairs_specialist", action: "apply_decision" },
@@ -150,11 +191,18 @@ const withdrawal: readonly B1WorkflowStep[] = [
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
   { key: "archive", unit: "archive", role: "archive_officer", action: "archive" },
 ];
+/**
+ * B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01 (قرار المالك): في «التحويل بين
+ * الأقسام» و«الفرصة الأخيرة» يقرر مسجل الكلية الرسوم لكل طلب في خطوة
+ * `registrar_fee_decision` قبل `payment_confirmation` (تُتخطّى عند عدم لزوم
+ * الرسوم)، ثم يطبّق القرار في `registrar_apply`. بقية الخطوات كما كانت.
+ */
 const transfer: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "source_department_head_approval", unit: "department", role: "department_head", action: "approve" },
   { key: "target_department_head_approval", unit: "department", role: "department_head", action: "approve" },
   { key: "dean_approval", unit: "dean", role: "dean", action: "approve" },
+  { key: "registrar_fee_decision", unit: "registrar", role: "registrar_general", action: "review" },
   { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
@@ -162,6 +210,7 @@ const finalChance: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "manager_review", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "dean_decision", unit: "dean", role: "dean", action: "approve" },
+  { key: "registrar_fee_decision", unit: "registrar", role: "registrar_general", action: "review" },
   { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
@@ -176,10 +225,10 @@ export const B1_WORKFLOWS: Readonly<Record<B1CanonicalCode, readonly B1WorkflowS
 
 export const B1_FEE_POLICIES: Readonly<Record<B1CanonicalCode, B1FeePolicy>> = {
   enrollment_suspension: "FREE_NO_PAYMENT",
-  excused_absence: "FREE_NO_PAYMENT",
+  excused_absence: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
   file_withdrawal: "FREE_NO_PAYMENT",
-  department_transfer: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
-  final_chance: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+  department_transfer: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
+  final_chance: "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
 };
 
 export type StepActor = {
@@ -361,7 +410,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     },
   ),
   excused_absence: adapter(
-    "excused_absence", ["excused_absence", "absence_excuse"], "FREE_NO_PAYMENT",
+    "excused_absence", ["excused_absence", "absence_excuse"], "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     [{ key: "current_student_enrollments", field: "course_section_id", trustedServerValidationRequired: true }],
     noClientWrite("absence_excuse_details", "many", [
       { formField: "course_section_id", detailField: "course_section_id" },
@@ -379,7 +428,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     },
   ),
   department_transfer: adapter(
-    "department_transfer", ["department_transfer", "transfer"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+    "department_transfer", ["department_transfer", "transfer"], "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     [
       { key: "available_departments", field: "target_department_id", trustedServerValidationRequired: true },
       { key: "available_programs", field: "target_program_id", dependsOnField: "target_department_id", trustedServerValidationRequired: true },
@@ -392,7 +441,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     requiredText(["target_department_id", "target_program_id", "transfer_reason"]),
   ),
   final_chance: adapter(
-    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [
+    "final_chance", ["extra_chance"], "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT", [
       { key: "academic_years", field: "target_academic_year", trustedServerValidationRequired: true },
       { key: "semesters_for_year", field: "target_semester", dependsOnField: "target_academic_year", trustedServerValidationRequired: true },
     ],

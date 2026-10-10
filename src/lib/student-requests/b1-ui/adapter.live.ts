@@ -1,7 +1,8 @@
 /**
  * Live B1 UI adapter — wires final Secure Read + Secure Draft contracts.
  *
- * React components must not import Supabase; this adapter calls server fns only.
+ * React components must not import type { B1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
+import Supabase; this adapter calls server fns only.
  * runtimeAvailable is never hardcoded true — derived from capability readiness.
  */
 
@@ -13,6 +14,8 @@ import {
   type B1AttachmentMeta,
   type B1CanonicalCode,
   type B1Draft,
+  type B1ExcusedAbsenceFeeDecisionSubmission,
+  type ExcusedAbsenceFeeDecisionRecord,
   type B1FormOptions,
   type B1RequestDetails,
   type B1RuntimeCapability,
@@ -28,11 +31,14 @@ import {
   authorizeB1UiAttachmentDownloadFn,
   confirmB1UiRevenueReceiptFn,
   getAvailableB1RequestTypesFn,
+  getB1UiExcusedAbsenceFeeDecisionFn,
+  recordB1UiExcusedAbsenceFeeDecisionFn,
   removeB1UiRequestAttachmentFn,
   submitB1UiRequestFn,
   uploadB1UiRequestAttachmentFn,
 } from "./b1-ui.functions";
 import { isB1BusinessRuleError } from "./b1-business-error-mapping";
+import { EXCUSED_ABSENCE_DEPARTMENT_REQUIRED_MESSAGE_AR } from "@/lib/student-requests/excused-absence-fee-decision-contract";
 import { mapBackendRowsToB1Availability } from "./availability";
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
@@ -77,6 +83,14 @@ export type LiveB1UiAdapterDeps = {
     comment?: string,
   ) => Promise<B1StepActionResult>;
   confirmB1RevenueReceipt: (stepId: string, optionalNote?: string) => Promise<B1StepActionResult>;
+  recordExcusedAbsenceFeeDecision: (
+    stepId: string,
+    submission: B1ExcusedAbsenceFeeDecisionSubmission,
+  ) => Promise<B1StepActionResult>;
+  getExcusedAbsenceFeeDecision: (
+    requestId: string,
+    serviceCode?: B1FeeDecisionService,
+  ) => Promise<ExcusedAbsenceFeeDecisionRecord | null>;
   uploadB1RequestAttachment: (
     requestId: string,
     attachmentType: string,
@@ -107,6 +121,11 @@ const B1_ELIGIBILITY_GUARDS: ReadonlyArray<{ test: RegExp; messageAr: string }> 
   {
     test: /student profile is not active|B1_STUDENT_PROFILE_NOT_ACTIVE/i,
     messageAr: "ملفك الطلابي غير نشط حالياً، لذا لا يمكن تقديم هذا الطلب.",
+  },
+  {
+    // غياب بعذر: the absence form is signed by the head of the student's own department.
+    test: /B1_EXCUSED_ABSENCE_STUDENT_DEPARTMENT_REQUIRED/i,
+    messageAr: EXCUSED_ABSENCE_DEPARTMENT_REQUIRED_MESSAGE_AR,
   },
 ];
 
@@ -339,6 +358,23 @@ function defaultDeps(): LiveB1UiAdapterDeps {
         data: { stepId, note: optionalNote ?? null },
       });
     },
+    async recordExcusedAbsenceFeeDecision(stepId, submission) {
+      return recordB1UiExcusedAbsenceFeeDecisionFn({
+        data: {
+          stepId,
+          decision: submission.decision,
+          exemptionReason: submission.exemptionReason ?? null,
+          amountDue: submission.amountDue ?? null,
+          note: submission.note ?? null,
+          ...(submission.serviceCode ? { serviceCode: submission.serviceCode } : {}),
+        },
+      });
+    },
+    async getExcusedAbsenceFeeDecision(requestId, serviceCode) {
+      return getB1UiExcusedAbsenceFeeDecisionFn({
+        data: { requestId, ...(serviceCode ? { serviceCode } : {}) },
+      });
+    },
     async uploadB1RequestAttachment(requestId, attachmentType, file) {
       const fieldKey = asSecureFieldKey(attachmentType);
       const fileBase64 = await fileToBase64(file);
@@ -526,6 +562,30 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
         // 02R: same provenance rule as actOnB1RequestStep — unknown failures
         // degrade to the safe technical error, not PERMISSION_DENIED.
         mapLiveError(error, "UNEXPECTED_ERROR");
+      }
+    },
+
+    async recordB1ExcusedAbsenceFeeDecision(
+      stepId: string,
+      submission: B1ExcusedAbsenceFeeDecisionSubmission,
+    ): Promise<B1StepActionResult> {
+      try {
+        return await deps.recordExcusedAbsenceFeeDecision(stepId, submission);
+      } catch (error) {
+        // Same provenance rule as the other staff actions: unknown failures
+        // degrade to the safe technical error, never to PERMISSION_DENIED.
+        mapLiveError(error, "UNEXPECTED_ERROR");
+      }
+    },
+
+    async getB1ExcusedAbsenceFeeDecision(
+      requestId: string,
+      serviceCode?: B1FeeDecisionService,
+    ): Promise<ExcusedAbsenceFeeDecisionRecord | null> {
+      try {
+        return await deps.getExcusedAbsenceFeeDecision(requestId, serviceCode);
+      } catch (error) {
+        mapLiveError(error);
       }
     },
   };

@@ -84,6 +84,7 @@ export const Route = createFileRoute("/faculty-portal/academic-councils")({
 
 const INTAKE_CLOSED_NOTICE =
   "أُغلق استقبال الموضوعات لهذا الاجتماع بعد اعتماد جدول الأعمال.";
+const NO_OPEN_INTAKE_NOTICE = "لا يوجد اجتماع مفتوح لاستقبال الموضوعات حاليًا.";
 
 function FacultyAcademicCouncilsPage() {
   const fetchMembershipsV2 = useServerFn(getMyAcademicCouncilMembershipsV2);
@@ -280,6 +281,7 @@ function FacultyAcademicCouncilsPage() {
     (m: { council_id?: string }) => !selectedCouncilId || m.council_id === selectedCouncilId,
   );
   const hasOpenIntake = openIntakeMeetings.length > 0;
+  const noOpenIntakeNotice = nextMeeting ? INTAKE_CLOSED_NOTICE : NO_OPEN_INTAKE_NOTICE;
   const intakeNoticeForNextMeeting =
     nextMeeting &&
     !openIntakeMeetings.some(
@@ -380,7 +382,7 @@ function FacultyAcademicCouncilsPage() {
                   disabled={openIntakeQuery.isLoading || !hasOpenIntake}
                   title={
                     !openIntakeQuery.isLoading && !hasOpenIntake
-                      ? INTAKE_CLOSED_NOTICE
+                       ? noOpenIntakeNotice
                       : undefined
                   }
                   onClick={() => setSubmitOpen(true)}
@@ -400,7 +402,7 @@ function FacultyAcademicCouncilsPage() {
                   data-testid="councils-submit-topic-disabled-reason"
                   className="w-full text-[11px] leading-relaxed text-muted-foreground"
                 >
-                  {INTAKE_CLOSED_NOTICE}
+                  {noOpenIntakeNotice}
                 </p>
               ) : null}
             </div>
@@ -418,7 +420,7 @@ function FacultyAcademicCouncilsPage() {
                   data-testid="councils-tab-overview"
                 >
                   <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
-                  نظرة المجلس
+                  ملخص المجلس
                 </TabsTrigger>
                 <TabsTrigger
                   value="meetings"
@@ -462,7 +464,7 @@ function FacultyAcademicCouncilsPage() {
                 </TabsTrigger>
               </TabsList>
 
-              {/* نظرة المجلس — أولوية تشغيلية: جلسة حية ← إجراء مطلوب ← الاجتماع القادم */}
+              {/* ملخص المجلس — أولوية تشغيلية: جلسة حية ← إجراء مطلوب ← الاجتماع القادم */}
               <TabsContent value="overview" className="mt-4 space-y-4">
                 {liveMeeting ? (
                   <SectionShell

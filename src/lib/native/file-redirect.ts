@@ -8,6 +8,14 @@
  * the default published host — NOT allow-listed — which Android opens in the
  * system browser; the route then 302s to the signed URL and the file downloads.
  * Works with the existing APK (no native plugin needed).
+ *
+ * Shell compatibility (this JS is served remotely to every installed APK):
+ *  - APK <= 0.3.0 allow-lists the storage host, so a direct navigation would
+ *    stay inside the WebView — the redirect hop is REQUIRED there.
+ *  - APK >= 0.4.0 no longer allow-lists the storage host. The hop is kept
+ *    unchanged: the redirect host is still outside the allow-list, so the
+ *    system browser opens it and follows the 302 exactly as before.
+ * Do not remove the hop while 0.3.0 installs exist.
  */
 
 export const FILE_REDIRECT_HOST = "saba-uni-portal.lovable.app";

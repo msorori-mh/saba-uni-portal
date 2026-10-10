@@ -52,16 +52,18 @@ async function eligibleSectionIdsForStudent(
   // Preserve the setting surface, but never use either mode to infer sibling
   // sections. Exact current enrollment is the only authoritative audience.
   void mode;
-  const currentTerm = await fetchCanonicalCurrentTerm(
-    supabaseAdmin as unknown as CurrentTermClient,
-  );
+  // The current term and the student's enrollments are independent reads, so
+  // they go out together. Outcome is unchanged: no current term still yields an
+  // empty audience before the enrollment result is even looked at.
+  const [currentTerm, { data: enrolled, error }] = await Promise.all([
+    fetchCanonicalCurrentTerm(supabaseAdmin as unknown as CurrentTermClient),
+    supabaseAdmin
+      .from("student_enrollments")
+      .select("course_section_id, enrollment_status, section:course_sections(status, offering:course_offerings(academic_year_id, semester_id, status))")
+      .eq("student_profile_id", student.id)
+      .eq("enrollment_status", "enrolled"),
+  ]);
   if (!currentTerm) return new Set<string>();
-
-  const { data: enrolled, error } = await supabaseAdmin
-    .from("student_enrollments")
-    .select("course_section_id, enrollment_status, section:course_sections(status, offering:course_offerings(academic_year_id, semester_id, status))")
-    .eq("student_profile_id", student.id)
-    .eq("enrollment_status", "enrolled");
   if (error) throw new Error(error.message);
   return exactCurrentMaterialSectionIds(
     (enrolled ?? []) as unknown as MaterialEnrollmentRow[],
@@ -69,26 +71,42 @@ async function eligibleSectionIdsForStudent(
   );
 }
 
+/**
+ * Student profile (caller's own client, RLS) and the linkage setting are
+ * independent reads, so they go out together. The profile is still mandatory:
+ * a caller without a student profile is rejected before any material is read.
+ */
+async function loadStudentMaterialsContext(context: { supabase: unknown; userId: string }) {
+  const [student, { supabaseAdmin, mode }] = await Promise.all([
+    getStudentProfile(context.supabase as any, context.userId),
+    import("@/integrations/supabase/client.server").then(async ({ supabaseAdmin }) => ({
+      supabaseAdmin,
+      mode: await getLinkageMode(supabaseAdmin),
+    })),
+  ]);
+  return { student, supabaseAdmin, mode };
+}
+
 export const listStudentCourseMaterials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const student = await getStudentProfile((context.supabase as any), context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const mode = await getLinkageMode(supabaseAdmin);
+    const { student, supabaseAdmin, mode } = await loadStudentMaterialsContext(context);
     const sectionIds = await eligibleSectionIdsForStudent(supabaseAdmin, student, mode);
     if (sectionIds.size === 0) return [] as Array<{ section_id: string; course_code: string; course_name: string; material_count: number }>;
 
     const ids = Array.from(sectionIds);
-    const { data: sections } = await supabaseAdmin
-      .from("course_sections")
-      .select("id, section_code, offering:course_offerings(course:courses(code, name_ar))")
-      .in("id", ids);
-
-    const { data: materials } = await supabaseAdmin
-      .from("course_materials")
-      .select("id, course_section_id, study_system, files:course_material_files(scan_state)")
-      .in("course_section_id", ids)
-      .eq("status", "published");
+    // Both reads are scoped by the already-authorized section ids.
+    const [{ data: sections }, { data: materials }] = await Promise.all([
+      supabaseAdmin
+        .from("course_sections")
+        .select("id, section_code, offering:course_offerings(course:courses(code, name_ar))")
+        .in("id", ids),
+      supabaseAdmin
+        .from("course_materials")
+        .select("id, course_section_id, study_system, files:course_material_files(scan_state)")
+        .in("course_section_id", ids)
+        .eq("status", "published"),
+    ]);
 
     // Truthful counting: a published metadata-only row (no clean downloadable
     // file) is NOT a student-visible material and must never inflate the count.
@@ -115,29 +133,29 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ sectionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const student = await getStudentProfile((context.supabase as any), context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const mode = await getLinkageMode(supabaseAdmin);
+    const { student, supabaseAdmin, mode } = await loadStudentMaterialsContext(context);
     const sectionIds = await eligibleSectionIdsForStudent(supabaseAdmin, student, mode);
     if (!sectionIds.has(data.sectionId)) throw new Error("لا يمكنك الوصول إلى مواد هذه المجموعة");
 
-    const { data: rows } = await supabaseAdmin
-      .from("course_materials")
-      .select("id, title, description, week_number, lecture_number, study_system, material_scope, plan_session_id, published_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, scan_state, uploaded_at)")
-      .eq("course_section_id", data.sectionId)
-      .eq("status", "published")
-      .order("week_number", { ascending: true, nullsFirst: false })
-      .order("lecture_number", { ascending: true, nullsFirst: false })
-      .order("published_at", { ascending: false });
-
-    // Student-safe plan projection: only the official planned title/topics of
-    // the CURRENT plan. Execution reasons/notes are never exposed here.
-    const { data: plan } = await supabaseAdmin
-      .from("course_delivery_plans")
-      .select("id")
-      .eq("course_section_id", data.sectionId)
-      .eq("is_current", true)
-      .maybeSingle();
+    // Runs only after the section check above; the two reads are independent.
+    const [{ data: rows }, { data: plan }] = await Promise.all([
+      supabaseAdmin
+        .from("course_materials")
+        .select("id, title, description, week_number, lecture_number, study_system, material_scope, plan_session_id, published_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, scan_state, uploaded_at)")
+        .eq("course_section_id", data.sectionId)
+        .eq("status", "published")
+        .order("week_number", { ascending: true, nullsFirst: false })
+        .order("lecture_number", { ascending: true, nullsFirst: false })
+        .order("published_at", { ascending: false }),
+      // Student-safe plan projection: only the official planned title/topics of
+      // the CURRENT plan. Execution reasons/notes are never exposed here.
+      supabaseAdmin
+        .from("course_delivery_plans")
+        .select("id")
+        .eq("course_section_id", data.sectionId)
+        .eq("is_current", true)
+        .maybeSingle(),
+    ]);
     const topicsBySession = new Map<string, string | null>();
     if (plan) {
       const { data: sessions } = await supabaseAdmin

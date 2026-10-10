@@ -7,7 +7,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { useFacultyLogout } from "@/lib/faculty-portal/use-faculty-logout";
 import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
-import { hasLectureMonitoringAccess } from "@/lib/faculty-portal/monitoring-access.functions";
+import { DELIVERY_MONITORING_LABEL } from "@/lib/faculty-portal/delivery-monitoring-roles";
 import { portalFeatures } from "@/lib/portal-features";
 import { cn } from "@/lib/utils";
 
@@ -68,14 +68,6 @@ export function FacultyPortalShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const logout = useFacultyLogout();
 
-  const monitoringAccessFn = useServerFn(hasLectureMonitoringAccess);
-  const { data: monitoringAccess } = useQuery({
-    queryKey: ["faculty-portal", "lecture-monitoring-access"],
-    queryFn: () => monitoringAccessFn(),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-
   const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
   const { data: processingAccess } = useQuery({
     queryKey: ["faculty-portal", "processing-access"],
@@ -86,12 +78,15 @@ export function FacultyPortalShell({
   const showProcessingLink =
     !!processingAccess && (processingAccess.hasAssignment || processingAccess.isAdmin);
 
+  const showMonitoringLink = !!processingAccess?.canMonitorDelivery;
+
+  const baseItems: NavItem[] = [...NAV_ITEMS];
+  if (showMonitoringLink) {
+    baseItems.splice(3, 0, { to: "/faculty-portal/lecture-monitoring", label: DELIVERY_MONITORING_LABEL });
+  }
+
   const items: NavItem[] = [
-    ...NAV_ITEMS.slice(0, 3),
-    ...(monitoringAccess === true
-      ? [{ to: "/faculty-portal/lecture-monitoring", label: "متابعة التنفيذ" }]
-      : []),
-    ...NAV_ITEMS.slice(3),
+    ...baseItems,
     ...(portalFeatures.facultyCourseMaterials
       ? [{ to: "/faculty-portal/materials", label: "المواد التعليمية" }]
       : []),

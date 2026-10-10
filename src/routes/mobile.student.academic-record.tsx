@@ -7,9 +7,14 @@ import {
   Loader2,
   GraduationCap,
 } from "lucide-react";
-import { useMobileStudentContext } from "@/lib/mobile/student-context";
+import { fetchMobileStudentContext, useMobileStudentContext } from "@/lib/mobile/student-context";
 import { getMyProgress } from "@/lib/academic-status.functions";
 import { AcademicTranscript } from "@/components/academic/AcademicTranscript";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import {
+  MOBILE_OFFLINE_PREFETCH_OPTIONS,
+  prefetchMobileOfflineScreen,
+} from "@/lib/mobile/offline/screen-prefetch";
 
 export const Route = createFileRoute("/mobile/student/academic-record")({
   head: () => ({
@@ -18,6 +23,24 @@ export const Route = createFileRoute("/mobile/student/academic-record")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
+  // Offline mode: downloaded (and saved) in the background when the layout
+  // preloads this route — the student context first (it carries the profile id
+  // the record is keyed by), then the record itself.
+  loader: ({ context }) =>
+    prefetchMobileOfflineScreen(context.queryClient, async (queryClient) => {
+      const studentContext = await queryClient.fetchQuery({
+        queryKey: ["mobile-student", "context"],
+        queryFn: fetchMobileStudentContext,
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      });
+      const studentProfileId = studentContext.profile?.id;
+      if (!studentProfileId) return;
+      await queryClient.prefetchQuery({
+        queryKey: ["mobile-student", "academic-record", studentProfileId],
+        queryFn: () => getMyProgress(),
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      });
+    }),
   component: MobileStudentAcademicRecordPage,
 });
 
@@ -38,7 +61,7 @@ function MobileStudentAcademicRecordPage() {
     enabled: Boolean(studentProfileId),
     queryFn: () => fetchMine(),
     staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   return (

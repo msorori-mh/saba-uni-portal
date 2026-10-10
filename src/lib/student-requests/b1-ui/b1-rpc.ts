@@ -6,7 +6,12 @@
  * RpcClient so auth.uid() is present inside SECURITY DEFINER RPCs.
  */
 
+import { getB1FeeDecisionRpcs } from "@/lib/student-requests/b1-fee-decision-contract";
 import { validateExternalPaymentConfirmationInput } from "@/lib/student-requests/external-payment-confirmation-contract";
+import {
+  validateExcusedAbsenceFeeDecisionInput,
+  type ExcusedAbsenceFeeDecisionInput,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
   type SecureAttachmentFieldKey,
@@ -202,6 +207,87 @@ export async function rpcRecordExternalUniversityPaymentConfirmation(
     throw new Error(error.message ?? "record_external_university_payment_confirmation failed");
   }
   return (data ?? {}) as Record<string, unknown>;
+}
+
+/**
+ * Exact RPC arg keys — decision + reason + optional note + the display-only
+ * amount due (decimal text). Never a currency, receipt or computed value.
+ */
+export const RECORD_EXCUSED_ABSENCE_FEE_DECISION_ARG_KEYS = [
+  "p_step_id",
+  "p_decision",
+  "p_exemption_reason",
+  "p_note",
+  "p_amount_due",
+] as const;
+
+export const RECORD_EXCUSED_ABSENCE_FEE_DECISION_FORBIDDEN_CLIENT_KEYS = [
+  "amount",
+  "currency",
+  "invoice",
+  "receipt",
+  "decided_by",
+  "decided_at",
+  "request_id",
+  "p_amount",
+  "p_currency",
+  "p_request_id",
+  "p_decided_by",
+] as const;
+
+export function buildRecordExcusedAbsenceFeeDecisionRpcArgs(input: ExcusedAbsenceFeeDecisionInput): {
+  p_step_id: string;
+  p_decision: string;
+  p_exemption_reason: string | null;
+  p_note: string | null;
+  p_amount_due: string | null;
+} {
+  const validated = validateExcusedAbsenceFeeDecisionInput(input);
+  if (!validated.valid) {
+    throw new Error(`B1_EXCUSED_ABSENCE_FEE_DECISION_INPUT_INVALID:${validated.error}`);
+  }
+  return {
+    p_step_id: validated.normalized.stepId,
+    p_decision: validated.normalized.decision,
+    p_exemption_reason: validated.normalized.exemptionReason,
+    p_note: validated.normalized.note,
+    p_amount_due: validated.normalized.amountDue,
+  };
+}
+
+/** The registrar's fee decision: records it, completes the step and routes the request. */
+export async function rpcRecordExcusedAbsenceFeeDecision(
+  client: B1RpcClient,
+  input: ExcusedAbsenceFeeDecisionInput,
+  serviceCode: string = "excused_absence",
+): Promise<Record<string, unknown>> {
+  const args = buildRecordExcusedAbsenceFeeDecisionRpcArgs(input);
+  const rpc = resolveB1FeeDecisionRpcName(serviceCode, "recordRpc");
+  const { data, error } = await client.rpc(rpc, args);
+  if (error) throw new Error(error.message ?? `${rpc} failed`);
+  return (data ?? {}) as Record<string, unknown>;
+}
+
+/**
+ * The fee-decision RPC of a service (same argument contract for all three).
+ * Fail closed: a service without a registrar fee decision has no RPC to call.
+ */
+export function resolveB1FeeDecisionRpcName(serviceCode: string, kind: "recordRpc" | "readRpc"): string {
+  const rpcs = getB1FeeDecisionRpcs(serviceCode);
+  if (!rpcs) throw new Error("B1_FEE_DECISION_SERVICE_NOT_SUPPORTED");
+  return rpcs[kind];
+}
+
+/** Owner / direct-assignee read of the decision. Returns the raw payload (null when not visible). */
+export async function rpcGetExcusedAbsenceFeeDecision(
+  client: B1RpcClient,
+  requestId: string,
+  serviceCode: string = "excused_absence",
+): Promise<unknown> {
+  const rpc = resolveB1FeeDecisionRpcName(serviceCode, "readRpc");
+  const { data, error } = await client.rpc(rpc, { p_request_id: requestId });
+  if (error) throw new Error(error.message ?? `${rpc} failed`);
+  return data ?? null;
 }
 
 export type CreateAttachmentUploadIntentArgs = {

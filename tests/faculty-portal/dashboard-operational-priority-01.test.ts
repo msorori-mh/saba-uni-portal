@@ -28,6 +28,8 @@ const SAMPLE_TEACHING: TeachingSection[] = [
     id: "sec-1",
     section_code: "A",
     course: { code: "CS101", name_ar: "مقدمة حاسب" },
+    program_name: "تقنية المعلومات",
+    level_name: "المستوى الأول",
     schedule: [
       {
         day_of_week: "sunday",
@@ -49,6 +51,8 @@ const SAMPLE_TEACHING: TeachingSection[] = [
     id: "sec-2",
     section_code: "B",
     course: { code: "CS202", name_ar: "هياكل بيانات" },
+    program_name: "علوم الحاسوب",
+    level_name: "المستوى الثاني",
     schedule: [
       {
         day_of_week: "sunday",

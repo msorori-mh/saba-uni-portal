@@ -173,8 +173,20 @@ async function defaultBeginChallenge(input: {
 }): Promise<{ data: ChallengeRow | null; error: { message?: string } | null }> {
   const { beginStepUpChallengeFn } = await import("./device-trust.functions");
   try {
-    const data = await beginStepUpChallengeFn({ data: input });
-    return { data, error: null };
+    const issued = await beginStepUpChallengeFn({ data: input });
+    // The server function answers in camelCase; performStepUp consumes the
+    // snake_case challenge row shape. Map explicitly — passing the object
+    // through unchanged made every native step-up fail closed.
+    return {
+      data: {
+        challenge_id: issued.challengeId,
+        nonce: issued.nonce,
+        expires_at: issued.expiresAt,
+        device_id: issued.deviceId,
+        payload_hash: issued.payloadHash,
+      },
+      error: null,
+    };
   } catch (error) {
     return {
       data: null,

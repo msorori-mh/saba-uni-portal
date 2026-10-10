@@ -8,9 +8,30 @@ import {
   fetchMyStudyPlan,
   groupStudyPlanByLevel,
 } from "@/lib/student-study-plan";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import {
+  MOBILE_OFFLINE_PREFETCH_OPTIONS,
+  prefetchMobileOfflineScreen,
+} from "@/lib/mobile/offline/screen-prefetch";
 
 export const Route = createFileRoute("/mobile/student/study-plan")({
   head: () => ({ meta: [{ title: "الخطة الدراسية" }] }),
+  // Offline mode: downloaded (and saved) in the background when the layout
+  // preloads this route — the program first, then its plan.
+  loader: ({ context }) =>
+    prefetchMobileOfflineScreen(context.queryClient, async (queryClient) => {
+      const programId = await queryClient.fetchQuery({
+        queryKey: ["mobile-student", "program-id"],
+        queryFn: fetchMyProgramId,
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      });
+      if (!programId) return;
+      await queryClient.prefetchQuery({
+        queryKey: ["mobile-student", "study-plan", programId],
+        queryFn: () => fetchMyStudyPlan(programId),
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      });
+    }),
   component: MobileStudyPlan,
 });
 
@@ -19,6 +40,7 @@ function MobileStudyPlan() {
     queryKey: ["mobile-student", "program-id"],
     queryFn: fetchMyProgramId,
     staleTime: 5 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const { data: rows = [], isLoading } = useQuery({
@@ -26,6 +48,7 @@ function MobileStudyPlan() {
     queryFn: () => fetchMyStudyPlan(programId!),
     enabled: !!programId,
     staleTime: 5 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const groups = useMemo(() => groupStudyPlanByLevel(rows), [rows]);

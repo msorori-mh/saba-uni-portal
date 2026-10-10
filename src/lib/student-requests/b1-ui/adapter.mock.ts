@@ -7,6 +7,7 @@
  * `getB1UiAdapter()` only; the live backend replaces it untouched.
  */
 
+import { isB1FeeDecisionStep, type B1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
 import {
   B1AdapterError,
   type B1AssignedRequest,
@@ -14,6 +15,7 @@ import {
   type B1AttachmentMeta,
   type B1CanonicalCode,
   type B1Draft,
+  type B1ExcusedAbsenceFeeDecisionSubmission,
   type B1FormOptions,
   type B1ReferenceOption,
   type B1RequestDetails,
@@ -35,6 +37,13 @@ import {
 import { validateB1FormValues } from "./validation";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import { buildB1StudentFormSummaryItems } from "./form-summary";
+import {
+  EXCUSED_ABSENCE_PAYMENT_STEP_KEY,
+  excusedAbsenceFeeDecisionStudentMessageAr,
+  getB1StepExitActions,
+  validateExcusedAbsenceFeeDecisionInput,
+  type ExcusedAbsenceFeeDecisionRecord,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
 
 export const B1_MOCK_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const B1_MOCK_ALLOWED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
@@ -55,6 +64,8 @@ type MockRequest = {
   submittedAt?: string;
   steps: B1WorkflowStepView[];
   studentVisibleMessages: B1StudentVisibleMessage[];
+  /** غياب بعذر: the registrar's fee decision, once recorded. */
+  feeDecision?: ExcusedAbsenceFeeDecisionRecord;
   updatedAt: string;
 };
 
@@ -332,15 +343,24 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     const transferId = "b1mock-seed-transfer";
     const transferNumber = `B1-MOCK-${String(++requestCounter).padStart(4, "0")}`;
     const transferSteps = buildSteps("department_transfer");
-    for (let index = 0; index < 4; index += 1) {
+    // The registrar already decided that a fee is due (display-only value).
+    const transferPaymentIndex = transferSteps.findIndex((step) => step.key === "payment_confirmation");
+    for (let index = 0; index < transferPaymentIndex; index += 1) {
       transferSteps[index]!.status = "completed";
       transferSteps[index]!.actedAt = nowIso();
     }
-    transferSteps[4]!.status = "active"; // payment_confirmation
+    transferSteps[transferPaymentIndex]!.status = "active";
     requests.set(transferId, {
       requestId: transferId,
       requestNumber: transferNumber,
       serviceCode: "department_transfer",
+      feeDecision: {
+        requestId: transferId,
+        decision: "FEE_REQUIRED",
+        exemptionReason: null,
+        amountDue: "5000",
+        decidedAt: nowIso(),
+      },
       studentNameAr: MOCK_STUDENT_NAME_AR,
       studentNumber: MOCK_STUDENT_NUMBER,
       formData: {
@@ -705,6 +725,24 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
           comment: "comment_required",
         });
       }
+      if (
+        (action === "return" || action === "reject") &&
+        request.serviceCode === "excused_absence" &&
+        !getB1StepExitActions(request.serviceCode, step.key).includes(action)
+      ) {
+        throw new B1AdapterError(
+          "PERMISSION_DENIED",
+          `Action ${action} is not allowed on step ${step.key} of this service.`,
+        );
+      }
+      if (isB1FeeDecisionStep(request.serviceCode, step.key) && action !== "return" && action !== "reject") {
+        throw new B1AdapterError(
+          "BUSINESS_RULE_BLOCKED",
+          request.serviceCode === "excused_absence"
+            ? "B1_EXCUSED_ABSENCE_FEE_DECISION_REQUIRED"
+            : "B1_FEE_DECISION_REQUIRED",
+        );
+      }
       if (!allowedActionsForStep(step).includes(action)) {
         throw new B1AdapterError(
           "PERMISSION_DENIED",
@@ -728,6 +766,56 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         );
       }
       return applyProgression(request, step, index, "confirm_payment", optionalNote);
+    },
+
+    async recordB1ExcusedAbsenceFeeDecision(
+      stepId: string,
+      submission: B1ExcusedAbsenceFeeDecisionSubmission,
+    ): Promise<B1StepActionResult> {
+      await sleep();
+      const { request, step, index } = findStep(stepId);
+      if (
+        !isB1FeeDecisionStep(request.serviceCode, step.key) ||
+        step.status !== "active" ||
+        (submission.serviceCode !== undefined && submission.serviceCode !== request.serviceCode)
+      ) {
+        throw new B1AdapterError(
+          "PERMISSION_DENIED",
+          "Fee decision can only be recorded on the active registrar fee-decision step of the request's own service.",
+        );
+      }
+      const validated = validateExcusedAbsenceFeeDecisionInput({ stepId, ...submission });
+      if (!validated.valid) {
+        throw new B1AdapterError("VALIDATION_ERROR", "Fee decision is invalid.", {
+          decision: validated.error,
+        });
+      }
+      const record: ExcusedAbsenceFeeDecisionRecord = {
+        requestId: request.requestId,
+        decision: validated.normalized.decision,
+        exemptionReason: validated.normalized.exemptionReason,
+        amountDue: validated.normalized.amountDue,
+        decidedAt: nowIso(),
+      };
+      request.feeDecision = record;
+      if (record.decision === "FEE_NOT_REQUIRED") {
+        // No payment is due: the confirmation step does not apply to this request.
+        request.steps = request.steps.filter((item) => item.key !== EXCUSED_ABSENCE_PAYMENT_STEP_KEY);
+      }
+      pushStudentMessage(
+        request,
+        "مسجل الكلية (تجريبي)",
+        excusedAbsenceFeeDecisionStudentMessageAr(record),
+      );
+      return applyProgression(request, step, index, "review", validated.normalized.note ?? undefined);
+    },
+
+    async getB1ExcusedAbsenceFeeDecision(
+      requestId: string,
+      _serviceCode?: B1FeeDecisionService,
+    ): Promise<ExcusedAbsenceFeeDecisionRecord | null> {
+      await sleep();
+      return requireRequest(requestId).feeDecision ?? null;
     },
   };
 }

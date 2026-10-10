@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { validateUpload } from "@/lib/storage-validation";
+import { academicRankLabel } from "@/lib/public-site-format";
 import {
   listAdminFaculty,
   listAdminProgramOptions,
@@ -92,14 +93,7 @@ const RANKS = [
 ];
 
 function displayRank(rank: string | null): string {
-  if (!rank) return "—";
-  const normalized = rank.trim().toLowerCase();
-  if (normalized === "associate professor") return "أستاذ مشارك";
-  if (normalized === "assistant professor") return "أستاذ مساعد";
-  if (normalized === "assistant lecturer" || normalized === "lecturer assistant") return "مدرس";
-  if (normalized === "lecturer") return "محاضر";
-  if (normalized === "teaching assistant") return "معيد";
-  return rank;
+  return academicRankLabel(rank) ?? "—";
 }
 
 function AdminFacultyPage() {

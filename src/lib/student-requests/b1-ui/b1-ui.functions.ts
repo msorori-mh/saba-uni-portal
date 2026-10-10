@@ -36,8 +36,10 @@ import {
   rpcAuthorizeStudentRequestAttachmentDownload,
   rpcCompleteStudentRequestAttachmentUpload,
   rpcCreateStudentRequestAttachmentUploadIntent,
+  rpcGetExcusedAbsenceFeeDecision,
   rpcGetOwnedStudentRequestAttachmentUpload,
   rpcListMyStudentRequestAttachments,
+  rpcRecordExcusedAbsenceFeeDecision,
   rpcRecordExternalUniversityPaymentConfirmation,
   rpcRejectStudentRequestAttachment,
   rpcSubmitB1StudentRequestAtomic,
@@ -49,6 +51,11 @@ import type {
   B1StepActionResult,
   B1SubmitResult,
 } from "./adapter.types";
+import {
+  EXCUSED_ABSENCE_FEE_DECISION_NOTE_MAX,
+  parseExcusedAbsenceFeeDecisionRecord,
+  type ExcusedAbsenceFeeDecisionRecord,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
 
 type SessionRpc = {
   rpc: (
@@ -272,6 +279,75 @@ export const confirmB1UiRevenueReceiptFn = createServerFn({ method: "POST" })
       });
       throw error;
     }
+  });
+
+// Fee decision of the college registrar (غياب بعذر، التحويل بين الأقسام، الفرصة الأخيرة).
+// `serviceCode` only selects the service's RPC; the database authorizes the step.
+// Strict schema: decision + reason + optional note + the display-only amount due
+// (decimal text, validated again by the contract and by the RPC). No currency.
+const feeDecisionSchema = z
+  .object({
+    stepId: z.string().uuid(),
+    decision: z.enum(["FEE_REQUIRED", "FEE_NOT_REQUIRED"]),
+    exemptionReason: z.enum(["FREE_SERVICE", "EXEMPTION"]).optional().nullable(),
+    amountDue: z
+      .string()
+      .trim()
+      .regex(/^\d{1,7}(\.\d{1,2})?$/)
+      .optional()
+      .nullable(),
+    note: z.string().trim().max(EXCUSED_ABSENCE_FEE_DECISION_NOTE_MAX).optional().nullable(),
+    serviceCode: z.enum(["excused_absence", "department_transfer", "final_chance"]).optional(),
+  })
+  .strict();
+
+export const recordB1UiExcusedAbsenceFeeDecisionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => feeDecisionSchema.parse(input))
+  .handler(async ({ data, context }): Promise<B1StepActionResult> => {
+    try {
+      const result = await rpcRecordExcusedAbsenceFeeDecision(asSessionRpc(context.supabase), {
+        stepId: data.stepId,
+        decision: data.decision,
+        exemptionReason: data.exemptionReason ?? null,
+        amountDue: data.amountDue ?? null,
+        note: data.note ?? null,
+      }, data.serviceCode ?? "excused_absence");
+      if (result.success !== true) throw new Error("B1_ACTION_FAILED");
+      return {
+        accepted: true,
+        stepId: String(result.step_id ?? data.stepId),
+        ...(result.request_id ? { requestId: String(result.request_id) } : {}),
+        action: "review",
+      };
+    } catch (error) {
+      logB1UnclassifiedActionError({
+        operation: "record_excused_absence_fee_decision",
+        action: "review",
+        stepId: data.stepId,
+        error,
+      });
+      throw error;
+    }
+  });
+
+const feeDecisionReadSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    serviceCode: z.enum(["excused_absence", "department_transfer", "final_chance"]).optional(),
+  })
+  .strict();
+
+export const getB1UiExcusedAbsenceFeeDecisionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => feeDecisionReadSchema.parse(input))
+  .handler(async ({ data, context }): Promise<ExcusedAbsenceFeeDecisionRecord | null> => {
+    const raw = await rpcGetExcusedAbsenceFeeDecision(
+      asSessionRpc(context.supabase),
+      data.requestId,
+      data.serviceCode ?? "excused_absence",
+    );
+    return parseExcusedAbsenceFeeDecisionRecord(raw);
   });
 
 const uploadIntentSchema = z

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Loader2 } from "lucide-react";
 import { getStudentSelfReportCatalog } from "@/lib/beneficiary-reports.functions";
 import { StudentSelfReportsList } from "@/components/reports/StudentSelfReportsList";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/reports")({
   head: () => ({ meta: [{ title: "تقاريري" }] }),
@@ -22,6 +23,7 @@ function MobileStudentReports() {
     queryFn: () => fetchCatalog({ data: { surface: "mobile" as const } }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   return (

@@ -952,11 +952,19 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
         example: "enrolled",
         enumValues: ["enrolled", "dropped", "completed"],
       },
+      {
+        name: "result_mark",
+        description: "رمز النتيجة الرسمي كما في كشف الجامعة (مع completed فقط)",
+        required: false,
+        type: "enum",
+        example: "",
+        enumValues: ["غ ض", "م ح ض", "غ ب ض", "ق ض"],
+      },
     ],
     examples: [
-      ["2026001", "CS101", "A", "2026-2027", "first", "enrolled"],
-      ["2026001", "IT101", "A", "2026-2027", "first", "enrolled"],
-      ["2026002", "CS101", "A", "2026-2027", "first", "enrolled"],
+      ["2026001", "CS101", "A", "2026-2027", "first", "enrolled", ""],
+      ["2026001", "IT101", "A", "2026-2027", "first", "enrolled", ""],
+      ["2026002", "CS101", "A", "2026-2027", "first", "completed", "غ ض"],
     ],
   },
   {

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && bun run scripts/validate-tanstack-route-tree-register.ts",
+    "build": "node --max-old-space-size=8192 node_modules/vite/bin/vite.js build && bun run scripts/validate-tanstack-route-tree-register.ts",
     "build:dev": "NODE_OPTIONS=--max-old-space-size=8192 vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -88,7 +88,7 @@
     "@capacitor/cli": "^8.4.0",
     "@electric-sql/pglite": "^0.5.5",
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "2.23.1",
+    "@lovable.dev/vite-tanstack-config": "2.25.3",
     "@types/node": "^22.16.5",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.0",

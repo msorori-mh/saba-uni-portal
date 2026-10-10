@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Circle, Clock, Download, FileText, Loader2, Send, Wallet } from "lucide-react";
@@ -16,6 +17,7 @@ import {
   type StudentWorkflowTimelineStep,
 } from "@/lib/student-requests/student-tracking.functions";
 import { getEnrollmentCertificateDocumentSignedUrl } from "@/lib/student-requests/enrollment-certificate-pdf-storage-saga.functions";
+import { openSignedPdf } from "@/lib/documents/official-document-actions";
 
 
 const STEP_STATUS_META: Record<
@@ -173,6 +175,33 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "مكتمل",
 };
 
+/** Arabic labels for the request history; an unknown type falls back to a neutral label. */
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  created: "تم إنشاء الطلب",
+  draft_created: "تم إنشاء الطلب",
+  submitted: "تم إرسال الطلب",
+  resubmitted: "أُعيد إرسال الطلب",
+  in_review: "قيد المراجعة",
+  under_review: "قيد المراجعة",
+  reviewed: "تمت المراجعة",
+  approved: "تمت الموافقة",
+  rejected: "تم رفض الطلب",
+  returned: "أُعيد الطلب للاستكمال",
+  returned_for_completion: "أُعيد الطلب للاستكمال",
+  cancelled: "تم إلغاء الطلب",
+  completed: "اكتمل الطلب",
+  payment_requested: "مطلوب سداد الرسوم",
+  payment_confirmed: "تم تأكيد السداد",
+  signed: "تم التوقيع",
+  document_issued: "صدرت الوثيقة",
+  archived: "تمت الأرشفة",
+};
+
+function eventLabel(eventType: unknown): string {
+  const key = String(eventType ?? "").trim().toLowerCase();
+  return EVENT_TYPE_LABEL[key] ?? "تحديث على الطلب";
+}
+
 export function StudentRequestDetailsScreen({ id }: { id: string }) {
   const qc = useQueryClient();
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
@@ -210,7 +239,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
     setDownloadingDocId(documentId);
     try {
       const res = await documentUrlFn({ data: { officialDocumentId: documentId } });
-      window.open(res.signedUrl, "_blank", "noopener,noreferrer");
+      await openSignedPdf(res.signedUrl);
     } catch (e) {
       toast.error("تعذر تنزيل الوثيقة", { description: (e as Error).message });
     } finally {
@@ -220,7 +249,9 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
 
   const openAttachment = async (path: string) => {
     const res = await signedUrlFn({ data: { path } });
-    window.open(res.signedUrl, "_blank", "noopener,noreferrer");
+    // Shared signed-file opener: identical window.open on the web, system
+    // browser hand-off inside the Android shell.
+    await openSignedPdf(res.signedUrl);
   };
 
   const resubmit = async () => {
@@ -232,7 +263,9 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
       toast.success("تمت إعادة الإرسال", { description: "انتقل الطلب إلى: مُرسَل — بانتظار المراجعة." });
       qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
     } catch (e) {
-      toast.error("تعذر إعادة الإرسال", { description: (e as Error).message });
+      toast.error("تعذر إعادة الإرسال", {
+        description: studentServicesDisabledMessageAr(e) ?? (e as Error).message,
+      });
     } finally {
       resubmitInFlightRef.current = false;
       setResubmitting(false);
@@ -445,7 +478,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
             <div className="text-sm text-muted-foreground">لا توجد أحداث بعد.</div>
           ) : data.events.map((event: any) => (
             <div key={event.id} className="rounded-lg border border-border bg-background p-3 text-xs">
-              <div className="font-bold">{event.event_type}</div>
+              <div className="font-bold">{eventLabel(event.event_type)}</div>
               <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG")}</div>
               {event.notes && <div className="mt-1">{event.notes}</div>}
             </div>

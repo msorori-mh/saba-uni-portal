@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +17,10 @@ import {
   ScrollText,
   Inbox,
   ArrowLeft,
+  Clock,
+  MapPin,
+  LayoutGrid,
+  type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
@@ -31,6 +36,8 @@ import {
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
 import { portalFeatures } from "@/lib/portal-features";
+import { academicRankLabel } from "@/lib/public-site-format";
+import { listFacultyDeliverySections } from "@/lib/lecture-execution.functions";
 
 type FacultyProfileRow = {
   id: string;
@@ -62,7 +69,7 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
   const { data, error } = await supabase
     .from("course_sections")
     .select(
-      "id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
+      "id, section_code, offering:course_offerings(program:programs(name_ar), level:academic_levels(name), course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
     )
     .eq("faculty_profile_id", facultyProfileId)
     .eq("status", "active");
@@ -76,13 +83,19 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
   type Raw = {
     id: string;
     section_code: string;
-    offering: { course: { code: string; name_ar: string } | null } | null;
+    offering: {
+      program: { name_ar: string } | null;
+      level: { name: string } | null;
+      course: { code: string; name_ar: string } | null;
+    } | null;
     schedule: RawSched[] | null;
   };
   return ((data ?? []) as unknown as Raw[]).map((r) => ({
     id: r.id,
     section_code: r.section_code,
     course: r.offering?.course ?? null,
+    program_name: r.offering?.program?.name_ar ?? null,
+    level_name: r.offering?.level?.name ?? null,
     schedule: (r.schedule ?? [])
       .filter((s) => s.status !== "cancelled" && s.time_slot)
       .map((s) => ({
@@ -94,6 +107,72 @@ async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingSectio
       })),
   }));
 }
+
+/** Section heading used across the faculty home: tinted icon, title, optional hint and action. */
+function SectionHeading({
+  icon: Icon,
+  title,
+  hint,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-border/70 pb-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold/15 text-primary-deep">
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-extrabold leading-tight text-primary">{title}</h2>
+          {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+const ACTION_CARD_CLASS =
+  "group flex h-full min-h-[5.5rem] flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function ActionCardBody({
+  icon: Icon,
+  title,
+  description,
+  cta,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  cta?: string;
+}) {
+  return (
+    <>
+      <div className="flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold-gradient text-primary-deep shadow-sm">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-extrabold leading-snug text-primary">{title}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
+        </div>
+      </div>
+      <div className="mt-auto flex items-center justify-end gap-1 pt-3 text-xs font-bold text-primary-deep">
+        {cta ? (
+          <span className="rounded-md border border-gold/40 bg-gold/10 px-2.5 py-1">{cta}</span>
+        ) : (
+          <span className="opacity-70 transition-opacity group-hover:opacity-100">فتح</span>
+        )}
+        <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+      </div>
+    </>
+  );
+}
+
 
 export const Route = createFileRoute("/faculty-portal/")({
   component: FacultyDashboard,
@@ -117,6 +196,16 @@ function FacultyDashboard() {
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+  const { data: deliverySections = [] } = useQuery({
+    queryKey: ["faculty", "lecture-execution", "sections"],
+    queryFn: () => listFacultyDeliverySections(),
+    enabled: !!profile?.id,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const deliveryBySection = new Map(
+    deliverySections.map((section) => [section.course_section_id, section]),
+  );
   const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
   const { data: processingAccess } = useQuery({
     queryKey: ["faculty-portal", "processing-access"],
@@ -141,50 +230,58 @@ function FacultyDashboard() {
 
   return (
     <FacultyPortalShell title="بوابة عضو هيئة التدريس">
-      <main className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
+      <main className="container mx-auto max-w-5xl px-4 py-6 sm:py-8">
         {isLoading || !profile ? (
           <div className="space-y-4">
-            <div className="h-16 rounded-xl bg-muted animate-pulse" />
-            <div className="h-14 rounded-xl bg-muted animate-pulse" />
+            <div className="h-28 rounded-2xl bg-muted animate-pulse" />
+            <div className="h-20 rounded-xl bg-muted animate-pulse" />
             <div className="h-40 rounded-xl bg-muted animate-pulse" />
           </div>
         ) : (
           <>
-            {/* 1 — Compact welcome / identity header */}
+            {/* 1 — Welcome / identity header */}
             <div
               data-testid="faculty-dashboard-header"
-              className="rounded-xl bg-gold-gradient text-primary-deep p-3.5 sm:p-4 shadow-elegant flex items-center gap-3"
+              className="relative overflow-hidden rounded-2xl bg-hero-gradient p-5 text-primary-foreground shadow-elegant sm:p-6"
             >
-              <div className="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-primary-deep text-gold shrink-0">
-                <User className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                  مرحباً
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-gold/15 blur-3xl"
+              />
+              <div className="relative flex flex-wrap items-center gap-4">
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gold-gradient text-primary-deep shadow-gold sm:h-16 sm:w-16">
+                  <User className="h-7 w-7 sm:h-8 sm:w-8" />
                 </div>
-                <h1 className="font-display text-base sm:text-xl font-extrabold truncate">
-                  {profile.full_name_ar}
-                </h1>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm">
-                  {profile.academic_rank && (
-                    <span className="font-semibold opacity-90">{profile.academic_rank}</span>
-                  )}
-                  {profile.academic_rank && profile.position_title && (
-                    <span className="opacity-50" aria-hidden>
-                      ·
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold tracking-wide text-gold">مرحباً</div>
+                  <h1 className="mt-0.5 font-display text-xl font-extrabold leading-snug sm:text-2xl">
+                    {profile.full_name_ar}
+                  </h1>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-primary-foreground/85">
+                    {profile.academic_rank && (
+                      <span className="font-semibold">{academicRankLabel(profile.academic_rank)}</span>
+                    )}
+                    {profile.academic_rank && profile.position_title && (
+                      <span className="opacity-50" aria-hidden>
+                        ·
+                      </span>
+                    )}
+                    {profile.position_title && <span>{profile.position_title}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {profile.department?.name_ar ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 font-bold">
+                      <Building2 className="h-3.5 w-3.5 text-gold" />
+                      {profile.department.name_ar}
                     </span>
-                  )}
-                  {profile.position_title && (
-                    <span className="opacity-90">{profile.position_title}</span>
-                  )}
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-primary-deep/10 px-2 py-0.5 font-mono tracking-wider">
-                    <IdCard className="h-3 w-3 opacity-70" />
+                  ) : null}
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 font-mono tracking-wider">
+                    <IdCard className="h-3.5 w-3.5 text-gold" />
                     {profile.employee_number ?? "—"}
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-md bg-primary-deep/10 px-2 py-0.5 font-bold">
-                    <BadgeCheck className="h-3 w-3 opacity-70" />
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 font-bold">
+                    <BadgeCheck className="h-3.5 w-3.5 text-gold" />
                     {statusLabel[profile.status] ?? profile.status}
                   </span>
                 </div>
@@ -194,109 +291,140 @@ function FacultyDashboard() {
             {/* 2 — Daily operational summary */}
             <div
               data-testid="faculty-daily-summary"
-              className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2"
+              className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
             >
-              <div className="rounded-lg border bg-card px-3 py-2.5 flex items-center justify-between gap-2 min-w-0">
-                <span className="text-[11px] sm:text-xs text-muted-foreground shrink-0">
-                  محاضرات اليوم
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <CalendarClock className="h-5 w-5" />
                 </span>
-                <span
-                  data-testid="faculty-summary-today-sessions"
-                  className="font-display font-extrabold text-primary text-base sm:text-lg font-mono"
-                >
-                  {todaySessions.length}
-                </span>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-muted-foreground">محاضرات اليوم</div>
+                  <div
+                    data-testid="faculty-summary-today-sessions"
+                    className="font-display text-2xl font-extrabold leading-tight text-primary"
+                  >
+                    {todaySessions.length}
+                  </div>
+                </div>
               </div>
-              <div className="rounded-lg border bg-card px-3 py-2.5 flex items-center justify-between gap-2 min-w-0">
-                <span className="text-[11px] sm:text-xs text-muted-foreground shrink-0">مقرراتي</span>
-                <span
-                  data-testid="faculty-summary-courses"
-                  className="font-display font-extrabold text-primary text-base sm:text-lg font-mono"
-                >
-                  {coursesCount}
+              <Link
+                to="/faculty-portal/materials"
+                aria-label="فتح مقرراتي وموادها التعليمية"
+                className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <BookOpen className="h-5 w-5" />
                 </span>
-              </div>
-              <div className="rounded-lg border bg-card px-3 py-2.5 flex items-center justify-between gap-2 min-w-0 sm:col-span-1">
-                <span className="text-[11px] sm:text-xs text-muted-foreground shrink-0">
-                  طلبات المعالجة
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-muted-foreground">مقرراتي</div>
+                  <div
+                    data-testid="faculty-summary-courses"
+                    className="font-display text-2xl font-extrabold leading-tight text-primary"
+                  >
+                    {coursesCount}
+                  </div>
+                </div>
+              </Link>
+              <Link
+                to="/faculty-portal/processing-requests"
+                aria-label="فتح صندوق طلبات المعالجة"
+                className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold/15 text-primary-deep">
+                  <Inbox className="h-5 w-5" />
                 </span>
-                <span
-                  data-testid="faculty-summary-processing"
-                  className="text-[11px] sm:text-xs font-bold text-primary text-left truncate"
-                >
-                  {processingLabel}
-                </span>
-              </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-muted-foreground">طلبات المعالجة</div>
+                  <div
+                    data-testid="faculty-summary-processing"
+                    className="truncate text-sm font-extrabold leading-6 text-primary"
+                  >
+                    {processingLabel}
+                  </div>
+                </div>
+              </Link>
             </div>
 
             {/* 3 — My teaching schedule / today's sessions (single section) */}
-            <section data-testid="faculty-teaching-schedule" className="mt-5">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4 text-gold shrink-0" /> جدولي التدريسي
-                </h2>
-                <Link
-                  to="/faculty-portal/schedule"
-                  data-testid="faculty-full-schedule-link"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-gold transition-colors min-h-10 px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-                >
-                  عرض الجدول الكامل
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </Link>
-              </div>
+            <section data-testid="faculty-teaching-schedule" className="mt-7">
+              <SectionHeading
+                icon={CalendarClock}
+                title="جدولي التدريسي"
+                hint="محاضراتك المجدولة لهذا اليوم"
+                action={
+                  <Link
+                    to="/faculty-portal/schedule"
+                    data-testid="faculty-full-schedule-link"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-sm font-bold text-primary transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    عرض الجدول الكامل
+                    <ArrowLeft className="h-4 w-4" />
+                  </Link>
+                }
+              />
 
               {teaching.length === 0 ? (
                 <div
                   data-testid="faculty-teaching-empty"
-                  className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center"
+                  className="rounded-xl border border-dashed bg-card p-6 text-center text-sm text-muted-foreground"
                 >
                   لا توجد مجموعات مرتبطة بك حالياً.
                 </div>
               ) : todaySessions.length === 0 ? (
                 <div
                   data-testid="faculty-teaching-no-today"
-                  className="rounded-lg border border-dashed bg-card p-4 text-center space-y-2"
+                  className="space-y-2 rounded-xl border border-dashed bg-card p-6 text-center"
                 >
-                  <p className="text-sm font-semibold text-primary">لا توجد محاضرات اليوم</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-base font-bold text-primary">لا توجد محاضرات اليوم</p>
+                  <p className="text-sm text-muted-foreground">
                     لديك {coursesCount} مقرر/مجموعة مسندة — يمكنك مراجعة الجدول الأسبوعي الكامل.
                   </p>
                   <Link
                     to="/faculty-portal/schedule"
-                    className="inline-flex items-center justify-center gap-1.5 min-h-10 px-3 rounded-md border border-gold/40 bg-gold/10 text-xs font-bold text-primary-deep hover:border-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-gold/40 bg-gold/10 px-4 text-sm font-bold text-primary-deep transition-colors hover:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     عرض الجدول الكامل
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-4 w-4" />
                   </Link>
                 </div>
               ) : (
-                <ul className="space-y-2">
+                <ul className="grid gap-3 sm:grid-cols-2">
                   {todaySessions.map((s, i) => (
                     <li
                       key={`${s.sectionId}-${s.start_time}-${i}`}
                       data-testid="faculty-today-session"
-                      className="rounded-lg border bg-card p-3"
+                      className="flex gap-3 rounded-xl border border-border bg-card p-3.5 shadow-sm"
                     >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="font-mono font-bold text-primary">{s.courseCode}</span>
-                          <span className="mx-2 text-muted-foreground">—</span>
-                          <span className="font-semibold text-sm break-words">{s.courseName}</span>
-                        </div>
-                        <span className="text-[10px] sm:text-xs font-bold bg-muted px-2 py-0.5 rounded shrink-0">
-                          مجموعة {s.sectionCode}
+                      <div className="flex w-[4.75rem] shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 px-1 py-2 text-primary">
+                        <Clock className="mb-1 h-4 w-4 opacity-70" />
+                        <span className="font-mono text-sm font-extrabold leading-tight" dir="ltr">
+                          {s.start_time.slice(0, 5)}
+                        </span>
+                        <span className="font-mono text-[11px] leading-tight opacity-70" dir="ltr">
+                          {s.end_time.slice(0, 5)}
                         </span>
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="font-mono font-bold">
-                          {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
-                        </span>
-                        {s.room && (
-                          <span className="text-muted-foreground">• {s.room}</span>
-                        )}
-                        <span className="ms-auto text-[10px] bg-muted/50 border px-1.5 py-0.5 rounded">
-                          {TYPE_LABELS[s.schedule_type] ?? s.schedule_type}
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words text-[15px] font-extrabold leading-snug text-primary">
+                          {s.courseName}
+                        </div>
+                        <div className="mt-0.5 font-mono text-xs font-bold text-muted-foreground">
+                          {s.courseCode}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="rounded-md bg-muted px-2 py-0.5 font-bold">
+                            مجموعة {s.sectionCode}
+                          </span>
+                          <span className="rounded-md border bg-muted/50 px-2 py-0.5">
+                            {TYPE_LABELS[s.schedule_type] ?? s.schedule_type}
+                          </span>
+                          {s.room && (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {s.room}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -305,11 +433,13 @@ function FacultyDashboard() {
             </section>
 
             {/* 4 — Grades management */}
-            <section data-testid="faculty-grades-section" className="mt-5">
-              <LazyMount fallback={<div className="h-40 rounded-lg bg-muted animate-pulse" />}>
-                <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 text-gold" /> إدارة الدرجات
-                </h2>
+            <section data-testid="faculty-grades-section" className="mt-7">
+              <LazyMount fallback={<div className="h-40 rounded-xl bg-muted animate-pulse" />}>
+                <SectionHeading
+                  icon={ClipboardCheck}
+                  title="إدارة الدرجات"
+                  hint="مكونات الدرجات ورصدها لكل مجموعة مسندة إليك"
+                />
                 <FacultyGradesManager
                   facultyProfileId={profile.id}
                   sections={teaching.map((t) => ({
@@ -317,112 +447,88 @@ function FacultyDashboard() {
                     section_code: t.section_code,
                     course_code: t.course?.code ?? "—",
                     course_name: t.course?.name_ar ?? "—",
+                     program_name: t.program_name,
+                     level_name: t.level_name,
+                     student_count: deliveryBySection.get(t.id)?.student_count,
                   }))}
                 />
               </LazyMount>
             </section>
 
             {/* 5 — Operational actions */}
+            <div className="mt-7">
+              <SectionHeading icon={LayoutGrid} title="خدماتي" hint="أكثر ما تحتاجه في عملك اليومي" />
+            </div>
             <section
               data-testid="faculty-operational-actions"
-              className="mt-5 grid gap-2 sm:grid-cols-2"
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
             >
               {showProcessingCard && (
                 <Link
                   to="/faculty-portal/processing-requests"
                   data-testid="faculty-processing-card"
-                  className="block rounded-xl border-2 border-gold/30 bg-card p-3.5 hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[4.5rem]"
+                  className={ACTION_CARD_CLASS}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                      <Inbox className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-primary text-sm">طلبات المعالجة</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        الطلبات التي تنتظر إجراءك
-                      </div>
-                      <span className="mt-1.5 inline-flex items-center rounded-md border border-gold/40 bg-gold/10 px-2.5 py-1 text-[11px] font-bold text-primary-deep">
-                        فتح صندوق المعالجة
-                      </span>
-                    </div>
-                  </div>
+                  <ActionCardBody
+                    icon={Inbox}
+                    title="طلبات المعالجة"
+                    description="الطلبات التي تنتظر إجراءك"
+                    cta="فتح صندوق المعالجة"
+                  />
                 </Link>
               )}
 
               <Link
                 to="/faculty-portal/academic-councils"
                 data-testid="faculty-councils-card"
-                className="block rounded-xl border-2 border-gold/30 bg-card p-3.5 hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[4.5rem]"
+                className={ACTION_CARD_CLASS}
               >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <ScrollText className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-primary text-sm">مجالسي الأكاديمية</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      المجالس والاجتماعات المرتبطة بك
-                    </div>
-                    <span className="mt-1.5 inline-flex items-center rounded-md border border-gold/40 bg-gold/10 px-2.5 py-1 text-[11px] font-bold text-primary-deep">
-                      دخول مجالسي الأكاديمية
-                    </span>
-                  </div>
-                </div>
+                <ActionCardBody
+                  icon={ScrollText}
+                  title="مجالسي الأكاديمية"
+                  description="المجالس والاجتماعات المرتبطة بك"
+                  cta="دخول مجالسي الأكاديمية"
+                />
               </Link>
 
               <Link
                 to="/faculty-portal/lecture-execution"
                 data-testid="faculty-lecture-execution-card"
-                className="block rounded-xl border-2 border-gold/30 bg-card p-3.5 hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[4.5rem] sm:col-span-2"
+                className={ACTION_CARD_CLASS}
               >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <CalendarCheck className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-primary text-sm">متابعة تنفيذ المحاضرات</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      خطة المحاضرات المرقمة وتسجيل ما نُفذ وما تعذر
-                    </div>
-                  </div>
-                </div>
+                <ActionCardBody
+                  icon={CalendarCheck}
+                  title="تنفيذ المحاضرات"
+                  description="خطة المحاضرات المرقمة وتسجيل ما نُفذ وما تعذر"
+                />
               </Link>
 
               {portalFeatures.facultyCourseMaterials && (
                 <Link
                   to="/faculty-portal/materials"
                   data-testid="faculty-materials-card"
-                  className="block rounded-xl border-2 border-gold/30 bg-card p-3.5 hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[4.5rem] sm:col-span-2"
+                  className={ACTION_CARD_CLASS}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                      <BookOpen className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-primary text-sm">موادي التعليمية</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        رفع ونشر محاضرات وملفات المقررات المسندة إليك
-                      </div>
-                    </div>
-                  </div>
+                  <ActionCardBody
+                    icon={BookOpen}
+                    title="موادي التعليمية"
+                    description="رفع ونشر محاضرات وملفات المقررات المسندة إليك"
+                  />
                 </Link>
               )}
             </section>
 
             {/* 6 — Announcements (after operational actions) */}
-            <section data-testid="faculty-announcements-section" className="mt-5">
-              <LazyMount fallback={<div className="h-20 rounded-lg bg-muted animate-pulse" />}>
+            <section data-testid="faculty-announcements-section" className="mt-7">
+              <LazyMount fallback={<div className="h-20 rounded-xl bg-muted animate-pulse" />}>
                 <AnnouncementsWidget limit={5} compactEmpty />
               </LazyMount>
             </section>
 
             {/* 7 — Academic profile details */}
-            <section data-testid="faculty-profile-details" className="mt-5">
-              <h2 className="font-display text-base font-bold text-primary mb-3">
-                بياناتي الأكاديمية
-              </h2>
-              <div className="card-grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <section data-testid="faculty-profile-details" className="mt-7">
+              <SectionHeading icon={GraduationCap} title="بياناتي الأكاديمية" />
+              <div className="card-grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <StatCard
                   icon={IdCard}
                   label="رقم الموظف"
@@ -454,7 +560,7 @@ function FacultyDashboard() {
                 <StatCard
                   icon={Award}
                   label="الدرجة العلمية"
-                  value={profile.academic_rank ?? "—"}
+                  value={academicRankLabel(profile.academic_rank) ?? "—"}
                   density="compact"
                 />
                 <StatCard
@@ -466,9 +572,6 @@ function FacultyDashboard() {
               </div>
             </section>
 
-            <div className="mt-5 rounded-xl border border-dashed border-border bg-card p-3 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية الأخرى (الحضور، التقارير) في المراحل القادمة.
-            </div>
           </>
         )}
       </main>

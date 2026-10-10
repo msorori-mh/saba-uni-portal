@@ -21,6 +21,8 @@ export type ScheduleRow = {
   course_code: string;
   course_name: string;
   section_code: string;
+  program_name?: string | null;
+  level_name?: string | null;
   faculty?: string | null;
   room?: string | null;
   schedule_type: string;
@@ -42,7 +44,7 @@ export async function exportScheduleXlsx(opts: {
   const aoa: any[][] = [];
   for (const [k, v] of opts.header) aoa.push([k, v]);
   aoa.push([]);
-  const cols = ["اليوم", "من", "إلى", "رمز المقرر", "اسم المقرر", "المجموعات الدراسيةة", "القاعة", "النوع"];
+  const cols = ["اليوم", "من", "إلى", "رمز المقرر", "اسم المقرر", "المجموعة الدراسية", "البرنامج", "المستوى", "القاعة", "النوع"];
   if (opts.includeFaculty) cols.push("عضو هيئة التدريس");
   aoa.push(cols);
   const sorted = [...opts.rows].sort((a, b) => {
@@ -57,6 +59,8 @@ export async function exportScheduleXlsx(opts: {
       r.course_code,
       r.course_name,
       r.section_code,
+      r.program_name ?? "—",
+      r.level_name ?? "—",
       r.room ?? "—",
       TYPE_LABELS[r.schedule_type] ?? r.schedule_type,
     ];

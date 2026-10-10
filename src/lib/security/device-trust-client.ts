@@ -4,14 +4,16 @@
  * Enrolment requires BOTH:
  *  1. fresh account re-authentication (password) performed SERVER-SIDE, so a
  *     hijacked open session cannot silently enrol a new trusted device, and
- *  2. a successful biometric-bound Keystore signing operation on the device,
- *     proving the private key is accessible and under the user's biometric
- *     control.
+ *  2. a successful biometric-bound Keystore signing operation on the device
+ *     over a server-issued registration nonce. The signature is sent to the
+ *     server, which verifies it against the submitted public key (proof of
+ *     possession) before storing the trusted-device row.
  *
- * Only the public key leaves the device.
+ * Only the public key and that signature leave the device.
  */
 
 import { clearDeviceKey, ensureDeviceKey, signStepUpChallenge } from "@/lib/native/biometrics";
+import { buildDeviceRegistrationMessage } from "./device-registration-contract";
 import type { StepUpRpcClient } from "./step-up-client";
 
 export type DeviceTrustResult =
@@ -34,7 +36,19 @@ export type RegisterTrustedDeviceFn = (input: {
   publicKey: string;
   algorithm: string;
   platform: string;
+  nonce: string;
+  expiresAt: string;
+  mac: string;
+  signature: string;
 }) => Promise<{ registered: true; deviceId: string }>;
+
+/** Server-issued, HMAC-protected registration nonce for this user + device. */
+export type BeginDeviceRegistrationFn = (input: { deviceId: string }) => Promise<{
+  nonce: string;
+  expiresAt: string;
+  mac: string;
+  userId: string;
+}>;
 
 export async function registerTrustedDevice(
   client: StepUpRpcClient,
@@ -42,6 +56,7 @@ export async function registerTrustedDevice(
     password: string;
     reauthenticate: ReauthenticateFn;
     platform?: string;
+    beginRegistration: BeginDeviceRegistrationFn;
     register: RegisterTrustedDeviceFn;
   },
 ): Promise<DeviceTrustResult> {
@@ -52,24 +67,43 @@ export async function registerTrustedDevice(
     return { status: "reauth_required", messageAr: DEVICE_TRUST_MESSAGES_AR.reauthFailed };
   }
 
-  // 2. Create or retrieve the biometric-bound key and prove it works by
-  //    signing a fixed enrolment message. This forces a biometric prompt during
-  //    enrolment and proves the key is accessible.
+  // 2. Create or retrieve the biometric-bound key.
   let key;
-  let signature;
   try {
     key = await ensureDeviceKey();
+  } catch {
+    return { status: "unavailable", messageAr: DEVICE_TRUST_MESSAGES_AR.unavailable };
+  }
+
+  // 3. Obtain a short-lived server nonce bound to this user and device.
+  let challenge;
+  try {
+    challenge = await input.beginRegistration({ deviceId: key.deviceId });
+  } catch {
+    return { status: "failed", messageAr: DEVICE_TRUST_MESSAGES_AR.failed };
+  }
+
+  // 4. Sign the canonical registration message. This forces a biometric prompt
+  //    and yields the proof of possession the server verifies. The prompt
+  //    wording is chosen natively from the message type on current builds; the
+  //    label below is only displayed by the legacy 0.3.0 shell.
+  let signature;
+  try {
     signature = await signStepUpChallenge(
-      `usrp-device-enroll-v1|${key.deviceId}`,
+      buildDeviceRegistrationMessage({
+        nonce: challenge.nonce,
+        userId: challenge.userId,
+        deviceId: key.deviceId,
+        expiresAt: challenge.expiresAt,
+      }),
       "تأكيد ربط الجهاز",
     );
   } catch {
     return { status: "unavailable", messageAr: DEVICE_TRUST_MESSAGES_AR.unavailable };
   }
 
-  // 3. Server-side registration after the password has been re-verified. The
-  //    signature is not sent to the server; it only proves to the local
-  //    Keystore that the user is biometrically present.
+  // 5. Server-side registration: password re-verified, nonce HMAC/expiry/user
+  //    binding checked, and the signature verified against the public key.
   try {
     const result = await input.register({
       password: input.password,
@@ -77,6 +111,10 @@ export async function registerTrustedDevice(
       publicKey: key.publicKeyDer,
       algorithm: key.algorithm,
       platform: input.platform ?? "android",
+      nonce: challenge.nonce,
+      expiresAt: challenge.expiresAt,
+      mac: challenge.mac,
+      signature: signature.signature,
     });
     return { status: "registered", deviceId: result.deviceId };
   } catch {

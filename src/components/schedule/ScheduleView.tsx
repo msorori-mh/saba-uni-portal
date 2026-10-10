@@ -90,6 +90,11 @@ export function WeeklyGrid({ rows, showFaculty = false }: { rows: ScheduleRow[];
                           <div className="font-bold">{c.course_code}</div>
                           <div className="text-[10px] truncate">{c.course_name}</div>
                           <div className="text-[10px] text-muted-foreground">مجموعة دراسية {c.section_code}</div>
+                           {(c.program_name || c.level_name) && (
+                             <div className="text-[10px] text-muted-foreground">
+                               {[c.program_name, c.level_name].filter(Boolean).join(" • ")}
+                             </div>
+                           )}
                           {c.room && <div className="text-[10px]">{c.room}</div>}
                           {showFaculty && c.faculty && <div className="text-[10px]">{c.faculty}</div>}
                           <div className="text-[9px]">{TYPE_LABELS[c.schedule_type] ?? c.schedule_type}</div>
@@ -133,6 +138,8 @@ export function DayList({ rows, showFaculty = false }: { rows: ScheduleRow[]; sh
                     </div>
                     <div className="text-xs text-muted-foreground">
                       مجموعة دراسية {r.section_code}
+                       {r.program_name && <> • {r.program_name}</>}
+                       {r.level_name && <> • {r.level_name}</>}
                       {showFaculty && r.faculty && <> • {r.faculty}</>}
                       {r.room && <> • {r.room}</>}
                     </div>

@@ -21,8 +21,8 @@ fails closed on a wrong applicationId, cleartext traffic, or an undocumented per
 
 | Field | Current value |
 | --- | --- |
-| `versionCode` | `3` |
-| `versionName` | `0.3.0` |
+| `versionCode` | `8` |
+| `versionName` | `0.4.1` |
 
 Rules:
 
@@ -49,7 +49,10 @@ Rules:
 
 The Android app is a Capacitor shell around the deployed SSR portal
 (`server.url = https://quboolye.com/mobile/student-login`), HTTPS only,
-`cleartext = false`, no SSL bypass, navigation restricted to portal + backend hosts.
+`cleartext = false`, no SSL bypass, navigation restricted to the portal origin
+(`quboolye.com`, `www.quboolye.com`). The backend (Supabase) host is called by
+fetch/XHR only and is not a navigation target from `0.4.0`; signed file URLs open
+in the system browser.
 Web releases therefore reach devices without a Play update; a Play update is only
 needed when native config, identity, permissions or plugins change.
 
@@ -81,3 +84,19 @@ No second/conflicting Android application identity may be created for this porta
 Any additional permission must be added to `ALLOWED_PERMISSIONS` in
 `scripts/mobile/apply-android-identity.mjs` **and** justified in this table.
 Storage, location, contacts, phone and SMS permissions are explicitly not allowed.
+
+### Merged-manifest permissions (library supplied)
+
+The allowlist above is enforced against the app's own source manifest
+(`android/app/src/main/AndroidManifest.xml`). The **merged** manifest of the built
+APK/AAB additionally carries the following normal (install-time, no user prompt)
+permissions contributed by the `androidx.biometric:biometric` dependency used for
+the app lock and step-up confirmation:
+
+| Permission | Source | Reason |
+| --- | --- | --- |
+| `android.permission.USE_BIOMETRIC` | `androidx.biometric` | BiometricPrompt (API 28+) |
+| `android.permission.USE_FINGERPRINT` | `androidx.biometric` | Legacy fingerprint API (API 23–27) |
+
+They grant no access to biometric templates or images; they must be declared
+truthfully in the Play Console listing. No other library-supplied permission is expected.

@@ -19,10 +19,10 @@ import {
 } from "@/integrations/supabase/deployment-profile";
 
 export async function requireSupabaseAuth(request?: Request) {
-  const DEPLOY_TARGET = resolvePortalDeployTarget(process.env["PORTAL_DEPLOY_TARGET"]);
-  const SUPABASE_URL = process.env["SUPABASE_URL"] || portalFallbackSupabaseUrl(DEPLOY_TARGET);
+  const DEPLOY_TARGET = resolvePortalDeployTarget(process.env.PORTAL_DEPLOY_TARGET);
+  const SUPABASE_URL = process.env.SUPABASE_URL || portalFallbackSupabaseUrl(DEPLOY_TARGET);
   const SUPABASE_PUBLISHABLE_KEY =
-    process.env["SUPABASE_PUBLISHABLE_KEY"] || portalFallbackSupabasePublishableKey(DEPLOY_TARGET);
+    process.env.SUPABASE_PUBLISHABLE_KEY || portalFallbackSupabasePublishableKey(DEPLOY_TARGET);
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("Missing Supabase server environment variables.");
   }

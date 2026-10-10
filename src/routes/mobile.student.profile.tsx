@@ -15,6 +15,7 @@ import {
   STUDY_SYSTEM_LABELS_AR,
   useMobileStudentContext,
 } from "@/lib/mobile/student-context";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/profile")({
   head: () => ({ meta: [{ title: "بياناتي الأكاديمية" }] }),
@@ -34,6 +35,7 @@ function MobileStudentAcademicProfile() {
     queryFn: () => fetchSummary({ data: {} }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
   const p = data?.profile ?? null;
   const current = data?.currentEnrolment ?? null;

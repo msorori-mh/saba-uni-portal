@@ -12,6 +12,11 @@
  *  - No biometric image/template/score is ever read, stored or transmitted.
  *  - A `KEY_INVALIDATED` signing failure (device biometrics changed) is the
  *    authoritative trust-revocation signal — not a plugin boolean.
+ *  - This JS is served remotely and therefore runs against BOTH the installed
+ *    0.3.0 shell and newer shells. From 0.4.0 the native plugin enforces the
+ *    alias below, signs only the known message formats (app unlock, step-up,
+ *    device registration) and picks the prompt wording itself; the `reason`
+ *    argument is still sent because the 0.3.0 shell displays it.
  */
 
 import { isNativePlatform } from "./platform";
@@ -66,8 +71,6 @@ type BiometricPlugin = {
     message: string;
     reason: string;
   }): Promise<SignedAssertion>;
-  /** Biometric prompt only — used for app unlock. */
-  authenticate(options: { alias: string; reason: string }): Promise<{ verified: boolean }>;
   /** Deletes the Keystore key material for this app. */
   clearDeviceKey(options: { alias: string }): Promise<void>;
   /** FLAG_SECURE toggle used to hide content from Recent Apps. */
@@ -188,6 +191,8 @@ export async function clearDeviceKey(): Promise<void> {
 /**
  * Hide app content from Recent Apps / screenshots.
  * Enabled only while backgrounded or locked (per approved plan), never always-on.
+ * From shell 0.4.0 the native activity additionally sets FLAG_SECURE whenever it
+ * is paused, independent of the app-lock setting.
  */
 export async function setSecureScreen(enabled: boolean): Promise<void> {
   const impl = plugin();

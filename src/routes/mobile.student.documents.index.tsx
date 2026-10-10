@@ -9,7 +9,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { openExternalUrl } from "@/lib/native/external-links";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 
 export const Route = createFileRoute("/mobile/student/documents/")({
   head: () => ({ meta: [{ title: "الوثائق الرسمية" }] }),
@@ -42,15 +44,9 @@ const STATUS: Record<string, { text: string; cls: string }> = {
 };
 
 async function fetchDocs(): Promise<DocRow[]> {
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth?.user) throw new Error("غير مسجل الدخول");
-  const { data: profile, error: pErr } = await sb
-    .from("student_profiles")
-    .select("id")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  if (pErr) throw pErr;
-  if (!profile?.id) return [];
+  const identity = await getMobileStudentIdentity();
+  if (!identity) return [];
+  const profile = { id: identity.studentProfileId };
   const { data, error } = await sb
     .from("official_documents")
     .select("id, document_type, document_number, verification_code, status, issued_at")
@@ -65,7 +61,7 @@ function MobileStudentDocuments() {
     queryKey: ["mobile-student", "documents"],
     queryFn: fetchDocs,
     staleTime: 2 * 60_000,
-    gcTime: 10 * 60_000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 

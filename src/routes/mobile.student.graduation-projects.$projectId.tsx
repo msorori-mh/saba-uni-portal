@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { MvpProjectWorkspace } from "@/components/graduation-projects/MvpProjectWorkspace";
+import { ProjectWorkflowCard } from "@/components/graduation-projects/ProjectWorkflowCard";
 import { MvpError, MvpSuccess } from "@/components/graduation-projects/MvpStates";
 import { GP_STUDENT_LEVEL4_REQUIRED_MSG } from "@/lib/graduation-projects/eligibility";
 import { useMobileStudentContext } from "@/lib/mobile/student-context";
@@ -45,6 +46,7 @@ function MobileGraduationProject() {
       ) : (
         <>
           {action.isSuccess ? <MvpSuccess message="تم تنفيذ الإجراء بنجاح." /> : null}
+          <ProjectWorkflowCard projectId={projectId} />
           {action.error ? <MvpError message={action.error.message} /> : null}
           {query.isLoading ? (
             <div className="grid place-items-center py-12">

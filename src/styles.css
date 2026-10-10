@@ -209,3 +209,6 @@
   }
   .animate-float-up { animation: none; }
 }
+
+/* Internal portals: the slim fallback bar only shows when no PortalShell is rendered. */
+body:has([data-portal-shell]) .portal-fallback-bar { display: none; }

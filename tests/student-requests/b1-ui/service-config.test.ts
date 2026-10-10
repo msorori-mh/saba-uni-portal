@@ -22,18 +22,29 @@ describe("B1 UI service config", () => {
       expect(service.feePolicy).toBe(B1_FEE_POLICIES[service.code]);
     }
     expect(getB1ServiceConfig("enrollment_suspension")!.feePolicy).toBe("FREE_NO_PAYMENT");
-    expect(getB1ServiceConfig("excused_absence")!.feePolicy).toBe("FREE_NO_PAYMENT");
+    expect(getB1ServiceConfig("excused_absence")!.feePolicy).toBe(
+      "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
+    );
     expect(getB1ServiceConfig("file_withdrawal")!.feePolicy).toBe("FREE_NO_PAYMENT");
     expect(getB1ServiceConfig("department_transfer")!.feePolicy).toBe(
-      "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     );
     expect(getB1ServiceConfig("final_chance")!.feePolicy).toBe(
-      "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT",
     );
   });
 
   it("ships Arabic fee copy with no amounts or currency", () => {
     expect(B1_FEE_POLICY_LABELS_AR.FREE_NO_PAYMENT).toContain("مجانية");
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain(
+      "النظام الجامعي الرئيسي",
+    );
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain("مسجل الكلية");
+    // owner-approved exception: the amount due is shown, nothing is paid in the portal
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain("قيمة الرسوم");
+    expect(B1_FEE_POLICY_LABELS_AR.REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT).toContain(
+      "لا يتم أي سداد داخل البوابة",
+    );
     expect(B1_FEE_POLICY_LABELS_AR.EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION).toContain(
       "النظام الجامعي الرئيسي",
     );

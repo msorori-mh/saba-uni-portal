@@ -142,8 +142,7 @@ function FacultyReportsPage() {
             kpiTiles={kpiTiles}
             header={
               <p className="text-sm text-muted-foreground">
-                نطاق المقررات والمجموعات الدراسية والمشاريع المسندة إليك فقط.
-                {data?.scopeLabelAr ? ` — ${data.scopeLabelAr}` : ""}
+                تعرض هذه الصفحة المقررات والمجموعات الدراسية والمشاريع المسندة إليك فقط.
               </p>
             }
             betweenKpisAndCatalog={

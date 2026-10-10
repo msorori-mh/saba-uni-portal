@@ -9,7 +9,13 @@
  *
  * HttpOnly cookies cannot be removed from JS; they are already invalidated
  * server-side by the sign-out call.
+ *
+ * It also wipes the mobile app's offline payloads (`mobile-offline:*` —
+ * persisted student data and identity, see docs/mobile/OFFLINE-FIRST-01.md) so
+ * no sign-out path can leave a previous student's data on the device.
  */
+
+import { wipeMobileOfflineData } from "@/lib/mobile/offline/offline-store";
 
 const AUTH_KEY_PATTERN = /^(sb-|supabase\.|supabase-)/i;
 
@@ -91,6 +97,7 @@ export function clearSessionArtifacts(targets: SessionArtifactTargets = {}): voi
     targets.doc !== undefined ? targets.doc : typeof document !== "undefined" ? document : null;
 
   clearAuthKeys(local);
+  wipeMobileOfflineData({ storage: local });
   try {
     session?.clear();
   } catch {

@@ -39,12 +39,119 @@ import java.nio.charset.StandardCharsets;
  *  - Signing happens inside the CryptoObject bound to a successful biometric
  *    authentication, so there is no JS-visible "biometric passed" flag.
  *  - No biometric image/template/score is read, stored, logged or returned.
+ *  - The web layer is remote content, so this class does NOT trust it with the
+ *    signing scope: the key alias is a native constant, only the known message
+ *    formats are signed, and the BiometricPrompt wording is chosen natively
+ *    from the message type (any JS-supplied prompt text is ignored).
  */
 @CapacitorPlugin(name = "PortalBiometricKeystore")
 public class BiometricKeystorePlugin extends Plugin {
 
     private static final String KEYSTORE = "AndroidKeyStore";
     private static final int AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG;
+
+    /** The one Keystore alias this app uses. Must equal BIOMETRIC_KEY_ALIAS in biometrics.ts. */
+    static final String KEY_ALIAS = "ye.edu.usr.fitcs.portal.stepup.v1";
+
+    // Signing-message allow-list. Anything else is refused before any prompt.
+    static final String MSG_APP_UNLOCK = "usrp-app-unlock-v1";
+    static final String MSG_STEP_UP_PREFIX = "usrp-stepup-v1|";
+    static final String MSG_DEVICE_REGISTER_PREFIX = "usrp-device-register-v1|";
+    /** version|challengeId|nonce|userId|deviceId|actionCode|requestId|payloadHash|expiresAt */
+    private static final int STEP_UP_FIELD_COUNT = 9;
+    private static final int STEP_UP_ACTION_INDEX = 5;
+    /** version|nonce|userId|deviceId|expiresAt */
+    private static final int DEVICE_REGISTER_FIELD_COUNT = 5;
+    private static final int MAX_MESSAGE_LENGTH = 1024;
+
+    private static final String PROMPT_TITLE = "بوابة الكلية";
+    private static final String SUBTITLE_UNLOCK = "افتح بوابة الطالب";
+    private static final String SUBTITLE_STEP_UP_GENERIC = "تأكيد عملية حساسة في بوابة الطالب";
+    private static final String SUBTITLE_DEVICE_REGISTER = "تأكيد ربط هذا الجهاز بحسابك في بوابة الطالب";
+
+    // FLAG_SECURE coordination with MainActivity (see MainActivity.onPause/onResume).
+    private static volatile boolean secureRequestedByWeb = false;
+    private static volatile boolean hostPaused = false;
+
+    /** True while the web layer has asked for FLAG_SECURE to stay on (app lock covered/locked). */
+    static boolean isSecureRequestedByWeb() {
+        return secureRequestedByWeb;
+    }
+
+    static void setHostPaused(boolean paused) {
+        hostPaused = paused;
+    }
+
+    /** A new Activity means a new WebView/JS state: forget any stale web request. */
+    static void resetHostState() {
+        secureRequestedByWeb = false;
+        hostPaused = false;
+    }
+
+    private static boolean isCanonicalAlias(String alias) {
+        return KEY_ALIAS.equals(alias);
+    }
+
+    /**
+     * Returns the fixed, natively chosen prompt subtitle for an allowed signing
+     * message, or null when the message is not one of the known formats.
+     */
+    static String promptSubtitleFor(String message) {
+        if (message == null || message.isEmpty() || message.length() > MAX_MESSAGE_LENGTH) {
+            return null;
+        }
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (c < 0x20 || c > 0x7e) {
+                return null;
+            }
+        }
+        if (MSG_APP_UNLOCK.equals(message)) {
+            return SUBTITLE_UNLOCK;
+        }
+        if (message.startsWith(MSG_STEP_UP_PREFIX)) {
+            String[] parts = message.split("\\|", -1);
+            if (parts.length != STEP_UP_FIELD_COUNT || hasEmptyField(parts)) {
+                return null;
+            }
+            return stepUpSubtitleFor(parts[STEP_UP_ACTION_INDEX]);
+        }
+        if (message.startsWith(MSG_DEVICE_REGISTER_PREFIX)) {
+            String[] parts = message.split("\\|", -1);
+            if (parts.length != DEVICE_REGISTER_FIELD_COUNT || hasEmptyField(parts)) {
+                return null;
+            }
+            return SUBTITLE_DEVICE_REGISTER;
+        }
+        return null;
+    }
+
+    private static boolean hasEmptyField(String[] parts) {
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Action codes mirror src/lib/security/step-up-contract.ts (submit_<service>). */
+    private static String stepUpSubtitleFor(String actionCode) {
+        switch (actionCode) {
+            case "submit_file_withdrawal":
+                return "تأكيد عملية حساسة: طلب سحب الملف";
+            case "submit_enrollment_suspension":
+                return "تأكيد عملية حساسة: طلب إيقاف القيد";
+            case "submit_department_transfer":
+                return "تأكيد عملية حساسة: طلب التحويل";
+            case "submit_final_chance":
+                return "تأكيد عملية حساسة: طلب الفرصة النهائية";
+            case "submit_excused_absence":
+                return "تأكيد عملية حساسة: طلب الغياب بعذر";
+            default:
+                return SUBTITLE_STEP_UP_GENERIC;
+        }
+    }
 
     @PluginMethod
     public void isAvailable(PluginCall call) {
@@ -72,11 +179,12 @@ public class BiometricKeystorePlugin extends Plugin {
 
     @PluginMethod
     public void ensureDeviceKey(PluginCall call) {
-        String alias = call.getString("alias");
-        if (alias == null) {
+        // The JS-supplied alias is only accepted when it is the canonical one.
+        if (!isCanonicalAlias(call.getString("alias"))) {
             call.reject("PLUGIN_ERROR");
             return;
         }
+        final String alias = KEY_ALIAS;
         try {
             KeyStore keyStore = KeyStore.getInstance(KEYSTORE);
             keyStore.load(null);
@@ -124,10 +232,17 @@ public class BiometricKeystorePlugin extends Plugin {
 
     @PluginMethod
     public void signChallenge(PluginCall call) {
-        String alias = call.getString("alias");
-        String message = call.getString("message");
-        String reason = call.getString("reason", "التحقق المطلوب");
-        if (alias == null || message == null) {
+        // Scope of this signing oracle is enforced natively: one alias, known
+        // message formats only, and prompt wording derived from the message.
+        // Any JS-supplied prompt text is deliberately not read.
+        if (!isCanonicalAlias(call.getString("alias"))) {
+            call.reject("PLUGIN_ERROR");
+            return;
+        }
+        final String alias = KEY_ALIAS;
+        final String message = call.getString("message");
+        final String subtitle = promptSubtitleFor(message);
+        if (message == null || subtitle == null) {
             call.reject("PLUGIN_ERROR");
             return;
         }
@@ -142,7 +257,7 @@ public class BiometricKeystorePlugin extends Plugin {
             Signature signature = Signature.getInstance("SHA256withECDSA");
             signature.initSign(privateKey);
             BiometricPrompt.CryptoObject crypto = new BiometricPrompt.CryptoObject(signature);
-            prompt(call, reason, crypto, (result) -> {
+            prompt(call, subtitle, crypto, (result) -> {
                 try {
                     Signature bound = result.getCryptoObject().getSignature();
                     bound.update(message.getBytes(StandardCharsets.UTF_8));
@@ -162,21 +277,11 @@ public class BiometricKeystorePlugin extends Plugin {
         }
     }
 
-    @PluginMethod
-    public void authenticate(PluginCall call) {
-        String reason = call.getString("reason", "التحقق المطلوب");
-        prompt(call, reason, null, (result) -> {
-            JSObject payload = new JSObject();
-            payload.put("verified", true);
-            call.resolve(payload);
-        });
-    }
-
     private interface OnSuccess {
         void handle(BiometricPrompt.AuthenticationResult result);
     }
 
-    private void prompt(PluginCall call, String reason,
+    private void prompt(PluginCall call, String subtitle,
                         BiometricPrompt.CryptoObject crypto, OnSuccess onSuccess) {
         FragmentActivity activity = (FragmentActivity) getActivity();
         activity.runOnUiThread(() -> {
@@ -212,29 +317,29 @@ public class BiometricKeystorePlugin extends Plugin {
                     });
 
             BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
-                    .setTitle("بوابة الكلية")
-                    .setSubtitle(reason)
+                    .setTitle(PROMPT_TITLE)
+                    .setSubtitle(subtitle)
                     .setNegativeButtonText("إلغاء")
                     .setAllowedAuthenticators(AUTHENTICATORS)
                     .setConfirmationRequired(true)
                     .build();
 
-            if (crypto != null) {
-                biometricPrompt.authenticate(info, crypto);
-            } else {
-                biometricPrompt.authenticate(info);
-            }
+            // Always bound to a Keystore CryptoObject: there is no prompt-only path.
+            biometricPrompt.authenticate(info, crypto);
         });
     }
 
     @PluginMethod
     public void clearDeviceKey(PluginCall call) {
-        String alias = call.getString("alias");
+        if (!isCanonicalAlias(call.getString("alias"))) {
+            call.reject("PLUGIN_ERROR");
+            return;
+        }
         try {
             KeyStore keyStore = KeyStore.getInstance(KEYSTORE);
             keyStore.load(null);
-            if (alias != null && keyStore.containsAlias(alias)) {
-                keyStore.deleteEntry(alias);
+            if (keyStore.containsAlias(KEY_ALIAS)) {
+                keyStore.deleteEntry(KEY_ALIAS);
             }
             call.resolve();
         } catch (Exception e) {
@@ -242,16 +347,23 @@ public class BiometricKeystorePlugin extends Plugin {
         }
     }
 
-    /** FLAG_SECURE toggle — used only while the app is backgrounded or locked. */
+    /**
+     * FLAG_SECURE toggle requested by the web layer (app lock covered/locked).
+     * MainActivity independently sets the flag while the activity is paused so
+     * the Recents snapshot is protected even when the app lock is disabled;
+     * a web "disable" therefore never clears the flag while paused — it is
+     * cleared by MainActivity.onResume instead.
+     */
     @PluginMethod
     public void setSecureScreen(PluginCall call) {
-        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        final boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        secureRequestedByWeb = enabled;
         getActivity().runOnUiThread(() -> {
             if (enabled) {
                 getActivity().getWindow().setFlags(
                         WindowManager.LayoutParams.FLAG_SECURE,
                         WindowManager.LayoutParams.FLAG_SECURE);
-            } else {
+            } else if (!hostPaused) {
                 getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
             }
             call.resolve();

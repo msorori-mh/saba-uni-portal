@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { fetchMySectionFacultyNames } from "@/lib/student-faculty-names";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, MapPin, Clock, User, ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
+import { CalendarClock, MapPin, Clock, User, ArrowRight, AlertTriangle, Loader2, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { DAYS, dayLabel, TYPE_LABELS, type ScheduleRow } from "@/lib/schedule-export";
 import {
   fetchCanonicalCurrentTerm,
@@ -10,6 +12,11 @@ import {
   type CurrentTerm,
   type CurrentTermClient,
 } from "@/lib/current-term";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import {
+  MOBILE_OFFLINE_PREFETCH_OPTIONS,
+  prefetchMobileOfflineScreen,
+} from "@/lib/mobile/offline/screen-prefetch";
 
 export const Route = createFileRoute("/mobile/student/schedule")({
   head: () => ({
@@ -18,6 +25,16 @@ export const Route = createFileRoute("/mobile/student/schedule")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
+  // Offline mode: the layout preloads this route after launch, which downloads
+  // (and saves) the schedule without the student opening the screen.
+  loader: ({ context }) =>
+    prefetchMobileOfflineScreen(context.queryClient, (queryClient) =>
+      queryClient.prefetchQuery({
+        queryKey: ["mobile-student", "schedule"],
+        queryFn: fetchMobileSchedule,
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      }),
+    ),
   component: MobileStudentSchedulePage,
 });
 
@@ -32,16 +49,10 @@ type ScheduleData = {
 };
 
 async function fetchMobileSchedule(): Promise<ScheduleData> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { rows: [], term: { year: null, semester: null } };
+  const identity = await getMobileStudentIdentity();
+  if (!identity) return { rows: [], term: { year: null, semester: null } };
 
-  const { data: sp } = await supabase
-    .from("student_profiles")
-    .select("id")
-    .eq("user_id", auth.user.id)
-    .maybeSingle();
-  if (!sp?.id) return { rows: [], term: { year: null, semester: null } };
-
+  // Fail closed first: no schedule is read before the canonical term resolves.
   let currentTerm: CurrentTerm | null;
   try {
     currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
@@ -50,16 +61,20 @@ async function fetchMobileSchedule(): Promise<ScheduleData> {
   }
   if (!currentTerm) return { rows: [], term: { year: null, semester: null } };
 
-  const { data, error } = await supabase
+  // Enrollments and lecturer names are independent: fetch them together.
+  const enrollmentsPromise = supabase
     .from("student_enrollments")
     .select(
       "id, enrollment_status, section:course_sections(id, section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty_profile_id))",
     )
-    .eq("student_profile_id", (sp as { id: string }).id)
+    .eq("student_profile_id", identity.studentProfileId)
     .eq("enrollment_status", "enrolled");
 
+  const [{ data, error }, facultyNames] = await Promise.all([
+    enrollmentsPromise,
+    fetchMySectionFacultyNames(),
+  ]);
   if (error) throw error;
-  const facultyNames = await fetchMySectionFacultyNames();
 
   type Raw = {
     id: string;
@@ -124,11 +139,12 @@ function formatTime(t: string): string {
 }
 
 function MobileStudentSchedulePage() {
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["mobile-student", "schedule"],
     queryFn: fetchMobileSchedule,
     staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   return (
@@ -194,29 +210,42 @@ function MobileStudentSchedulePage() {
 
       {/* Days */}
       {!isLoading && !isError && (data?.rows.length ?? 0) > 0 && (
-        <div className="space-y-5">
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">اختر اليوم لعرض محاضراتك ومواعيدها.</p>
           {DAYS.map((day) => {
             const dayRows = (data?.rows ?? [])
               .filter((r) => r.day_of_week === day.code)
               .sort((a, b) => a.start_time.localeCompare(b.start_time));
             if (dayRows.length === 0) return null;
             return (
-              <section key={day.code} aria-label={day.label}>
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <h2 className="font-display text-sm font-extrabold text-primary">
-                    {day.label}
-                  </h2>
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    {dayRows.length} {dayRows.length === 1 ? "محاضرة" : "محاضرات"}
-                  </span>
+              <section key={day.code} aria-label={day.label} className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+                <h2>
+                  <button
+                    type="button"
+                    aria-expanded={selectedDay === day.code}
+                    aria-controls={`schedule-day-${day.code}`}
+                    onClick={() => setSelectedDay(selectedDay === day.code ? null : day.code)}
+                    className="flex w-full items-center gap-3 p-4 text-right min-h-14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                  >
+                    <CalendarClock className="h-5 w-5 text-gold shrink-0" />
+                    <span className="flex-1 font-display text-sm font-extrabold text-primary">{day.label}</span>
+                    <span className="text-[11px] font-bold text-muted-foreground">
+                      {dayRows.length} {dayRows.length === 1 ? "محاضرة" : "محاضرات"}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-primary transition-transform ${selectedDay === day.code ? "rotate-180" : ""}`} />
+                  </button>
+                </h2>
+                <div id={`schedule-day-${day.code}`} hidden={selectedDay !== day.code}>
+                  {selectedDay === day.code && (
+                    <ul className="space-y-2.5 px-3 pb-3">
+                      {dayRows.map((row) => (
+                        <li key={row.id}>
+                          <ScheduleCard row={row} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <ul className="space-y-2.5">
-                  {dayRows.map((row) => (
-                    <li key={row.id}>
-                      <ScheduleCard row={row} />
-                    </li>
-                  ))}
-                </ul>
               </section>
             );
           })}

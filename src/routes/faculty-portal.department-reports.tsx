@@ -58,7 +58,6 @@ function FacultyDepartmentReportsPage() {
         : [],
     [data],
   );
-
   return (
     <FacultyPortalShell
       title="تقارير القسم"

@@ -2,7 +2,8 @@
  * B1 Five-Services UI Adapter — contract types (frozen).
  *
  * This file is the single integration seam between the B1 student/staff UI
- * and the backend. React components must never import Supabase directly;
+ * and the backend. React components must never import type { B1FeeDecisionService } from "@/lib/student-requests/b1-fee-decision-contract";
+import Supabase directly;
  * every read/write goes through `B1UiAdapter`. Cursor's backend contracts
  * will replace the mock/live implementations without touching the forms.
  *
@@ -25,6 +26,7 @@
  * - getB1RuntimeCapability()
  */
 
+import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
 import { b1BusinessRuleMessageAr } from "@/lib/student-requests/b1-ui/b1-business-error-mapping";
 import type {
   B1CanonicalCode,
@@ -32,7 +34,32 @@ import type {
   B1WorkflowStep,
 } from "@/lib/student-requests/request-service-adapter";
 
+import type {
+  ExcusedAbsenceFeeDecision,
+  ExcusedAbsenceFeeDecisionRecord,
+  ExcusedAbsenceFeeExemptionReason,
+} from "@/lib/student-requests/excused-absence-fee-decision-contract";
+
 export type { B1CanonicalCode, B1FeePolicy, B1WorkflowStep };
+export type {
+  ExcusedAbsenceFeeDecision,
+  ExcusedAbsenceFeeDecisionRecord,
+  ExcusedAbsenceFeeExemptionReason,
+};
+
+/** What the registrar submits on the fee-decision step. The amount is display-only text; no currency. */
+export type B1ExcusedAbsenceFeeDecisionSubmission = {
+  decision: ExcusedAbsenceFeeDecision;
+  exemptionReason?: ExcusedAbsenceFeeExemptionReason | null;
+  /** Display-only amount due as decimal text; FEE_REQUIRED only. */
+  amountDue?: string | null;
+  note?: string | null;
+  /**
+   * Which of the three fee-decision services the step belongs to. Selects the
+   * service's RPC only; omitted means غياب بعذر (backwards compatible).
+   */
+  serviceCode?: B1FeeDecisionService;
+};
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -71,6 +98,10 @@ export function isB1AdapterError(error: unknown): error is B1AdapterError {
 
 /** Maps an adapter error code to a safe Arabic message (never raw SQL/servers strings). */
 export function b1AdapterErrorMessageAr(error: unknown): string {
+  // Admin paused the student services (STUDENT-SERVICES-GLOBAL-SWITCH-01):
+  // recognised whatever adapter code the message was classified under.
+  const pausedMessageAr = studentServicesDisabledMessageAr(error);
+  if (pausedMessageAr) return pausedMessageAr;
   if (isB1AdapterError(error)) {
     switch (error.code) {
       case "NETWORK_ERROR":
@@ -301,4 +332,18 @@ export type B1UiAdapter = {
   ): Promise<B1StepActionResult>;
   /** Simplified revenue receipt: no amount/currency/invoice — server stamps actor/time. */
   confirmB1RevenueReceipt(stepId: string, optionalNote?: string): Promise<B1StepActionResult>;
+  /**
+   * The college registrar's per-request fee decision (FEE_REQUIRED + display-only
+   * value due / FEE_NOT_REQUIRED + reason) for غياب بعذر، التحويل بين الأقسام and
+   * الفرصة الأخيرة. Completes the registrar step and routes the request server-side.
+   */
+  recordB1ExcusedAbsenceFeeDecision(
+    stepId: string,
+    submission: B1ExcusedAbsenceFeeDecisionSubmission,
+  ): Promise<B1StepActionResult>;
+  /** Null until the registrar decides, or when the caller may not see it. */
+  getB1ExcusedAbsenceFeeDecision(
+    requestId: string,
+    serviceCode?: B1FeeDecisionService,
+  ): Promise<ExcusedAbsenceFeeDecisionRecord | null>;
 };

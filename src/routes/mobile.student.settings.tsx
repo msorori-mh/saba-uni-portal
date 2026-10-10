@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { ANDROID_APP_DISPLAY_NAME } from "@/lib/native/platform";
 import { MobileSecuritySettings } from "@/components/mobile/MobileSecuritySettings";
+import { MobileOfflineModeSetting } from "@/components/mobile/MobileOfflineModeSetting";
+import { wipeMobileOfflineData } from "@/lib/mobile/offline/offline-store";
 
 export const Route = createFileRoute("/mobile/student/settings")({
   head: () => ({ meta: [{ title: "الإعدادات" }] }),
@@ -49,6 +51,7 @@ function MobileStudentSettings() {
   };
 
   const onLogout = async () => {
+    wipeMobileOfflineData();
     await supabase.auth.signOut();
     navigate({ to: "/mobile/student-login", replace: true });
   };
@@ -97,6 +100,8 @@ function MobileStudentSettings() {
       </section>
 
       <MobileSecuritySettings />
+
+      <MobileOfflineModeSetting />
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-card space-y-2">
         <div className="text-sm font-extrabold text-primary">معلومات التطبيق</div>

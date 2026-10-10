@@ -421,7 +421,7 @@ describe("student journey — service-specific content checks", () => {
 
   it("final chance: academic reason, external fee note, no amounts, no student payment UI", () => {
     const config = getB1ServiceConfig("final_chance")!;
-    expect(config.feePolicy).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
+    expect(config.feePolicy).toBe("REGISTRAR_FEE_DECISION_EXTERNAL_PAYMENT");
     expect(config.feePolicyLabelAr).toContain("النظام الجامعي الرئيسي");
     const definition = getStudentRequestFormDefinition("final_chance")!;
     const fields = definition.sections.flatMap((section) => section.fields);

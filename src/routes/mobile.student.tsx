@@ -9,6 +9,25 @@ import { useNativeAppShell } from "@/hooks/use-native-app-shell";
 import { MobileAppLockProvider } from "@/components/mobile/MobileAppLockProvider";
 import { clearReportsLocalPreferences } from "@/lib/reports/clear-local-preferences";
 import { clearSessionArtifacts } from "@/lib/auth/clear-session-artifacts";
+import {
+  clearMobileStudentIdentity,
+  getMobileSessionUserId,
+  getMobileStudentIdentity,
+} from "@/lib/mobile/student-identity";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import { MobileOfflineGate, useMobileOfflineActive } from "@/components/mobile/MobileOfflineGate";
+import { MOBILE_OFFLINE_WARM_ROUTES, isMobileOfflineActive } from "@/lib/mobile/offline/config";
+import {
+  isMobileOnline,
+  resolveMobileLaunchConnectivity,
+  startMobileConnectivityWatch,
+} from "@/lib/mobile/offline/connectivity";
+import {
+  clearMobileOfflineUserData,
+  ensureMobileOfflineHydrated,
+  startMobileOfflinePersistence,
+} from "@/lib/mobile/offline/query-persistence";
+import { readStoredSupabaseSession } from "@/lib/mobile/offline/stored-session";
 
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
@@ -29,21 +48,40 @@ export const Route = createFileRoute("/mobile/student")({
       { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
-  beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+  beforeLoad: async ({ context }) => {
+    // Runs on EVERY navigation inside the app, so it must stay cheap: a local
+    // session read plus a cached student-profile check (see student-identity).
+    // Data access itself is still enforced server-side by RLS and the RPCs.
+    //
+    // Offline-first (only when active on this device — every call below is a
+    // no-op otherwise, see isMobileOfflineActive): learn from the service
+    // worker whether this launch is offline (memoized, <=300 ms once), then
+    // read the session locally — a stored session is never treated as "signed
+    // out" because of a network error — and hydrate the student's saved data
+    // BEFORE anything renders.
+    await resolveMobileLaunchConnectivity();
+    const userId = await getMobileSessionUserId();
+    if (!userId) {
       throw redirect({ to: "/mobile/student-login" });
     }
-    const { data: profile } = await supabase
-      .from("student_profiles")
-      .select("user_id")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
-    if (!profile) {
+    ensureMobileOfflineHydrated(context.queryClient, userId);
+    let identity: Awaited<ReturnType<typeof getMobileStudentIdentity>>;
+    try {
+      identity = await getMobileStudentIdentity();
+    } catch {
+      // Transient read failure: do not sign the student out; the page's own
+      // queries will surface the connection error with a retry.
+      return;
+    }
+    if (!identity) {
+      clearMobileStudentIdentity();
+      clearMobileOfflineUserData(context.queryClient);
       await supabase.auth.signOut();
       throw redirect({ to: "/mobile/student-login" });
     }
   },
+  pendingComponent: MobileStudentLoading,
+  pendingMs: 300,
   component: MobileStudentLayout,
 });
 
@@ -68,6 +106,8 @@ function MobileStudentLayout() {
   const { pathname } = useLocation();
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const authUserIdRef = useRef<string | null>(null);
+  // Rollout "on", or rollout "pilot" + this device opted in (Settings toggle).
+  const offlineActive = useMobileOfflineActive();
 
   // Native (Capacitor/Android) app-shell: status bar, splash hide, back button.
   // No-op on the web.
@@ -75,26 +115,42 @@ function MobileStudentLayout() {
 
   useEffect(() => {
     let cancelled = false;
+    // Removes the portal-wide PWA worker inside the native shell; the mobile
+    // offline worker (scope /mobile/) is deliberately kept — see native-pwa-cleanup.
     void disablePwaInNativeShell();
 
-    void supabase.auth.getUser().then(({ data }) => {
+    void getMobileSessionUserId().then((userId) => {
       if (cancelled) return;
-      const userId = data.user?.id ?? null;
       authUserIdRef.current = userId;
       setAuthUserId(userId);
-      if (!data.user) navigate({ to: "/mobile/student-login", replace: true });
+      if (!userId) navigate({ to: "/mobile/student-login", replace: true });
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      const nextUserId = session?.user.id ?? null;
+      // Offline with an expired access token, supabase-js reports a null
+      // session (the refresh failed) while the session is still stored on the
+      // device. Only an explicit SIGNED_OUT, or a session that is really gone
+      // from storage, means the student is signed out.
+      // (Only with the offline mode active; otherwise the original rule.)
+      const nextUserId =
+        session?.user.id ??
+        (event === "SIGNED_OUT" || !isMobileOfflineActive()
+          ? null
+          : (readStoredSupabaseSession()?.userId ?? null));
       if (authUserIdRef.current && authUserIdRef.current !== nextUserId) {
+        clearMobileStudentIdentity();
+        // Sign-out from any screen, or another account: nothing persisted survives.
+        clearMobileOfflineUserData(queryClient);
         queryClient.clear();
         void router.invalidate();
       }
       authUserIdRef.current = nextUserId;
       setAuthUserId(nextUserId);
-      if (!session) navigate({ to: "/mobile/student-login", replace: true });
+      if (!nextUserId) {
+        clearMobileOfflineUserData(queryClient);
+        navigate({ to: "/mobile/student-login", replace: true });
+      }
     });
     return () => {
       cancelled = true;
@@ -102,12 +158,33 @@ function MobileStudentLayout() {
     };
   }, [navigate, queryClient, router]);
 
+  // Connectivity measurement + persistence run only while the offline mode is
+  // active on this device, and stop immediately when it is switched off.
+  useEffect(() => {
+    if (!offlineActive) return;
+    startMobileConnectivityWatch();
+    return startMobileOfflinePersistence(queryClient, () => authUserIdRef.current);
+  }, [offlineActive, queryClient]);
+
+  // Download the code of the offline-capable screens in advance (through the
+  // service worker, which stores it), so they open later without a network.
+  useEffect(() => {
+    if (!offlineActive || !authUserId) return;
+    const timer = setTimeout(() => {
+      if (!isMobileOnline()) return;
+      for (const to of MOBILE_OFFLINE_WARM_ROUTES) {
+        void router.preloadRoute({ to }).catch(() => undefined);
+      }
+    }, 3_000);
+    return () => clearTimeout(timer);
+  }, [authUserId, offlineActive, router]);
+
   const { data: profile } = useQuery({
     queryKey: ["mobile-student", "short-profile", authUserId],
     queryFn: () => fetchShortProfile(authUserId!),
     enabled: Boolean(authUserId),
     staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
     refetchOnWindowFocus: false,
   });
 
@@ -123,12 +200,19 @@ function MobileStudentLayout() {
     },
     enabled: Boolean(authUserId),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    // Badge only: a 2-minute poll halves background traffic; returning to the
+    // app still refreshes it immediately through the focus refetch below.
+    refetchInterval: 120_000,
     refetchOnWindowFocus: true,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
   });
 
   const handleLogout = async () => {
     try {
+      clearMobileStudentIdentity();
+      // Wipe the persisted student data first: it must be gone even if the
+      // remote sign-out below fails (e.g. signing out while offline).
+      clearMobileOfflineUserData(queryClient);
       await supabase.auth.signOut({ scope: "global" });
     } catch {
       // Never retain the previous student's visible data if remote sign-out fails.
@@ -136,6 +220,7 @@ function MobileStudentLayout() {
       authUserIdRef.current = null;
       setAuthUserId(null);
       queryClient.clear();
+      clearMobileOfflineUserData(queryClient);
       clearReportsLocalPreferences();
       clearSessionArtifacts();
       await router.invalidate();
@@ -199,7 +284,9 @@ function MobileStudentLayout() {
           paddingBottom: "calc(env(safe-area-inset-bottom) + 5rem)",
         }}
       >
-        <Outlet />
+        <MobileOfflineGate pathname={pathname}>
+          <Outlet />
+        </MobileOfflineGate>
       </main>
 
       <MobileBottomNav />
@@ -217,7 +304,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: "الرئيسية", icon: Home, to: "/mobile/student" },
   { label: "الجدول", icon: CalendarClock, to: "/mobile/student/schedule" },
-  { label: "الطلبات", icon: ClipboardList, to: "/mobile/student/requests" },
+  { label: "الخدمات الطلابية", icon: ClipboardList, to: "/mobile/student/requests" },
   { label: "الوثائق", icon: FileText, to: "/mobile/student/documents" },
   { label: "المزيد", icon: LayoutGrid, to: "/mobile/student/more" },
 ];
@@ -252,7 +339,7 @@ function MobileBottomNav() {
               ].join(" ")}
             >
               <Icon className={`h-5 w-5 ${active ? "text-gold" : ""}`} />
-              <span className="leading-none">{item.label}</span>
+              <span className="px-0.5 text-center leading-tight">{item.label}</span>
               {disabled && (
                 <span className="text-[8px] font-bold text-gold/80 leading-none">قريباً</span>
               )}

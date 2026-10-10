@@ -200,12 +200,14 @@ describe("Package C routed UI contracts", () => {
     expect(source).toContain("identity-options-empty");
     expect(source).not.toMatch(/placeholder=.*UUID|placeholder=.*معرّف/);
   });
-  it("wires create-team panel on faculty index and progress file linkage in adapter", () => {
-    expect(read("src/routes/faculty-portal.graduation-projects.index.tsx")).toContain(
-      "CreateTeamPanel",
-    );
-    expect(read("src/routes/faculty-portal.graduation-projects.index.tsx")).toContain(
-      "useCreateGraduationProjectTeam",
+  it("wires the department head board on faculty index and progress file linkage in adapter", () => {
+    // DEPARTMENT-HEAD-WORKFLOW-01: students form teams; the head approves and
+    // assigns supervisors from pickers. The raw-identifier panel is retired.
+    const facultyIndex = read("src/routes/faculty-portal.graduation-projects.index.tsx");
+    expect(facultyIndex).toContain("DepartmentHeadBoard");
+    expect(facultyIndex).not.toContain("CreateTeamPanel");
+    expect(read("src/routes/student.graduation-projects.index.tsx")).toContain(
+      "StudentTeamStarter",
     );
     const adapter = read("src/routes/-graduation-projects-adapter.ts");
     expect(adapter).toContain("lastProgressFileByProject");
