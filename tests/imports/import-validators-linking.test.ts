@@ -102,13 +102,17 @@ function mockDb(tables: Record<string, unknown[]>, studentsIn: unknown[] = []) {
     from: (table: string) => ({
       select: () => {
         const base = Promise.resolve({ data: tables[table] ?? [], error: null });
-        return Object.assign(base, {
+        const chain = Object.assign(base, {
           in: async () => ({
             data: table === "student_profiles" ? studentsIn : (tables[table] ?? []),
             error: null,
           }),
           eq: () => base,
+          // selectAllRows pages with .order().range(); one page holds everything.
+          order: (): unknown => chain,
+          range: () => base,
         });
+        return chain;
       },
     }),
   };

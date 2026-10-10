@@ -2,7 +2,7 @@ import { parseResultMark, RESULT_MARK_VALUES, type ResultMark } from "@/lib/acad
 import type { LookupMaps, RowError, ValidatedRow, ValidationResult } from "./types";
 import { normKey } from "./lookups";
 import { normalizeStudySystemTag } from "@/lib/course-materials.shared";
-import { getImportDb } from "./import-db";
+import { getImportDb, selectAllRows } from "./import-db";
 import { resolveStaffRoleTypeInput } from "@/lib/staff-functional-roles";
 import { ELIGIBILITY_FIELD_ERROR_AR } from "./labels";
 
@@ -1117,11 +1117,13 @@ export async function validateCourseSections(
   // G-01: was bare `sb` (unresolved identifier → runtime ReferenceError).
   const sb = getImportDb();
   const [{ data: offerings }, { data: sections }, { data: faculty }] = await Promise.all([
-    sb
-      .from("course_offerings")
-      .select("id, course_id, academic_year_id, semester_id, program_id, level_id"),
-    sb.from("course_sections").select("id, course_offering_id, section_code"),
-    sb.from("faculty_profiles").select("id, employee_number"),
+    selectAllRows(
+      sb,
+      "course_offerings",
+      "id, course_id, academic_year_id, semester_id, program_id, level_id",
+    ),
+    selectAllRows(sb, "course_sections", "id, course_offering_id, section_code"),
+    selectAllRows(sb, "faculty_profiles", "id, employee_number"),
   ]);
 
   const offeringByKey = new Map<string, string>();
@@ -1359,14 +1361,18 @@ export async function validateStudentEnrollments(
     { data: sections },
     { data: existingEnrollments },
   ] = await Promise.all([
-    sb
-      .from("student_academic_status")
-      .select("student_profile_id, academic_year_id, semester_id, level_id"),
-    sb
-      .from("course_offerings")
-      .select("id, course_id, academic_year_id, semester_id, program_id, level_id"),
-    sb.from("course_sections").select("id, course_offering_id, section_code, status"),
-    sb.from("student_enrollments").select("id, student_profile_id, course_section_id"),
+    selectAllRows(
+      sb,
+      "student_academic_status",
+      "student_profile_id, academic_year_id, semester_id, level_id",
+    ),
+    selectAllRows(
+      sb,
+      "course_offerings",
+      "id, course_id, academic_year_id, semester_id, program_id, level_id",
+    ),
+    selectAllRows(sb, "course_sections", "id, course_offering_id, section_code, status"),
+    selectAllRows(sb, "student_enrollments", "id, student_profile_id, course_section_id"),
   ]);
 
   const levelByStudentTerm = new Map<string, string>();
@@ -1609,18 +1615,24 @@ export async function validateStudentGrades(
     { data: components },
     { data: grades },
   ] = await Promise.all([
-    sb
-      .from("student_academic_status")
-      .select("student_profile_id, academic_year_id, semester_id, level_id"),
-    sb
-      .from("course_offerings")
-      .select("id, course_id, academic_year_id, semester_id, program_id, level_id"),
-    sb.from("course_sections").select("id, course_offering_id, section_code"),
-    sb
-      .from("student_enrollments")
-      .select("id, student_profile_id, course_section_id, enrollment_status"),
-    sb.from("grade_components").select("id, course_section_id, name, max_score"),
-    sb.from("student_grades").select("id, student_enrollment_id, grade_component_id, status"),
+    selectAllRows(
+      sb,
+      "student_academic_status",
+      "student_profile_id, academic_year_id, semester_id, level_id",
+    ),
+    selectAllRows(
+      sb,
+      "course_offerings",
+      "id, course_id, academic_year_id, semester_id, program_id, level_id",
+    ),
+    selectAllRows(sb, "course_sections", "id, course_offering_id, section_code"),
+    selectAllRows(
+      sb,
+      "student_enrollments",
+      "id, student_profile_id, course_section_id, enrollment_status",
+    ),
+    selectAllRows(sb, "grade_components", "id, course_section_id, name, max_score"),
+    selectAllRows(sb, "student_grades", "id, student_enrollment_id, grade_component_id, status"),
   ]);
 
   const levelByStudentTerm = new Map<string, string>();
@@ -1916,9 +1928,11 @@ export async function validateStudentAcademicStatus(
     }
   }
 
-  const { data: existingStatuses } = await sb
-    .from("student_academic_status")
-    .select("id, student_profile_id, academic_year_id, semester_id");
+  const { data: existingStatuses } = await selectAllRows(
+    sb,
+    "student_academic_status",
+    "id, student_profile_id, academic_year_id, semester_id",
+  );
   const statusIdByKey = new Map<string, string>();
   (existingStatuses ?? []).forEach(
     (s: {
@@ -2075,9 +2089,11 @@ export async function validateStudentFees(
 
   const [{ data: feeTypes }, { data: existingFees }] = await Promise.all([
     sb.from("fee_types").select("id, code, is_active"),
-    sb
-      .from("student_fees")
-      .select("id, student_profile_id, fee_type_id, academic_year_id, semester_id"),
+    selectAllRows(
+      sb,
+      "student_fees",
+      "id, student_profile_id, fee_type_id, academic_year_id, semester_id",
+    ),
   ]);
 
   const feeTypeByCode = new Map<string, string>();
@@ -2242,9 +2258,11 @@ export async function validateStudentDiscounts(
 
   const [{ data: discountTypes }, { data: existing }] = await Promise.all([
     sb.from("discount_types").select("id, code, discount_type, is_active"),
-    sb
-      .from("student_discounts")
-      .select("id, student_profile_id, discount_type_id, academic_year_id, semester_id"),
+    selectAllRows(
+      sb,
+      "student_discounts",
+      "id, student_profile_id, discount_type_id, academic_year_id, semester_id",
+    ),
   ]);
 
   const typeByCode = new Map<string, { id: string; discount_type: string }>();
