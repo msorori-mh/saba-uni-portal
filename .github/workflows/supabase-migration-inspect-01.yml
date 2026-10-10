@@ -1,0 +1,199 @@
+name: Supabase Migration 01 — Inspect Lovable Cloud export
+
+# Step 1 of moving the portal off Lovable Cloud to the college-owned Supabase
+# project (pwapivqjofdsevycegph). READ-ONLY toward every database:
+#   - downloads the Lovable Cloud full export (.backup, PostgreSQL custom
+#     format) that the owner uploaded to a PRIVATE bucket of the new project;
+#   - lists its table of contents (object names and counts only — no rows,
+#     no password hashes, no personal data) and uploads that summary.
+# Nothing is restored here. The restore step is a separate workflow written
+# after this inventory has been reviewed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_object:
+        description: "File name inside the private bucket 'migration-private' (.zip or .backup)"
+        required: true
+        default: bucket-database_export_08_10_26-files.zip
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migration
+  cancel-in-progress: false
+
+env:
+  TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi
+  TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co
+  LEGACY_PRODUCTION_REF: wpmicqriltrowwonknox
+  BACKUP_BUCKET: migration-private
+
+jobs:
+  inspect:
+    name: Inventory of the export (no data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: supabase-production
+    steps:
+      - name: Validate input
+        id: input
+        env:
+          RAW_BACKUP_OBJECT: ${{ inputs.backup_object }}
+        run: |
+          set -euo pipefail
+          # Pasted names often carry spaces or invisible direction marks
+          # (U+200E/U+200F/U+202A-U+202E/U+2066-U+2069/U+FEFF): strip them.
+          BACKUP_OBJECT="$(printf '%s' "$RAW_BACKUP_OBJECT" \
+            | perl -CSD -pe 's/[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]//g; s/^\s+|\s+$//g')"
+          if [[ ! "$BACKUP_OBJECT" =~ ^[A-Za-z0-9._/-]{1,200}$ ]] || [[ "$BACKUP_OBJECT" == *..* ]]; then
+            echo "::error::backup_object must be a plain object path inside the bucket (received: $(printf '%q' "$RAW_BACKUP_OBJECT"))"
+            exit 1
+          fi
+          echo "Using object: $BACKUP_OBJECT"
+          echo "object=$BACKUP_OBJECT" >> "$GITHUB_OUTPUT"
+
+      - name: Install PostgreSQL 17 client (zstd-capable pg_restore)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_restore --version
+
+      - name: Download the export from the private bucket
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_OBJECT: ${{ steps.input.outputs.object }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SERVICE_KEY:-}" ]; then
+            echo "::error::Secret TARGET_SUPABASE_SERVICE_ROLE_KEY is not set in the 'supabase-migration' environment"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/export"
+          curl -fsS --retry 3 \
+            -H "Authorization: Bearer $SERVICE_KEY" \
+            -H "apikey: $SERVICE_KEY" \
+            -o "$RUNNER_TEMP/export/download.bin" \
+            "$TARGET_SUPABASE_URL/storage/v1/object/$BACKUP_BUCKET/$BACKUP_OBJECT"
+          ls -l "$RUNNER_TEMP/export/download.bin"
+          sha256sum "$RUNNER_TEMP/export/download.bin" | cut -d' ' -f1 > "$RUNNER_TEMP/export/sha256.txt"
+          echo "sha256: $(cat "$RUNNER_TEMP/export/sha256.txt")"
+
+      - name: Unwrap (the Lovable download may be a .zip around the archive)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          : > zip-listing.txt
+          if [ "$(head -c 2 download.bin)" = "PK" ]; then
+            echo "Download is a zip archive. Contents (names and sizes only):"
+            unzip -l download.bin | tee zip-listing.txt
+            mkdir -p unzipped
+            unzip -q download.bin -d unzipped
+            # Prefer a PostgreSQL custom-format archive (magic "PGDMP").
+            found=""
+            while IFS= read -r -d '' candidate; do
+              if [ "$(head -c 5 "$candidate")" = "PGDMP" ]; then found="$candidate"; break; fi
+            done < <(find unzipped -type f -print0)
+            if [ -z "$found" ]; then
+              echo "::warning::No PostgreSQL archive (PGDMP) inside the zip. It may hold storage files only; see zip-listing.txt."
+              echo "none" > archive-kind.txt
+              exit 0
+            fi
+            echo "PostgreSQL archive found inside the zip: ${found#unzipped/}"
+            mv "$found" lovable.backup
+          elif [ "$(head -c 5 download.bin)" = "PGDMP" ]; then
+            mv download.bin lovable.backup
+          else
+            echo "::error::The file is neither a zip nor a PostgreSQL custom-format archive."
+            head -c 16 download.bin | od -c | head -2
+            exit 1
+          fi
+          echo "pgdump" > archive-kind.txt
+
+      - name: Table of contents (names only)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          : > toc.txt
+          if [ "$(cat archive-kind.txt)" != "pgdump" ]; then
+            {
+              echo "# Lovable export — inventory"
+              echo
+              echo "sha256: $(cat sha256.txt)"
+              echo
+              echo "No PostgreSQL archive in this file. Zip listing:"
+              echo '```'
+              cat zip-listing.txt
+              echo '```'
+            } > inventory.md
+            cat inventory.md
+            exit 0
+          fi
+          /usr/lib/postgresql/17/bin/pg_restore -l lovable.backup > toc.txt
+          head -n 20 toc.txt | grep '^;' || true
+          {
+            echo "# Lovable Cloud export — inventory"
+            echo
+            echo "sha256: $(cat sha256.txt)"
+            echo
+            echo "## Entries per schema and type"
+            echo '```'
+            # "<id>; <oid> <oid> <TYPE WORDS> <schema> <name> <owner>" -> "<schema> | <TYPE>"
+            grep -v '^;' toc.txt | grep -v '^[[:space:]]*$' \
+              | sed -E 's/^[0-9]+; [0-9]+ [0-9]+ ([A-Z][A-Z ]*[A-Z]) ([^ ]+) .*/\2 | \1/' \
+              | sort | uniq -c | sort -k2
+            echo '```'
+            echo
+            echo "## Data entries outside public (auth / storage / other)"
+            echo '```'
+            grep ' TABLE DATA ' toc.txt | grep -v ' TABLE DATA public ' || true
+            echo '```'
+          } > inventory.md
+          cat inventory.md
+
+      - name: Publish inventory as annotations (readable through the API)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/export"
+          # Annotations are the one run output readable without downloading
+          # artifacts. Names and counts only — never rows.
+          emit() {
+            local title="$1" file="$2" part=1
+            [ -s "$file" ] || return 0
+            split -C 3500 -d "$file" "$file.part-"
+            for chunk in "$file".part-*; do
+              [ "$part" -le 8 ] || break
+              body="$(sed -e 's/%/%25/g' "$chunk" | sed -e ':a;N;$!ba;s/\r//g;s/\n/%0A/g')"
+              echo "::notice title=${title} (${part})::${body}"
+              part=$((part + 1))
+            done
+          }
+          if [ -s toc.txt ]; then
+            grep -v '^;' toc.txt | grep -v '^[[:space:]]*$' \
+              | sed -E 's/^[0-9]+; [0-9]+ [0-9]+ ([A-Z][A-Z ]*[A-Z]) ([^ ]+) .*/\2 | \1/' \
+              | sort | uniq -c | sort -k2 > counts.txt
+            grep ' TABLE DATA ' toc.txt | grep -v ' TABLE DATA public ' \
+              | sed -E 's/^[0-9]+; [0-9]+ [0-9]+ TABLE DATA //' > non-public-data.txt || true
+            grep -E '^;' toc.txt | head -n 15 > header.txt || true
+            emit "archive header" header.txt
+            emit "objects per schema and type" counts.txt
+            emit "data outside public" non-public-data.txt
+          fi
+          emit "zip listing" zip-listing.txt
+
+      - name: Upload inventory (no data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lovable-export-inventory
+          path: |
+            ${{ runner.temp }}/export/inventory.md
+            ${{ runner.temp }}/export/toc.txt
+            ${{ runner.temp }}/export/zip-listing.txt
+          retention-days: 14

@@ -332,6 +332,22 @@ jobs:
               supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
               tests/graduation-projects/postgres-student-level4-eligibility-guard-verifier.sql
+          # Chain: minimal schema -> STUDENT-REQUEST-DRAFT-DELETE-01 draft -> verifier.
+          - name: student-request-draft-delete
+            files: >-
+              tests/student-requests/student-request-draft-delete-01.pg-setup.sql
+              docs/migration-drafts/STUDENT-REQUEST-DRAFT-DELETE-01.sql
+              tests/student-requests/student-request-draft-delete-01.pg-verify.sql
+          # Chain: minimal schema + deployed function bodies -> STAFF-VIEW-HOTFIX-01
+          # (twice: re-runnable) -> EXCUSED-ABSENCE-MULTI-COURSE-01 (twice) -> verifier.
+          - name: excused-absence-multi-course
+            files: >-
+              tests/student-requests/excused-absence-multi-course-01.pg-setup.sql
+              docs/migration-drafts/STUDENT-REQUEST-STAFF-VIEW-HOTFIX-01.sql
+              docs/migration-drafts/STUDENT-REQUEST-STAFF-VIEW-HOTFIX-01.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-MULTI-COURSE-01.sql
+              docs/migration-drafts/EXCUSED-ABSENCE-MULTI-COURSE-01.sql
+              tests/student-requests/excused-absence-multi-course-01.pg-verify.sql
           # Chain: prelude (roles/stubs) -> minimal schema -> SET U -> promoted GP
           # migrations -> positions setup -> DEPARTMENT-HEAD-WORKFLOW-01 draft -> verifier.
           - name: graduation-projects-department-head-workflow
@@ -421,6 +437,8 @@ jobs:
               scripts/excused-absence-paid-signature-01-pg17/01-fixtures.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
               scripts/excused-absence-paid-signature-01-pg17/03-cases.sql
           # B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01: the two paid services as the
           # applied chain publishes them (verbatim extracts) + the applied
@@ -452,6 +470,8 @@ jobs:
               scripts/b1-paid-services-registrar-fee-decision-01-pg17/01a-applied-v2-publish.sql
               scripts/b1-paid-services-registrar-fee-decision-01-pg17/02-after-v2.sql
               docs/migration-drafts/EXCUSED-ABSENCE-PAID-SIGNATURE-WORKFLOW-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
+              docs/migration-drafts/B1-WORKFLOW-EVENT-TYPES-FEE-DECISION-01.sql
               scripts/b1-paid-services-registrar-fee-decision-01-pg17/03-cases-v2-as-deployed.sql
               docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql
               docs/migration-drafts/B1-PAID-SERVICES-REGISTRAR-FEE-DECISION-01.sql

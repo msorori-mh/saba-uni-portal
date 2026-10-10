@@ -15,7 +15,8 @@ export type AcademicTranscriptCourse = {
   semester_start_date: string;
   official_result: number | null;
   grade_label: string | null;
-  result: "passed" | "failed" | "in_progress";
+  result: "passed" | "failed" | "in_progress" | "excused";
+  result_mark?: string | null;
 };
 
 export type AcademicTranscriptTerm = {
