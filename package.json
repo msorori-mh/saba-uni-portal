@@ -20,6 +20,7 @@
     "android:branding": "node scripts/mobile/apply-android-branding.mjs"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.91",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/splash-screen": "^8.0.1",
@@ -58,6 +59,7 @@
     "@tanstack/react-router": "1.170.41",
     "@tanstack/react-start": "1.168.60",
     "@tanstack/router-plugin": "1.168.42",
+    "ai": "^7.0.137",
     "bidi-js": "^1.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
