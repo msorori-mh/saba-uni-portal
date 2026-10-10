@@ -9947,8 +9947,8 @@ export type Database = {
           created_at: string
           enrolled_at: string
           enrollment_status: string
-          result_mark: string | null
           id: string
+          result_mark: string | null
           student_profile_id: string
           updated_at: string
         }
@@ -9957,8 +9957,8 @@ export type Database = {
           created_at?: string
           enrolled_at?: string
           enrollment_status?: string
-          result_mark?: string | null
           id?: string
+          result_mark?: string | null
           student_profile_id: string
           updated_at?: string
         }
@@ -9967,8 +9967,8 @@ export type Database = {
           created_at?: string
           enrolled_at?: string
           enrollment_status?: string
-          result_mark?: string | null
           id?: string
+          result_mark?: string | null
           student_profile_id?: string
           updated_at?: string
         }
@@ -12116,6 +12116,10 @@ export type Database = {
       b1_excused_absence_paid_cycle_step: {
         Args: { p_step_id: string }
         Returns: string
+      }
+      b1_excused_absence_staff_summary: {
+        Args: { p_request_id: string }
+        Returns: Json
       }
       b1_excused_absence_step_decision_allowed: {
         Args: { p_action: string; p_step_id: string }
