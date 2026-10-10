@@ -58,6 +58,57 @@ export type AdminNavGroup = {
 
 export const ADMIN_NAV_SEARCH_PLACEHOLDER = "ابحث عن خدمة أو نظام...";
 
+/** Short, user-facing descriptions for the search results. Keep routes and labels in the nav above. */
+export const ADMIN_NAV_DESCRIPTIONS: Record<string, string> = {
+  "/admin": "ملخص أعمال الإدارة والمؤشرات والمهام التي تحتاج متابعة.",
+  "/admin/executive-dashboard": "مؤشرات وبيانات إدارية لدعم متابعة أداء الكلية.",
+  "/admin/academic-operations": "مدخل موحد لأعمال الشؤون الأكاديمية اليومية.",
+  "/admin/academic-core": "تنظيم البنية الأكاديمية الأساسية للكلية.",
+  "/admin/study-plans": "إدارة الخطط الدراسية ومقررات البرامج.",
+  "/admin/course-offerings": "إسناد المقررات وتنظيم مجموعاتها الدراسية.",
+  "/admin/enrollments": "توزيع الطلاب على المجموعات الدراسية.",
+  "/admin/lecture-execution": "متابعة المحاضرات المخططة والمنفذة ومؤشرات التأخر.",
+  "/admin/grades": "متابعة درجات المقررات ومسارات اعتمادها.",
+  "/admin/transcripts": "عرض السجلات الأكاديمية للطلاب.",
+  "/admin/imports": "استيراد البيانات الأكاديمية من الملفات المعتمدة.",
+  "/admin/student-progress": "متابعة إنجاز الطلاب لمقررات خططهم الدراسية.",
+  "/admin/students": "عرض بيانات الطلاب وإدارتها حسب الصلاحية.",
+  "/admin/student-requests": "متابعة الخدمات الطلابية وحالات معالجتها.",
+  "/admin/request-types": "إعداد أنواع الخدمات الطلابية ومساراتها.",
+  "/admin/faculty-management": "إدارة بيانات أعضاء هيئة التدريس وتكليفاتهم.",
+  "/admin/staff-management": "إدارة ملفات الموظفين والخدمات المرتبطة بهم.",
+  "/admin/faculty": "إدارة صفحة هيئة التدريس المعروضة بالموقع.",
+  "/admin/academic-councils": "إدارة المجالس الأكاديمية وعضوياتها واجتماعاتها.",
+  "/admin/graduation-projects": "متابعة فرق مشاريع التخرج ومراحلها.",
+  "/admin/graduation-project-policies": "ضبط سياسات وضوابط مشاريع التخرج.",
+  "/admin/graduates-affairs": "متابعة ملفات الخريجين وشؤونهم.",
+  "/admin/graduates-affairs-workflows": "متابعة الإجراءات المرتبطة بملفات الخريجين.",
+  "/admin/finance": "عرض أعمال الرسوم والمدفوعات حسب الصلاحية.",
+  "/admin/documents": "متابعة إصدار الوثائق الرسمية وحالاتها.",
+  "/admin/communications": "إدارة قنوات التواصل والإعلانات داخل البوابة.",
+  "/messages": "قراءة المراسلات الواردة وإرسال الرسائل.",
+  "/admin/reports": "الوصول إلى التقارير التشغيلية المتاحة لدورك.",
+  "/admin/executive-reports": "عرض التقارير الاستراتيجية ومؤشرات الكلية.",
+  "/admin/automation": "متابعة أدوات الأتمتة الأكاديمية وإعداداتها.",
+  "/admin/news": "إدارة الأخبار المنشورة على موقع الكلية.",
+  "/admin/events": "إدارة الفعاليات والأنشطة المنشورة.",
+  "/admin/research": "إدارة محتوى الأبحاث المعروض بالموقع.",
+  "/admin/departments": "إدارة أقسام الكلية وبرامجها.",
+  "/admin/contacts": "قراءة رسائل التواصل الواردة من الموقع.",
+  "/admin/settings": "ضبط إعدادات البوابة العامة.",
+  "/admin/users": "إدارة حسابات المستخدمين وصلاحياتهم.",
+  "/admin/roles": "مراجعة الأدوار والصلاحيات المتاحة في النظام.",
+  "/admin/user-roles": "ربط الأدوار بحسابات المستخدمين.",
+  "/admin/audit-log": "مراجعة سجل العمليات والتغييرات في البوابة.",
+  "/admin/organizational-structure": "عرض وإدارة الهيكل التنظيمي للكلية.",
+  "/admin/processing-assignments": "تحديد ممثلي الأدوار في معالجة الطلبات.",
+  "/admin/security-status": "متابعة مؤشرات أمن النظام.",
+  "/admin/operations": "متابعة عمليات النظام وحالتها التشغيلية.",
+  "/admin/backup-status": "الاطلاع على حالة النسخ الاحتياطي.",
+  "/admin/system-readiness": "مراجعة جاهزية الخدمات قبل التشغيل.",
+  "/admin/pilot-center": "متابعة إعدادات وحالة التشغيل التجريبي.",
+};
+
 /** Primary group order for the reorganized operational IA (~8–10 groups). */
 export const ADMIN_NAV_PRIMARY_GROUP_ORDER = [
   "dashboard",
@@ -141,8 +192,11 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: GraduationCap,
     items: [
       { to: "/admin/graduation-projects", label: "مشاريع التخرج", icon: GraduationCap },
-      { to: "/admin/graduation-project-policies", label: "سياسات مشاريع التخرج", icon: ShieldCheck },
-
+      {
+        to: "/admin/graduation-project-policies",
+        label: "سياسات مشاريع التخرج",
+        icon: ShieldCheck,
+      },
     ],
   },
   {
@@ -297,31 +351,42 @@ export type AdminNavSearchHit = {
   item: AdminNavItem;
 };
 
-/** Arabic-friendly case-insensitive match over group + item labels (visible groups only). */
-export function searchAdminNav(
-  groups: AdminNavGroup[],
-  query: string,
-): AdminNavSearchHit[] {
-  const q = query.trim().toLocaleLowerCase("ar");
+/** Preserve character positions so the same normalization can highlight matches safely. */
+export function normalizeAdminNavSearch(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("ar")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه");
+}
+
+/** Match visible routes only; direct titles outrank descriptions, then section names. */
+export function searchAdminNav(groups: AdminNavGroup[], query: string): AdminNavSearchHit[] {
+  const q = normalizeAdminNavSearch(query);
   if (!q) return [];
-  const hits: AdminNavSearchHit[] = [];
+  const hits: Array<AdminNavSearchHit & { rank: number }> = [];
   for (const group of groups) {
-    const groupMatch = group.label.toLocaleLowerCase("ar").includes(q);
+    const groupMatch = normalizeAdminNavSearch(group.label).includes(q);
     for (const item of group.items) {
-      const itemMatch = item.label.toLocaleLowerCase("ar").includes(q);
-      if (groupMatch || itemMatch) {
-        hits.push({ groupId: group.id, groupLabel: group.label, item });
-      }
+      const titleMatch = normalizeAdminNavSearch(item.label).includes(q);
+      const descriptionMatch = normalizeAdminNavSearch(
+        ADMIN_NAV_DESCRIPTIONS[item.to] ?? "",
+      ).includes(q);
+      if (!titleMatch && !descriptionMatch && !groupMatch) continue;
+      hits.push({
+        groupId: group.id,
+        groupLabel: group.label,
+        item,
+        rank: titleMatch ? 0 : descriptionMatch ? 1 : 2,
+      });
     }
   }
-  return hits;
+  return hits.sort((a, b) => a.rank - b.rank).map(({ rank: _rank, ...hit }) => hit);
 }
 
 /** During search, expand groups that have matching items. */
-export function searchMatchingGroupIds(
-  groups: AdminNavGroup[],
-  query: string,
-): Set<string> {
+export function searchMatchingGroupIds(groups: AdminNavGroup[], query: string): Set<string> {
   return new Set(searchAdminNav(groups, query).map((h) => h.groupId));
 }
 

@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ChevronLeft,
-  ChevronDown,
-  GraduationCap,
-  LogOut,
-  Menu,
-  Search,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronDown, GraduationCap, LogOut, Menu, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { filterNavGroups } from "@/lib/admin-nav";
@@ -18,13 +10,14 @@ import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { PageBackButton } from "@/components/navigation/PageBackButton";
 import { useAdminLogout } from "@/lib/use-admin-logout";
 import {
+  ADMIN_NAV_DESCRIPTIONS,
   ADMIN_NAV_GROUPS,
   ADMIN_NAV_SEARCH_PLACEHOLDER,
   applyAdminFinanceNavGate,
   findActiveAdminNavGroupId,
   isAdminNavItemActive,
+  normalizeAdminNavSearch,
   searchAdminNav,
-  searchMatchingGroupIds,
   toggleExclusiveGroup,
   type AdminNavGroup,
   type AdminNavItem,
@@ -76,10 +69,6 @@ export function AdminShell({
     () => searchAdminNav(visibleGroups, searchQuery),
     [visibleGroups, searchQuery],
   );
-  const searchOpenGroupIds = useMemo(
-    () => (searching ? searchMatchingGroupIds(visibleGroups, searchQuery) : null),
-    [searching, visibleGroups, searchQuery],
-  );
 
   const { data: newMessagesCount = 0 } = useQuery({
     queryKey: ["sidebar-new-messages"],
@@ -130,13 +119,26 @@ export function AdminShell({
   };
 
   const isGroupOpen = (groupId: string) => {
-    if (searchOpenGroupIds) return searchOpenGroupIds.has(groupId);
     return expandedGroupId === groupId;
   };
 
   const onToggleGroup = (groupId: string) => {
-    if (searching) return;
     setExpandedGroupId((prev) => toggleExclusiveGroup(prev, groupId));
+  };
+
+  const highlightMatch = (value: string) => {
+    const query = normalizeAdminNavSearch(searchQuery);
+    const start = normalizeAdminNavSearch(value).indexOf(query);
+    if (!query || start < 0) return value;
+    return (
+      <>
+        {value.slice(0, start)}
+        <mark className="rounded-sm bg-gold px-0.5 text-primary-deep">
+          {value.slice(start, start + query.length)}
+        </mark>
+        {value.slice(start + query.length)}
+      </>
+    );
   };
 
   // Breadcrumb derived from the nav config: «لوحة الإدارة / المجموعة / الصفحة».
@@ -266,82 +268,130 @@ export function AdminShell({
         </div>
 
         <nav aria-label="التنقل الرئيسي" className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-          {visibleGroups.map((group) => {
-            const GroupIcon = group.icon;
-            const isOpen = isGroupOpen(group.id);
-            const isActiveGroup = activeGroupId === group.id;
+          {searching ? (
+            <div data-testid="admin-nav-search-results" className="space-y-2">
+              <p className="px-1 pb-1 text-xs font-bold text-primary-foreground/70">
+                نتائج البحث — اختر الصفحة المطلوبة
+              </p>
+              {searchHits.length === 0 ? (
+                <p className="rounded-lg border border-white/15 bg-white/[0.04] p-4 text-sm text-primary-foreground/75">
+                  لم نجد صفحة بهذا الاسم أو الوصف ضمن صلاحياتك. جرّب كلمة أخرى.
+                </p>
+              ) : (
+                searchHits.map(({ groupId, groupLabel, item }) => {
+                  const Icon = item.icon;
+                  const active = isAdminNavItemActive(pathname, item);
+                  return (
+                    <Link
+                      key={`${groupId}-${item.to}`}
+                      to={item.to}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => {
+                        setSearchQuery("");
+                        setMobileOpen(false);
+                      }}
+                      className={cn(
+                        "group block rounded-lg border p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+                        active
+                          ? "border-gold bg-gold/10"
+                          : "border-white/15 bg-white/[0.05] hover:border-gold/60 hover:bg-white/[0.09]",
+                      )}
+                    >
+                      <span className="block text-xs text-primary-foreground/65">
+                        {highlightMatch(groupLabel)}
+                      </span>
+                      <span className="mt-1 flex items-center gap-2 text-sm font-bold text-primary-foreground group-hover:text-gold">
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                        <span className="min-w-0 flex-1 break-words">
+                          {highlightMatch(item.label)}
+                        </span>
+                        <ChevronLeft className="h-4 w-4 shrink-0 text-gold" aria-hidden />
+                      </span>
+                      <span className="mt-1.5 block text-xs leading-relaxed text-primary-foreground/70">
+                        {highlightMatch(
+                          ADMIN_NAV_DESCRIPTIONS[item.to] ?? "افتح هذه الصفحة من قائمة الإدارة.",
+                        )}
+                      </span>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            visibleGroups.map((group) => {
+              const GroupIcon = group.icon;
+              const isOpen = isGroupOpen(group.id);
+              const isActiveGroup = activeGroupId === group.id;
 
-            // Single-item dashboard group: render as a flat link
-            if (group.items.length === 1 && group.id === "dashboard") {
-              const item = group.items[0];
-              const active = isAdminNavItemActive(pathname, item);
-              return (
-                <Link
-                  key={group.id}
-                  to={item.to}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "group relative flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-bold transition-all min-h-10",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-                    active
-                      ? "bg-white/[0.08] text-gold"
-                      : "text-primary-foreground/75 hover:text-gold hover:bg-white/[0.04]",
-                  )}
-                >
-                  {active && (
-                    <span
-                      aria-hidden
-                      className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient"
-                    />
-                  )}
-                  <GroupIcon className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="flex-1">{group.label}</span>
-                  {active && <ChevronLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />}
-                </Link>
-              );
-            }
-
-            return (
-              <div key={group.id} className="space-y-0.5">
-                <button
-                  type="button"
-                  onClick={() => onToggleGroup(group.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-bold transition-all min-h-10",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-                    isActiveGroup
-                      ? "text-gold"
-                      : "text-primary-foreground/85 hover:text-gold hover:bg-white/[0.04]",
-                  )}
-                  aria-expanded={isOpen}
-                  aria-controls={`admin-nav-group-${group.id}`}
-                >
-                  <GroupIcon className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="flex-1 text-right leading-snug break-words">{group.label}</span>
-                  <ChevronDown
+              // Single-item dashboard group: render as a flat link
+              if (group.items.length === 1 && group.id === "dashboard") {
+                const item = group.items[0];
+                const active = isAdminNavItemActive(pathname, item);
+                return (
+                  <Link
+                    key={group.id}
+                    to={item.to}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
-                      "h-4 w-4 transition-transform opacity-70 shrink-0",
-                      isOpen ? "rotate-180" : "rotate-0",
+                      "group relative flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-bold transition-all min-h-10",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+                      active
+                        ? "bg-white/[0.08] text-gold"
+                        : "text-primary-foreground/75 hover:text-gold hover:bg-white/[0.04]",
                     )}
-                    aria-hidden
-                  />
-                </button>
-                {isOpen && (
-                  <div
-                    id={`admin-nav-group-${group.id}`}
-                    className="ps-3 ms-1 border-s border-white/10 space-y-0.5"
                   >
-                    {group.items
-                      .filter((item) => {
-                        if (!searching) return true;
-                        return searchHits.some((h) => h.item.to === item.to);
-                      })
-                      .map((item) => renderItemLink(item))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    {active && (
+                      <span
+                        aria-hidden
+                        className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient"
+                      />
+                    )}
+                    <GroupIcon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="flex-1">{group.label}</span>
+                    {active && <ChevronLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />}
+                  </Link>
+                );
+              }
+
+              return (
+                <div key={group.id} className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onToggleGroup(group.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-md px-3 py-2 text-[15px] font-bold transition-all min-h-10",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+                      isActiveGroup
+                        ? "text-gold"
+                        : "text-primary-foreground/85 hover:text-gold hover:bg-white/[0.04]",
+                    )}
+                    aria-expanded={isOpen}
+                    aria-controls={`admin-nav-group-${group.id}`}
+                  >
+                    <GroupIcon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="flex-1 text-right leading-snug break-words">
+                      {group.label}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform opacity-70 shrink-0",
+                        isOpen ? "rotate-180" : "rotate-0",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                  {isOpen && (
+                    <div
+                      id={`admin-nav-group-${group.id}`}
+                      className="ps-3 ms-1 border-s border-white/10 space-y-0.5"
+                    >
+                      {group.items.map((item) => renderItemLink(item))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </nav>
 
         <div
