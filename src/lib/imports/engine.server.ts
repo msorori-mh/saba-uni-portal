@@ -947,12 +947,13 @@ export async function importStudentEnrollments(
       student_profile_id: p.student_profile_id,
       course_section_id: p.course_section_id,
       enrollment_status: p.enrollment_status,
+      result_mark: p.result_mark,
     };
 
     if (p._existingId) {
       const { error } = await sb
         .from("student_enrollments")
-        .update({ enrollment_status: p.enrollment_status })
+        .update({ enrollment_status: p.enrollment_status, result_mark: p.result_mark })
         .eq("id", p._existingId);
       if (error) {
         report.rows_failed += 1;
