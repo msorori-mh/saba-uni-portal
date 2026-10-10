@@ -581,6 +581,9 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    // The legacy status editor has no authoritative runtime step/assignee.
+    // Actor actions must use act_on_student_request_step instead.
+    throw new Error("نفّذ الإجراء من صندوق المعالجة وخطوة الطلب المعيّنة");
     await assertRequestsAdmin(context.userId);
 
     const { data: reqRow, error: reqErr } = await supabaseAdmin

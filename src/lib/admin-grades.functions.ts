@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertAnyRole, userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const GRADES_ADMIN_ROLES = [
@@ -56,6 +56,31 @@ async function assertGradesAdmin(userId: string) {
   await assertAnyRole(userId, GRADES_ADMIN_ROLES, "ليس لديك صلاحية إدارة الدرجات");
 }
 
+const GLOBAL_GRADE_ROLES = ["system_admin", "admin", "dean", "registrar"];
+
+async function canReadGradeDepartment(userId: string, departmentId: string | null, rolesArg?: string[]) {
+  const roles = rolesArg ?? await userRoles(userId);
+  if (roles.some((role) => GLOBAL_GRADE_ROLES.includes(role))) return true;
+  if (!roles.includes("department_head") || !departmentId) return false;
+  const { data, error } = await supabaseAdmin.rpc("is_department_head_of", {
+    _user_id: userId,
+    _dept_id: departmentId,
+  });
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+async function assertGradeSectionRead(userId: string, sectionId: string) {
+  const { data, error } = await supabaseAdmin.from("course_sections")
+    .select("offering:course_offerings(course:courses(department_id))")
+    .eq("id", sectionId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const section = data as unknown as { offering?: { course?: { department_id?: string | null } } } | null;
+  if (!section || !await canReadGradeDepartment(userId, section.offering?.course?.department_id ?? null)) {
+    throw new Error("لا تملك صلاحية عرض درجات هذه الشعبة");
+  }
+}
+
 export const getGradesLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -89,7 +114,7 @@ export const listGradeSections = createServerFn({ method: "POST" })
     await assertGradesAdmin(context.userId);
     const { data: rows, error } = await supabaseAdmin
       .from("course_sections")
-      .select("id, section_code, offering:course_offerings(academic_year_id, semester_id, course:courses(code, name_ar), academic_year:academic_years(name), semester:semesters(name))")
+      .select("id, section_code, offering:course_offerings(academic_year_id, semester_id, course:courses(code, name_ar, department_id), academic_year:academic_years(name), semester:semesters(name))")
       .eq("status", "active");
     if (error) throw new Error(error.message);
 
@@ -99,15 +124,27 @@ export const listGradeSections = createServerFn({ method: "POST" })
       offering: {
         academic_year_id: string;
         semester_id: string;
-        course: { code: string; name_ar: string } | null;
+        course: { code: string; name_ar: string; department_id: string | null } | null;
         academic_year: { name: string } | null;
         semester: { name: string } | null;
       } | null;
     };
 
-    return ((rows ?? []) as unknown as Raw[])
+    const roles = await userRoles(context.userId);
+    const departmentChecks = new Map<string, Promise<boolean>>();
+    const scoped = await Promise.all(((rows ?? []) as unknown as Raw[])
       .filter((r) => !data.yearId || r.offering?.academic_year_id === data.yearId)
       .filter((r) => !data.semesterId || r.offering?.semester_id === data.semesterId)
+      .map(async (r) => {
+        const departmentId = r.offering?.course?.department_id ?? "";
+        if (!departmentChecks.has(departmentId)) {
+          departmentChecks.set(departmentId, canReadGradeDepartment(
+            context.userId, departmentId || null, roles,
+          ));
+        }
+        return await departmentChecks.get(departmentId) ? r : null;
+      }));
+    return scoped.filter((r): r is Raw => r !== null)
       .map((r): GradeSectionOption => ({
         id: r.id,
         section_code: r.section_code,
@@ -125,6 +162,7 @@ export const getSectionGradesGrid = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertGradesAdmin(context.userId);
+    await assertGradeSectionRead(context.userId, data.sectionId);
 
     const { data: components, error: compErr } = await supabaseAdmin
       .from("grade_components")
@@ -198,21 +236,13 @@ export const approveSubmittedGrades = createServerFn({ method: "POST" })
       return { approvedCount: 0, courseName: "", emailTargets: [] as GradeEmailTarget[] };
     }
 
-    const { data: staff } = await supabaseAdmin
-      .from("staff_profiles")
-      .select("id")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-
     const ids = toApprove.map((g) => g.id);
-    const { error } = await supabaseAdmin
-      .from("student_grades")
-      .update({
-        status: "approved",
-        approved_at: new Date().toISOString(),
-        approved_by: staff?.id ?? null,
-      })
-      .in("id", ids);
+    // The caller's JWT reaches the database; the RPC checks the exact section,
+    // department-head assignment and separation from the section instructor.
+    const { data: approvedCount, error } = await context.supabase.rpc(
+      "approve_submitted_section_grades" as never,
+      { p_section_id: data.sectionId, p_grade_ids: ids } as never,
+    );
     if (error) throw new Error(error.message);
 
     const { data: sec } = await supabaseAdmin
@@ -239,7 +269,7 @@ export const approveSubmittedGrades = createServerFn({ method: "POST" })
       emailTargets.push({ email, full_name_ar: student?.full_name_ar ?? null });
     }
 
-    return { approvedCount: ids.length, courseName, emailTargets };
+    return { approvedCount: Number(approvedCount), courseName, emailTargets };
   });
 
 export const returnSubmittedGrades = createServerFn({ method: "POST" })
@@ -252,7 +282,7 @@ export const returnSubmittedGrades = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnyRole(
       context.userId,
-      GRADES_ADMIN_ROLES,
+      ["system_admin", "admin", "dean", "registrar"],
       "ليس لديك صلاحية إرجاع الدرجات",
     );
 
