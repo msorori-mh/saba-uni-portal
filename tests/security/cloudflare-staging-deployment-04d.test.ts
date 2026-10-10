@@ -79,7 +79,7 @@ describe("04D — Cloudflare staging build contract", () => {
     ).not.toThrow();
     expect(() =>
       assertStagingBuildInputs(
-        "https://cldpnartkfnmllrkjaoi.supabase.co",
+        "https://wpmicqriltrowwonknox.supabase.co",
         "sb_publishable_12345678901234567890",
       ),
     ).toThrow(/STAGING_DEPLOYMENT_HOLD/);
