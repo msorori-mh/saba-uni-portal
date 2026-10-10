@@ -18,8 +18,18 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 const PRODUCTION_SUPABASE_PROJECT_REF = "cldpnartkfnmllrkjaoi";
 const PRODUCTION_SUPABASE_URL = `https://${PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`;
 
+// `vite build --mode development` (build:dev) has not set NODE_ENV yet at
+// config-load time, so the NODE_ENV check below would wrongly load the
+// production env file (.env.production) and fail the cutover profile checks.
+// Read the explicit --mode flag first; fall back to NODE_ENV for dev/serve.
+const explicitBuildMode = (() => {
+  const flagIndex = process.argv.indexOf("--mode");
+  return flagIndex >= 0 ? process.argv[flagIndex + 1] : undefined;
+})();
+
 const viteEnvironment = loadEnv(
-  process.env.NODE_ENV === "development" ? "development" : "production",
+  explicitBuildMode ??
+    (process.env.NODE_ENV === "development" ? "development" : "production"),
   process.cwd(),
   "",
 );
