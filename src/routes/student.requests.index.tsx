@@ -17,7 +17,6 @@ import {
 import { portalFeatures } from "@/lib/portal-features";
 import { B1StudentServiceList } from "@/components/student-requests/b1";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
-import { StudentServiceGuide } from "@/components/student-requests/StudentServiceGuide";
 import { DeleteDraftRequestButton } from "@/components/student-requests/DeleteDraftRequestButton";
 import {
   StudentServicesPausedBanner,
@@ -144,8 +143,6 @@ function StudentRequestsIndexPage() {
           </p>
         </div>
       </header>
-
-      <StudentServiceGuide variant="web" />
 
       <nav
         aria-label="أقسام الخدمات الطلابية"

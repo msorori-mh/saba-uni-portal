@@ -15,7 +15,6 @@ import {
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
 import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
-import { StudentServiceGuide } from "@/components/student-requests/StudentServiceGuide";
 import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 import {
   StudentServicesPausedBanner,
@@ -154,9 +153,6 @@ function MobileStudentRequests() {
           اختر خدمة للتقديم أو تابع طلباتك الحالية والسابقة.
         </p>
       </header>
-
-      <StudentServiceGuide variant="mobile" />
-
 
       <nav
         className="grid grid-cols-2 rounded-xl border border-border bg-muted/30 p-1"
