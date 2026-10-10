@@ -140,8 +140,10 @@ describe("server gate wiring", () => {
     expect(SHELL).toMatch(/overflow-x-auto whitespace-nowrap/);
   });
 
-  test("dashboard has no ungated card to the monitoring page", () => {
-    expect(read("src/routes/faculty-portal.index.tsx")).not.toContain("lecture-monitoring");
+  test("dashboard monitoring entry obeys the same server flag as the shell", () => {
+    expect(read("src/routes/faculty-portal.index.tsx")).toMatch(
+      /\{processingAccess\?\.canMonitorDelivery\s*&&\s*\(\s*<Link to="\/faculty-portal\/lecture-monitoring"/,
+    );
   });
 
   test("page heading uses the owner's name; unauthorized visitors get a friendly Arabic state", () => {
