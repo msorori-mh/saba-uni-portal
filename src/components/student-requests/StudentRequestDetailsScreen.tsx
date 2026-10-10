@@ -1,5 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Navigate } from "@tanstack/react-router";
 import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Circle, Clock, Download, FileText, Loader2, Send, Wallet } from "lucide-react";
@@ -204,6 +208,7 @@ function eventLabel(eventType: unknown): string {
 
 export function StudentRequestDetailsScreen({ id }: { id: string }) {
   const qc = useQueryClient();
+  const routes = useStudentRequestRoutes();
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
   const signedUrlFn = useServerFn(getStudentRequestAttachmentSignedUrl);
   const submitFn = useServerFn(submitStudentServiceRequest);
@@ -280,6 +285,11 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
   }
 
   const request: any = data.request;
+  // Generic links (including completion notifications) must show the B1 fee
+  // decision and timeline through the service-specific detail page.
+  if (isB1ServiceCode(normalizeStudentRequestTypeCode(request.request_type))) {
+    return <Navigate to={routes.b1View} params={{ requestId: id }} replace />;
+  }
   const canResubmit = request.status === "returned_for_completion" || request.status === "returned";
 
   // PILOT-MEDIUM-FIX-01 (F-07): surface the latest "return for completion"
