@@ -61,9 +61,9 @@ export function AcademicTranscript({ d, printable = false }: { d: StudentProgres
                       <Td mono>{course.course_code}</Td>
                       <Td>{course.course_name_ar}</Td>
                       <Td>{course.credit_hours}</Td>
-                      <Td>{course.official_result == null ? "—" : `${course.official_result.toFixed(1)}%`}</Td>
+                      <Td>{course.result_mark || course.official_result == null ? "—" : `${course.official_result.toFixed(1)}%`}</Td>
                       <Td>{course.grade_label ?? "—"}</Td>
-                      <Td>{course.result === "passed" ? "ناجح" : course.result === "failed" ? "راسب" : "قيد الدراسة"}</Td>
+                      <Td>{course.result === "passed" ? "ناجح" : course.result === "failed" ? "راسب" : course.result === "excused" ? "غير محتسب" : "قيد الدراسة"}</Td>
                     </tr>
                   ))}
                 </tbody>

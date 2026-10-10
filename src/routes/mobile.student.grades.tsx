@@ -12,6 +12,10 @@ import {
 import { COURSE_PASS_PERCENT } from "@/lib/academic/pass-threshold";
 import { gradeArabicLabel, normalizeOfficialResult } from "@/lib/academic/grading-scale";
 import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
+import {
+  MOBILE_OFFLINE_PREFETCH_OPTIONS,
+  prefetchMobileOfflineScreen,
+} from "@/lib/mobile/offline/screen-prefetch";
 
 export const Route = createFileRoute("/mobile/student/grades")({
   head: () => ({
@@ -20,6 +24,16 @@ export const Route = createFileRoute("/mobile/student/grades")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
+  // Offline mode: downloaded (and saved) in the background when the layout
+  // preloads this route, without the student opening the screen.
+  loader: ({ context }) =>
+    prefetchMobileOfflineScreen(context.queryClient, (queryClient) =>
+      queryClient.prefetchQuery({
+        queryKey: ["mobile-student", "grades"],
+        queryFn: fetchMobileGrades,
+        ...MOBILE_OFFLINE_PREFETCH_OPTIONS,
+      }),
+    ),
   component: MobileStudentGradesPage,
 });
 

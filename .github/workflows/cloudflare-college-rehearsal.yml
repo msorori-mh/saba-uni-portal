@@ -1,0 +1,181 @@
+name: Cloudflare College Rehearsal — portal on workers.dev with the college Supabase
+
+# LOVABLE-EXIT-01 phase 6 (owner-approved, 2026-10-09).
+# Builds the exact main SHA and runs it on ONE dedicated Worker
+# (saba-uni-portal-college) on Cloudflare workers.dev, connected to the
+# college-owned Supabase project pwapivqjofdsevycegph.
+#   - never touches quboolye.com (no routes, no custom domains, no DNS);
+#   - never connects to the legacy Lovable Cloud project;
+#   - runs no migrations and writes no data;
+#   - manual dispatch only, from main, by the owner.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Exact 40-character SHA of the current main head"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-college-rehearsal
+  cancel-in-progress: false
+
+env:
+  WORKER_NAME: saba-uni-portal-college
+  VITE_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co
+  VITE_PORTAL_DEPLOY_TARGET: staging
+
+jobs:
+  rehearsal:
+    name: Build, deploy and smoke-test the rehearsal Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: supabase-migration
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TARGET_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Validate dispatch input
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$DISPATCH_REF" != "refs/heads/main" ]; then
+            echo "::error::dispatch from main only"
+            exit 1
+          fi
+          SHA="$(printf '%s' "$CANDIDATE_SHA" | tr -d '[:space:]' | tr 'A-F' 'a-f')"
+          if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be exactly 40 hexadecimal characters"
+            exit 1
+          fi
+          echo "CANDIDATE_SHA=$SHA" >> "$GITHUB_ENV"
+
+      - name: Check required secrets (presence only)
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ] || missing="$missing TARGET_SUPABASE_PUBLISHABLE_KEY"
+          [ -n "${SERVICE_KEY:-}" ] || missing="$missing TARGET_SUPABASE_SERVICE_ROLE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets in the 'supabase-migration' environment:$missing"
+            exit 1
+          fi
+          if [[ ! "$VITE_SUPABASE_PUBLISHABLE_KEY" =~ ^sb_publishable_ ]]; then
+            echo "::error::TARGET_SUPABASE_PUBLISHABLE_KEY must be the public sb_publishable_ key (not the secret key)"
+            exit 1
+          fi
+
+      - name: Check out the authorized SHA without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove the candidate is the current main head
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$CANDIDATE_SHA" = "$(git rev-parse HEAD)"
+          if [ "$CANDIDATE_SHA" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::candidate_sha is not the current head of main"
+            exit 1
+          fi
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Contract tests
+        run: bun test tests/security/cloudflare-college-rehearsal.test.ts tests/security/cloudflare-staging-deployment-04d.test.ts
+
+      - name: Build for the college Supabase project
+        env:
+          GITHUB_SHA: ${{ env.CANDIDATE_SHA }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: bun run build
+
+      - name: Prepare the rehearsal bundle and dry-run
+        run: |
+          set -euo pipefail
+          bun run scripts/college/prepare-college-rehearsal-bundle.ts
+          SIZE_LOG=".wrangler/college-dry-run-size.log"
+          bunx wrangler deploy --dry-run --outdir .wrangler/college-dry-run \
+            --name "$WORKER_NAME" 2>&1 | tee "$SIZE_LOG"
+          bun run scripts/staging/assert-cloudflare-staging-size.ts "$SIZE_LOG"
+
+      - name: Deploy the rehearsal Worker (workers.dev only)
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --name saba-uni-portal-college
+
+      - name: Set server-side runtime secrets on the rehearsal Worker
+        env:
+          SERVICE_KEY: ${{ secrets.TARGET_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          SECRETS_FILE="$RUNNER_TEMP/worker-secrets.json"
+          jq -n \
+            --arg url "$VITE_SUPABASE_URL" \
+            --arg pub "$VITE_SUPABASE_PUBLISHABLE_KEY" \
+            --arg svc "$SERVICE_KEY" \
+            '{SUPABASE_URL:$url, SUPABASE_PUBLISHABLE_KEY:$pub, SUPABASE_SERVICE_ROLE_KEY:$svc, PORTAL_DEPLOY_TARGET:"staging"}' \
+            > "$SECRETS_FILE"
+          bunx wrangler secret bulk "$SECRETS_FILE" --name "$WORKER_NAME"
+          rm -f "$SECRETS_FILE"
+
+      - name: Smoke test (version, root page, college Supabase reachable)
+        env:
+          EXPECTED_BUILD_SHA: ${{ env.CANDIDATE_SHA }}
+          STAGING_DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          bun run scripts/staging/verify-cloudflare-staging-deployment.ts
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" "$VITE_SUPABASE_URL/auth/v1/health")"
+          if [ "$code" != "200" ]; then
+            echo "::error::college Supabase auth health returned HTTP $code"
+            exit 1
+          fi
+          echo "::notice title=rehearsal URL::${STAGING_DEPLOYMENT_URL}"
+
+      - name: Record evidence
+        if: ${{ success() }}
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          {
+            echo "## PASS_COLLEGE_REHEARSAL"
+            echo "- Worker: \`$WORKER_NAME\` (workers.dev only)"
+            echo "- SHA: \`$CANDIDATE_SHA\`"
+            echo "- URL: $DEPLOYMENT_URL"
+            echo "- Supabase: $VITE_SUPABASE_URL"
+            echo "- quboolye.com / DNS changes: 0"
+            echo "- Database migrations/writes: 0"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back the rehearsal Worker after a failed smoke test
+        if: ${{ failure() && steps.deploy.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          bunx wrangler rollback --name "$WORKER_NAME" \
+            --message "Automatic rollback after rehearsal smoke failure for $CANDIDATE_SHA"

@@ -277,24 +277,12 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
               text: request.status,
               cls: "bg-muted",
             };
-            const b1Request = isB1ServiceCode(
-              normalizeStudentRequestTypeCode(request.request_type),
-            );
             const displayName = getStudentRequestTypeDisplayName(
               request.request_type,
               request.request_type_name_ar,
             );
-            return (
-              <div key={request.id} className="space-y-1.5">
-              <Link
-                to={b1Request
-                  ? "/mobile/student/requests/b1/view/$requestId"
-                  : "/mobile/student/requests/$id"}
-                params={b1Request
-                  ? { requestId: request.id }
-                  : { id: request.id }}
-                className="block rounded-xl border border-border bg-card p-3 shadow-card"
-              >
+            const cardBody = (
+              <>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-bold text-sm text-primary">{displayName}</div>
@@ -313,7 +301,29 @@ function RequestsHistory({ requests }: { requests: RequestRow[] }) {
                     ? `أُرسل: ${new Date(request.submitted_at).toLocaleDateString("ar-EG")}`
                     : `أُنشئ: ${new Date(request.created_at).toLocaleDateString("ar-EG")}`}
                 </div>
-              </Link>
+              </>
+            );
+            return (
+              <div key={request.id} className="space-y-1.5">
+              {/* Same split as the web list: the five B1 services open their
+                  own tracking view (stages, fee decision, summary). */}
+              {isB1ServiceCode(normalizeStudentRequestTypeCode(request.request_type)) ? (
+                <Link
+                  to="/mobile/student/requests/b1/view/$requestId"
+                  params={{ requestId: request.id }}
+                  className="block rounded-xl border border-border bg-card p-3 shadow-card"
+                >
+                  {cardBody}
+                </Link>
+              ) : (
+                <Link
+                  to="/mobile/student/requests/$id"
+                  params={{ id: request.id }}
+                  className="block rounded-xl border border-border bg-card p-3 shadow-card"
+                >
+                  {cardBody}
+                </Link>
+              )}
               {request.status === "draft" ? (
                 <DeleteDraftRequestButton requestId={request.id} compact />
               ) : null}
