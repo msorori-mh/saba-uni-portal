@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rpcGetMyStudentRequests } from "@/lib/student-request-rpc";
+import { resolveStudentRequestOwner } from "@/lib/student-requests/student-request-owner.server";
 import { isDownloadableOfficialDocumentStatus } from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 
 /**
@@ -24,16 +25,10 @@ import { isDownloadableOfficialDocumentStatus } from "@/lib/student-requests/enr
 const requestIdSchema = z.object({ requestId: z.string().uuid() });
 
 async function assertStudentOwnsRequest(userId: string, requestId: string): Promise<void> {
-  const { data, error } = await supabaseAdmin
-    .from("student_requests")
-    .select("id, student_profile:student_profiles!inner(user_id)")
-    .eq("id", requestId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  const ownerUserId =
-    (data as { student_profile?: { user_id?: string | null } } | null)?.student_profile?.user_id ??
-    null;
-  if (!data || ownerUserId !== userId) {
+  // No PostgREST embed here: student_requests has no FK to student_profiles.
+  const owner = await resolveStudentRequestOwner(requestId);
+  const ownerUserId = owner?.ownerUserId ?? null;
+  if (!owner || !ownerUserId || ownerUserId !== userId) {
     throw new Error("غير مصرح");
   }
 }

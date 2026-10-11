@@ -77,9 +77,10 @@ describe("student tracking fns — workflow timeline", () => {
   });
 
   it("asserts ownership via student_profiles.user_id === context.userId before reading", () => {
-    expect(TRACKING_SRC).toMatch(
-      /assertStudentOwnsRequest[\s\S]*?student_profiles!inner\(user_id\)/,
-    );
+    // student_requests has no FK to student_profiles: a PostgREST embed fails
+    // (PGRST200), so ownership is resolved with two plain reads.
+    expect(TRACKING_SRC).toMatch(/assertStudentOwnsRequest[\s\S]*?resolveStudentRequestOwner\(requestId\)/);
+    expect(TRACKING_SRC).not.toContain("student_profiles!inner");
     expect(TRACKING_SRC).toMatch(/ownerUserId\s*!==\s*userId/);
     expect(TRACKING_SRC).toMatch(/غير مصرح/);
   });

@@ -9948,6 +9948,7 @@ export type Database = {
           enrolled_at: string
           enrollment_status: string
           id: string
+          result_mark: string | null
           student_profile_id: string
           updated_at: string
         }
@@ -9957,6 +9958,7 @@ export type Database = {
           enrolled_at?: string
           enrollment_status?: string
           id?: string
+          result_mark?: string | null
           student_profile_id: string
           updated_at?: string
         }
@@ -9966,6 +9968,7 @@ export type Database = {
           enrolled_at?: string
           enrollment_status?: string
           id?: string
+          result_mark?: string | null
           student_profile_id?: string
           updated_at?: string
         }
@@ -12114,6 +12117,10 @@ export type Database = {
         Args: { p_step_id: string }
         Returns: string
       }
+      b1_excused_absence_staff_summary: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
       b1_excused_absence_step_decision_allowed: {
         Args: { p_action: string; p_step_id: string }
         Returns: boolean
@@ -12805,6 +12812,10 @@ export type Database = {
           unit_id: string
           unit_name_ar: string
         }[]
+      }
+      delete_my_student_request_draft: {
+        Args: { p_request_id: string }
+        Returns: boolean
       }
       delivery_monitoring_headed_departments: {
         Args: { p_user: string }

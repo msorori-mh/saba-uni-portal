@@ -15,8 +15,8 @@ import {
   remainingLeaveDays,
 } from "@/lib/staff-self-service-read";
 import { listAccessibleStaffServiceRequests } from "@/lib/staff-self-service-live";
-import { getB1UiAdapter } from "@/lib/student-requests/b1-ui";
-import { B1_ASSIGNED_REQUESTS_QUERY_KEY } from "@/components/student-requests/b1/B1StaffWorkspace";
+import { useAssignedStudentRequests } from "@/components/staff-portal/useAssignedStudentRequests";
+import { assignedStudentRequestCount } from "@/lib/student-requests/assigned-inbox-count";
 
 type StaffEmployeeHomeProps = {
   profile: {
@@ -141,10 +141,7 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     queryKey: ["staff-portal-home", "custody"],
     queryFn: () => fetchStaffCustody({ ownOnly: true }),
   });
-  const assignedStudentRequests = useQuery({
-    queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY,
-    queryFn: () => getB1UiAdapter().getAssignedB1Requests(),
-  });
+  const assignedStudentRequests = useAssignedStudentRequests();
 
   const annual = (leave.data ?? []).find((item) => item.leave_type === "annual");
   const annualRemaining = annual ? remainingLeaveDays(annual).toFixed(0) : "—";
@@ -155,11 +152,12 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     (item) => item.condition === "needs_maintenance" || item.condition === "damaged",
   );
   const latestRequests = (requests.data ?? []).slice(0, 5);
-  const assignedCount = assignedStudentRequests.data?.length ?? null;
+  const assignedCount = assignedStudentRequestCount(assignedStudentRequests.data);
   // Never show a fake number: loading → "…", failure → "—" plus the page error banner.
-  const assignedValue = assignedStudentRequests.isError
+  const assignedValue = assignedStudentRequests.isError ||
+    (assignedStudentRequests.data && assignedCount === null)
     ? "—"
-    : (assignedCount ?? "…");
+    : (assignedCount === null ? "…" : assignedCount >= 200 ? "200+" : assignedCount);
   const loading =
     leave.isLoading ||
     requests.isLoading ||
@@ -171,7 +169,8 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     requests.isError ||
     letters.isError ||
     custody.isError ||
-    assignedStudentRequests.isError;
+    assignedStudentRequests.isError ||
+    (assignedStudentRequests.data !== undefined && assignedCount === null);
 
   const nothingUrgent =
     !loading &&

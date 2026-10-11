@@ -1,5 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Navigate } from "@tanstack/react-router";
 import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Circle, Clock, Download, FileText, Loader2, Send, Wallet } from "lucide-react";
@@ -175,8 +179,36 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "مكتمل",
 };
 
+/** Arabic labels for the request history; an unknown type falls back to a neutral label. */
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  created: "تم إنشاء الطلب",
+  draft_created: "تم إنشاء الطلب",
+  submitted: "تم إرسال الطلب",
+  resubmitted: "أُعيد إرسال الطلب",
+  in_review: "قيد المراجعة",
+  under_review: "قيد المراجعة",
+  reviewed: "تمت المراجعة",
+  approved: "تمت الموافقة",
+  rejected: "تم رفض الطلب",
+  returned: "أُعيد الطلب للاستكمال",
+  returned_for_completion: "أُعيد الطلب للاستكمال",
+  cancelled: "تم إلغاء الطلب",
+  completed: "اكتمل الطلب",
+  payment_requested: "مطلوب سداد الرسوم",
+  payment_confirmed: "تم تأكيد السداد",
+  signed: "تم التوقيع",
+  document_issued: "صدرت الوثيقة",
+  archived: "تمت الأرشفة",
+};
+
+function eventLabel(eventType: unknown): string {
+  const key = String(eventType ?? "").trim().toLowerCase();
+  return EVENT_TYPE_LABEL[key] ?? "تحديث على الطلب";
+}
+
 export function StudentRequestDetailsScreen({ id }: { id: string }) {
   const qc = useQueryClient();
+  const routes = useStudentRequestRoutes();
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
   const signedUrlFn = useServerFn(getStudentRequestAttachmentSignedUrl);
   const submitFn = useServerFn(submitStudentServiceRequest);
@@ -253,6 +285,11 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
   }
 
   const request: any = data.request;
+  // Generic links (including completion notifications) must show the B1 fee
+  // decision and timeline through the service-specific detail page.
+  if (isB1ServiceCode(normalizeStudentRequestTypeCode(request.request_type))) {
+    return <Navigate to={routes.b1View} params={{ requestId: id }} replace />;
+  }
   const canResubmit = request.status === "returned_for_completion" || request.status === "returned";
 
   // PILOT-MEDIUM-FIX-01 (F-07): surface the latest "return for completion"
@@ -451,7 +488,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
             <div className="text-sm text-muted-foreground">لا توجد أحداث بعد.</div>
           ) : data.events.map((event: any) => (
             <div key={event.id} className="rounded-lg border border-border bg-background p-3 text-xs">
-              <div className="font-bold">{event.event_type}</div>
+              <div className="font-bold">{eventLabel(event.event_type)}</div>
               <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG")}</div>
               {event.notes && <div className="mt-1">{event.notes}</div>}
             </div>

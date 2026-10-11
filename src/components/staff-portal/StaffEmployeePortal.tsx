@@ -31,11 +31,10 @@ import { StaffSelfServiceLiveActions } from "@/components/staff-showcase/StaffSe
 import { StaffSelfServiceLiveDashboard } from "@/components/staff-showcase/StaffSelfServiceLiveDashboard";
 import { StaffValueAddedEmployeePanel } from "@/components/staff-showcase/StaffValueAddedEmployeePanel";
 import { StaffEmployeeHome } from "@/components/staff-portal/StaffEmployeeHome";
-import {
-  B1StaffWorkspace,
-  B1_ASSIGNED_REQUESTS_QUERY_KEY,
-} from "@/components/student-requests/b1/B1StaffWorkspace";
-import { getB1UiAdapter } from "@/lib/student-requests/b1-ui";
+import { B1StaffWorkspace } from "@/components/student-requests/b1/B1StaffWorkspace";
+import { StaffInboxShell } from "@/components/student-requests/StaffInboxShell";
+import { useAssignedStudentRequests } from "@/components/staff-portal/useAssignedStudentRequests";
+import { assignedStudentRequestCount } from "@/lib/student-requests/assigned-inbox-count";
 import { portalFeatures } from "@/lib/portal-features";
 
 export type StaffPortalSection =
@@ -163,14 +162,9 @@ function PortalNavigation({
   active: StaffPortalSection;
   onSelect: (section: StaffPortalSection) => void;
 }) {
-  // Shares the same query key/cache as the home card and the B1 workspace;
-  // no duplicated backend logic. On failure the badge is simply hidden —
-  // never a fake number.
-  const assignedStudentRequests = useQuery({
-    queryKey: B1_ASSIGNED_REQUESTS_QUERY_KEY,
-    queryFn: () => getB1UiAdapter().getAssignedB1Requests(),
-  });
-  const assignedCount = assignedStudentRequests.data?.length ?? null;
+  // The home card and nav badge share the actor-scoped inbox for all services.
+  const assignedStudentRequests = useAssignedStudentRequests();
+  const assignedCount = assignedStudentRequestCount(assignedStudentRequests.data);
 
   // Capability probe: the link appears only when the AUTH-04 backend actually
   // authorizes this employee for graduates affairs — never on the flag alone.
@@ -215,11 +209,11 @@ function PortalNavigation({
                     assignedCount !== null &&
                     assignedCount > 0 && (
                       <span
-                        data-testid="b1-assigned-nav-badge"
+                        data-testid="staff-assigned-nav-badge"
                         aria-label={`${assignedCount} طلب مسند`}
                         className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
                       >
-                        {assignedCount}
+                        {assignedCount >= 200 ? "200+" : assignedCount}
                       </span>
                     )}
                 </button>
@@ -306,16 +300,26 @@ function PortalView({
   if (section === "profile") return <StaffProfileView profile={profile} />;
   if (section === "student-requests") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <section className="space-y-4" aria-labelledby="staff-all-services-title">
+          <div>
+            <h2 id="staff-all-services-title" className="text-lg font-extrabold text-primary">الخدمات الطلابية المسندة إليك</h2>
+            <p className="mt-1 text-sm text-muted-foreground">تظهر هنا خطوات الخدمات المسندة لحسابك، ومنها شهادة القيد، بحسب دورك في مسار المعالجة.</p>
+          </div>
+          <StaffInboxShell />
+        </section>
         <Link
           to="/staff/processing-requests"
           data-testid="staff-processing-inbox-link"
           className="flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm font-medium text-primary transition-colors hover:bg-muted/60"
         >
           <ClipboardCheck className="h-4 w-4" aria-hidden />
-          صندوق معالجة جميع الخدمات المسندة إليك (ومنها تأكيد السداد لشهادة القيد)
+          فتح صندوق الخدمات في صفحة مستقلة
         </Link>
-        <B1StaffWorkspace embedded />
+        <section className="space-y-3" aria-labelledby="staff-b1-services-title">
+          <h2 id="staff-b1-services-title" className="text-lg font-extrabold text-primary">إجراءات الخدمات المتخصصة</h2>
+          <B1StaffWorkspace embedded />
+        </section>
       </div>
     );
   }

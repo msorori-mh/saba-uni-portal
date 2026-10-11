@@ -147,12 +147,16 @@ function mockStatusDb(
       select: () => {
         const data = table === "student_academic_status" ? statuses : [];
         const base = Promise.resolve({ data, error: null });
-        return Object.assign(base, {
+        const chain = Object.assign(base, {
           in: async () => ({
             data: table === "student_profiles" ? students : data,
             error: null,
           }),
+          // selectAllRows pages with .order().range(); one page holds everything.
+          order: (): unknown => chain,
+          range: () => base,
         });
+        return chain;
       },
     }),
   };
