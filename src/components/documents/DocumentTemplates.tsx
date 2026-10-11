@@ -1,6 +1,7 @@
 // Phase 9A + 10A: printable official documents with QR + security banner.
 import type { ReactNode } from "react";
 import { gradeArabicLabel, normalizeOfficialResult, officialWeightedAverage } from "@/lib/academic/grading-scale";
+import { isResultMark } from "@/lib/academic/result-marks";
 
 export type DocumentBase = {
   id: string;
@@ -40,10 +41,13 @@ export type TranscriptCourse = {
   course_code: string;
   course_name: string;
   credit_hours: number;
-  percentage: number;
-  course_status: "passed" | "failed";
+  percentage: number | null;
+  // "excused": official mark غ ب ض / ق ض — listed, but not counted anywhere.
+  course_status: "passed" | "failed" | "excused";
   semester_name: string;
   academic_year_name: string;
+  // Official mark (غ ض / م ح ض / غ ب ض / ق ض) when present, else the computed label.
+  grade_label?: string | null;
 };
 
 export type ReceiptInfo = {
@@ -191,12 +195,14 @@ export function StatusCertificate({
 export function OfficialTranscript({
   doc, student, site, courses, qrDataUrl,
 }: { doc: DocumentBase; student: StudentInfo; site: SiteInfo; courses: TranscriptCourse[] } & WithQR) {
-  const totalHours = courses.reduce((s, c) => s + Number(c.credit_hours || 0), 0);
-  const passedHours = courses
+  // Excused marks (غ ب ض / ق ض) are listed but never counted.
+  const counted = courses.filter((c) => c.course_status !== "excused");
+  const totalHours = counted.reduce((s, c) => s + Number(c.credit_hours || 0), 0);
+  const passedHours = counted
     .filter((c) => c.course_status === "passed")
     .reduce((s, c) => s + Number(c.credit_hours || 0), 0);
   const avg = officialWeightedAverage(
-    courses.map((c) => ({ raw: Number(c.percentage || 0), creditHours: Number(c.credit_hours || 0) })),
+    counted.map((c) => ({ raw: Number(c.percentage || 0), creditHours: Number(c.credit_hours || 0) })),
   );
   return (
     <article dir="rtl" className="bg-white text-foreground p-4 sm:p-8 print:p-8 max-w-4xl mx-auto print:max-w-none">
@@ -224,20 +230,23 @@ export function OfficialTranscript({
         <tbody>
           {courses.length === 0 ? (
             <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">لا توجد مقررات معتمدة.</td></tr>
-          ) : courses.map((c, i) => (
+          ) : courses.map((c, i) => {
+            const mark = isResultMark(c.grade_label) ? c.grade_label : null;
+            return (
             <tr key={i}>
               <td className="p-2 border border-border">{c.academic_year_name}</td>
               <td className="p-2 border border-border">{c.semester_name}</td>
               <td className="p-2 border border-border font-mono">{c.course_code}</td>
               <td className="p-2 border border-border">{c.course_name}</td>
               <td className="p-2 border border-border text-center">{c.credit_hours}</td>
-              <td className="p-2 border border-border text-center">{(normalizeOfficialResult(Number(c.percentage)) ?? 0).toFixed(1)}%</td>
-              <td className="p-2 border border-border text-center">{gradeArabicLabel(Number(c.percentage)) ?? "—"}</td>
+              <td className="p-2 border border-border text-center">{mark ? "—" : `${(normalizeOfficialResult(Number(c.percentage)) ?? 0).toFixed(1)}%`}</td>
+              <td className="p-2 border border-border text-center">{mark ?? gradeArabicLabel(Number(c.percentage)) ?? "—"}</td>
               <td className="p-2 border border-border text-center font-bold">
-                {c.course_status === "passed" ? "ناجح" : "راسب"}
+                {c.course_status === "passed" ? "ناجح" : c.course_status === "excused" ? "غير محتسب" : "راسب"}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
       </div>

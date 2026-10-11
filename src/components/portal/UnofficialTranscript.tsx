@@ -4,6 +4,7 @@ import { Loader2, FileText, Printer, AlertTriangle } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getUnofficialTranscriptData } from "@/lib/transcript.functions";
 import { gradeArabicLabel, normalizeOfficialResult, officialWeightedAverage } from "@/lib/academic/grading-scale";
+import { isResultMark } from "@/lib/academic/result-marks";
 
 export type TranscriptRow = {
   enrollment_id: string;
@@ -24,11 +25,14 @@ export type TranscriptRow = {
   course_name: string;
   credit_hours: number;
   section_code: string;
-  final_score: number;
-  max_score: number;
-  percentage: number;
-  course_status: "passed" | "failed";
+  final_score: number | null;
+  max_score: number | null;
+  percentage: number | null;
+  // "excused": official mark غ ب ض / ق ض — listed, but not counted anywhere.
+  course_status: "passed" | "failed" | "excused";
   notes: string | null;
+  // Official mark (غ ض / م ح ض / غ ب ض / ق ض) when present, else the computed label.
+  grade_label?: string | null;
 };
 
 export type SummaryRow = {
@@ -86,13 +90,15 @@ export function UnofficialTranscript({ studentProfileId, header }: { studentProf
 
   // Overall totals (filtered)
   const totals = useMemo(() => {
-    const totalHours = filtered.reduce((s, r) => s + Number(r.credit_hours), 0);
-    const passedHours = filtered.filter(r => r.course_status === "passed").reduce((s, r) => s + Number(r.credit_hours), 0);
-    const passedCount = filtered.filter(r => r.course_status === "passed").length;
-    const failedCount = filtered.filter(r => r.course_status === "failed").length;
+    // Excused marks (غ ب ض / ق ض) are listed but never counted.
+    const counted = filtered.filter(r => r.course_status !== "excused");
+    const totalHours = counted.reduce((s, r) => s + Number(r.credit_hours), 0);
+    const passedHours = counted.filter(r => r.course_status === "passed").reduce((s, r) => s + Number(r.credit_hours), 0);
+    const passedCount = counted.filter(r => r.course_status === "passed").length;
+    const failedCount = counted.filter(r => r.course_status === "failed").length;
     // Official (normalized) credit-weighted average — percentage scale, not a GPA.
-    const avg = officialWeightedAverage(filtered.map(r => ({ raw: Number(r.percentage), creditHours: Number(r.credit_hours) })));
-    return { totalHours, passedHours, passedCount, failedCount, count: filtered.length, avg };
+    const avg = officialWeightedAverage(counted.map(r => ({ raw: Number(r.percentage), creditHours: Number(r.credit_hours) })));
+    return { totalHours, passedHours, passedCount, failedCount, count: counted.length, avg };
   }, [filtered]);
 
   const header_row = rows[0];
@@ -213,21 +219,25 @@ export function UnofficialTranscript({ studentProfileId, header }: { studentProf
                                 </tr>
                               </thead>
                               <tbody>
-                                {items.map(r => (
+                                {items.map(r => {
+                                  // Official marks are shown verbatim, like the university sheet.
+                                  const mark = isResultMark(r.grade_label) ? r.grade_label : null;
+                                  return (
                                   <tr key={r.enrollment_id} className="border-t">
                                     <Td className="font-mono font-bold">{r.course_code}</Td>
                                     <Td>{r.course_name}</Td>
                                     <Td className="text-center">{r.credit_hours}</Td>
-                                    <Td className="text-center font-mono">{Number(r.final_score)}/{Number(r.max_score)}</Td>
-                                    <Td className="text-center font-mono">{normalizeOfficialResult(Number(r.percentage)) ?? 0}%</Td>
-                                    <Td className="text-center">{gradeArabicLabel(Number(r.percentage)) ?? "—"}</Td>
+                                    <Td className="text-center font-mono">{mark ? "—" : `${Number(r.final_score)}/${Number(r.max_score)}`}</Td>
+                                    <Td className="text-center font-mono">{mark ? "—" : `${normalizeOfficialResult(Number(r.percentage)) ?? 0}%`}</Td>
+                                    <Td className="text-center font-bold">{mark ?? gradeArabicLabel(Number(r.percentage)) ?? "—"}</Td>
                                     <Td className="text-center">
-                                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${r.course_status === "passed" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
-                                        {r.course_status === "passed" ? "ناجح" : "راسب"}
+                                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${r.course_status === "passed" ? "bg-emerald-100 text-emerald-800" : r.course_status === "excused" ? "bg-slate-100 text-slate-700" : "bg-rose-100 text-rose-800"}`}>
+                                        {r.course_status === "passed" ? "ناجح" : r.course_status === "excused" ? "غير محتسب" : "راسب"}
                                       </span>
                                     </Td>
                                   </tr>
-                                ))}
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
