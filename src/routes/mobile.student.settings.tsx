@@ -1,4 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { clearMobileStudentIdentity, getMobileStudentIdentity } from "@/lib/mobile/student-identity";
+import { useQuery } from "@tanstack/react-query";
+import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 import { useState, type FormEvent } from "react";
 import { KeyRound, Loader2, LogOut, Settings2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +26,15 @@ function MobileStudentSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  // The layout guard sends a student with a temporary / reset password here
+  // and keeps them here until the password is changed.
+  const { data: identity } = useQuery({
+    queryKey: ["mobile", "student-identity", "must-change-password"],
+    queryFn: getMobileStudentIdentity,
+    staleTime: 0,
+    gcTime: MOBILE_QUERY_GC_TIME_MS,
+  });
+  const mustChangePassword = identity?.mustChangePassword === true;
 
   const onChangePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -37,7 +49,9 @@ function MobileStudentSettings() {
       setConfirm("");
       const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
       if (rpcErr) throw rpcErr;
+      clearMobileStudentIdentity();
       setDone(true);
+      if (mustChangePassword) navigate({ to: "/mobile/student", replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر تغيير كلمة المرور");
     } finally {
@@ -56,6 +70,17 @@ function MobileStudentSettings() {
       <h1 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
         <Settings2 className="h-5 w-5 text-gold" /> الإعدادات
       </h1>
+
+      {mustChangePassword && (
+        <div
+          role="alert"
+          data-testid="mobile-forced-password-change"
+          className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          يجب تغيير كلمة المرور المؤقتة قبل استخدام التطبيق. أدخل كلمة المرور الحالية التي سجّلت بها
+          الدخول، ثم اختر كلمة مرور جديدة.
+        </div>
+      )}
 
       <section className="rounded-2xl border border-gold/40 bg-card p-4 shadow-card space-y-3">
         <div className="flex items-center gap-2 text-sm font-extrabold text-primary">

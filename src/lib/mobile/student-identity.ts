@@ -42,13 +42,23 @@ import {
   storedSessionNeedsRefresh,
 } from "@/lib/mobile/offline/stored-session";
 
-export type MobileStudentIdentity = { userId: string; studentProfileId: string };
+export type MobileStudentIdentity = {
+  userId: string;
+  studentProfileId: string;
+  /**
+   * True only when the server says the account still carries a temporary
+   * password (student_profiles.must_change_password). Never inferred: offline
+   * or from an older persisted identity it is simply absent (= not forced).
+   */
+  mustChangePassword?: boolean;
+};
 
 const IDENTITY_TTL_MS = 10 * 60_000;
 /** How long the guard waits for a token refresh before trusting the local session. */
 const SESSION_REFRESH_WAIT_MS = 3_000;
 
 let cached: (MobileStudentIdentity & { at: number }) | null = null;
+
 let inflight: { userId: string; promise: Promise<MobileStudentIdentity | null> } | null = null;
 
 function wait<T>(ms: number, value: T): Promise<T> {
@@ -126,7 +136,9 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
     return null;
   }
   if (cached && cached.userId === userId && Date.now() - cached.at < IDENTITY_TTL_MS) {
-    return { userId, studentProfileId: cached.studentProfileId };
+    return cached.mustChangePassword === true
+      ? { userId, studentProfileId: cached.studentProfileId, mustChangePassword: true }
+      : { userId, studentProfileId: cached.studentProfileId };
   }
 
   // `offlineActive` false ⇒ `persisted` is null and nothing is written, which
@@ -144,15 +156,19 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
   const promise = (async (): Promise<MobileStudentIdentity | null> => {
     const { data, error } = await supabase
       .from("student_profiles")
-      .select("id")
+      .select("id, must_change_password")
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
-    const studentProfileId = (data as { id?: string } | null)?.id;
+    const row = data as { id?: string; must_change_password?: boolean | null } | null;
+    const studentProfileId = row?.id;
     if (!studentProfileId) return null;
-    cached = { userId, studentProfileId, at: Date.now() };
+    const mustChangePassword = row?.must_change_password === true;
+    cached = { userId, studentProfileId, mustChangePassword, at: Date.now() };
     if (offlineActive) writePersistedMobileIdentity({ userId, studentProfileId });
-    return { userId, studentProfileId };
+    return mustChangePassword
+      ? { userId, studentProfileId, mustChangePassword: true }
+      : { userId, studentProfileId };
   })().finally(() => {
     if (inflight?.promise === promise) inflight = null;
   });
