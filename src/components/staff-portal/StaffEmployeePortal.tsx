@@ -11,7 +11,6 @@ import {
   BriefcaseBusiness,
   CalendarCheck,
   CalendarDays,
-  ChevronLeft,
   ClipboardCheck,
   Clock3,
   FileBadge,
@@ -72,43 +71,61 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
+// Grouped by what the employee is trying to do, in a fixed order, so the list
+// reads top-to-bottom: daily work first, then personal file, time, money.
 const GROUPS: { title: string; items: NavItem[] }[] = [
   {
-    title: "الرئيسية",
+    title: "العمل اليومي",
     items: [
       { id: "home", label: "الرئيسية", icon: Home },
-      { id: "profile", label: "ملفي الوظيفي", icon: UserRound },
-      { id: "requests", label: "طلباتي ومعاملاتي", icon: FileText },
       { id: "student-requests", label: "الطلبات الطلابية المسندة", icon: ClipboardCheck },
+      { id: "requests", label: "طلباتي ومعاملاتي", icon: FileText },
+      { id: "communications", label: "المراسلات والتعاميم", icon: Mail },
       { id: "notifications", label: "الإشعارات", icon: Bell },
     ],
   },
   {
-    title: "الخدمات الأساسية",
+    title: "الدوام والإجازات",
     items: [
       { id: "leave", label: "الإجازات والمغادرات", icon: CalendarDays },
-      { id: "payroll", label: "كشوف الرواتب", icon: WalletCards },
-      { id: "career", label: "المسار الوظيفي", icon: History },
-      { id: "communications", label: "المراسلات والتعاميم", icon: Mail },
-      { id: "custody", label: "العُهد", icon: Box },
+      { id: "attendance", label: "الحضور والانصراف", icon: CalendarCheck },
+      { id: "overtime", label: "التكليفات والعمل الإضافي", icon: Clock3 },
     ],
   },
   {
-    title: "التطوير والخدمات المساندة",
+    title: "الملف والمسار الوظيفي",
     items: [
-      { id: "documents", label: "الإفادات والشهادات", icon: FileBadge },
+      { id: "profile", label: "ملفي الوظيفي", icon: UserRound },
+      { id: "career", label: "المسار الوظيفي", icon: History },
       { id: "performance", label: "تقييم الأداء", icon: Award },
-      { id: "attendance", label: "الحضور والانصراف", icon: CalendarCheck },
-      { id: "overtime", label: "التكليفات والعمل الإضافي", icon: Clock3 },
       { id: "training", label: "التدريب والتطوير", icon: BookOpen },
       { id: "promotions", label: "الترقيات والتسويات", icon: TrendingUp },
+    ],
+  },
+  {
+    title: "الرواتب والعهد والوثائق",
+    items: [
+      { id: "payroll", label: "كشوف الرواتب", icon: WalletCards },
+      { id: "custody", label: "العُهد", icon: Box },
+      { id: "documents", label: "الإفادات والشهادات", icon: FileBadge },
       { id: "clearance", label: "إخلاء الطرف", icon: ShieldCheck },
     ],
   },
 ];
 
+/** One quiet row style for every sidebar entry (section buttons and links). */
+const NAV_ROW =
+  "flex w-full items-center gap-3 rounded-lg border-s-2 px-3 py-2 text-right text-sm transition-colors";
+const NAV_ROW_IDLE = "border-transparent text-foreground/80 hover:bg-muted/60 hover:text-foreground";
+const NAV_ROW_ACTIVE = "border-primary bg-primary/5 font-semibold text-primary";
+
 const TITLES = Object.fromEntries(
   GROUPS.flatMap((group) => group.items.map((item) => [item.id, item.label])),
+) as Record<StaffPortalSection, string>;
+
+/** Section → its sidebar group, shown as the breadcrumb above the page title. */
+const GROUP_OF = Object.fromEntries(
+  GROUPS.flatMap((group) => group.items.map((item) => [item.id, group.title])),
 ) as Record<StaffPortalSection, string>;
 
 const LIVE_FILTER: Partial<Record<StaffPortalSection, string>> = {
@@ -170,11 +187,11 @@ function PortalNavigation({
 
 
   return (
-    <nav aria-label="خدمات بوابة الموظفين" className="space-y-5">
+    <nav aria-label="خدمات بوابة الموظفين" className="space-y-4">
       {GROUPS.map((group) => (
         <div key={group.title}>
-          <div className="mb-2 px-3 text-[11px] font-black text-muted-foreground">{group.title}</div>
-          <div className="space-y-1">
+          <div className="mb-1.5 px-3 text-xs font-medium text-muted-foreground">{group.title}</div>
+          <div className="space-y-0.5">
             {group.items.map((item) => {
               const Icon = item.icon;
               const selected = active === item.id;
@@ -184,13 +201,9 @@ function PortalNavigation({
                   type="button"
                   aria-current={selected ? "page" : undefined}
                   onClick={() => onSelect(item.id)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-sm font-bold transition ${
-                    selected
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-foreground hover:bg-muted"
-                  }`}
+                  className={`${NAV_ROW} ${selected ? NAV_ROW_ACTIVE : NAV_ROW_IDLE}`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className={`h-4 w-4 shrink-0 ${selected ? "" : "text-muted-foreground"}`} />
                   <span className="min-w-0 flex-1">{item.label}</span>
                   {item.id === "student-requests" &&
                     assignedCount !== null &&
@@ -198,36 +211,25 @@ function PortalNavigation({
                       <span
                         data-testid="staff-assigned-nav-badge"
                         aria-label={`${assignedCount} طلب مسند`}
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${
-                          selected
-                            ? "bg-primary-foreground/20 text-primary-foreground"
-                            : "bg-primary/10 text-primary"
-                        }`}
+                        className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
                       >
                         {assignedCount >= 200 ? "200+" : assignedCount}
                       </span>
                     )}
-                  {selected && <ChevronLeft className="h-4 w-4 shrink-0" />}
                 </button>
               );
             })}
           </div>
         </div>
       ))}
-      <div className="border-t border-border pt-4 space-y-1">
-        <Link
-          to="/messages"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-foreground transition hover:bg-muted"
-        >
-          <Mail className="h-4 w-4" />
+      <div className="space-y-0.5 border-t border-border pt-3">
+        <Link to="/messages" className={`${NAV_ROW} ${NAV_ROW_IDLE}`}>
+          <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
           الرسائل
         </Link>
         {showGraduatesAffairs && (
-          <Link
-            to="/staff/graduates-affairs"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-foreground transition hover:bg-muted"
-          >
-            <GraduationCap className="h-4 w-4" />
+          <Link to="/staff/graduates-affairs" className={`${NAV_ROW} ${NAV_ROW_IDLE}`}>
+            <GraduationCap className="h-4 w-4 shrink-0 text-muted-foreground" />
             شؤون الخريجين
           </Link>
         )}
@@ -247,19 +249,19 @@ function StaffProfileView({ profile }: { profile: StaffPortalProfile }) {
     ["حالة الملف", profile.status === "active" ? "نشط" : profile.status],
   ];
   return (
-    <section dir="rtl" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="mb-5 flex items-center gap-3">
-        <span className="rounded-2xl bg-primary/10 p-3 text-primary"><BriefcaseBusiness className="h-6 w-6" /></span>
+    <section dir="rtl" className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <BriefcaseBusiness className="h-5 w-5 text-muted-foreground" aria-hidden />
         <div>
-          <h2 className="text-lg font-black text-foreground">الملف الوظيفي</h2>
+          <h2 className="text-base font-semibold text-foreground">الملف الوظيفي</h2>
           <p className="text-xs text-muted-foreground">بياناتك الشخصية والوظيفية المعتمدة.</p>
         </div>
       </div>
-      <dl className="grid gap-3 sm:grid-cols-2">
+      <dl className="grid gap-x-8 sm:grid-cols-2">
         {rows.map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-muted/40 p-3">
-            <dt className="text-xs font-bold text-muted-foreground">{label}</dt>
-            <dd className="mt-1 text-sm font-black text-foreground">{value}</dd>
+          <div key={label} className="flex items-baseline justify-between gap-4 border-t border-border py-3">
+            <dt className="text-sm text-muted-foreground">{label}</dt>
+            <dd className="text-sm font-medium text-foreground">{value}</dd>
           </div>
         ))}
       </dl>
@@ -309,7 +311,7 @@ function PortalView({
         <Link
           to="/staff/processing-requests"
           data-testid="staff-processing-inbox-link"
-          className="flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm font-semibold text-primary hover:bg-muted"
+          className="flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm font-medium text-primary transition-colors hover:bg-muted/60"
         >
           <ClipboardCheck className="h-4 w-4" aria-hidden />
           فتح صندوق الخدمات في صفحة مستقلة
@@ -334,7 +336,7 @@ function PortalView({
   if (section in LIVE_FILTER) return <FilteredLiveView section={section} />;
   if (!portalFeatures.staffSelfServiceValueAdded) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
         هذه الخدمة غير متاحة مؤقتاً.
       </div>
     );
@@ -394,35 +396,35 @@ export function StaffEmployeePortal({ profile }: { profile: StaffPortalProfile }
         .staff-value-filter [data-testid="staff-02e-notice"] { display: block; }
       `}</style>
 
-      <div className="mb-4 flex items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-sm lg:hidden">
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2.5 lg:hidden">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-primary/10 p-2 text-primary"><ActiveIcon className="h-5 w-5" /></span>
-          <div><div className="text-[11px] text-muted-foreground">بوابة الموظفين</div><div className="text-sm font-black">{TITLES[active]}</div></div>
+          <ActiveIcon className="h-5 w-5 text-muted-foreground" />
+          <div><div className="text-[11px] text-muted-foreground">بوابة الموظفين</div><div className="text-sm font-semibold">{TITLES[active]}</div></div>
         </div>
-        <button type="button" onClick={() => setMenuOpen(true)} aria-label="فتح قائمة الخدمات" className="rounded-xl border border-border p-2.5 text-primary">
+        <button type="button" onClick={() => setMenuOpen(true)} aria-label="فتح قائمة الخدمات" className="rounded-lg border border-border p-2 text-foreground/80">
           <Menu className="h-5 w-5" />
         </button>
       </div>
 
       {menuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <button type="button" aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-foreground/45 backdrop-blur-sm" />
-          <aside className="absolute inset-y-0 right-0 w-[86%] max-w-sm overflow-y-auto bg-background p-4 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between">
-              <div><div className="font-black text-primary">بوابة الموظفين</div><div className="text-xs text-muted-foreground">{profile.full_name_ar}</div></div>
-              <button type="button" onClick={() => setMenuOpen(false)} className="rounded-lg border border-border p-2"><X className="h-4 w-4" /></button>
+          <button type="button" aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-foreground/30" />
+          <aside className="absolute inset-y-0 right-0 w-[86%] max-w-sm overflow-y-auto bg-background p-4 shadow-xl">
+            <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+              <div><div className="text-sm font-semibold text-foreground">{profile.full_name_ar}</div><div className="text-xs text-muted-foreground">{profile.job_title}</div></div>
+              <button type="button" aria-label="إغلاق القائمة" onClick={() => setMenuOpen(false)} className="rounded-lg border border-border p-2"><X className="h-4 w-4" /></button>
             </div>
             <PortalNavigation active={active} onSelect={select} />
           </aside>
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="hidden lg:block">
-          <div className="sticky top-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-5 border-b border-border pb-4">
-              <div className="text-sm font-black text-primary">{profile.full_name_ar}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{profile.job_title}</div>
+          <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl border border-border bg-card p-3">
+            <div className="mb-3 border-b border-border px-3 pb-3 pt-1">
+              <div className="text-sm font-semibold text-foreground">{profile.full_name_ar}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{profile.job_title}</div>
             </div>
             <PortalNavigation active={active} onSelect={select} />
           </div>
@@ -430,13 +432,11 @@ export function StaffEmployeePortal({ profile }: { profile: StaffPortalProfile }
 
         <main className="min-w-0">
           {active !== "home" && (
-            <header className="mb-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className="rounded-xl bg-primary/10 p-2 text-primary"><ActiveIcon className="h-5 w-5" /></span>
-                <div>
-                  <div className="text-[11px] font-bold text-muted-foreground">بوابة الموظفين / خدماتي</div>
-                  <h1 className="text-lg font-black text-foreground">{TITLES[active]}</h1>
-                </div>
+            <header className="mb-4 flex items-center gap-3 border-b border-border pb-3">
+              <ActiveIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div>
+                <div className="text-xs text-muted-foreground">{GROUP_OF[active]}</div>
+                <h1 className="text-lg font-semibold text-foreground">{TITLES[active]}</h1>
               </div>
             </header>
           )}

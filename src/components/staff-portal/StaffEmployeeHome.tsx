@@ -62,32 +62,64 @@ function dateLabel(value: string) {
   }).format(parsed);
 }
 
+/** One cell of the summary strip: quiet number + label, no lift or shadow. */
 function StatCard({
   label,
   value,
   hint,
   icon,
   onClick,
+  className = "",
 }: {
   label: string;
   value: string | number;
   hint: string;
   icon: React.ReactNode;
   onClick: () => void;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border border-border bg-card p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md"
+      className={`${className} bg-card p-4 text-right transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <span className="rounded-xl bg-primary/10 p-2 text-primary">{icon}</span>
-        <ArrowLeft className="h-4 w-4 text-muted-foreground transition group-hover:-translate-x-1" />
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span className="text-xs">{label}</span>
       </div>
-      <div className="mt-4 text-2xl font-black text-foreground">{value}</div>
-      <div className="mt-1 text-sm font-bold text-foreground">{label}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums text-foreground">{value}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>
+    </button>
+  );
+}
+
+/** One "needs attention" row: neutral surface, a small dot carries the tone. */
+function AttentionRow({
+  tone,
+  title,
+  detail,
+  onClick,
+}: {
+  tone: "primary" | "amber" | "destructive";
+  title: string;
+  detail: string;
+  onClick: () => void;
+}) {
+  const dot =
+    tone === "amber" ? "bg-amber-500" : tone === "destructive" ? "bg-destructive" : "bg-primary";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 py-3 text-right transition-colors hover:bg-muted/40"
+    >
+      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">{title}</span>
+        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
+      <ArrowLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
     </button>
   );
 }
@@ -140,77 +172,72 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
     assignedStudentRequests.isError ||
     (assignedStudentRequests.data !== undefined && assignedCount === null);
 
+  const nothingUrgent =
+    !loading &&
+    (assignedCount === null || assignedCount === 0) &&
+    unreadLetters.length === 0 &&
+    openRequests.length === 0 &&
+    attentionCustody.length === 0;
+  const CARD = "rounded-xl border border-border bg-card p-4";
+  const CARD_TITLE = "text-sm font-semibold text-foreground";
+
   return (
     <div dir="rtl" data-testid="staff-portal-home" className="space-y-5">
-      <section className="relative overflow-hidden rounded-3xl bg-hero-gradient p-6 text-primary-foreground shadow-elegant sm:p-8">
-        <div className="absolute -left-8 -top-10 h-40 w-40 rounded-full bg-gold/20 blur-3xl" />
-        <div className="relative">
-          <div className="text-xs font-bold text-gold">مرحباً بك</div>
-          <h1 className="mt-1 font-display text-2xl font-black sm:text-3xl">
-            {profile.full_name_ar}
-          </h1>
-          <p className="mt-2 text-sm text-primary-foreground/75">{profile.job_title}</p>
-        </div>
-      </section>
+      <header className="border-b border-border pb-4">
+        <div className="text-xs text-muted-foreground">مرحباً بك</div>
+        <h1 className="mt-1 text-xl font-semibold text-foreground sm:text-2xl">
+          {profile.full_name_ar}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{profile.job_title}</p>
+      </header>
 
       {hasError && (
-        <div role="alert" className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs font-bold text-destructive">
-          <AlertCircle className="h-4 w-4" />
+        <div role="alert" className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           تعذر تحديث بعض المؤشرات الآن. الخدمات المستقلة ما زالت متاحة من القائمة.
         </div>
       )}
 
       <section aria-labelledby="staff-summary-title">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 id="staff-summary-title" className="text-base font-black text-foreground">ملخص اليوم</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 id="staff-summary-title" className={CARD_TITLE}>ملخص اليوم</h2>
           {loading && <span className="text-xs text-muted-foreground">جاري التحديث...</span>}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard label="طلبات طلابية مسندة" value={assignedValue} hint="بانتظار إجرائك" icon={<ClipboardCheck className="h-5 w-5" />} onClick={() => onOpen("student-requests")} />
-          <StatCard label="رصيد الإجازة السنوية" value={annualRemaining} hint="يوم متبقٍ" icon={<CalendarDays className="h-5 w-5" />} onClick={() => onOpen("leave")} />
-          <StatCard label="طلبات مفتوحة" value={openRequests.length} hint="تحتاج متابعة" icon={<FileText className="h-5 w-5" />} onClick={() => onOpen("requests")} />
-          <StatCard label="تعاميم غير مقروءة" value={unreadLetters.length} hint="بانتظار القراءة" icon={<Mail className="h-5 w-5" />} onClick={() => onOpen("communications")} />
-          <StatCard label="العهد المسجلة" value={activeCustody.length} hint="عهدة نشطة" icon={<Box className="h-5 w-5" />} onClick={() => onOpen("custody")} />
+        {/* One strip: the 1px gaps over a border-coloured background draw the dividers. */}
+        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="طلبات طلابية مسندة" value={assignedValue} hint="بانتظار إجرائك" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => onOpen("student-requests")} className="sm:col-span-2 xl:col-span-1" />
+          <StatCard label="رصيد الإجازة السنوية" value={annualRemaining} hint="يوم متبقٍ" icon={<CalendarDays className="h-4 w-4" />} onClick={() => onOpen("leave")} />
+          <StatCard label="طلبات مفتوحة" value={openRequests.length} hint="تحتاج متابعة" icon={<FileText className="h-4 w-4" />} onClick={() => onOpen("requests")} />
+          <StatCard label="تعاميم غير مقروءة" value={unreadLetters.length} hint="بانتظار القراءة" icon={<Mail className="h-4 w-4" />} onClick={() => onOpen("communications")} />
+          <StatCard label="العهد المسجلة" value={activeCustody.length} hint="عهدة نشطة" icon={<Box className="h-4 w-4" />} onClick={() => onOpen("custody")} />
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
-        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-black text-foreground">يحتاج انتباهك</h2>
-          <div className="mt-3 space-y-2">
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
+        <section className={CARD}>
+          <h2 className={CARD_TITLE}>يحتاج انتباهك</h2>
+          <div className="mt-1 divide-y divide-border">
             {assignedCount !== null && assignedCount > 0 && (
-              <button type="button" onClick={() => onOpen("student-requests")} className="flex w-full items-center justify-between rounded-xl bg-primary/10 p-3 text-right">
-                <span><span className="block text-sm font-bold">طلبات طلابية مسندة إليك</span><span className="text-xs text-muted-foreground">{assignedCount} طلب بانتظار إجرائك</span></span>
-                <ArrowLeft className="h-4 w-4" />
-              </button>
+              <AttentionRow tone="primary" title="طلبات طلابية مسندة إليك" detail={`${assignedCount} طلب بانتظار إجرائك`} onClick={() => onOpen("student-requests")} />
             )}
             {unreadLetters.slice(0, 1).map((item) => (
-              <button key={item.id} type="button" onClick={() => onOpen("communications")} className="flex w-full items-center justify-between rounded-xl bg-amber-500/10 p-3 text-right">
-                <span><span className="block text-sm font-bold">تعميم ينتظر القراءة</span><span className="text-xs text-muted-foreground">{item.subject}</span></span>
-                <ArrowLeft className="h-4 w-4" />
-              </button>
+              <AttentionRow key={item.id} tone="amber" title="تعميم ينتظر القراءة" detail={item.subject} onClick={() => onOpen("communications")} />
             ))}
             {openRequests.slice(0, 1).map((item) => (
-              <button key={item.id} type="button" onClick={() => onOpen("requests")} className="flex w-full items-center justify-between rounded-xl bg-primary/5 p-3 text-right">
-                <span><span className="block text-sm font-bold">طلب قيد المتابعة</span><span className="text-xs text-muted-foreground">{safeReference(item.request_no)} — {STATUS_AR[item.status] ?? item.status}</span></span>
-                <ArrowLeft className="h-4 w-4" />
-              </button>
+              <AttentionRow key={item.id} tone="primary" title="طلب قيد المتابعة" detail={`${safeReference(item.request_no)} — ${STATUS_AR[item.status] ?? item.status}`} onClick={() => onOpen("requests")} />
             ))}
             {attentionCustody.slice(0, 1).map((item) => (
-              <button key={item.id} type="button" onClick={() => onOpen("custody")} className="flex w-full items-center justify-between rounded-xl bg-destructive/5 p-3 text-right">
-                <span><span className="block text-sm font-bold">عهدة تحتاج إجراء</span><span className="text-xs text-muted-foreground">{item.asset_name}</span></span>
-                <ArrowLeft className="h-4 w-4" />
-              </button>
+              <AttentionRow key={item.id} tone="destructive" title="عهدة تحتاج إجراء" detail={item.asset_name} onClick={() => onOpen("custody")} />
             ))}
-            {!loading && (assignedCount === null || assignedCount === 0) && unreadLetters.length === 0 && openRequests.length === 0 && attentionCustody.length === 0 && (
-              <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">لا توجد إجراءات عاجلة حالياً.</p>
+            {nothingUrgent && (
+              <p className="py-4 text-sm text-muted-foreground">لا توجد إجراءات عاجلة حالياً.</p>
             )}
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-black text-foreground">إجراءات سريعة</h2>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        <section className={CARD}>
+          <h2 className={CARD_TITLE}>إجراءات سريعة</h2>
+          <div className="mt-1 divide-y divide-border">
             {[
               ["معالجة الطلبات الطلابية", "student-requests"],
               ["طلب إجازة أو مغادرة", "requests"],
@@ -218,30 +245,31 @@ export function StaffEmployeeHome({ profile, onOpen }: StaffEmployeeHomeProps) {
               ["طلب إفادة وظيفية", "documents"],
               ["نقل أو إرجاع عهدة", "requests"],
             ].map(([label, section]) => (
-              <button key={label} type="button" onClick={() => onOpen(section)} className="rounded-xl border border-border px-3 py-3 text-xs font-bold text-foreground transition hover:border-primary/40 hover:bg-primary/5">
+              <button key={label} type="button" onClick={() => onOpen(section)} className="flex w-full items-center justify-between gap-3 py-2.5 text-right text-sm text-foreground transition-colors hover:text-primary">
                 {label}
+                <ArrowLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               </button>
             ))}
           </div>
         </section>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <section className={CARD}>
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-black text-foreground">آخر المعاملات</h2>
-          <button type="button" onClick={() => onOpen("requests")} className="text-xs font-bold text-primary">عرض الكل</button>
+          <h2 className={CARD_TITLE}>آخر المعاملات</h2>
+          <button type="button" onClick={() => onOpen("requests")} className="text-xs text-primary hover:underline">عرض الكل</button>
         </div>
-        <div className="mt-3 divide-y divide-border">
+        <div className="mt-1 divide-y divide-border">
           {latestRequests.map((item) => (
-            <button key={item.id} type="button" onClick={() => onOpen("requests")} className="flex w-full items-center justify-between gap-3 py-3 text-right">
+            <button key={item.id} type="button" onClick={() => onOpen("requests")} className="flex w-full items-center justify-between gap-3 py-3 text-right transition-colors hover:bg-muted/40">
               <span>
-                <span className="block text-sm font-bold text-foreground">{SERVICE_AR[item.service_type] ?? item.service_type}</span>
+                <span className="block text-sm font-medium text-foreground">{SERVICE_AR[item.service_type] ?? item.service_type}</span>
                 <span className="text-xs text-muted-foreground">{safeReference(item.request_no)} • {dateLabel(item.updated_at)}</span>
               </span>
-              <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold">{STATUS_AR[item.status] ?? item.status}</span>
+              <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">{STATUS_AR[item.status] ?? item.status}</span>
             </button>
           ))}
-          {!loading && latestRequests.length === 0 && <p className="py-5 text-sm text-muted-foreground">لا توجد معاملات بعد.</p>}
+          {!loading && latestRequests.length === 0 && <p className="py-4 text-sm text-muted-foreground">لا توجد معاملات بعد.</p>}
         </div>
       </section>
     </div>
