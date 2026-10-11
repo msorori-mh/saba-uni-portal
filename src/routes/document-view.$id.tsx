@@ -79,7 +79,7 @@ function DocumentViewPage() {
       let courses: TranscriptCourse[] = [];
       if (doc.document_type === "official_transcript") {
         const { data: tx } = await sb.from("student_unofficial_transcript")
-          .select("course_code, course_name, credit_hours, percentage, course_status, semester_name, academic_year_name")
+          .select("course_code, course_name, credit_hours, percentage, course_status, semester_name, academic_year_name, grade_label")
           .eq("student_profile_id", doc.student_profile_id);
         courses = (tx ?? []) as TranscriptCourse[];
       }
