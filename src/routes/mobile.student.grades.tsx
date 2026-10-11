@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import {
   fetchCanonicalCurrentTerm,
+  currentTermLabel,
   filterEnrollmentsForCurrentTerm,
   type CurrentTerm,
   type CurrentTermClient,
@@ -210,7 +211,7 @@ function MobileStudentGradesPage() {
             </h1>
             {(data?.term.year || data?.term.semester) && (
               <p className="text-[10px] text-muted-foreground truncate">
-                {[data.term.year, data.term.semester].filter(Boolean).join(" — ")}
+                {currentTermLabel(data.term)}
               </p>
             )}
           </div>

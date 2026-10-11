@@ -158,7 +158,7 @@ function MobileStudentNotifications() {
               </div>
               <p className={`mt-1 text-[11px] text-muted-foreground leading-relaxed ${expandedId === n.id ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{n.message}</p>
               <div dir="ltr" className="mt-1 text-right text-[10px] text-muted-foreground/80">
-                {new Date(n.created_at).toLocaleString("ar")}
+                {new Date(n.created_at).toLocaleString("ar-EG-u-nu-latn")}
               </div>
               </button>
               {expandedId === n.id && (

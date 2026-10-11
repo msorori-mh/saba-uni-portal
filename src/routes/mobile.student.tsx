@@ -14,6 +14,7 @@ import {
   getMobileSessionUserId,
   getMobileStudentIdentity,
 } from "@/lib/mobile/student-identity";
+import { requiresInitialPasswordChange } from "@/lib/mobile/initial-password";
 import { MOBILE_QUERY_GC_TIME_MS } from "@/lib/mobile/query-cache";
 import { MobileOfflineGate, useMobileOfflineActive } from "@/components/mobile/MobileOfflineGate";
 import { MOBILE_OFFLINE_WARM_ROUTES, isMobileOfflineActive } from "@/lib/mobile/offline/config";
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/mobile/student")({
       { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
     // Runs on EVERY navigation inside the app, so it must stay cheap: a local
     // session read plus a cached student-profile check (see student-identity).
     // Data access itself is still enforced server-side by RLS and the RPCs.
@@ -71,6 +72,9 @@ export const Route = createFileRoute("/mobile/student")({
     } catch {
       // Transient read failure: do not sign the student out; the page's own
       // queries will surface the connection error with a retry.
+      if (location.pathname !== "/mobile/student/settings") {
+        throw redirect({ to: "/mobile/student/settings", replace: true });
+      }
       return;
     }
     if (!identity) {
@@ -78,6 +82,10 @@ export const Route = createFileRoute("/mobile/student")({
       clearMobileOfflineUserData(context.queryClient);
       await supabase.auth.signOut();
       throw redirect({ to: "/mobile/student-login" });
+    }
+    // Unknown legacy offline snapshots must be checked online once.
+    if (requiresInitialPasswordChange(identity.mustChangePassword) && location.pathname !== "/mobile/student/settings") {
+      throw redirect({ to: "/mobile/student/settings", replace: true });
     }
   },
   pendingComponent: MobileStudentLoading,

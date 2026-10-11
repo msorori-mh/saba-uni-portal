@@ -1,12 +1,15 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { KeyRound, Loader2, LogOut, Settings2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isMobileOfflineActive } from "@/lib/mobile/offline/config";
+import { writePersistedMobileIdentity } from "@/lib/mobile/offline/offline-store";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { ANDROID_APP_DISPLAY_NAME } from "@/lib/native/platform";
 import { MobileSecuritySettings } from "@/components/mobile/MobileSecuritySettings";
 import { MobileOfflineModeSetting } from "@/components/mobile/MobileOfflineModeSetting";
 import { wipeMobileOfflineData } from "@/lib/mobile/offline/offline-store";
+import { clearMobileStudentIdentity, getMobileStudentIdentity } from "@/lib/mobile/student-identity";
 import { changeMobilePassword } from "@/lib/mobile/change-password";
 
 export const Route = createFileRoute("/mobile/student/settings")({
@@ -17,6 +20,7 @@ export const Route = createFileRoute("/mobile/student/settings")({
 /** Auth actions only — no privileged/admin surface is reachable from here. */
 function MobileStudentSettings() {
   const navigate = useNavigate();
+  const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -37,6 +41,10 @@ function MobileStudentSettings() {
       setConfirm("");
       const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
       if (rpcErr) throw rpcErr;
+      const identity = await getMobileStudentIdentity();
+      if (identity && isMobileOfflineActive()) writePersistedMobileIdentity({ ...identity, mustChangePassword: false });
+      clearMobileStudentIdentity();
+      await router.invalidate();
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر تغيير كلمة المرور");

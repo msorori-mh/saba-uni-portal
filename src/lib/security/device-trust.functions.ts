@@ -8,6 +8,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceReauthenticationRateLimit } from "@/lib/rate-limit.server";
 import {
   STEP_UP_SENSITIVE_SERVICES,
   getStepUpDescriptor,
@@ -70,6 +71,7 @@ export const registerTrustedDeviceFn = createServerFn({ method: "POST" })
     // was originally issued against. A hijacked bearer token cannot do this.
     const email = context.claims?.email ?? context.user?.email;
     if (!email) throw new Error("AUTH_EMAIL_REQUIRED");
+    await enforceReauthenticationRateLimit(`reauth:device:${context.userId}`);
     const { error: authError } = await context.supabase.auth.signInWithPassword({
       email,
       password: data.password,
@@ -248,6 +250,7 @@ export const performWebStepUpFn = createServerFn({ method: "POST" })
     // Fresh password re-authentication for the web channel.
     const email = context.claims?.email ?? context.user?.email;
     if (!email) throw new Error("AUTH_EMAIL_REQUIRED");
+    await enforceReauthenticationRateLimit(`reauth:step-up:${context.userId}`);
     const { error: authError } = await context.supabase.auth.signInWithPassword({
       email,
       password: data.password,
