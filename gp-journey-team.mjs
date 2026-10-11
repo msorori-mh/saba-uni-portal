@@ -1,7 +1,11 @@
+import { assertTestFixtureTarget } from './scripts/test-fixture-target.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+assertTestFixtureTarget();
 const c = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } });
-const { error: se } = await c.auth.signInWithPassword({ email: 'gp-e2e01-coordinator@test-only.usr.edu.ye', password: 'TestOnly#Journey2026' });
+const password = process.env.TEST_ONLY_PASSWORD;
+if (!password) throw new Error('TEST_ONLY_PASSWORD is required');
+const { error: se } = await c.auth.signInWithPassword({ email: 'gp-e2e01-coordinator@test-only.usr.edu.ye', password });
 if (se) throw se;
 const { data, error } = await c.rpc('create_graduation_project_team', {
   p_department_id: '11111111-1111-4111-8111-111111111111',

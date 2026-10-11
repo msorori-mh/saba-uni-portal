@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { changeMobilePassword } from "@/lib/mobile/change-password";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 
 export const Route = createFileRoute("/faculty-portal/change-password")({
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/faculty-portal/change-password")({
 
 function ChangePasswordPage() {
   const navigate = useNavigate();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,14 +23,18 @@ function ChangePasswordPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError(null);
+    if (!currentPassword) { setError("أدخل كلمة المرور الحالية"); return; }
     if (pwd.length < 8) { setError("يجب أن لا تقل كلمة المرور عن 8 أحرف"); return; }
     if (pwd !== confirm) { setError("كلمتا المرور غير متطابقتين"); return; }
 
     setLoading(true);
     try {
-      const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
-      if (updErr) throw updErr;
+      await changeMobilePassword(supabase.auth, currentPassword, pwd, confirm);
+      setCurrentPassword("");
+      setPwd("");
+      setConfirm("");
       const { error: rpcErr } = await supabase.rpc("complete_faculty_password_change");
       if (rpcErr) throw rpcErr;
       navigate({ to: "/faculty-portal", replace: true });
@@ -54,6 +60,10 @@ function ChangePasswordPage() {
           </div>
 
           <form onSubmit={onSubmit} className="px-8 py-7 space-y-5">
+            <div>
+              <label htmlFor="current-pwd" className="block text-sm font-semibold mb-2">كلمة المرور الحالية</label>
+              <PasswordInput id="current-pwd" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required autoComplete="current-password" aria-label="كلمة المرور الحالية" />
+            </div>
             <div className="flex items-center gap-3 rounded-md border border-border bg-surface p-3 text-xs text-muted-foreground">
               <img src={collegeLogo} alt="" className="h-8 w-8 rounded-full object-cover" />
               <span>اختر كلمة مرور قوية (8 أحرف على الأقل) ولا تشاركها مع أحد.</span>

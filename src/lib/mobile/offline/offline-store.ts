@@ -38,7 +38,7 @@ export type MobileOfflineSnapshot = {
   queries: PersistedMobileQuery[];
 };
 
-export type PersistedMobileIdentity = { userId: string; studentProfileId: string };
+export type PersistedMobileIdentity = { userId: string; studentProfileId: string; mustChangePassword?: boolean };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">;
 
@@ -215,6 +215,7 @@ export function readPersistedMobileIdentity(
       v?: number;
       userId?: string;
       studentProfileId?: string;
+      mustChangePassword?: boolean;
       savedAt?: number;
     } | null;
     if (
@@ -228,7 +229,7 @@ export function readPersistedMobileIdentity(
       storage.removeItem(mobileOfflineIdentityKey(userId));
       return null;
     }
-    return { userId, studentProfileId: parsed.studentProfileId };
+    return { userId, studentProfileId: parsed.studentProfileId, ...(typeof parsed.mustChangePassword === "boolean" ? { mustChangePassword: parsed.mustChangePassword } : {}) };
   } catch {
     return null;
   }
@@ -248,6 +249,7 @@ export function writePersistedMobileIdentity(
         v: MOBILE_OFFLINE_SCHEMA_VERSION,
         userId: identity.userId,
         studentProfileId: identity.studentProfileId,
+        ...(typeof identity.mustChangePassword === "boolean" ? { mustChangePassword: identity.mustChangePassword } : {}),
         savedAt: options?.now ?? Date.now(),
       }),
     );
