@@ -21,6 +21,8 @@ import { userRoles } from "@/lib/authz.server";
 import { headedDepartmentIdsForUser } from "@/lib/faculty-portal/delivery-monitoring-heads.server";
 import { canSeeDeliveryMonitoring } from "@/lib/faculty-portal/delivery-monitoring-roles";
 import { hasActiveProcessingAssignmentForUser } from "@/lib/student-requests/processing-assignment-identity.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { activeHomePositionCodes, resolveFacultyHomeRole, type FacultyHomeRole, type HomePosition } from "@/lib/faculty-portal/dashboard-role";
 
 export type HasActiveProcessingAssignmentResult = {
   hasAssignment: boolean;
@@ -31,6 +33,8 @@ export type HasActiveProcessingAssignmentResult = {
    * the legacy role). UI gate only — the page/RPC stay authoritative.
    */
   canMonitorDelivery: boolean;
+  homeRole: FacultyHomeRole;
+  canViewDepartmentReports: boolean;
 };
 
 
@@ -54,5 +58,45 @@ export const hasActiveProcessingAssignment = createServerFn({ method: "GET" })
     }
     const canMonitorDelivery = canSeeDeliveryMonitoring({ roles, headedDepartmentIds });
 
-    return { hasAssignment, isAdmin, canMonitorDelivery };
+    // Position labels personalize the homepage only; authorization stays on
+    // each destination. Ambiguous/unavailable assignments show a generic role.
+    let positionCodes: string[] = [];
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("position_assignments")
+        .select("is_active, assigned_from, assigned_to, organizational_positions(code, is_active)")
+        .eq("user_id", context.userId)
+        .eq("is_active", true);
+      if (error) throw error;
+      positionCodes = activeHomePositionCodes((data ?? []).map((row) => {
+        const position = Array.isArray(row.organizational_positions)
+          ? row.organizational_positions[0] : row.organizational_positions;
+        return {
+          code: position?.code ?? null,
+          is_active: position?.is_active ?? null,
+          assignment_active: row.is_active,
+          assigned_from: row.assigned_from,
+          assigned_to: row.assigned_to,
+        } satisfies HomePosition;
+      }), new Date().toISOString().slice(0, 10));
+    } catch {
+      positionCodes = [];
+    }
+    const homeRole = resolveFacultyHomeRole({ roles, positionCodes, headedDepartmentIds });
+    let canViewDepartmentReports = false;
+    if (roles.includes("department_head") && headedDepartmentIds.length > 0) {
+      try {
+        const { data: faculty, error } = await supabaseAdmin
+          .from("faculty_profiles")
+          .select("department_id")
+          .eq("user_id", context.userId)
+          .maybeSingle();
+        if (error) throw error;
+        canViewDepartmentReports = !!faculty?.department_id && headedDepartmentIds.includes(faculty.department_id);
+      } catch {
+        canViewDepartmentReports = false;
+      }
+    }
+
+    return { hasAssignment, isAdmin, canMonitorDelivery, homeRole, canViewDepartmentReports };
   });

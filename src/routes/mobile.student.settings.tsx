@@ -1,12 +1,16 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { KeyRound, Loader2, LogOut, Settings2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isMobileOfflineActive } from "@/lib/mobile/offline/config";
+import { writePersistedMobileIdentity } from "@/lib/mobile/offline/offline-store";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { ANDROID_APP_DISPLAY_NAME } from "@/lib/native/platform";
 import { MobileSecuritySettings } from "@/components/mobile/MobileSecuritySettings";
 import { MobileOfflineModeSetting } from "@/components/mobile/MobileOfflineModeSetting";
 import { wipeMobileOfflineData } from "@/lib/mobile/offline/offline-store";
+import { clearMobileStudentIdentity, getMobileStudentIdentity } from "@/lib/mobile/student-identity";
+import { changeMobilePassword } from "@/lib/mobile/change-password";
 
 export const Route = createFileRoute("/mobile/student/settings")({
   head: () => ({ meta: [{ title: "الإعدادات" }] }),
@@ -16,6 +20,8 @@ export const Route = createFileRoute("/mobile/student/settings")({
 /** Auth actions only — no privileged/admin surface is reachable from here. */
 function MobileStudentSettings() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -24,24 +30,21 @@ function MobileStudentSettings() {
 
   const onChangePassword = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     setError(null);
     setDone(false);
-    if (pwd.length < 8) {
-      setError("يجب أن لا تقل كلمة المرور عن 8 أحرف");
-      return;
-    }
-    if (pwd !== confirm) {
-      setError("كلمتا المرور غير متطابقتين");
-      return;
-    }
     setBusy(true);
     try {
-      const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
-      if (updErr) throw updErr;
-      const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
-      if (rpcErr) throw rpcErr;
+      await changeMobilePassword(supabase.auth, currentPassword, pwd, confirm);
+      setCurrentPassword("");
       setPwd("");
       setConfirm("");
+      const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
+      if (rpcErr) throw rpcErr;
+      const identity = await getMobileStudentIdentity();
+      if (identity && isMobileOfflineActive()) writePersistedMobileIdentity({ ...identity, mustChangePassword: false });
+      clearMobileStudentIdentity();
+      await router.invalidate();
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذّر تغيير كلمة المرور");
@@ -67,16 +70,34 @@ function MobileStudentSettings() {
           <KeyRound className="h-4 w-4 text-gold" /> تغيير كلمة المرور
         </div>
         <form onSubmit={onChangePassword} className="space-y-3">
+          <label htmlFor="mobile-current-password" className="block text-xs font-bold text-primary">
+            كلمة المرور الحالية
+          </label>
+          <PasswordInput
+            id="mobile-current-password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="كلمة المرور الحالية"
+            autoComplete="current-password"
+            required
+            disabled={busy}
+          />
           <PasswordInput
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
             placeholder="كلمة المرور الجديدة"
+            aria-label="كلمة المرور الجديدة"
+            required
+            disabled={busy}
             autoComplete="new-password"
           />
           <PasswordInput
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="تأكيد كلمة المرور"
+            aria-label="تأكيد كلمة المرور الجديدة"
+            required
+            disabled={busy}
             autoComplete="new-password"
           />
           {error && (

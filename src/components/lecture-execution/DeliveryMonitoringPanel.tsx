@@ -270,38 +270,80 @@ function DepartmentBreakdown({
       <div className="overflow-x-auto rounded-xl border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>القسم</TableHead>
-              <TableHead>المجموعات</TableHead>
-              <TableHead>بانتظار اعتماد الخطة</TableHead>
-              <TableHead>المخطط</TableHead>
-              <TableHead>المنفذ (شامل التعويض)</TableHead>
-              <TableHead>المتبقي</TableHead>
-              <TableHead>غير المعوّض</TableHead>
-              <TableHead>نسبة التنفيذ</TableHead>
-              <TableHead>مقررات متأخرة</TableHead>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className={cn(HEAD_CELL, "text-start")}>القسم</TableHead>
+              <TableHead className={NUM_HEAD}>المجموعات</TableHead>
+              <TableHead className={NUM_HEAD}>بانتظار اعتماد الخطة</TableHead>
+              <TableHead className={NUM_HEAD}>المخطط</TableHead>
+              <TableHead className={NUM_HEAD}>المنفذ (شامل التعويض)</TableHead>
+              <TableHead className={NUM_HEAD}>المتبقي</TableHead>
+              <TableHead className={NUM_HEAD}>غير المعوّض</TableHead>
+              <TableHead className={NUM_HEAD}>نسبة التنفيذ</TableHead>
+              <TableHead className={NUM_HEAD}>مقررات متأخرة</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {summaries.map((d) => (
               <TableRow key={d.key} className={cn(activeKey === d.key && "bg-gold/5")}>
-                <TableCell className="whitespace-nowrap font-bold">{d.name}</TableCell>
-                <TableCell>{d.totals.sections}</TableCell>
-                <TableCell>{d.awaitingPlan}</TableCell>
-                <TableCell>{d.totals.planned}</TableCell>
-                <TableCell>{d.totals.executed}</TableCell>
-                <TableCell>{d.totals.remaining}</TableCell>
-                <TableCell>{d.totals.uncompensated}</TableCell>
-                <TableCell className="font-bold">
-                  {d.totals.execution_percent === null ? "—" : `${d.totals.execution_percent}%`}
+                <TableCell className="whitespace-nowrap text-start font-bold text-primary">
+                  {d.name}
                 </TableCell>
-                <TableCell>{d.totals.behind_plan_courses}</TableCell>
+                <TableCell className={NUM_CELL}>{d.totals.sections}</TableCell>
+                <TableCell className={NUM_CELL}>
+                  <CountBadge value={d.awaitingPlan} tone="warn" />
+                </TableCell>
+                <TableCell className={NUM_CELL}>{d.totals.planned}</TableCell>
+                <TableCell className={NUM_CELL}>{d.totals.executed}</TableCell>
+                <TableCell className={NUM_CELL}>{d.totals.remaining}</TableCell>
+                <TableCell className={NUM_CELL}>
+                  <CountBadge value={d.totals.uncompensated} tone="danger" />
+                </TableCell>
+                <TableCell className={NUM_CELL}>
+                  <PercentBar value={d.totals.execution_percent} />
+                </TableCell>
+                <TableCell className={NUM_CELL}>
+                  <CountBadge value={d.totals.behind_plan_courses} tone="danger" />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
     </section>
+  );
+}
+
+/** Shared column styling: every numeric column is centred under its header. */
+const HEAD_CELL = "whitespace-nowrap px-3 py-2.5 text-xs font-bold text-muted-foreground";
+const NUM_HEAD = cn(HEAD_CELL, "text-center");
+const NUM_CELL = "px-3 text-center tabular-nums";
+
+/** A count that needs attention when above zero; a quiet dash-free zero otherwise. */
+function CountBadge({ value, tone }: { value: number; tone: "warn" | "danger" }) {
+  if (!value) return <span className="text-muted-foreground">0</span>;
+  return (
+    <span
+      className={cn(
+        "inline-flex min-w-8 justify-center rounded-full px-2 py-0.5 text-xs font-bold",
+        tone === "danger" ? "bg-destructive/10 text-destructive" : "bg-amber-500/15 text-amber-700",
+      )}
+    >
+      {value}
+    </span>
+  );
+}
+
+/** Execution percentage as a number with a thin progress bar under it. */
+function PercentBar({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-muted-foreground">—</span>;
+  const width = Math.max(0, Math.min(100, value));
+  return (
+    <div className="mx-auto w-20">
+      <div className="text-sm font-bold text-primary">{value}%</div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+        <div className="h-full rounded-full bg-primary" style={{ width: `${width}%` }} />
+      </div>
+    </div>
   );
 }
 
@@ -322,22 +364,22 @@ function MonitoringTable({
     <div className="overflow-x-auto rounded-xl border bg-card">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>المقرر</TableHead>
-            <TableHead>المجموعة</TableHead>
-            <TableHead>القسم</TableHead>
-            <TableHead>عضو هيئة التدريس</TableHead>
-            <TableHead>الخطة</TableHead>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className={cn(HEAD_CELL, "text-start")}>المقرر</TableHead>
+            <TableHead className={NUM_HEAD}>المجموعة</TableHead>
+            <TableHead className={cn(HEAD_CELL, "text-start")}>القسم</TableHead>
+            <TableHead className={cn(HEAD_CELL, "text-start")}>عضو هيئة التدريس</TableHead>
+            <TableHead className={NUM_HEAD}>الخطة</TableHead>
             {!compact && (
               <>
-                <TableHead>المخطط</TableHead>
-                <TableHead>المنفذ (شامل التعويض)</TableHead>
-                <TableHead>منها معوّض</TableHead>
-                <TableHead>المؤجل</TableHead>
-                <TableHead>المتبقي</TableHead>
-                <TableHead>غير المعوّض</TableHead>
-                <TableHead>نسبة التنفيذ</TableHead>
-                <TableHead>المخاطر</TableHead>
+                <TableHead className={NUM_HEAD}>المخطط</TableHead>
+                <TableHead className={NUM_HEAD}>المنفذ (شامل التعويض)</TableHead>
+                <TableHead className={NUM_HEAD}>منها معوّض</TableHead>
+                <TableHead className={NUM_HEAD}>المؤجل</TableHead>
+                <TableHead className={NUM_HEAD}>المتبقي</TableHead>
+                <TableHead className={NUM_HEAD}>غير المعوّض</TableHead>
+                <TableHead className={NUM_HEAD}>نسبة التنفيذ</TableHead>
+                <TableHead className={NUM_HEAD}>المخاطر</TableHead>
               </>
             )}
           </TableRow>
@@ -345,26 +387,32 @@ function MonitoringTable({
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.course_section_id}>
-              <TableCell className="whitespace-nowrap">
+              <TableCell className="whitespace-nowrap text-start">
                 <span className="font-mono text-xs">{r.course_code}</span> — {r.course_name_ar}
               </TableCell>
-              <TableCell>{r.section_code}</TableCell>
-              <TableCell>{r.department_name_ar ?? "—"}</TableCell>
-              <TableCell>{r.faculty_name || "—"}</TableCell>
-              <TableCell>{PLAN_STATUS_LABELS[r.plan_status] ?? r.plan_status}</TableCell>
+              <TableCell className={NUM_CELL}>{r.section_code}</TableCell>
+              <TableCell className="whitespace-nowrap text-start">{r.department_name_ar ?? "—"}</TableCell>
+              <TableCell className="whitespace-nowrap text-start">{r.faculty_name || "—"}</TableCell>
+              <TableCell className="whitespace-nowrap px-3 text-center text-xs">
+                {PLAN_STATUS_LABELS[r.plan_status] ?? r.plan_status}
+              </TableCell>
               {!compact && (
                 <>
-                  <TableCell>{r.planned_count}</TableCell>
-                  <TableCell>{r.executed_count}</TableCell>
-                  <TableCell>{r.compensated_count}</TableCell>
-                  <TableCell>{r.postponed_count}</TableCell>
-                  <TableCell>{r.remaining_count}</TableCell>
-                  <TableCell>{r.uncompensated_count}</TableCell>
-                  <TableCell className="font-bold">
-                    {r.execution_percent === null ? "—" : `${r.execution_percent}%`}
+                  <TableCell className={NUM_CELL}>{r.planned_count}</TableCell>
+                  <TableCell className={NUM_CELL}>{r.executed_count}</TableCell>
+                  <TableCell className={NUM_CELL}>{r.compensated_count}</TableCell>
+                  <TableCell className={NUM_CELL}>
+                    <CountBadge value={r.postponed_count} tone="warn" />
                   </TableCell>
-                  <TableCell>
-                    <span className={cn("rounded px-2 py-0.5 text-xs", RISK_STYLES[r.risk_level])}>
+                  <TableCell className={NUM_CELL}>{r.remaining_count}</TableCell>
+                  <TableCell className={NUM_CELL}>
+                    <CountBadge value={r.uncompensated_count} tone="danger" />
+                  </TableCell>
+                  <TableCell className={NUM_CELL}>
+                    <PercentBar value={r.execution_percent} />
+                  </TableCell>
+                  <TableCell className="px-3 text-center">
+                    <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold", RISK_STYLES[r.risk_level])}>
                       {RISK_LABELS[r.risk_level]}
                     </span>
                   </TableCell>

@@ -1,5 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Navigate } from "@tanstack/react-router";
 import { studentServicesDisabledMessageAr } from "@/lib/student-requests/student-services-switch";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import { useStudentRequestRoutes } from "@/lib/student-requests/surface";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Circle, Clock, Download, FileText, Loader2, Send, Wallet } from "lucide-react";
@@ -36,7 +40,7 @@ const STEP_STATUS_META: Record<
 
 function formatAmount(amount: number, currency: string): string {
   const rounded = Math.round(amount * 100) / 100;
-  return `${rounded.toLocaleString("ar-EG")} ${currency === "YER" ? "ريال يمني" : currency}`;
+  return `${rounded.toLocaleString("ar-EG-u-nu-latn")} ${currency === "YER" ? "ريال يمني" : currency}`;
 }
 
 function FeeStatusSection({ fee }: { fee: StudentFeeSummary }) {
@@ -73,7 +77,7 @@ function FeeStatusSection({ fee }: { fee: StudentFeeSummary }) {
           <div className="font-semibold">تم تأكيد السداد.</div>
           {fee.paymentConfirmedAt && (
             <div className="text-xs text-emerald-800/80">
-              بتاريخ: {new Date(fee.paymentConfirmedAt).toLocaleString("ar-EG")}
+              بتاريخ: {new Date(fee.paymentConfirmedAt).toLocaleString("ar-EG-u-nu-latn")}
             </div>
           )}
         </div>
@@ -119,7 +123,6 @@ function WorkflowTimelineSection({ steps }: { steps: StudentWorkflowTimelineStep
         {steps.map((step) => {
           const meta = STEP_STATUS_META[step.status];
           const Icon = meta.icon;
-          const at = step.completedAt ?? (step.status === "current" ? step.enteredAt : null);
           return (
             <li
               key={`${step.stepOrder}-${step.stepKey}`}
@@ -127,17 +130,16 @@ function WorkflowTimelineSection({ steps }: { steps: StudentWorkflowTimelineStep
               className={`rounded-xl border p-3 ${meta.rowClass}`}
             >
               <div className="flex items-center gap-2.5">
-                <Icon className={`h-5 w-5 shrink-0 ${meta.iconClass}`} />
-                <span className="flex-1 text-sm font-bold">{step.stepNameAr}</span>
+                <Icon className={`h-5 w-5 shrink-0 ${meta.iconClass}`} aria-hidden="true" />
+                <span className="flex-1 text-sm font-bold">{step.stepOrder}. {step.stepNameAr}</span>
                 <span className="rounded-full border border-current/20 px-2 py-0.5 text-[11px] font-bold opacity-80">
                   {meta.label}
                 </span>
               </div>
-              {at && (
-                <div className="mt-1.5 ps-8 text-[11px] text-muted-foreground">
-                  {step.completedAt ? "بتاريخ" : "بدأت"}: {new Date(at).toLocaleString("ar-EG")}
-                </div>
-              )}
+              <div className="mt-1.5 space-y-0.5 ps-8 text-[11px] text-muted-foreground">
+                {step.enteredAt && <div>بدأت: {new Date(step.enteredAt).toLocaleString("ar-EG-u-nu-latn")}</div>}
+                {step.completedAt && <div>انتهت: {new Date(step.completedAt).toLocaleString("ar-EG-u-nu-latn")}</div>}
+              </div>
             </li>
           );
         })}
@@ -203,6 +205,7 @@ function eventLabel(eventType: unknown): string {
 
 export function StudentRequestDetailsScreen({ id }: { id: string }) {
   const qc = useQueryClient();
+  const routes = useStudentRequestRoutes();
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
   const signedUrlFn = useServerFn(getStudentRequestAttachmentSignedUrl);
   const submitFn = useServerFn(submitStudentServiceRequest);
@@ -279,6 +282,11 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
   }
 
   const request: any = data.request;
+  // Generic links (including completion notifications) must show the B1 fee
+  // decision and timeline through the service-specific detail page.
+  if (isB1ServiceCode(normalizeStudentRequestTypeCode(request.request_type))) {
+    return <Navigate to={routes.b1View} params={{ requestId: id }} replace />;
+  }
   const canResubmit = request.status === "returned_for_completion" || request.status === "returned";
 
   // PILOT-MEDIUM-FIX-01 (F-07): surface the latest "return for completion"
@@ -348,7 +356,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
               </div>
               {lastReturnEvent?.created_at && (
                 <div className="text-xs text-orange-800/80">
-                  بتاريخ: {new Date(lastReturnEvent.created_at).toLocaleString("ar-EG")}
+                  بتاريخ: {new Date(lastReturnEvent.created_at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               )}
             </div>
@@ -375,7 +383,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
               </div>
               {rejectionInfo.at && (
                 <div className="text-xs text-rose-800/80">
-                  بتاريخ: {new Date(rejectionInfo.at).toLocaleString("ar-EG")}
+                  بتاريخ: {new Date(rejectionInfo.at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               )}
             </div>
@@ -402,7 +410,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
               )}
               {cancellationInfo.at && (
                 <div className="text-xs text-zinc-700/80">
-                  بتاريخ: {new Date(cancellationInfo.at).toLocaleString("ar-EG")}
+                  بتاريخ: {new Date(cancellationInfo.at).toLocaleString("ar-EG-u-nu-latn")}
                 </div>
               )}
             </div>
@@ -441,7 +449,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
                   <div className="font-mono text-xs text-muted-foreground">{doc.documentNumber}</div>
                   <div className="text-[11px] text-muted-foreground">
                     {DOCUMENT_STATUS_LABEL[doc.status] ?? doc.status}
-                    {doc.issuedAt && <> — {new Date(doc.issuedAt).toLocaleString("ar-EG")}</>}
+                    {doc.issuedAt && <> — {new Date(doc.issuedAt).toLocaleString("ar-EG-u-nu-latn")}</>}
                   </div>
                 </div>
                 {doc.isDownloadable ? (
@@ -478,7 +486,7 @@ export function StudentRequestDetailsScreen({ id }: { id: string }) {
           ) : data.events.map((event: any) => (
             <div key={event.id} className="rounded-lg border border-border bg-background p-3 text-xs">
               <div className="font-bold">{eventLabel(event.event_type)}</div>
-              <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG")}</div>
+              <div className="text-muted-foreground">{new Date(event.created_at).toLocaleString("ar-EG-u-nu-latn")}</div>
               {event.notes && <div className="mt-1">{event.notes}</div>}
             </div>
           ))}

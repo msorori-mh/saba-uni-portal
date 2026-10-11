@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
 import { getMyStudentServiceRequests } from "@/lib/student-affairs.functions";
 import { StandardCard } from "@/components/brand";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
+import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "مسودة",
@@ -127,11 +129,19 @@ export function StudentRequestsPortalSummary() {
           </div>
         ) : (
           <ul className="space-y-2">
-            {recent.map((request) => (
+            {recent.map((request) => {
+              const b1Request = isB1ServiceCode(
+                normalizeStudentRequestTypeCode(request.request_type),
+              );
+              return (
               <li key={request.id}>
                 <Link
-                  to="/student/requests/$id"
-                  params={{ id: request.id }}
+                  to={b1Request
+                    ? "/student/requests/b1/view/$requestId"
+                    : "/student/requests/$id"}
+                  params={b1Request
+                    ? { requestId: request.id }
+                    : { id: request.id }}
                   className="block rounded-lg border border-border bg-background px-3 py-2.5 hover:bg-secondary/40 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -152,7 +162,8 @@ export function StudentRequestsPortalSummary() {
                   </div>
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

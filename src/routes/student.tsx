@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { resolveStudentAppPath } from "@/lib/mobile/student-web-entry";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/student")({
@@ -32,6 +33,12 @@ export const Route = createFileRoute("/student")({
     // Force password change before any other student page
     if (profile.must_change_password && location.pathname !== "/student/change-password") {
       throw redirect({ to: "/student/change-password" });
+    }
+
+    // Keep legacy bookmarks/notification links, but render one canonical app.
+    const appPath = resolveStudentAppPath(location.pathname, location.hash);
+    if (appPath) {
+      throw redirect({ href: `${appPath}${location.searchStr}${location.hash ? `#${location.hash.replace(/^#/, "")}` : ""}`, replace: true });
     }
   },
   component: StudentLayout,

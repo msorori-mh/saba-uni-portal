@@ -1,3 +1,4 @@
+import { isExcludedResultMark, isResultMark } from "@/lib/academic/result-marks";
 import { createServerFn } from "@tanstack/react-start";
 import { resolveStudentPlanId } from "@/lib/study-plan-resolution";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -107,7 +108,10 @@ export type StudentProgressDTO = {
       semester_start_date: string;
       official_result: number | null;
       grade_label: string | null;
-      result: "passed" | "failed" | "in_progress";
+      /** excused = official mark that is not counted (e.g. غ ب ض). */
+      result: "passed" | "failed" | "in_progress" | "excused";
+      /** Official result mark shown verbatim, when the university recorded one. */
+      result_mark: string | null;
     }>;
   };
 };
@@ -160,6 +164,8 @@ type EnrollmentRow = {
   id: string;
   student_profile_id: string;
   enrollment_status: string;
+  /** Official result mark kept verbatim (CYB-HISTORY-RESULT-MARKS-01). */
+  result_mark?: string | null;
   section: {
     id: string;
     course_offering_id: string;
@@ -252,7 +258,7 @@ async function computeStudentProgress(
     // All enrollments (with their offering + section)
     supabase
       .from("student_enrollments")
-      .select("id, student_profile_id, enrollment_status, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, semester:semesters(name, code, start_date, academic_year:academic_years(name, start_date))))")
+      .select("id, student_profile_id, enrollment_status, result_mark, section:course_sections(id, course_offering_id, offering:course_offerings(id, course_id, academic_year_id, semester_id, level_id, semester:semesters(name, code, start_date, academic_year:academic_years(name, start_date))))")
       .eq("student_profile_id", studentProfileId),
   ]);
   const sp: any = spRaw;
@@ -358,6 +364,8 @@ async function computeStudentProgress(
   type Attempt = { pct: number | null; isCurrent: boolean; status: "completed" | "in_progress" | "failed" };
   const attemptsByCourse = new Map<string, Attempt[]>();
   for (const e of enrollments) {
+    // Excused official marks (e.g. غ ب ض) are not an attempt: no result, no average.
+    if (isExcludedResultMark(e.result_mark)) continue;
     const off = e.section!.offering!;
     const p = pctMap.get(e.id);
     const isCurrent = sas && off.academic_year_id === sas.academic_year_id && off.semester_id === sas.semester_id;
@@ -520,14 +528,18 @@ async function computeStudentProgress(
     if (!offering || !semester || !academicYear) return [];
     const course = coursesById.get(offering.course_id);
     if (!course) return [];
-    const raw = pctMap.get(enrollment.id)?.pct ?? null;
+    const resultMark = isResultMark(enrollment.result_mark) ? enrollment.result_mark : null;
+    const excused = isExcludedResultMark(resultMark);
+    const raw = excused ? null : (pctMap.get(enrollment.id)?.pct ?? (resultMark ? 0 : null));
     const isCurrent = Boolean(
       sas && offering.academic_year_id === sas.academic_year_id && offering.semester_id === sas.semester_id,
     );
-    const result = raw == null || (isCurrent && enrollment.enrollment_status !== "completed")
-      ? "in_progress"
-      : raw >= PASS_PERCENT ? "passed" : "failed";
-    const officialResult = result === "in_progress" ? null : normalizeOfficialResult(raw);
+    const result: StudentProgressDTO["transcript"]["courses"][number]["result"] = excused
+      ? "excused"
+      : raw == null || (isCurrent && enrollment.enrollment_status !== "completed")
+        ? "in_progress"
+        : raw >= PASS_PERCENT ? "passed" : "failed";
+    const officialResult = result === "in_progress" || result === "excused" ? null : normalizeOfficialResult(raw);
     return [{
       enrollment_id: enrollment.id,
       course_id: course.id,
@@ -542,8 +554,9 @@ async function computeStudentProgress(
       semester_code: semester.code,
       semester_start_date: semester.start_date,
       official_result: officialResult,
-      grade_label: officialResult == null ? null : gradeArabicLabel(raw),
+      grade_label: resultMark ?? (officialResult == null ? null : gradeArabicLabel(raw)),
       result,
+      result_mark: resultMark,
     }];
   });
 

@@ -45,11 +45,14 @@ const TABLES: Record<string, unknown[]> = {
 const mockFrom = mock((table: string) => ({
   select: () => {
     const base = Promise.resolve({ data: TABLES[table] ?? [], error: null });
-    return Object.assign(base, {
+    const chain = Object.assign(base, {
       in: async () => ({ data: TABLES[table] ?? [], error: null }),
       eq: () => base,
-      order: () => base,
+      // selectAllRows pages with .order().range(); one page holds everything.
+      order: (): unknown => chain,
+      range: () => base,
     });
+    return chain;
   },
 }));
 

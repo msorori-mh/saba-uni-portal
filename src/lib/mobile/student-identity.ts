@@ -42,7 +42,7 @@ import {
   storedSessionNeedsRefresh,
 } from "@/lib/mobile/offline/stored-session";
 
-export type MobileStudentIdentity = { userId: string; studentProfileId: string };
+export type MobileStudentIdentity = { userId: string; studentProfileId: string; mustChangePassword?: boolean };
 
 const IDENTITY_TTL_MS = 10 * 60_000;
 /** How long the guard waits for a token refresh before trusting the local session. */
@@ -126,7 +126,7 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
     return null;
   }
   if (cached && cached.userId === userId && Date.now() - cached.at < IDENTITY_TTL_MS) {
-    return { userId, studentProfileId: cached.studentProfileId };
+    return { userId, studentProfileId: cached.studentProfileId, ...(typeof cached.mustChangePassword === "boolean" ? { mustChangePassword: cached.mustChangePassword } : {}) };
   }
 
   // `offlineActive` false ⇒ `persisted` is null and nothing is written, which
@@ -144,15 +144,17 @@ export async function getMobileStudentIdentity(): Promise<MobileStudentIdentity 
   const promise = (async (): Promise<MobileStudentIdentity | null> => {
     const { data, error } = await supabase
       .from("student_profiles")
-      .select("id")
+      .select("id, must_change_password")
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
     const studentProfileId = (data as { id?: string } | null)?.id;
     if (!studentProfileId) return null;
-    cached = { userId, studentProfileId, at: Date.now() };
-    if (offlineActive) writePersistedMobileIdentity({ userId, studentProfileId });
-    return { userId, studentProfileId };
+    const flag = (data as { must_change_password?: boolean } | null)?.must_change_password;
+    const identity = { userId, studentProfileId, ...(typeof flag === "boolean" ? { mustChangePassword: flag } : {}) };
+    cached = { ...identity, at: Date.now() };
+    if (offlineActive) writePersistedMobileIdentity(identity);
+    return identity;
   })().finally(() => {
     if (inflight?.promise === promise) inflight = null;
   });

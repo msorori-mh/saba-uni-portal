@@ -51,6 +51,8 @@ export const STUDENT_STATUS_LABELS_AR: Record<string, string> = {
 
 export const STUDY_SYSTEM_LABELS_AR: Record<string, string> = {
   general: "عام",
+  regular: "عام",
+  private: "موازي",
   private_expense: "نفقة خاصة",
 };
 

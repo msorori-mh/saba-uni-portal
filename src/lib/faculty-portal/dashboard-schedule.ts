@@ -27,12 +27,55 @@ export type TeachingScheduleSlot = {
 export type TeachingSection = {
   id: string;
   section_code: string;
-  course: { code: string; name_ar: string } | null;
+  course: { id: string; code: string; name_ar: string } | null;
+  program_id: string | null;
   program_name: string | null;
   level_name: string | null;
   student_count?: number;
   schedule: TeachingScheduleSlot[];
 };
+
+export type FacultyCourseSummary = {
+  id: string;
+  code: string;
+  name: string;
+  sectionCount: number;
+  programs: { id: string; name: string }[];
+};
+
+/** A section/level is an assignment, not another course or another program. */
+export function summarizeFacultyCourses(sections: readonly TeachingSection[]): {
+  courses: FacultyCourseSummary[];
+  unresolvedSections: number;
+} {
+  const courses = new Map<string, FacultyCourseSummary>();
+  let unresolvedSections = 0;
+  for (const section of sections) {
+    if (!section.course?.id) {
+      unresolvedSections++;
+      continue;
+    }
+    let course = courses.get(section.course.id);
+    if (!course) {
+      course = {
+        id: section.course.id,
+        code: section.course.code,
+        name: section.course.name_ar,
+        sectionCount: 0,
+        programs: [],
+      };
+      courses.set(course.id, course);
+    }
+    course.sectionCount++;
+    if (section.program_id && !course.programs.some((p) => p.id === section.program_id)) {
+      course.programs.push({ id: section.program_id, name: section.program_name ?? "برنامج غير مسمى" });
+    }
+  }
+  return {
+    courses: [...courses.values()].sort((a, b) => a.code.localeCompare(b.code, "ar")),
+    unresolvedSections,
+  };
+}
 
 export type TeachingSession = {
   sectionId: string;

@@ -192,7 +192,7 @@ describe("offline guard: a stored session is never treated as signed out", () =>
     expect(fn).toContain("if (error) throw error;");
     expect(fn).toContain("if (!studentProfileId) return null;");
     expect(fn).toContain(
-      "if (offlineActive) writePersistedMobileIdentity({ userId, studentProfileId });",
+      "if (offlineActive) writePersistedMobileIdentity(identity);",
     );
     // A definite "not a student" from the server still signs the account out.
     expect(fn).toContain("if (identity === null) void revokeNonStudent(userId);");

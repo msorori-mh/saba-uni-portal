@@ -1,0 +1,169 @@
+# LOVABLE-EXIT-02 — دليل ليلة الانتقال
+
+اعتمد المالك في 2026-10-09 أن تُنفَّذ تعديلات الإنتاج يدوياً من هذا الدليل ليلة الانتقال،
+لا أن تُجهَّز مسبقاً كطلب دمج.
+
+المشروع القديم هو `wpmicqriltrowwonknox` (Lovable Cloud)، والجديد `pwapivqjofdsevycegph`
+(Supabase الكلية).
+
+لا تُكتب كلمة مرور ولا مفتاح في المحادثة أو المستودع. الأسرار مكانها GitHub ← Settings ←
+Environments ← `supabase-migration` فقط.
+
+---
+
+## أ. قبل الليلة (بلا أثر على المستخدمين)
+
+| # | الخطوة | المنفّذ | التحقق |
+|---|---|---|---|
+| A1 | ✅ (2026-10-09) النطاق على Cloudflare منذ يونيو 2026 (NS: `gloria`/`leif.ns.cloudflare.com`، الحالة Active). السجلات: `A @` و`A www` ← `185.158.133.1` (DNS only)، و4 سجلات TXT `_lovable` و`_lovable.www` | المالك | الموقع يعمل على الرابطين |
+| A2 | ✅ لا توجد سجلات بريد (MX/SPF/DKIM/DMARC) على النطاق | الوكيل | — |
+| A3 | ✅ (2026-10-10) Resend: النطاق `quboolye.com` موثَّق (DKIM + SPF، منطقة eu-west-1)، الإرسال مفعّل | المالك | Verified |
+| A4 | ✅ السر `RESEND_API_KEY` في بيئة `supabase-production` | المالك | يظهر في قائمة الأسرار |
+| A5 | Supabase الجديد ← Authentication ← URL Configuration: Site URL = `https://quboolye.com`، وRedirect URLs = `https://quboolye.com/**` و`https://www.quboolye.com/**` | المالك | محفوظ |
+| A6 | تنزيل ملفات التخزين من Lovable (Cloud ← Storage)، لكل حاوية بمجلداتها | المالك | 77 ملفاً، والقائمة الدقيقة يستخرجها الوكيل من قاعدة الإنتاج |
+| A7 | قرار المالك (2026-10-09، الطريقة 1): **مشروع Supabase جديد فارغ للإنتاج** (`PROD_REF` = `cldpnartkfnmllrkjaoi`، انظر القسم ح). يبقى `pwapivqjofdsevycegph` بيئة تجارب دائمة للكلية (عامل البروفة). يضع المالك أسرار المشروع الجديد في بيئة GitHub جديدة `supabase-production`، ويحدّث الوكيل أدوات الجرد والاستعادة لتقبل الهدف الجديد | المالك + الوكيل | تشغيل `plan` على المشروع الجديد ينجح، والهدف فارغ |
+| A8 | تجهيز فرع `claude/lovable-exit-cutover` بالتعديلات في القسم ج **دون دمج**، ثم مراجعته | المالك أو وكيل مخوّل | فحوص CI خضراء على الفرع |
+| A9 | ضبط Custom SMTP في مشروع الإنتاج `cldpnartkfnmllrkjaoi` ← Authentication ← SMTP Settings على Resend: Host = `smtp.resend.com`، Port = `465` (SSL)، Username = `resend`، Password = مفتاح Resend API، وعنوان المرسل من النطاق الموثّق `quboolye.com` مع اسم البوابة. يُدخل المفتاح في لوحة Supabase فقط ولا يُحفظ في المستودع | المالك | الإعداد محفوظ؛ قبل فتح البوابة تُختبر رسالة استعادة إلى حساب اختبار مصرح به ويُتحقق من وصولها. [مرجع Resend](https://resend.com/docs/send-with-supabase-smtp) |
+
+---
+
+## ب. ترتيب ليلة الانتقال
+
+يُختار وقت هادئ، ويُبلَّغ المستخدمون بتوقف قصير.
+
+1. **تجميد:** لا موافقات ولا طلبات جديدة، فأي إدخال بعد التصدير يضيع.
+2. **تصدير نهائي** من Lovable، ثم رفعه إلى الحاوية `migration-private` باسم جديد.
+3. **جرد** بتشغيل Migration 01 على الملف الجديد.
+4. **قاعدة فارغة** حسب الخطوة A7، ثم **استعادة** بتشغيل Migration 02 بوضع `restore`.
+   - يجب أن تطابق أعداد الجداول والدوال والسياسات والمستخدمين الإنتاجَ.
+   - بعدها يُحذف الدور `sandbox_exec`: `grant sandbox_exec to postgres; drop owned by sandbox_exec; drop role sandbox_exec;`
+5. **الملفات:** رفع الملفات من الخطوة A6 إلى الحاويات نفسها، بالمسارات نفسها حرفياً.
+   - **عنوان المرسل:** في محرر SQL للمشروع الجديد (البريد لا يعمل بالعنوان الافتراضي `onboarding@resend.dev`):
+     `insert into public.site_settings (setting_key, setting_value) values ('email_from_address','no-reply@quboolye.com'), ('email_from_name','بوابة كلية تكنولوجيا المعلومات') on conflict (setting_key) do update set setting_value = excluded.setting_value;`
+6. **دمج فرع الانتقال** (القسم ج). بعد الدمج لن تعمل نسخة Lovable مع الكود الجديد، وهذا متوقع.
+7. **تهيئة النطاق قبل الخطوة 8:** يحذف المالك في Cloudflare سجلّي `A @` و`A www` اللذين يشيران إلى `185.158.133.1`، ويُبقي جميع سجلات TXT `_lovable` و`_lovable.www` كما هي. لا تغيير في Hostinger.
+8. **النشر الإنتاجي:** تشغيل سير العمل الإنتاجي (القسم د) بـSHA رأس main. يضيف `quboolye.com`
+   و`www.quboolye.com` كنطاقات مخصصة للعامل بعد إزالة سجلّي A في الخطوة 7.
+9. **الفحص** (القسم هـ)، ثم فتح البوابة.
+
+---
+
+## ج. تعديلات الكود (فرع واحد، تُدمج في الخطوة 6)
+
+القيمة الجديدة في كل الحالات هي مرجع مشروع الإنتاج الجديد `PROD_REF` (الخطوة A7)، لا مشروع التجارب `pwapivqjofdsevycegph`. الجداول أدناه تستخدم مرجع الإنتاج المعتمد `cldpnartkfnmllrkjaoi`.
+
+### ملفات التشغيل
+
+| الملف | السطر الحالي | يصبح |
+|---|---|---|
+| `src/integrations/supabase/staging-isolation.ts` (سطر 20) | `const PRODUCTION_REF_FRAGMENTS = ["wpmicq", "riltrow", "wonknox"] as const;` | `const PRODUCTION_REF_FRAGMENTS = ["cldpna", "rtkfnml", "lrkjaoi"] as const;` |
+| `vite.config.ts` (سطر 18) | `const PRODUCTION_SUPABASE_PROJECT_REF = "wpmicqriltrowwonknox";` | `const PRODUCTION_SUPABASE_PROJECT_REF = "cldpnartkfnmllrkjaoi";` |
+| `src/lib/native/file-redirect.ts` (سطر 23) | `export const SIGNED_STORAGE_HOST = "wpmicqriltrowwonknox.supabase.co";` | `export const SIGNED_STORAGE_HOST = "cldpnartkfnmllrkjaoi.supabase.co";` |
+| `supabase/config.toml` (سطر 1) | `project_id = "wpmicqriltrowwonknox"` | `project_id = "cldpnartkfnmllrkjaoi"` |
+| `scripts/staging/cloudflare-staging-contract.ts` (سطر 16) | `["wpmicq", "riltrow", "wonknox"].join("")` | `["cldpna", "rtkfnml", "lrkjaoi"].join("")` |
+
+### الاختبارات التي تتبع مرجع الإنتاج
+
+| الملف | التعديل |
+|---|---|
+| `tests/security/staging-publish-env-closure-03w.test.ts` (سطر 74) | `expectedProductionRef` = `["cldpna", "rtkfnml", "lrkjaoi"].join("")` |
+| `tests/security/csp-report-only-2026-10.test.ts` (الأسطر 13، 78، 103، 104) | استبدال المرجع القديم بالجديد في المواضع الأربعة |
+| `tests/mobile/native-file-redirect.test.ts` (الأسطر 5، 16 إلى 20) | استبدال المرجع القديم بالجديد في كل المواضع |
+| `tests/security/cloudflare-staging-deployment-04d.test.ts` (سطر 82) | استبدال المرجع القديم بالجديد |
+| `tests/security/assurance-02/target-guard.ts` (سطر 19) | `DENIED_FRAGMENTS = ["wpmicqriltrowwonknox", "cldpnartkfnmllrkjaoi", "quboolye.com"]`، أي إضافة الجديد مع إبقاء القديم |
+
+### ما لا يُغيَّر
+
+- الإشارات التاريخية في `tests/b1-*`، و`docs/`، و`MATRIX.json`، و`portal-d02-*`: هذه سجلات أدلة سابقة.
+- اختبارات `tests/mobile/offline-first/*`: تستخدم المرجع القديم كمثال فقط، ولا تعتمد عليه.
+
+### ملاحظات
+
+- بعد الدمج تتوقف البروفة (`saba-uni-portal-college`) تلقائياً، لأن ملف `staging` يرفض مرجع
+  الإنتاج الجديد. هذا مقصود. يُحذف عاملها لاحقاً من لوحة Cloudflare.
+- التحقق الإلزامي على الفرع: `bunx tsc --noEmit`، و`bun test tests/security tests/mobile tests/student-requests`،
+  و`git diff --check`.
+
+---
+
+## د. سير العمل الإنتاجي `cloudflare-production.yml` (ضمن نفس الفرع)
+
+يُنسخ من `cloudflare-college-rehearsal.yml` مع الفروق التالية فقط:
+
+| البند | البروفة | الإنتاج |
+|---|---|---|
+| اسم العامل | `saba-uni-portal-college` | `saba-uni-portal-production` |
+| `VITE_PORTAL_DEPLOY_TARGET` | `staging` | `production` |
+| النطاقات | ممنوعة (workers.dev فقط) | `routes: [{ pattern: "quboolye.com", custom_domain: true }, { pattern: "www.quboolye.com", custom_domain: true }]`، وتُضاف في سكربت تحضير خاص بالإنتاج |
+| أسرار العامل | `SUPABASE_URL`، `SUPABASE_PUBLISHABLE_KEY`، `SUPABASE_SERVICE_ROLE_KEY`، `PORTAL_DEPLOY_TARGET=staging` | نفس الثلاثة + `PORTAL_DEPLOY_TARGET=production` + `RESEND_API_KEY` + `SITE_URL=https://quboolye.com` |
+| الفحص بعد النشر | `verify-cloudflare-staging-deployment.ts` على workers.dev | `/version.json` يطابق الـSHA، و`/` و`/portal-login` بحالة 200 على `https://quboolye.com` |
+| البيئة | `supabase-migration` | `supabase-production` |
+
+يبقى من البروفة: التشغيل يدوي فقط، ومن `main` فقط، والـSHA يساوي رأس main، وdry-run وحد الحجم، والتراجع عند فشل الفحص.
+
+---
+
+## هـ. فحص ما بعد الانتقال
+
+| # | الاختبار | المتوقع |
+|---|---|---|
+| 1 | `https://quboolye.com` و`https://www.quboolye.com` | الصفحة الرئيسية، وشهادة HTTPS سليمة |
+| 2 | دخول الإدارة، وطالب، وعضو هيئة تدريس، ورئيس قسم | يعمل بكلمات المرور نفسها، وكل مستخدم يسجّل الدخول مرة جديدة |
+| 3 | طلب طالب ومعالجته خطوة واحدة | ينجح، ويُسجَّل في قاعدة الكلية |
+| 4 | تحميل مادة مقرر وشهادة قيد صادرة | الملف يفتح |
+| 5 | تطبيق الجوال (APK الحالي) | يفتح `quboolye.com/mobile/student-login` ويعمل دون تحديث |
+| 6 | إشعار بريد تجريبي | يصل، ويظهر في `email_logs` بحالة `sent` |
+| 7 | Lovable Cloud | لا تصله كتابات جديدة، أي تبقى أعداد جداوله ثابتة |
+
+---
+
+## و. التراجع (إن فشل الفحص)
+
+1. في Cloudflare ← Workers ← `saba-uni-portal-production` ← Domains: إزالة النطاقين.
+2. يعيد المالك في Cloudflare إنشاء سجلّي `A @` و`A www` المحذوفين في الخطوة 7، بقيمة `185.158.133.1` وبحالة DNS only. تبقى سجلات TXT `_lovable` و`_lovable.www` كما هي، فتعود الحركة إلى Lovable.
+3. قاعدة Lovable لم تُمس، لكن أي إدخال تم على القاعدة الجديدة بعد الفتح لا يعود تلقائياً.
+4. لا يُرجَع `main` بـreset. يُفتح طلب دمج عكسي للتعديلات في القسم ج، وذلك فقط إن تقرر البقاء على Lovable.
+
+## ز. بعد أسبوع مستقر
+
+- إيقاف نشر Lovable (Unpublish) وإزالة النطاق منه.
+- حذف عامل البروفة `saba-uni-portal-college`.
+- إزالة الحاوية `migration-private` بعد حفظ نسخة التصدير الأخيرة خارجياً.
+
+---
+
+## ح. توجيه أداتي الجرد والاستعادة إلى مشروع الإنتاج (قبل الليلة)
+
+مشروع الإنتاج: `cldpnartkfnmllrkjaoi` (أُنشئ في 2026-10-09). بيئة GitHub الخاصة به: `supabase-production`.
+
+ينفّذ التعديل التالي المالكُ أو وكيل مخوّل، في فرع مستقل، على الملفين
+`.github/workflows/supabase-migration-inspect-01.yml` و`.github/workflows/supabase-migration-restore-02.yml`:
+
+| السطر الحالي | يصبح |
+|---|---|
+| `TARGET_PROJECT_REF: pwapivqjofdsevycegph` | `TARGET_PROJECT_REF: cldpnartkfnmllrkjaoi` |
+| `TARGET_SUPABASE_URL: https://pwapivqjofdsevycegph.supabase.co` | `TARGET_SUPABASE_URL: https://cldpnartkfnmllrkjaoi.supabase.co` |
+| `environment: supabase-migration` | `environment: supabase-production` |
+
+ويُحدَّث في `restore-02` نص وصف `confirm_project_ref` إلى `cldpnartkfnmllrkjaoi`.
+
+### أسرار بيئة `supabase-production` (يضعها المالك)
+
+| السر | المصدر |
+|---|---|
+| `TARGET_DB_URL` | المشروع الجديد ← Connect ← Session pooler (`@` في كلمة المرور تُكتب `%40`) |
+| `TARGET_SUPABASE_SERVICE_ROLE_KEY` | API Keys ← Legacy ← service_role |
+| `TARGET_SUPABASE_PUBLISHABLE_KEY` | API Keys ← `sb_publishable_…` |
+| `CLOUDFLARE_ACCOUNT_ID` | `4ba7b52986c5c8a2f52d87ace2ea582d` |
+| `CLOUDFLARE_API_TOKEN` | رمز جديد من قالب «Edit Cloudflare Workers» |
+| `RESEND_API_KEY` | حساب Resend (الخطوة A3) |
+
+وفي المشروع الجديد: حاوية خاصة باسم `migration-private` يُرفع إليها التصدير النهائي.
+
+### التحقق
+
+1. Migration 01 على المشروع الجديد ينجح في جرد ملف التصدير.
+2. Migration 02 بوضع `plan` يعرض الخطة دون كتابة.
+3. ليلة الانتقال: Migration 02 بوضع `restore` مع `confirm_project_ref = cldpnartkfnmllrkjaoi`.
+
+عامل البروفة `saba-uni-portal-college` يبقى على مشروع التجارب `pwapivqjofdsevycegph` ولا يتغير.

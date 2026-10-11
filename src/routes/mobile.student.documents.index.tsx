@@ -38,6 +38,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const STATUS: Record<string, { text: string; cls: string }> = {
+  archived: { text: "مؤرشفة", cls: "bg-emerald-100 text-emerald-700" },
   issued: { text: "صادرة", cls: "bg-emerald-100 text-emerald-700" },
   cancelled: { text: "ملغاة", cls: "bg-destructive/10 text-destructive" },
   draft: { text: "مسودة", cls: "bg-muted text-muted-foreground" },
@@ -148,11 +149,11 @@ function MobileStudentDocuments() {
                 <div>
                   تاريخ الإصدار:{" "}
                   <span className="font-mono">
-                    {new Date(d.issued_at).toLocaleDateString("ar-EG")}
+                    {new Date(d.issued_at).toLocaleDateString("ar-EG-u-nu-latn")}
                   </span>
                 </div>
                 <div>
-                  رمز التحقق: <span className="font-mono">{d.verification_code}</span>
+                  رمز التحقق: <span dir="ltr" className="inline-block max-w-full break-all align-top font-mono">{d.verification_code}</span>
                 </div>
               </div>
 

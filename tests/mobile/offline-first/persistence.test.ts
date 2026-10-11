@@ -311,6 +311,14 @@ describe("version buster, max age and size guard", () => {
 });
 
 describe("persisted identity for the offline guard", () => {
+  test.each([true, false])("preserves the initial-password flag without storing credentials (%s)", (mustChangePassword) => {
+    const storage = new MemoryStorage();
+    writePersistedMobileIdentity({ userId: USER_A, studentProfileId: "sp-a", mustChangePassword }, { storage, now: NOW });
+    expect(readPersistedMobileIdentity(USER_A, { storage, now: NOW })).toEqual({ userId: USER_A, studentProfileId: "sp-a", mustChangePassword });
+    expect(readPersistedMobileIdentity(USER_B, { storage, now: NOW })).toBeNull();
+    expect(storage.getItem(mobileOfflineIdentityKey(USER_A))).not.toMatch(/access_token|refresh_token|currentPassword|newPassword/);
+  });
+
   test("round-trips only { userId, studentProfileId } for the same user, 7 days max", () => {
     const storage = new MemoryStorage();
     writePersistedMobileIdentity(
