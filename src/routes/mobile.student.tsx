@@ -29,6 +29,8 @@ import {
 } from "@/lib/mobile/offline/query-persistence";
 import { readStoredSupabaseSession } from "@/lib/mobile/offline/stored-session";
 
+const MOBILE_SETTINGS_PATH = "/mobile/student/settings";
+
 export const Route = createFileRoute("/mobile/student")({
   ssr: false,
   head: () => ({
@@ -48,7 +50,7 @@ export const Route = createFileRoute("/mobile/student")({
       { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
     // Runs on EVERY navigation inside the app, so it must stay cheap: a local
     // session read plus a cached student-profile check (see student-identity).
     // Data access itself is still enforced server-side by RLS and the RPCs.
@@ -78,6 +80,13 @@ export const Route = createFileRoute("/mobile/student")({
       clearMobileOfflineUserData(context.queryClient);
       await supabase.auth.signOut();
       throw redirect({ to: "/mobile/student-login" });
+    }
+    // A temporary / reset password must be changed before anything else —
+    // the same rule the /student guard enforces. Only an explicit `true` from
+    // the server redirects; offline or unknown never locks the student out.
+    // Settings itself stays reachable (it holds the change form and sign-out).
+    if (identity.mustChangePassword === true && location.pathname !== MOBILE_SETTINGS_PATH) {
+      throw redirect({ to: MOBILE_SETTINGS_PATH });
     }
   },
   pendingComponent: MobileStudentLoading,
