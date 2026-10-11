@@ -34,7 +34,7 @@ describe("staff portal — calm, organised layout", () => {
 
   test("behaviour hooks are untouched", () => {
     expect(portal).toContain('data-testid="staff-employee-portal"');
-    expect(portal).toContain('data-testid="b1-assigned-nav-badge"');
+    expect(portal).toContain('data-testid="staff-assigned-nav-badge"');
     expect(portal).toContain('data-testid="staff-processing-inbox-link"');
     expect(home).toContain('data-testid="staff-portal-home"');
     expect(portal).toContain('aria-current={selected ? "page" : undefined}');
